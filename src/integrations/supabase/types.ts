@@ -247,13 +247,61 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_auction_financials: {
+        Args: { auction_uuid: string }
+        Returns: {
+          auction_id: string
+          title: string
+          total_bids_count: number
+          user_bids_count: number
+          bot_bids_count: number
+          user_bids_percentage: number
+          bot_bids_percentage: number
+          real_revenue: number
+          revenue_target: number
+          target_percentage: number
+          current_price: number
+          market_value: number
+          roi_percentage: number
+          profit_margin: number
+          status: string
+        }[]
+      }
       get_auction_revenue: {
         Args: { auction_uuid: string }
         Returns: number
       }
+      get_financial_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_revenue: number
+          auction_revenue: number
+          package_revenue: number
+          total_auctions: number
+          active_auctions: number
+          finished_auctions: number
+          total_users: number
+          paying_users: number
+          average_auction_revenue: number
+          total_bids: number
+          user_bids: number
+          bot_bids: number
+          conversion_rate: number
+        }[]
+      }
       get_random_bot: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_revenue_trends: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          date_period: string
+          auction_revenue: number
+          package_revenue: number
+          total_revenue: number
+          bids_count: number
+        }[]
       }
       is_admin_user: {
         Args: { user_uuid: string }

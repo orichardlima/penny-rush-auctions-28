@@ -23,11 +23,15 @@ import {
   LogOut,
   BarChart3,
   Package,
-  
   Settings,
   Upload,
   X
 } from 'lucide-react';
+import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
+import { RevenueChart } from '@/components/FinancialAnalytics/RevenueChart';
+import { AuctionFinancialCard } from '@/components/FinancialAnalytics/AuctionFinancialCard';
+import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
+import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 
 
 interface Auction {
@@ -72,6 +76,16 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Financial analytics
+  const { 
+    summary, 
+    auctionDetails, 
+    revenueTrends, 
+    loading: analyticsLoading, 
+    error: analyticsError,
+    refreshData: refreshAnalytics 
+  } = useFinancialAnalytics();
   const [newAuction, setNewAuction] = useState({
     title: '',
     description: '',
@@ -416,13 +430,70 @@ const AdminDashboard = () => {
         </div>
 
         {/* Tabs do Dashboard Admin */}
-        <Tabs defaultValue="auctions" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="financial" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="auctions">Leilões</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="packages">Pacotes</TabsTrigger>
             <TabsTrigger value="analytics">Estatísticas</TabsTrigger>
           </TabsList>
+
+          {/* Financial Analytics Tab */}
+          <TabsContent value="financial" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Dashboard Financeiro</h2>
+                <p className="text-muted-foreground">Análise completa do faturamento e performance</p>
+              </div>
+              <Button onClick={refreshAnalytics} disabled={analyticsLoading}>
+                {analyticsLoading ? 'Atualizando...' : 'Atualizar Dados'}
+              </Button>
+            </div>
+
+            {analyticsError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700">{analyticsError}</p>
+              </div>
+            )}
+
+            {/* Summary Cards */}
+            {summary && (
+              <FinancialSummaryCards summary={summary} loading={analyticsLoading} />
+            )}
+
+            {/* Revenue Chart */}
+            {revenueTrends.length > 0 && (
+              <RevenueChart data={revenueTrends} loading={analyticsLoading} />
+            )}
+
+            {/* Bid Analytics */}
+            {summary && (
+              <BidAnalytics 
+                totalBids={summary.total_bids}
+                userBids={summary.user_bids}
+                botBids={summary.bot_bids}
+                auctionData={auctionDetails}
+              />
+            )}
+
+            {/* Auction Financial Cards */}
+            <div>
+              <h3 className="text-xl font-semibold mb-4">Performance por Leilão</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {auctionDetails.map((auction) => (
+                  <AuctionFinancialCard 
+                    key={auction.auction_id} 
+                    auction={auction}
+                    onClick={() => {
+                      // Could open a detailed view modal here
+                      console.log('Auction details:', auction);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent value="auctions" className="space-y-4">
             <div className="flex justify-between items-center">
