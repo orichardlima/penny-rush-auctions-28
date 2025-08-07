@@ -31,7 +31,7 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
             .eq('id', auction.id);
           
           if (!updateError) {
-            console.log(`✅ Leilão ativado: ${auction.title}`);
+            console.log(`✅ Leilão ativado: ${auction.title} - Webhook será disparado automaticamente`);
           }
         }
 

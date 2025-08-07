@@ -1,1 +1,4 @@
 project_id = "tlcdidkkxigofdhxnzzo"
+
+[functions.auction-webhook]
+verify_jwt = false
