@@ -1,13 +1,1 @@
 project_id = "tlcdidkkxigofdhxnzzo"
-
-[functions.bot-protected-bid]
-verify_jwt = false
-
-[functions.sync-timers]
-verify_jwt = false
-
-[functions.auto-bid-system]
-verify_jwt = false
-
-[functions.sync-timers-and-protection]
-verify_jwt = false
