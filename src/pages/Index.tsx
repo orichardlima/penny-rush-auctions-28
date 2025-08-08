@@ -162,6 +162,28 @@ const Index = () => {
           );
         }
       )
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'auctions' },
+        async (payload) => {
+          console.log('✨ Novo leilão criado:', payload);
+          // Buscar lances recentes para o novo leilão
+          const recentBidders = await fetchRecentBidders(payload.new.id);
+          const newAuction = transformAuctionData({
+            ...payload.new,
+            recentBidders
+          });
+          
+          // Adicionar o novo leilão à lista se estiver ativo ou aguardando
+          if (newAuction.status === 'active' || newAuction.status === 'waiting') {
+            setAuctions(prev => [newAuction, ...prev]);
+            
+            toast({
+              title: "Novo leilão disponível!",
+              description: `${newAuction.title} foi adicionado aos leilões ativos.`,
+            });
+          }
+        }
+      )
       .subscribe();
 
     return () => {
