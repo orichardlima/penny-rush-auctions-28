@@ -27,14 +27,23 @@ const Index = () => {
     const startsAt = auction.starts_at ? toZonedTime(new Date(auction.starts_at), brazilTimezone) : null;
     const endsAt = auction.ends_at ? toZonedTime(new Date(auction.ends_at), brazilTimezone) : null;
     
-    // Determinar o status real do leilão usando o fuso do Brasil
-    let auctionStatus = 'waiting';
+    // Calcular timeLeft preferindo o valor do servidor quando disponível
+    const serverTimeLeft = typeof auction.time_left === 'number'
+      ? auction.time_left
+      : (endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0);
+
+    // Determinar o status real do leilão (evitar "Ativo 0s")
+    let auctionStatus: 'waiting' | 'active' | 'finished' = 'waiting';
     if (startsAt && startsAt > nowInBrazil) {
-      auctionStatus = 'waiting'; // Ainda não começou
-    } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
-      auctionStatus = 'active'; // Ativo
+      auctionStatus = 'waiting';
+    } else if (
+      auction.status === 'finished' ||
+      serverTimeLeft <= 0 ||
+      (endsAt && endsAt <= nowInBrazil)
+    ) {
+      auctionStatus = 'finished';
     } else {
-      auctionStatus = 'finished'; // Finalizado
+      auctionStatus = 'active';
     }
     
     return {
@@ -44,9 +53,9 @@ const Index = () => {
       originalPrice: (auction.market_value || 0) / 100,
       totalBids: auction.total_bids || 0,
       participants: auction.participants_count || 0,
-      recentBidders: auction.recentBidders || [], // Usar dados reais dos lances
-      currentRevenue: (auction.total_bids || 0) * 1.00,
-      timeLeft: endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0,
+      recentBidders: auction.recentBidders || [],
+      currentRevenue: (auction.total_bids || 0) * 1.0,
+      timeLeft: serverTimeLeft,
       auctionStatus,
       isActive: auctionStatus === 'active',
       ends_at: auction.ends_at,

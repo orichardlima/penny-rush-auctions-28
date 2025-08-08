@@ -56,6 +56,9 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
   const finalizeAttempted = useRef(false);
 
+  // Status para exibição consistente (evita "Ativo 0s")
+  const displayStatus: 'waiting' | 'active' | 'finished' = (auctionStatus === 'active' && (timeLeft ?? 0) <= 0) ? 'finished' : auctionStatus;
+
   // Hook para escutar updates em tempo real do leilão
   const { auctionData } = useAuctionRealtime(id);
   // Sincronizar com props quando há alterações (ex: depois de um lance)
@@ -192,13 +195,13 @@ export const AuctionCard = ({
         />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <Badge 
-            variant={auctionStatus === 'active' ? "default" : auctionStatus === 'waiting' ? "outline" : "secondary"} 
+            variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} 
             className="shadow-md"
           >
-            {auctionStatus === 'waiting' ? "Aguardando" : auctionStatus === 'active' ? "Ativo" : "Finalizado"}
+            {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
           </Badge>
         </div>
-        {auctionStatus === 'active' && (
+        {displayStatus === 'active' && (
           <div className="absolute top-3 left-3">
             <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
               <div className="flex items-center gap-2">
@@ -289,19 +292,19 @@ export const AuctionCard = ({
 
         <Button 
           onClick={handleBid} 
-          disabled={auctionStatus !== 'active' || userBids <= 0 || isBidding}
+          disabled={displayStatus !== 'active' || userBids <= 0 || isBidding}
           variant={isBidding ? "success" : "bid"}
           size="lg" 
           className="w-full"
         >
           <TrendingUp className="w-4 h-4 mr-2" />
           {isBidding ? "PROCESSANDO..." :
-           auctionStatus === 'waiting' ? "AGUARDANDO INÍCIO" : 
-           auctionStatus === 'active' ? "DAR LANCE (R$ 1,00)" : 
+           displayStatus === 'waiting' ? "AGUARDANDO INÍCIO" : 
+           displayStatus === 'active' ? "DAR LANCE (R$ 1,00)" : 
            "LEILÃO FINALIZADO"}
         </Button>
 
-        {userBids <= 0 && auctionStatus === 'active' && (
+        {userBids <= 0 && displayStatus === 'active' && (
           <p className="text-center text-destructive text-sm mt-2">
             Você precisa comprar lances para participar!
           </p>
