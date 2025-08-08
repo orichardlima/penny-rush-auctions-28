@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,10 +54,10 @@ export const AuctionCard = ({
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
   const [isActive, setIsActive] = useState(initialIsActive);
   const [isBidding, setIsBidding] = useState(false);
+  const finalizeAttempted = useRef(false);
 
   // Hook para escutar updates em tempo real do leilão
   const { auctionData } = useAuctionRealtime(id);
-
   // Sincronizar com props quando há alterações (ex: depois de um lance)
   useEffect(() => {
     setTimeLeft(initialTimeLeft);
@@ -91,8 +91,27 @@ export const AuctionCard = ({
       
       setTimeLeft(remaining);
       
-      if (remaining <= 0) {
-        setIsActive(false);
+      if (remaining <= 1) {
+        if (isActive) setIsActive(false);
+        if (auctionStatus === 'active' && !finalizeAttempted.current) {
+          finalizeAttempted.current = true;
+          console.log('⛳ Timer zerou. Forçando sincronização/finalização no banco...', { auctionId: id });
+          (async () => {
+            try {
+              const { data, error } = await supabase.rpc('sync_auction_timer', { auction_uuid: id });
+              if (error) {
+                console.error('Erro ao sincronizar timer:', error);
+              } else {
+                console.log('✅ Timer sincronizado. Resposta:', data);
+              }
+            } catch (err) {
+              console.error('Erro inesperado no RPC:', err);
+            }
+          })();
+        }
+      } else {
+        // Enquanto houver tempo, permitir nova tentativa se necessário
+        if (finalizeAttempted.current) finalizeAttempted.current = false;
       }
     };
 
@@ -100,7 +119,7 @@ export const AuctionCard = ({
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [ends_at, auctionStatus, id]);
+  }, [ends_at, auctionStatus, id, isActive]);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
