@@ -27,6 +27,8 @@ interface AuctionCardProps {
   auctionStatus?: 'waiting' | 'active' | 'finished';
   ends_at?: string;
   starts_at?: string;
+  winnerName?: string;
+  finishedAt?: string;
 }
 
 export const AuctionCard = ({ 
@@ -45,7 +47,9 @@ export const AuctionCard = ({
   isActive: initialIsActive = true,
   auctionStatus = 'active',
   ends_at,
-  starts_at
+  starts_at,
+  winnerName,
+  finishedAt
 }: AuctionCardProps) => {
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
   const [isActive, setIsActive] = useState(initialIsActive);
@@ -200,6 +204,22 @@ export const AuctionCard = ({
             <p className="text-yellow-800 text-sm font-medium">
               🕒 Leilão inicia em: {formatDateTime(starts_at)}
             </p>
+          </div>
+        )}
+
+        {auctionStatus === 'finished' && winnerName && (
+          <div className="mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+            <div className="text-center">
+              <h4 className="text-green-800 font-bold text-lg mb-2">🎉 Leilão Finalizado! 🎉</h4>
+              <p className="text-green-700 font-semibold">
+                Ganhador: <span className="text-green-800 font-bold">{winnerName}</span>
+              </p>
+              {finishedAt && (
+                <p className="text-green-600 text-sm mt-1">
+                  Finalizado em: {formatDateTime(finishedAt)}
+                </p>
+              )}
+            </div>
           </div>
         )}
         
