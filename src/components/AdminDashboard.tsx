@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -105,6 +106,8 @@ const AdminDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [editingAuction, setEditingAuction] = useState<Auction | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
   // Bot Monitor state
   const [isBotDialogOpen, setIsBotDialogOpen] = useState(false);
   const [botAuction, setBotAuction] = useState<Auction | null>(null);
@@ -343,6 +346,63 @@ const AdminDashboard = () => {
       });
     }
   };
+
+  const deleteSelectedAuctions = async () => {
+    if (selectedAuctions.size === 0) return;
+    
+    if (!confirm(`Tem certeza que deseja excluir ${selectedAuctions.size} leilão(ões) selecionado(s)?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('auctions')
+        .delete()
+        .in('id', Array.from(selectedAuctions));
+
+      if (error) throw error;
+
+      toast({
+        title: 'Leilões excluídos!',
+        description: `${selectedAuctions.size} leilões foram removidos com sucesso.`,
+      });
+
+      setSelectedAuctions(new Set());
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error deleting auctions:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir os leilões selecionados.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const toggleAuctionSelection = (auctionId: string) => {
+    setSelectedAuctions(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(auctionId)) {
+        newSelection.delete(auctionId);
+      } else {
+        newSelection.add(auctionId);
+      }
+      return newSelection;
+    });
+  };
+
+  const selectAllAuctions = () => {
+    setSelectedAuctions(new Set(auctions.map(auction => auction.id)));
+  };
+
+  const deselectAllAuctions = () => {
+    setSelectedAuctions(new Set());
+  };
+
+  const isAllSelected = auctions.length > 0 && selectedAuctions.size === auctions.length;
 
   const editAuction = async () => {
     if (!editingAuction) return;
@@ -634,7 +694,27 @@ const AdminDashboard = () => {
           <TabsContent value="auctions" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gerenciar Leilões</h2>
-              <Dialog>
+              <div className="flex gap-2">
+                {selectedAuctions.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    onClick={deleteSelectedAuctions}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Excluindo...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir Selecionados ({selectedAuctions.size})
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Dialog>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -796,13 +876,49 @@ const AdminDashboard = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
+
+            {auctions.length > 0 && (
+              <div className="flex gap-2 items-center">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      selectAllAuctions();
+                    } else {
+                      deselectAllAuctions();
+                    }
+                  }}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {isAllSelected ? 'Desselecionar todos' : 'Selecionar todos'}
+                </span>
+                {selectedAuctions.size > 0 && (
+                  <span className="text-sm text-muted-foreground">
+                    ({selectedAuctions.size} selecionados)
+                  </span>
+                )}
+              </div>
+            )}
 
             <Card>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              selectAllAuctions();
+                            } else {
+                              deselectAllAuctions();
+                            }
+                          }}
+                        />
+                      </TableHead>
                       <TableHead>Título</TableHead>
                       <TableHead>Preço Atual</TableHead>
                       <TableHead>Lances</TableHead>
@@ -814,6 +930,12 @@ const AdminDashboard = () => {
                   <TableBody>
                     {auctions.map((auction) => (
                       <TableRow key={auction.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedAuctions.has(auction.id)}
+                            onCheckedChange={() => toggleAuctionSelection(auction.id)}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">{auction.title}</TableCell>
                         <TableCell>{formatPrice(auction.current_price)}</TableCell>
                         <TableCell>{auction.total_bids}</TableCell>
