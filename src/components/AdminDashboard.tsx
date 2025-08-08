@@ -104,6 +104,39 @@ const AdminDashboard = () => {
     fetchAdminData();
   }, []);
 
+  // Realtime auto-refresh with debounce
+  const refreshTimerRef = React.useRef<number | null>(null);
+  const triggerAutoRefresh = React.useCallback(() => {
+    if (refreshTimerRef.current) {
+      window.clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = window.setTimeout(() => {
+      console.log('[AdminDashboard] Realtime event -> refreshing data');
+      fetchAdminData();
+      refreshAnalytics();
+    }, 800);
+  }, [refreshAnalytics]);
+
+  useEffect(() => {
+    console.log('[AdminDashboard] Subscribing to realtime changes');
+    const channel = supabase
+      .channel('admin-dashboard')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bids' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_purchases' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_packages' }, triggerAutoRefresh)
+      .subscribe();
+
+    return () => {
+      console.log('[AdminDashboard] Unsubscribing realtime channel');
+      supabase.removeChannel(channel);
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [triggerAutoRefresh]);
   const fetchAdminData = async () => {
     try {
       // Fetch auctions

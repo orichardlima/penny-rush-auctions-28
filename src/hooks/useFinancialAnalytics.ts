@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface FinancialSummary {
@@ -135,6 +135,39 @@ export const useFinancialAnalytics = () => {
 
   useEffect(() => {
     refreshData();
+  }, []);
+
+  // Realtime auto-refresh with debounce
+  const refreshTimerRef = useRef<number | null>(null);
+  const triggerAutoRefresh = () => {
+    if (refreshTimerRef.current) {
+      window.clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = window.setTimeout(() => {
+      console.log('[useFinancialAnalytics] Realtime event -> refreshing');
+      refreshData();
+    }, 800);
+  };
+
+  useEffect(() => {
+    console.log('[useFinancialAnalytics] Subscribing to realtime changes');
+    const channel = supabase
+      .channel('financial-analytics')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bids' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_purchases' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, triggerAutoRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_packages' }, triggerAutoRefresh)
+      .subscribe();
+
+    return () => {
+      console.log('[useFinancialAnalytics] Unsubscribing realtime channel');
+      supabase.removeChannel(channel);
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
   }, []);
 
   return {
