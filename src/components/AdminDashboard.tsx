@@ -128,7 +128,6 @@ const AdminDashboard = () => {
       refreshTimerRef.current = window.setTimeout(() => {
         console.log('[AdminDashboard] Realtime event -> refreshing data');
         fetchAdminData();
-        refreshAnalytics();
       }, 800);
     };
 
@@ -136,8 +135,6 @@ const AdminDashboard = () => {
     const channel = supabase
       .channel('admin-dashboard')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bids' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_purchases' }, triggerAutoRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, triggerAutoRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_packages' }, triggerAutoRefresh)
       .subscribe();
@@ -150,7 +147,7 @@ const AdminDashboard = () => {
         refreshTimerRef.current = null;
       }
     };
-  }, []); // Remove dependency on refreshAnalytics
+  }, []);
   const fetchAdminData = async () => {
     try {
       // Fetch auctions
