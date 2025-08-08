@@ -129,13 +129,29 @@ const Index = () => {
       );
 
       setAuctions(auctionsWithBidders);
+
+      // Forçar finalização imediata no backend para leilões ativos expirados
+      const expiredActive = auctionsWithBidders.filter(a => a.auctionStatus === 'active' && a.timeLeft <= 0);
+      if (expiredActive.length > 0) {
+        console.log('⛳ Forçando finalização para leilões expirados:', expiredActive.map(a => a.id));
+        await Promise.all(
+          expiredActive.map(async (a) => {
+            try {
+              const { data, error } = await supabase.rpc('sync_auction_timer', { auction_uuid: a.id });
+              if (error) console.error('Erro no sync_auction_timer:', a.id, error);
+              else console.log('✅ Sync executado para:', a.id, data);
+            } catch (e) {
+              console.error('Erro inesperado no RPC:', a.id, e);
+            }
+          })
+        );
+      }
     } catch (error) {
       console.error('Error fetching auctions:', error);
     } finally {
       setLoading(false);
     }
   }, [toast]);
-
   // Hook para verificar e ativar leilões automaticamente
   useAuctionTimer(fetchAuctions);
 
