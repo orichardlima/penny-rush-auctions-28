@@ -47,6 +47,12 @@ interface Auction {
   created_at: string;
   market_value: number;
   revenue_target: number;
+  // Campos adicionais usados no Monitor de Robô
+  time_left?: number;
+  company_revenue?: number;
+  ends_at?: string;
+  bid_increment?: number;
+  bid_cost?: number;
 }
 
 interface User {
@@ -99,6 +105,13 @@ const AdminDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [editingAuction, setEditingAuction] = useState<Auction | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  // Bot Monitor state
+  const [isBotDialogOpen, setIsBotDialogOpen] = useState(false);
+  const [botAuction, setBotAuction] = useState<Auction | null>(null);
+  const [botRecentBids, setBotRecentBids] = useState<any[]>([]);
+  const [botLogs, setBotLogs] = useState<any[]>([]);
+  const [botLoading, setBotLoading] = useState(false);
+  const [triggering, setTriggering] = useState(false);
 
   useEffect(() => {
     fetchAdminData();
@@ -388,6 +401,98 @@ const AdminDashboard = () => {
     });
     setSelectedImage(null);
     setIsEditDialogOpen(true);
+  };
+
+  // Bot Monitor helpers
+  const formatBRL = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+  const loadBotData = async (auctionId: string) => {
+    setBotLoading(true);
+    try {
+      const { data: bids } = await supabase
+        .from('bids')
+        .select('*')
+        .eq('auction_id', auctionId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const userIds = Array.from(new Set((bids || []).map((b: any) => b.user_id)));
+      let profilesMap: Record<string, { full_name?: string; is_bot?: boolean }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, is_bot')
+          .in('user_id', userIds);
+        profiles?.forEach((p: any) => {
+          profilesMap[p.user_id] = { full_name: p.full_name || '—', is_bot: !!p.is_bot };
+        });
+      }
+      const enriched = (bids || []).map((b: any) => ({
+        ...b,
+        profile: profilesMap[b.user_id] || {},
+      }));
+      setBotRecentBids(enriched);
+
+      const { data: logs } = await supabase
+        .from('bot_webhook_logs')
+        .select('*')
+        .eq('auction_id', auctionId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setBotLogs(logs || []);
+    } catch (e) {
+      console.error('Erro ao carregar dados do monitor do robô:', e);
+    } finally {
+      setBotLoading(false);
+    }
+  };
+
+  const openBotMonitor = async (auction: Auction) => {
+    setBotAuction(auction);
+    setIsBotDialogOpen(true);
+    await loadBotData(auction.id);
+  };
+
+  const triggerRobotNow = async () => {
+    if (!botAuction) return;
+    setTriggering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('auction-webhook', {
+        body: { auction_id: botAuction.id },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Robô acionado',
+        description: data?.success ? 'Webhook chamado com sucesso.' : 'Webhook respondeu com falha. Veja os logs.',
+      });
+      await loadBotData(botAuction.id);
+    } catch (e: any) {
+      console.error('Erro ao acionar robô:', e);
+      toast({
+        title: 'Erro ao acionar robô',
+        description: e?.message || 'Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setTriggering(false);
+    }
+  };
+
+  const botPauseReason = (auction: Auction, recentBids: any[]) => {
+    if (!auction) return '—';
+    if (auction.status !== 'active') return 'Leilão não está ativo';
+    const timeLeft = auction.time_left ?? null;
+    const targetCents = auction.revenue_target || 0;
+    const companyRevenue = auction.company_revenue || 0; // em R$
+    if (targetCents > 0) {
+      const targetReais = targetCents / 100;
+      const pct = companyRevenue / targetReais;
+      if (pct >= 0.8) return 'Meta ≥ 80% (regra reduz intervenção)';
+    }
+    if (timeLeft !== null && timeLeft > 7) return 'Timer > 7s (intervenção ocorre ≤ 7s)';
+    if (!recentBids || recentBids.length === 0) return 'Sem lances recentes';
+    return 'Condições atendidas; aguarde nova intervenção';
   };
 
   if (loading) {
@@ -733,6 +838,14 @@ const AdminDashboard = () => {
                             <Button 
                               variant="outline" 
                               size="sm"
+                              onClick={() => openBotMonitor(auction)}
+                            >
+                              <Settings className="h-4 w-4 mr-1" />
+                              Monitor Robô
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
                               onClick={() => {
                                 if (confirm('Tem certeza que deseja excluir este leilão?')) {
                                   deleteAuction(auction.id);
@@ -1015,6 +1128,124 @@ const AdminDashboard = () => {
                 >
                   Cancelar
                 </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Monitor de Robô */}
+      <Dialog open={isBotDialogOpen} onOpenChange={setIsBotDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Monitor do Robô</DialogTitle>
+          </DialogHeader>
+          {botAuction && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">
+                      {botAuction.status} • tempo: {botAuction.time_left ?? '—'}s
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Motivo provável: {botPauseReason(botAuction, botRecentBids)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Receita</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">
+                      {formatBRL(botAuction.company_revenue || 0)} / {formatBRL((botAuction.revenue_target || 0)/100)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Ações</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex items-center gap-2">
+                    <Button onClick={triggerRobotNow} disabled={triggering}>
+                      {triggering ? 'Acionando...' : 'Disparar robô agora'}
+                    </Button>
+                    <Button variant="outline" onClick={() => botAuction && loadBotData(botAuction.id)} disabled={botLoading}>
+                      {botLoading ? 'Atualizando...' : 'Atualizar'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Últimos Lances</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {botRecentBids.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Sem lances recentes</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Quando</TableHead>
+                            <TableHead>Valor</TableHead>
+                            <TableHead>Quem</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {botRecentBids.map((b: any) => (
+                            <TableRow key={b.id}>
+                              <TableCell>{formatDate(b.created_at)}</TableCell>
+                              <TableCell>{formatPrice(b.bid_amount)}</TableCell>
+                              <TableCell>
+                                <Badge variant={b.profile?.is_bot ? 'secondary' : 'default'}>
+                                  {b.profile?.is_bot ? 'Bot' : 'Humano'}
+                                </Badge>
+                                <span className="ml-2 text-sm text-muted-foreground">
+                                  {b.profile?.full_name || '—'}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Logs do Webhook</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {botLogs.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhum log registrado</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {botLogs.map((l: any) => (
+                          <div key={l.id} className="text-sm border rounded-md p-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{l.status}</span>
+                              <span className="text-xs text-muted-foreground">{formatDate(l.created_at)}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground break-words">
+                              {l.error || l.response_body}
+                            </div>
+                            {l.correlation_id && (
+                              <div className="text-[10px] mt-1 text-muted-foreground">id: {l.correlation_id}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}

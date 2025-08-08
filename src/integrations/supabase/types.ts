@@ -195,6 +195,42 @@ export type Database = {
           },
         ]
       }
+      bot_webhook_logs: {
+        Row: {
+          auction_id: string
+          correlation_id: string | null
+          created_at: string
+          error: string | null
+          http_status: number | null
+          id: string
+          response_body: string | null
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          auction_id: string
+          correlation_id?: string | null
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          response_body?: string | null
+          status: string
+          triggered_by?: string | null
+        }
+        Update: {
+          auction_id?: string
+          correlation_id?: string | null
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          response_body?: string | null
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
