@@ -106,18 +106,19 @@ const AdminDashboard = () => {
 
   // Realtime auto-refresh with debounce
   const refreshTimerRef = React.useRef<number | null>(null);
-  const triggerAutoRefresh = React.useCallback(() => {
-    if (refreshTimerRef.current) {
-      window.clearTimeout(refreshTimerRef.current);
-    }
-    refreshTimerRef.current = window.setTimeout(() => {
-      console.log('[AdminDashboard] Realtime event -> refreshing data');
-      fetchAdminData();
-      refreshAnalytics();
-    }, 800);
-  }, [refreshAnalytics]);
-
+  
   useEffect(() => {
+    const triggerAutoRefresh = () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = window.setTimeout(() => {
+        console.log('[AdminDashboard] Realtime event -> refreshing data');
+        fetchAdminData();
+        refreshAnalytics();
+      }, 800);
+    };
+
     console.log('[AdminDashboard] Subscribing to realtime changes');
     const channel = supabase
       .channel('admin-dashboard')
@@ -136,7 +137,7 @@ const AdminDashboard = () => {
         refreshTimerRef.current = null;
       }
     };
-  }, [triggerAutoRefresh]);
+  }, []); // Remove dependency on refreshAnalytics
   const fetchAdminData = async () => {
     try {
       // Fetch auctions

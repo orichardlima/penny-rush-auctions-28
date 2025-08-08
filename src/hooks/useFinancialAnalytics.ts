@@ -139,17 +139,18 @@ export const useFinancialAnalytics = () => {
 
   // Realtime auto-refresh with debounce
   const refreshTimerRef = useRef<number | null>(null);
-  const triggerAutoRefresh = () => {
-    if (refreshTimerRef.current) {
-      window.clearTimeout(refreshTimerRef.current);
-    }
-    refreshTimerRef.current = window.setTimeout(() => {
-      console.log('[useFinancialAnalytics] Realtime event -> refreshing');
-      refreshData();
-    }, 800);
-  };
-
+  
   useEffect(() => {
+    const triggerAutoRefresh = () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = window.setTimeout(() => {
+        console.log('[useFinancialAnalytics] Realtime event -> refreshing');
+        refreshData();
+      }, 800);
+    };
+
     console.log('[useFinancialAnalytics] Subscribing to realtime changes');
     const channel = supabase
       .channel('financial-analytics')
@@ -168,7 +169,7 @@ export const useFinancialAnalytics = () => {
         refreshTimerRef.current = null;
       }
     };
-  }, []);
+  }, []); // Stable empty dependency array
 
   return {
     summary,
