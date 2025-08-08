@@ -106,7 +106,7 @@ export const AuctionFinancialCard: React.FC<AuctionFinancialCardProps> = ({
             className="h-2"
           />
           <div className="text-xs text-muted-foreground text-right">
-            {formatCurrency(auction.revenue_target)}
+            {formatCurrency(auction.revenue_target / 100)}
           </div>
         </div>
 
