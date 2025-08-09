@@ -69,11 +69,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
           });
         }
       )
-      .on('subscribe', (status) => {
+      .subscribe((status) => {
         console.log('📡 Subscription status:', status);
         setIsConnected(status === 'SUBSCRIBED');
-      })
-      .subscribe();
+      });
 
     // Canal para novos lances
     const bidsChannel = supabase
