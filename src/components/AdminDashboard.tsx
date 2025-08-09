@@ -684,6 +684,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="bot-monitor">Monitor Bots</TabsTrigger>
             <TabsTrigger value="packages">Pacotes</TabsTrigger>
             <TabsTrigger value="analytics">Estatísticas</TabsTrigger>
+            <TabsTrigger value="reports">Relatórios</TabsTrigger>
+            <TabsTrigger value="audit">Auditoria</TabsTrigger>
+            <TabsTrigger value="controls">Controles</TabsTrigger>
           </TabsList>
 
           {/* Financial Analytics Tab */}
@@ -1174,6 +1177,18 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ReportsAnalyticsTab />
+          </TabsContent>
+
+          <TabsContent value="audit">
+            <AuditLogsTab />
+          </TabsContent>
+
+          <TabsContent value="controls">
+            <RealTimeControlsTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -101,14 +101,12 @@ export const AuditLogsTab: React.FC = () => {
     try {
       // Mock audit log creation since table doesn't exist yet
       console.log('Audit log would be created:', {
-          user_id: user?.id,
-          ip_address: await getClientIP(),
-          user_agent: navigator.userAgent,
-          created_at: new Date().toISOString(),
-          ...logData
-        });
-
-      if (error) throw error;
+        user_id: user?.id,
+        ip_address: await getClientIP(),
+        user_agent: navigator.userAgent,
+        created_at: new Date().toISOString(),
+        ...logData
+      });
     } catch (error) {
       console.error('Error creating audit log:', error);
     }
