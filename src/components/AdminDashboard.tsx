@@ -33,6 +33,9 @@ import { RevenueChart } from '@/components/FinancialAnalytics/RevenueChart';
 import { AuctionFinancialCard } from '@/components/FinancialAnalytics/AuctionFinancialCard';
 import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
+import { AuctionBidsModal } from '@/components/AdminDashboard/AuctionBidsModal';
+import { UserAnalyticsTab } from '@/components/AdminDashboard/UserAnalyticsTab';
+import { BotMonitorTab } from '@/components/AdminDashboard/BotMonitorTab';
 
 
 interface Auction {
@@ -83,6 +86,10 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // New state for detailed modals
+  const [selectedAuctionForBids, setSelectedAuctionForBids] = useState<Auction | null>(null);
+  const [bidsModalOpen, setBidsModalOpen] = useState(false);
   
   // Financial analytics
   const { 
@@ -666,10 +673,12 @@ const AdminDashboard = () => {
 
         {/* Tabs do Dashboard Admin */}
         <Tabs defaultValue="financial" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="auctions">Leilões</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
+            <TabsTrigger value="analytics-users">Análise Usuários</TabsTrigger>
+            <TabsTrigger value="bot-monitor">Monitor Bots</TabsTrigger>
             <TabsTrigger value="packages">Pacotes</TabsTrigger>
             <TabsTrigger value="analytics">Estatísticas</TabsTrigger>
           </TabsList>
@@ -989,22 +998,33 @@ const AdminDashboard = () => {
                          </TableCell>
                         <TableCell>{formatDate(auction.created_at)}</TableCell>
                         <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEditClick(auction)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => openBotMonitor(auction)}
-                            >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Monitor Robô
-                            </Button>
+                           <div className="flex space-x-2">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => {
+                                 setSelectedAuctionForBids(auction);
+                                 setBidsModalOpen(true);
+                               }}
+                               title="Ver todos os lances"
+                             >
+                               <Users className="h-4 w-4" />
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               size="sm"
+                               onClick={() => handleEditClick(auction)}
+                             >
+                               <Edit className="h-4 w-4" />
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               size="sm"
+                               onClick={() => openBotMonitor(auction)}
+                             >
+                               <Settings className="h-4 w-4 mr-1" />
+                               Monitor Robô
+                             </Button>
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -1028,7 +1048,7 @@ const AdminDashboard = () => {
 
 
           <TabsContent value="users" className="space-y-4">
-            <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
+            <h2 className="text-xl font-semibold">Gerenciar Usuários (Resumo)</h2>
             <Card>
               <CardContent>
                 <Table>
@@ -1069,6 +1089,14 @@ const AdminDashboard = () => {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics-users">
+            <UserAnalyticsTab users={users} onRefresh={fetchAdminData} />
+          </TabsContent>
+
+          <TabsContent value="bot-monitor">
+            <BotMonitorTab auctions={auctions} onRefresh={fetchAdminData} />
           </TabsContent>
 
           <TabsContent value="packages" className="space-y-4">
@@ -1413,6 +1441,14 @@ const AdminDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+        {/* Auction Bids Modal */}
+        <AuctionBidsModal
+          isOpen={bidsModalOpen}
+          onClose={() => setBidsModalOpen(false)}
+          auction={selectedAuctionForBids}
+        />
+      </div>
     </div>
   );
 };
