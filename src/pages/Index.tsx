@@ -32,15 +32,16 @@ const Index = () => {
       ? auction.time_left
       : (endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0);
 
-    // Determinar o status real do leilão (evitar "Ativo 0s")
-    let auctionStatus: 'waiting' | 'active' | 'finished' = 'waiting';
-    if (startsAt && startsAt > nowInBrazil) {
+    // Determinar o status real do leilão - SEMPRE respeitar status do banco
+    let auctionStatus: 'waiting' | 'active' | 'finished' = auction.status;
+    
+    // Se o banco marca como finalizado, NUNCA mudar para ativo
+    if (auction.status === 'finished') {
+      auctionStatus = 'finished';
+    } else if (startsAt && startsAt > nowInBrazil) {
       auctionStatus = 'waiting';
-    } else if (
-      auction.status === 'finished' ||
-      serverTimeLeft <= 0 ||
-      (endsAt && endsAt <= nowInBrazil)
-    ) {
+    } else if (serverTimeLeft <= 0 || (endsAt && endsAt <= nowInBrazil)) {
+      // Só marcar como finalizado se ainda não estiver no banco
       auctionStatus = 'finished';
     } else {
       auctionStatus = 'active';
