@@ -36,6 +36,9 @@ import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 import { AuctionBidsModal } from '@/components/AdminDashboard/AuctionBidsModal';
 import { UserAnalyticsTab } from '@/components/AdminDashboard/UserAnalyticsTab';
 import { BotMonitorTab } from '@/components/AdminDashboard/BotMonitorTab';
+import { ReportsAnalyticsTab } from '@/components/AdminDashboard/ReportsAnalyticsTab';
+import { AuditLogsTab } from '@/components/AdminDashboard/AuditLogsTab';
+import { RealTimeControlsTab } from '@/components/AdminDashboard/RealTimeControlsTab';
 
 
 interface Auction {
