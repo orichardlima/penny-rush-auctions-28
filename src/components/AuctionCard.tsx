@@ -56,8 +56,8 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
   const finalizeAttempted = useRef(false);
 
-  // Status para exibição consistente (evita "Ativo 0s")
-  const displayStatus: 'waiting' | 'active' | 'finished' = (auctionStatus === 'active' && (timeLeft ?? 0) <= 0) ? 'finished' : auctionStatus;
+  // Status exibido será definido após carregar dados realtime (evita TDZ)
+  let displayStatus: 'waiting' | 'active' | 'finished' = auctionStatus;
 
   // Hook para escutar updates em tempo real do leilão
   const { auctionData } = useAuctionRealtime(id);
@@ -75,6 +75,9 @@ export const AuctionCard = ({
       setIsActive(auctionData.status === 'active' && auctionData.time_left > 0);
     }
   }, [auctionData]);
+
+  // Atualizar status exibido com base no realtime, se houver
+  displayStatus = (auctionData?.status as 'waiting' | 'active' | 'finished' | undefined) ?? auctionStatus;
 
   // Timer local apenas como fallback - priorizar dados do realtime
   useEffect(() => {
@@ -221,7 +224,7 @@ export const AuctionCard = ({
       <div className="p-6">
         <h3 className="font-semibold text-lg mb-3 text-foreground">{title}</h3>
         
-        {auctionStatus === 'waiting' && starts_at && (
+        {displayStatus === 'waiting' && starts_at && (
           <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
               🕒 Leilão inicia em: {formatDateTime(starts_at)}
@@ -229,7 +232,7 @@ export const AuctionCard = ({
           </div>
         )}
 
-        {auctionStatus === 'finished' && winnerName && (
+        {displayStatus === 'finished' && winnerName && (
           <div className="mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
             <div className="text-center">
               <h4 className="text-green-800 font-bold text-lg mb-2">🎉 Leilão Finalizado! 🎉</h4>
