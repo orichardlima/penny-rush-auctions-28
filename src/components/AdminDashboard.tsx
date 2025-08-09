@@ -33,12 +33,6 @@ import { RevenueChart } from '@/components/FinancialAnalytics/RevenueChart';
 import { AuctionFinancialCard } from '@/components/FinancialAnalytics/AuctionFinancialCard';
 import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
-import { AuctionBidsModal } from '@/components/AdminDashboard/AuctionBidsModal';
-import { UserAnalyticsTab } from '@/components/AdminDashboard/UserAnalyticsTab';
-import { BotMonitorTab } from '@/components/AdminDashboard/BotMonitorTab';
-import { ReportsAnalyticsTab } from '@/components/AdminDashboard/ReportsAnalyticsTab';
-import { AuditLogsTab } from '@/components/AdminDashboard/AuditLogsTab';
-import { RealTimeControlsTab } from '@/components/AdminDashboard/RealTimeControlsTab';
 
 
 interface Auction {
@@ -89,10 +83,6 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // New state for detailed modals
-  const [selectedAuctionForBids, setSelectedAuctionForBids] = useState<Auction | null>(null);
-  const [bidsModalOpen, setBidsModalOpen] = useState(false);
   
   // Financial analytics
   const { 
@@ -161,30 +151,6 @@ const AdminDashboard = () => {
       }
     };
   }, []);
-  // Transform auction data for admin consistency (normalize status)
-  const transformAuctionDataForAdmin = (auction: any) => {
-    const brazilTimezone = 'America/Sao_Paulo';
-    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
-    
-    // Force status to 'finished' if time_left <= 0 or ends_at has passed
-    let normalizedStatus = auction.status;
-    let needsFinalization = false;
-    
-    if (auction.status === 'active') {
-      if (auction.time_left <= 0 || 
-          (auction.ends_at && toZonedTime(new Date(auction.ends_at), brazilTimezone) <= nowInBrazil)) {
-        normalizedStatus = 'finished';
-        needsFinalization = true;
-      }
-    }
-    
-    return {
-      ...auction,
-      status: normalizedStatus,
-      needsFinalization
-    };
-  };
-
   const fetchAdminData = async () => {
     try {
       // Fetch auctions
@@ -192,21 +158,6 @@ const AdminDashboard = () => {
         .from('auctions')
         .select('*')
         .order('created_at', { ascending: false });
-
-      // Transform and normalize auction statuses
-      const transformedAuctions = (auctionsData || []).map(transformAuctionDataForAdmin);
-
-      // Finalize auctions that need it
-      const auctionsToFinalize = transformedAuctions.filter(auction => auction.needsFinalization);
-      
-      for (const auction of auctionsToFinalize) {
-        try {
-          await supabase.rpc('sync_auction_timer', { auction_uuid: auction.id });
-          console.log(`Auction ${auction.id} finalized in database`);
-        } catch (error) {
-          console.error(`Error finalizing auction ${auction.id}:`, error);
-        }
-      }
 
       // Fetch users
       const { data: usersData } = await supabase
@@ -220,7 +171,7 @@ const AdminDashboard = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      setAuctions(transformedAuctions);
+      setAuctions(auctionsData || []);
       setUsers(usersData || []);
       setBidPackages(packagesData || []);
     } catch (error) {
@@ -676,17 +627,12 @@ const AdminDashboard = () => {
 
         {/* Tabs do Dashboard Admin */}
         <Tabs defaultValue="financial" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="auctions">Leilões</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
-            <TabsTrigger value="analytics-users">Análise Usuários</TabsTrigger>
-            <TabsTrigger value="bot-monitor">Monitor Bots</TabsTrigger>
             <TabsTrigger value="packages">Pacotes</TabsTrigger>
             <TabsTrigger value="analytics">Estatísticas</TabsTrigger>
-            <TabsTrigger value="reports">Relatórios</TabsTrigger>
-            <TabsTrigger value="audit">Auditoria</TabsTrigger>
-            <TabsTrigger value="controls">Controles</TabsTrigger>
           </TabsList>
 
           {/* Financial Analytics Tab */}
@@ -993,44 +939,29 @@ const AdminDashboard = () => {
                         <TableCell className="font-medium">{auction.title}</TableCell>
                         <TableCell>{formatPrice(auction.current_price)}</TableCell>
                         <TableCell>{auction.total_bids}</TableCell>
-                         <TableCell>
-                           <Badge variant={
-                             auction.status === 'active' ? 'default' :
-                             auction.status === 'waiting' ? 'outline' : 'secondary'
-                           }>
-                             {auction.status === 'active' ? 'Ativo' :
-                              auction.status === 'waiting' ? 'Aguardando' : 'Finalizado'}
-                           </Badge>
-                         </TableCell>
+                        <TableCell>
+                          <Badge variant={auction.status === 'active' ? 'default' : 'secondary'}>
+                            {auction.status === 'active' ? 'Ativo' : 'Finalizado'}
+                          </Badge>
+                        </TableCell>
                         <TableCell>{formatDate(auction.created_at)}</TableCell>
                         <TableCell>
-                           <div className="flex space-x-2">
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               onClick={() => {
-                                 setSelectedAuctionForBids(auction);
-                                 setBidsModalOpen(true);
-                               }}
-                               title="Ver todos os lances"
-                             >
-                               <Users className="h-4 w-4" />
-                             </Button>
-                             <Button 
-                               variant="outline" 
-                               size="sm"
-                               onClick={() => handleEditClick(auction)}
-                             >
-                               <Edit className="h-4 w-4" />
-                             </Button>
-                             <Button 
-                               variant="outline" 
-                               size="sm"
-                               onClick={() => openBotMonitor(auction)}
-                             >
-                               <Settings className="h-4 w-4 mr-1" />
-                               Monitor Robô
-                             </Button>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditClick(auction)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openBotMonitor(auction)}
+                            >
+                              <Settings className="h-4 w-4 mr-1" />
+                              Monitor Robô
+                            </Button>
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -1054,7 +985,7 @@ const AdminDashboard = () => {
 
 
           <TabsContent value="users" className="space-y-4">
-            <h2 className="text-xl font-semibold">Gerenciar Usuários (Resumo)</h2>
+            <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
             <Card>
               <CardContent>
                 <Table>
@@ -1095,14 +1026,6 @@ const AdminDashboard = () => {
                 </Table>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics-users">
-            <UserAnalyticsTab users={users} onRefresh={fetchAdminData} />
-          </TabsContent>
-
-          <TabsContent value="bot-monitor">
-            <BotMonitorTab auctions={auctions} onRefresh={fetchAdminData} />
           </TabsContent>
 
           <TabsContent value="packages" className="space-y-4">
@@ -1177,18 +1100,6 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <ReportsAnalyticsTab />
-          </TabsContent>
-
-          <TabsContent value="audit">
-            <AuditLogsTab />
-          </TabsContent>
-
-          <TabsContent value="controls">
-            <RealTimeControlsTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -1459,13 +1370,6 @@ const AdminDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
-      
-      {/* Auction Bids Modal */}
-      <AuctionBidsModal
-        isOpen={bidsModalOpen}
-        onClose={() => setBidsModalOpen(false)}
-        auction={selectedAuctionForBids}
-      />
     </div>
   );
 };

@@ -23,7 +23,6 @@ export type Database = {
           current_price: number | null
           description: string | null
           ends_at: string | null
-          finished_at: string | null
           id: string
           image_url: string | null
           market_value: number | null
@@ -37,7 +36,6 @@ export type Database = {
           total_bids: number | null
           updated_at: string
           winner_id: string | null
-          winner_name: string | null
         }
         Insert: {
           bid_cost?: number | null
@@ -47,7 +45,6 @@ export type Database = {
           current_price?: number | null
           description?: string | null
           ends_at?: string | null
-          finished_at?: string | null
           id?: string
           image_url?: string | null
           market_value?: number | null
@@ -61,7 +58,6 @@ export type Database = {
           total_bids?: number | null
           updated_at?: string
           winner_id?: string | null
-          winner_name?: string | null
         }
         Update: {
           bid_cost?: number | null
@@ -71,7 +67,6 @@ export type Database = {
           current_price?: number | null
           description?: string | null
           ends_at?: string | null
-          finished_at?: string | null
           id?: string
           image_url?: string | null
           market_value?: number | null
@@ -85,7 +80,6 @@ export type Database = {
           total_bids?: number | null
           updated_at?: string
           winner_id?: string | null
-          winner_name?: string | null
         }
         Relationships: []
       }

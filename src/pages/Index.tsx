@@ -25,17 +25,16 @@ const Index = () => {
     const nowInBrazil = toZonedTime(now, brazilTimezone);
     
     const startsAt = auction.starts_at ? toZonedTime(new Date(auction.starts_at), brazilTimezone) : null;
+    const endsAt = auction.ends_at ? toZonedTime(new Date(auction.ends_at), brazilTimezone) : null;
     
-    // SEMPRE usar o time_left do servidor como autoridade
-    const serverTimeLeft = typeof auction.time_left === 'number' ? auction.time_left : 0;
-
-    // SEMPRE respeitar o status do servidor - não overrides no cliente
-    let auctionStatus: 'waiting' | 'active' | 'finished' = auction.status;
-    
-    // Única exceção: se ainda está "waiting" mas já passou do starts_at
-    if (auction.status === 'waiting' && startsAt && startsAt <= nowInBrazil) {
-      // Deixar o useAuctionTimer lidar com a ativação automática
-      auctionStatus = 'waiting';
+    // Determinar o status real do leilão usando o fuso do Brasil
+    let auctionStatus = 'waiting';
+    if (startsAt && startsAt > nowInBrazil) {
+      auctionStatus = 'waiting'; // Ainda não começou
+    } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
+      auctionStatus = 'active'; // Ativo
+    } else {
+      auctionStatus = 'finished'; // Finalizado
     }
     
     return {
@@ -45,15 +44,13 @@ const Index = () => {
       originalPrice: (auction.market_value || 0) / 100,
       totalBids: auction.total_bids || 0,
       participants: auction.participants_count || 0,
-      recentBidders: auction.recentBidders || [],
-      currentRevenue: (auction.total_bids || 0) * 1.0,
-      timeLeft: serverTimeLeft,
+      recentBidders: auction.recentBidders || [], // Usar dados reais dos lances
+      currentRevenue: (auction.total_bids || 0) * 1.00,
+      timeLeft: endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0,
       auctionStatus,
       isActive: auctionStatus === 'active',
       ends_at: auction.ends_at,
-      starts_at: auction.starts_at,
-      winnerName: auction.winner_name,
-      finishedAt: auction.finished_at
+      starts_at: auction.starts_at
     };
   };
 
@@ -130,40 +127,13 @@ const Index = () => {
       );
 
       setAuctions(auctionsWithBidders);
-
-      // Sincronização inteligente: apenas chamar sync quando detectar inconsistência
-      const inconsistentAuctions = auctionsWithBidders.filter(a => 
-        a.auctionStatus === 'active' && a.timeLeft <= 0
-      );
-      
-      if (inconsistentAuctions.length > 0) {
-        console.log('🔄 Detectada inconsistência em leilões - sincronizando com servidor:', 
-          inconsistentAuctions.map(a => `${a.title} (${a.id})`));
-        
-        // Chama sync_auction_timer para que o servidor determine o status correto
-        await Promise.all(
-          inconsistentAuctions.map(async (a) => {
-            try {
-              const { data, error } = await supabase.rpc('sync_auction_timer', { auction_uuid: a.id });
-              if (error) {
-                console.error('❌ Erro no sync_auction_timer:', a.title, error);
-              } else {
-                console.log('✅ Sync executado para:', a.title, data);
-                // Re-fetch após sync para obter status atualizado
-                setTimeout(() => fetchAuctions(), 1000);
-              }
-            } catch (e) {
-              console.error('❌ Erro inesperado no RPC:', a.title, e);
-            }
-          })
-        );
-      }
     } catch (error) {
       console.error('Error fetching auctions:', error);
     } finally {
       setLoading(false);
     }
   }, [toast]);
+
   // Hook para verificar e ativar leilões automaticamente
   useAuctionTimer(fetchAuctions);
 
@@ -373,8 +343,6 @@ const Index = () => {
                     auctionStatus={auction.auctionStatus}
                     ends_at={auction.ends_at}
                     starts_at={auction.starts_at}
-                    winnerName={auction.winnerName}
-                    finishedAt={auction.finishedAt}
                   />
                 ))
               )}
