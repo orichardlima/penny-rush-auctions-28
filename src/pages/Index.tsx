@@ -25,26 +25,17 @@ const Index = () => {
     const nowInBrazil = toZonedTime(now, brazilTimezone);
     
     const startsAt = auction.starts_at ? toZonedTime(new Date(auction.starts_at), brazilTimezone) : null;
-    const endsAt = auction.ends_at ? toZonedTime(new Date(auction.ends_at), brazilTimezone) : null;
     
-    // Calcular timeLeft preferindo o valor do servidor quando disponível
-    const serverTimeLeft = typeof auction.time_left === 'number'
-      ? auction.time_left
-      : (endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0);
+    // SEMPRE usar o time_left do servidor como autoridade
+    const serverTimeLeft = typeof auction.time_left === 'number' ? auction.time_left : 0;
 
-    // Determinar o status real do leilão - SEMPRE respeitar status do banco
+    // SEMPRE respeitar o status do servidor - não overrides no cliente
     let auctionStatus: 'waiting' | 'active' | 'finished' = auction.status;
     
-    // Se o banco marca como finalizado, NUNCA mudar para ativo
-    if (auction.status === 'finished') {
-      auctionStatus = 'finished';
-    } else if (startsAt && startsAt > nowInBrazil) {
+    // Única exceção: se ainda está "waiting" mas já passou do starts_at
+    if (auction.status === 'waiting' && startsAt && startsAt <= nowInBrazil) {
+      // Deixar o useAuctionTimer lidar com a ativação automática
       auctionStatus = 'waiting';
-    } else if (serverTimeLeft <= 0 || (endsAt && endsAt <= nowInBrazil)) {
-      // Só marcar como finalizado se ainda não estiver no banco
-      auctionStatus = 'finished';
-    } else {
-      auctionStatus = 'active';
     }
     
     return {
@@ -140,18 +131,29 @@ const Index = () => {
 
       setAuctions(auctionsWithBidders);
 
-      // Forçar finalização imediata no backend para leilões ativos expirados
-      const expiredActive = auctionsWithBidders.filter(a => a.auctionStatus === 'active' && a.timeLeft <= 0);
-      if (expiredActive.length > 0) {
-        console.log('⛳ Forçando finalização para leilões expirados:', expiredActive.map(a => a.id));
+      // Sincronização inteligente: apenas chamar sync quando detectar inconsistência
+      const inconsistentAuctions = auctionsWithBidders.filter(a => 
+        a.auctionStatus === 'active' && a.timeLeft <= 0
+      );
+      
+      if (inconsistentAuctions.length > 0) {
+        console.log('🔄 Detectada inconsistência em leilões - sincronizando com servidor:', 
+          inconsistentAuctions.map(a => `${a.title} (${a.id})`));
+        
+        // Chama sync_auction_timer para que o servidor determine o status correto
         await Promise.all(
-          expiredActive.map(async (a) => {
+          inconsistentAuctions.map(async (a) => {
             try {
               const { data, error } = await supabase.rpc('sync_auction_timer', { auction_uuid: a.id });
-              if (error) console.error('Erro no sync_auction_timer:', a.id, error);
-              else console.log('✅ Sync executado para:', a.id, data);
+              if (error) {
+                console.error('❌ Erro no sync_auction_timer:', a.title, error);
+              } else {
+                console.log('✅ Sync executado para:', a.title, data);
+                // Re-fetch após sync para obter status atualizado
+                setTimeout(() => fetchAuctions(), 1000);
+              }
             } catch (e) {
-              console.error('Erro inesperado no RPC:', a.id, e);
+              console.error('❌ Erro inesperado no RPC:', a.title, e);
             }
           })
         );
