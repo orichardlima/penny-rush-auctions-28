@@ -1441,14 +1441,13 @@ const AdminDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
-        {/* Auction Bids Modal */}
-        <AuctionBidsModal
-          isOpen={bidsModalOpen}
-          onClose={() => setBidsModalOpen(false)}
-          auction={selectedAuctionForBids}
-        />
-      </div>
+      
+      {/* Auction Bids Modal */}
+      <AuctionBidsModal
+        isOpen={bidsModalOpen}
+        onClose={() => setBidsModalOpen(false)}
+        auction={selectedAuctionForBids}
+      />
     </div>
   );
 };
