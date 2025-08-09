@@ -402,10 +402,10 @@ export const AuditLogsTab: React.FC = () => {
       log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.user_profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesAction = !filters.action || log.action === filters.action;
-    const matchesResourceType = !filters.resourceType || log.resource_type === filters.resourceType;
-    const matchesSeverity = !filters.severity || log.severity === filters.severity;
-    const matchesStatus = !filters.status || log.status === filters.status;
+    const matchesAction = !filters.action || filters.action === 'all' || log.action === filters.action;
+    const matchesResourceType = !filters.resourceType || filters.resourceType === 'all' || log.resource_type === filters.resourceType;
+    const matchesSeverity = !filters.severity || filters.severity === 'all' || log.severity === filters.severity;
+    const matchesStatus = !filters.status || filters.status === 'all' || log.status === filters.status;
 
     return matchesSearch && matchesAction && matchesResourceType && matchesSeverity && matchesStatus;
   });
@@ -530,7 +530,7 @@ export const AuditLogsTab: React.FC = () => {
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
                       <SelectItem value="CREATE_AUCTION">Criar Leilão</SelectItem>
                       <SelectItem value="UPDATE_USER">Atualizar Usuário</SelectItem>
                       <SelectItem value="FAILED_LOGIN">Login Falhou</SelectItem>
@@ -544,7 +544,7 @@ export const AuditLogsTab: React.FC = () => {
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="auction">Leilão</SelectItem>
                       <SelectItem value="user">Usuário</SelectItem>
                       <SelectItem value="auth">Autenticação</SelectItem>
@@ -558,7 +558,7 @@ export const AuditLogsTab: React.FC = () => {
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
                       <SelectItem value="critical">Crítica</SelectItem>
                       <SelectItem value="high">Alta</SelectItem>
                       <SelectItem value="medium">Média</SelectItem>
@@ -573,7 +573,7 @@ export const AuditLogsTab: React.FC = () => {
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="success">Sucesso</SelectItem>
                       <SelectItem value="failed">Falha</SelectItem>
                       <SelectItem value="warning">Aviso</SelectItem>
