@@ -22,6 +22,7 @@ interface BidUpdate {
 export const useAuctionRealtime = (auctionId?: string) => {
   const [auctionData, setAuctionData] = useState<AuctionUpdate | null>(null);
   const [recentBids, setRecentBids] = useState<BidUpdate[]>([]);
+  const [calculatedTimeLeft, setCalculatedTimeLeft] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,6 +45,9 @@ export const useAuctionRealtime = (auctionId?: string) => {
           console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
           setAuctionData(newAuctionData);
+          
+          // Reset timer calculado quando recebe atualização do banco
+          setCalculatedTimeLeft(null);
           
           // Log detalhado para debug
           console.log('🕐 [REALTIME] Timer atualizado via banco:', {
@@ -87,15 +91,47 @@ export const useAuctionRealtime = (auctionId?: string) => {
     };
   }, [auctionId, toast]);
 
+  // Timer em tempo real baseado no ends_at
+  useEffect(() => {
+    if (!auctionData?.ends_at || auctionData.status !== 'active') {
+      setCalculatedTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const endsAt = new Date(auctionData.ends_at).getTime();
+      const timeLeft = Math.max(0, Math.floor((endsAt - now) / 1000));
+      
+      setCalculatedTimeLeft(timeLeft);
+      
+      if (timeLeft <= 0) {
+        setCalculatedTimeLeft(0);
+      }
+    };
+
+    // Atualizar imediatamente
+    updateTimer();
+    
+    // Atualizar a cada segundo
+    const interval = setInterval(updateTimer, 1000);
+    
+    return () => clearInterval(interval);
+  }, [auctionData?.ends_at, auctionData?.status]);
+
   // Função para resetar timer (simulação - na implementação real viria do realtime)
   const resetTimer = () => {
     if (auctionData) {
       setAuctionData(prev => prev ? { ...prev, time_left: 15 } : null);
+      setCalculatedTimeLeft(15);
     }
   };
 
+  // Retornar timer calculado se disponível, senão usar o do banco
+  const displayTimeLeft = calculatedTimeLeft !== null ? calculatedTimeLeft : auctionData?.time_left;
+
   return {
-    auctionData,
+    auctionData: auctionData ? { ...auctionData, time_left: displayTimeLeft || 0 } : null,
     recentBids,
     resetTimer
   };
