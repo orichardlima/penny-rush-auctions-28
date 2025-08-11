@@ -66,9 +66,22 @@ export const AuctionCard = ({
   const displayTotalBids = auctionData?.total_bids ?? totalBids;
   const displayWinnerName = auctionData?.winner_name ?? winnerName;
 
-  // Debug: Mostrar fonte dos dados
+  // Função para formatar preços
+  const formatPrice = (priceInCents: number) => {
+    // Garantir que o valor não seja null, undefined ou NaN
+    const safePriceInCents = priceInCents || 0;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(safePriceInCents / 100);
+  };
+
+  // Debug: Mostrar fonte dos dados e preço
   const dataSource = auctionData ? 'REALTIME' : 'PROPS';
   console.log(`🎯 [${id}] Timer: ${displayTimeLeft}s | Status: ${displayStatus} | Source: ${dataSource}`);
+  console.log(`💰 [${id}] Current Price: ${displayCurrentPrice} centavos | Formatted: ${formatPrice(displayCurrentPrice)} | Original: ${originalPrice}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -104,13 +117,6 @@ export const AuctionCard = ({
       dot: "bg-destructive animate-pulse",
       animation: "animate-countdown"
     };
-  };
-
-  const formatPrice = (priceInCents: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(priceInCents / 100);
   };
 
   const formatDateTime = (dateString: string) => {
