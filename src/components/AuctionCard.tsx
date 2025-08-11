@@ -101,11 +101,11 @@ export const AuctionCard = ({
     };
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (priceInCents: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(price);
+    }).format(priceInCents / 100);
   };
 
   const formatDateTime = (dateString: string) => {

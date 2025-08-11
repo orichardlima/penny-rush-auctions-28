@@ -27,11 +27,11 @@ export const FinancialSummaryCards: React.FC<FinancialSummaryCardsProps> = ({
   summary, 
   loading = false 
 }) => {
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (valueInCents: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value);
+    }).format(valueInCents / 100);
   };
 
   const formatPercentage = (value: number) => {

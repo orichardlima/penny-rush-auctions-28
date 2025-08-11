@@ -461,8 +461,8 @@ const AdminDashboard = () => {
   };
 
   // Bot Monitor helpers
-  const formatBRL = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatBRL = (valueInCents: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valueInCents / 100);
 
   const loadBotData = async (auctionId: string) => {
     setBotLoading(true);
