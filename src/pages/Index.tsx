@@ -5,11 +5,8 @@ import { AuctionCard } from "@/components/AuctionCard";
 import { BidPackages } from "@/components/BidPackages";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RecentWinners } from "@/components/RecentWinners";
-import { useAuth } from "@/contexts/AuthContext";
-import { useRecentBidders } from "@/hooks/useRecentBidders";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
-import { transformAuctionData } from "@/lib/utils";
 
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,11 +17,85 @@ const Index = () => {
   const [auctions, setAuctions] = useState<any[]>([]);
   const [bidding, setBidding] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
   const { toast } = useToast();
-  const { fetchRecentBidders } = useRecentBidders();
 
+  const transformAuctionData = (auction: any) => {
+    const brazilTimezone = 'America/Sao_Paulo';
+    const now = new Date();
+    const nowInBrazil = toZonedTime(now, brazilTimezone);
+    
+    const startsAt = auction.starts_at ? toZonedTime(new Date(auction.starts_at), brazilTimezone) : null;
+    const endsAt = auction.ends_at ? toZonedTime(new Date(auction.ends_at), brazilTimezone) : null;
+    
+    // Determinar o status real do leilão usando o fuso do Brasil
+    let auctionStatus = 'waiting';
+    if (startsAt && startsAt > nowInBrazil) {
+      auctionStatus = 'waiting'; // Ainda não começou
+    } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
+      auctionStatus = 'active'; // Ativo
+    } else {
+      auctionStatus = 'finished'; // Finalizado
+    }
+    
+    return {
+      ...auction,
+      image: auction.image_url || '/placeholder.svg',
+      currentPrice: (auction.current_price || 10) / 100,
+      originalPrice: (auction.market_value || 0) / 100,
+      totalBids: auction.total_bids || 0,
+      participants: auction.participants_count || 0,
+      recentBidders: auction.recentBidders || [], // Usar dados reais dos lances
+      currentRevenue: (auction.total_bids || 0) * 1.00,
+      timeLeft: endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0,
+      auctionStatus,
+      isActive: auctionStatus === 'active',
+      ends_at: auction.ends_at,
+      starts_at: auction.starts_at
+    };
+  };
 
+  // Função para buscar lances recentes de um leilão
+  const fetchRecentBidders = async (auctionId: string) => {
+    try {
+      // Buscar os últimos lances do leilão
+      const { data: bids, error: bidsError } = await supabase
+        .from('bids')
+        .select('user_id, created_at')
+        .eq('auction_id', auctionId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (bidsError) {
+        console.error('Erro ao buscar lances recentes:', bidsError);
+        return [];
+      }
+
+      if (!bids || bids.length === 0) {
+        return [];
+      }
+
+      // Buscar os nomes dos usuários
+      const userIds = bids.map(bid => bid.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+
+      // Criar um mapa de user_id para nome
+      const userNameMap = new Map();
+      profiles?.forEach(profile => {
+        userNameMap.set(profile.user_id, profile.full_name || 'Usuário');
+      });
+
+      // Retornar os nomes dos lances recentes
+      return bids.map(bid => 
+        userNameMap.get(bid.user_id) || 'Usuário'
+      );
+    } catch (error) {
+      console.error('Erro ao buscar lances recentes:', error);
+      return [];
+    }
+  };
 
   const fetchAuctions = useCallback(async () => {
     try {
@@ -61,7 +132,7 @@ const Index = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, fetchRecentBidders]);
+  }, [toast]);
 
   // Hook para verificar e ativar leilões automaticamente
   useAuctionTimer(fetchAuctions);
@@ -118,7 +189,7 @@ const Index = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast, fetchRecentBidders]);
+  }, [toast]);
 
   const handleBid = async (auctionId: string) => {
     // Verificar se já está processando um lance para este leilão
