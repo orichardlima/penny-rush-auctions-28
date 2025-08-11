@@ -47,56 +47,23 @@ export const AuctionCard = ({
   ends_at,
   starts_at
 }: AuctionCardProps) => {
-  const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
-  const [isActive, setIsActive] = useState(initialIsActive);
   const [isBidding, setIsBidding] = useState(false);
 
   // Hook para escutar updates em tempo real do leilão
   const { auctionData } = useAuctionRealtime(id);
 
-  // Sincronizar com props quando há alterações (ex: depois de um lance)
-  useEffect(() => {
-    setTimeLeft(initialTimeLeft);
-    setIsActive(initialIsActive);
-  }, [initialTimeLeft, initialIsActive]);
+  // DADOS PASSIVOS: Frontend sempre respeita o backend
+  // 1ª prioridade: Dados do realtime (banco de dados)
+  // 2ª prioridade: Props iniciais (só para primeiro render)
+  const displayTimeLeft = auctionData?.time_left ?? initialTimeLeft;
+  const displayIsActive = auctionData?.status === 'active' ? auctionData.time_left > 0 : initialIsActive;
+  const displayStatus = auctionData?.status ?? auctionStatus;
+  const displayCurrentPrice = auctionData?.current_price ?? currentPrice;
+  const displayTotalBids = auctionData?.total_bids ?? totalBids;
 
-  // Sincronizar com dados em tempo real recebidos via WebSocket
-  useEffect(() => {
-    if (auctionData) {
-      console.log('🔄 Sincronizando timer com realtime:', auctionData.time_left);
-      setTimeLeft(auctionData.time_left);
-      setIsActive(auctionData.status === 'active' && auctionData.time_left > 0);
-    }
-  }, [auctionData]);
-
-  // Timer local apenas como fallback - priorizar dados do realtime
-  useEffect(() => {
-    if (auctionStatus !== 'active' || !ends_at) return;
-
-    const updateTimer = () => {
-      const now = Date.now();
-      const endTime = new Date(ends_at).getTime();
-      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
-      
-      console.log('⏰ Timer update:', { 
-        auction: id, 
-        now: new Date(now).toISOString(), 
-        endTime: new Date(endTime).toISOString(), 
-        remaining 
-      });
-      
-      setTimeLeft(remaining);
-      
-      if (remaining <= 0) {
-        setIsActive(false);
-      }
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-
-    return () => clearInterval(interval);
-  }, [ends_at, auctionStatus, id]);
+  // Debug: Mostrar fonte dos dados
+  const dataSource = auctionData ? 'REALTIME' : 'PROPS';
+  console.log(`🎯 [${id}] Timer: ${displayTimeLeft}s | Status: ${displayStatus} | Source: ${dataSource}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -113,14 +80,14 @@ export const AuctionCard = ({
   };
 
   const getTimerClasses = () => {
-    if (timeLeft > 10) {
+    if (displayTimeLeft > 10) {
       return {
         container: "bg-background border-2 border-success text-success shadow-lg",
         dot: "bg-success animate-pulse",
         animation: ""
       };
     }
-    if (timeLeft > 5) {
+    if (displayTimeLeft > 5) {
       return {
         container: "bg-background border-2 border-warning text-warning shadow-lg animate-timer-warning",
         dot: "bg-warning animate-pulse",
@@ -169,13 +136,17 @@ export const AuctionCard = ({
         />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <Badge 
-            variant={auctionStatus === 'active' ? "default" : auctionStatus === 'waiting' ? "outline" : "secondary"} 
+            variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} 
             className="shadow-md"
           >
-            {auctionStatus === 'waiting' ? "Aguardando" : auctionStatus === 'active' ? "Ativo" : "Finalizado"}
+            {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
+          </Badge>
+          {/* Debug badge */}
+          <Badge variant="outline" className="text-xs">
+            {dataSource}
           </Badge>
         </div>
-        {auctionStatus === 'active' && (
+        {displayStatus === 'active' && (
           <div className="absolute top-3 left-3">
             <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
               <div className="flex items-center gap-2">
@@ -183,7 +154,7 @@ export const AuctionCard = ({
                 <div className="flex items-center gap-1">
                   <Clock className="w-5 h-5" />
                   <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
-                    {timeLeft}s
+                    {displayTimeLeft}s
                   </span>
                 </div>
               </div>
@@ -195,7 +166,7 @@ export const AuctionCard = ({
       <div className="p-6">
         <h3 className="font-semibold text-lg mb-3 text-foreground">{title}</h3>
         
-        {auctionStatus === 'waiting' && starts_at && (
+        {displayStatus === 'waiting' && starts_at && (
           <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
               🕒 Leilão inicia em: {formatDateTime(starts_at)}
@@ -206,7 +177,7 @@ export const AuctionCard = ({
         <div className="space-y-3 mb-4">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Preço atual:</span>
-            <span className="text-2xl font-bold text-primary">{formatPrice(currentPrice)}</span>
+            <span className="text-2xl font-bold text-primary">{formatPrice(displayCurrentPrice)}</span>
           </div>
 
           <div className="flex justify-between items-center text-sm">
@@ -222,7 +193,7 @@ export const AuctionCard = ({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center text-muted-foreground">
               <Gavel className="w-4 h-4 mr-1" />
-              {totalBids} lances
+              {displayTotalBids} lances
             </div>
             <div className="flex items-center text-muted-foreground">
               <Users className="w-4 h-4 mr-1" />
@@ -250,19 +221,19 @@ export const AuctionCard = ({
 
         <Button 
           onClick={handleBid} 
-          disabled={auctionStatus !== 'active' || userBids <= 0 || isBidding}
+          disabled={displayStatus !== 'active' || userBids <= 0 || isBidding}
           variant={isBidding ? "success" : "bid"}
           size="lg" 
           className="w-full"
         >
           <TrendingUp className="w-4 h-4 mr-2" />
           {isBidding ? "PROCESSANDO..." :
-           auctionStatus === 'waiting' ? "AGUARDANDO INÍCIO" : 
-           auctionStatus === 'active' ? "DAR LANCE (R$ 1,00)" : 
+           displayStatus === 'waiting' ? "AGUARDANDO INÍCIO" : 
+           displayStatus === 'active' ? "DAR LANCE (R$ 1,00)" : 
            "LEILÃO FINALIZADO"}
         </Button>
 
-        {userBids <= 0 && auctionStatus === 'active' && (
+        {userBids <= 0 && displayStatus === 'active' && (
           <p className="text-center text-destructive text-sm mt-2">
             Você precisa comprar lances para participar!
           </p>

@@ -41,15 +41,19 @@ export const useAuctionRealtime = (auctionId?: string) => {
           filter: `id=eq.${auctionId}`
         },
         (payload) => {
-          console.log('📡 Update do leilão recebido:', payload);
+          console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
           setAuctionData(newAuctionData);
           
-          // Log para debug do timer
-          console.log('🕐 Timer atualizado:', {
+          // Log detalhado para debug
+          console.log('🕐 [REALTIME] Timer atualizado via banco:', {
+            auction_id: newAuctionData.id,
             time_left: newAuctionData.time_left,
+            current_price: newAuctionData.current_price,
+            total_bids: newAuctionData.total_bids,
             ends_at: newAuctionData.ends_at,
-            status: newAuctionData.status
+            status: newAuctionData.status,
+            timestamp: new Date().toISOString()
           });
         }
       )
