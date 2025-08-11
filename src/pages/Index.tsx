@@ -50,7 +50,9 @@ const Index = () => {
       auctionStatus,
       isActive: auctionStatus === 'active',
       ends_at: auction.ends_at,
-      starts_at: auction.starts_at
+      starts_at: auction.starts_at,
+      winnerId: auction.winner_id,
+      winnerName: auction.winner_name
     };
   };
 
@@ -343,6 +345,8 @@ const Index = () => {
                     auctionStatus={auction.auctionStatus}
                     ends_at={auction.ends_at}
                     starts_at={auction.starts_at}
+                    winnerId={auction.winnerId}
+                    winnerName={auction.winnerName}
                   />
                 ))
               )}

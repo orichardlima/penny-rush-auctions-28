@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
-import { Clock, Users, TrendingUp, Gavel } from 'lucide-react';
+import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
 import { useAuctionRealtime } from '@/hooks/useAuctionRealtime';
 
 interface AuctionCardProps {
@@ -27,6 +27,8 @@ interface AuctionCardProps {
   auctionStatus?: 'waiting' | 'active' | 'finished';
   ends_at?: string;
   starts_at?: string;
+  winnerId?: string;
+  winnerName?: string;
 }
 
 export const AuctionCard = ({ 
@@ -45,7 +47,9 @@ export const AuctionCard = ({
   isActive: initialIsActive = true,
   auctionStatus = 'active',
   ends_at,
-  starts_at
+  starts_at,
+  winnerId,
+  winnerName
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
@@ -60,6 +64,7 @@ export const AuctionCard = ({
   const displayStatus = auctionData?.status ?? auctionStatus;
   const displayCurrentPrice = auctionData?.current_price ?? currentPrice;
   const displayTotalBids = auctionData?.total_bids ?? totalBids;
+  const displayWinnerName = auctionData?.winner_name ?? winnerName;
 
   // Debug: Mostrar fonte dos dados
   const dataSource = auctionData ? 'REALTIME' : 'PROPS';
@@ -219,19 +224,60 @@ export const AuctionCard = ({
           )}
         </div>
 
-        <Button 
-          onClick={handleBid} 
-          disabled={displayStatus !== 'active' || userBids <= 0 || isBidding}
-          variant={isBidding ? "success" : "bid"}
-          size="lg" 
-          className="w-full"
-        >
-          <TrendingUp className="w-4 h-4 mr-2" />
-          {isBidding ? "PROCESSANDO..." :
-           displayStatus === 'waiting' ? "AGUARDANDO INÍCIO" : 
-           displayStatus === 'active' ? "DAR LANCE (R$ 1,00)" : 
-           "LEILÃO FINALIZADO"}
-        </Button>
+        {/* Winner Section - Only show for finished auctions */}
+        {displayStatus === 'finished' && displayWinnerName && (
+          <div className="mb-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Trophy className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+              <span className="font-bold text-lg text-yellow-800 dark:text-yellow-200">
+                Ganhador
+              </span>
+            </div>
+            <p className="text-lg font-semibold text-yellow-900 dark:text-yellow-100">
+              {displayWinnerName}
+            </p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+              Parabéns! Produto arrematado por {formatPrice(displayCurrentPrice)}
+            </p>
+          </div>
+        )}
+
+        {displayStatus === 'active' && (
+          <Button 
+            onClick={handleBid} 
+            disabled={userBids <= 0 || isBidding}
+            variant={isBidding ? "success" : "bid"}
+            size="lg" 
+            className="w-full"
+          >
+            <TrendingUp className="w-4 h-4 mr-2" />
+            {isBidding ? "PROCESSANDO..." : "DAR LANCE (R$ 1,00)"}
+          </Button>
+        )}
+
+        {displayStatus === 'waiting' && (
+          <Button 
+            disabled 
+            variant="outline"
+            size="lg" 
+            className="w-full"
+          >
+            <Clock className="w-4 h-4 mr-2" />
+            AGUARDANDO INÍCIO
+          </Button>
+        )}
+
+        {displayStatus === 'finished' && (
+          <Button 
+            disabled 
+            variant="secondary"
+            size="lg" 
+            className="w-full"
+          >
+            <Trophy className="w-4 h-4 mr-2" />
+            LEILÃO FINALIZADO
+          </Button>
+        )}
 
         {userBids <= 0 && displayStatus === 'active' && (
           <p className="text-center text-destructive text-sm mt-2">

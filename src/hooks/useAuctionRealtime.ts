@@ -9,6 +9,8 @@ interface AuctionUpdate {
   time_left: number;
   ends_at: string;
   status: string;
+  winner_id?: string;
+  winner_name?: string;
 }
 
 interface BidUpdate {
