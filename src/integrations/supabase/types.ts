@@ -285,6 +285,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_expired_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       finalize_expired_auctions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
