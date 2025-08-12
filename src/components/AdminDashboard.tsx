@@ -422,6 +422,8 @@ const AdminDashboard = () => {
           title: editingAuction.title,
           description: editingAuction.description,
           image_url: imageUrl,
+          starting_price: editingAuction.starting_price, // In cents
+          current_price: editingAuction.starting_price, // Reset to starting price in cents
           market_value: editingAuction.market_value, // Already in reais
           revenue_target: editingAuction.revenue_target, // Already in reais
         })
