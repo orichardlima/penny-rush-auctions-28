@@ -423,7 +423,7 @@ const AdminDashboard = () => {
           description: editingAuction.description,
           image_url: imageUrl,
           market_value: editingAuction.market_value * 100, // Convert to cents
-          revenue_target: editingAuction.revenue_target * 100, // Convert to cents
+          revenue_target: editingAuction.revenue_target, // Already in reais
         })
         .eq('id', editingAuction.id);
 
@@ -454,7 +454,7 @@ const AdminDashboard = () => {
     setEditingAuction({
       ...auction,
       market_value: auction.market_value / 100, // Convert from cents
-      revenue_target: auction.revenue_target / 100, // Convert from cents
+      revenue_target: auction.revenue_target, // Already in reais
     });
     setSelectedImage(null);
     setIsEditDialogOpen(true);
@@ -783,8 +783,8 @@ const AdminDashboard = () => {
                           id="revenue_target"
                           type="number"
                           step="0.01"
-                          value={newAuction.revenue_target / 100}
-                          onChange={(e) => setNewAuction({...newAuction, revenue_target: Math.round(parseFloat(e.target.value || '0') * 100)})}
+                          value={newAuction.revenue_target}
+                          onChange={(e) => setNewAuction({...newAuction, revenue_target: parseFloat(e.target.value || '0')})}
                           placeholder="500.00"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
@@ -1281,7 +1281,7 @@ const AdminDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm">
-                      {formatBRL(botAuction.company_revenue || 0)} / {formatBRL((botAuction.revenue_target || 0)/100)}
+                      {formatBRL(botAuction.company_revenue || 0)} / {formatBRL(botAuction.revenue_target || 0)}
                     </p>
                   </CardContent>
                 </Card>
