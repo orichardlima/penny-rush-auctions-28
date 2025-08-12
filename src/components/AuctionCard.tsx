@@ -95,8 +95,11 @@ export const AuctionCard = ({
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
+  const { profile } = useAuth();
+  const actualUserBids = profile?.bids_balance || 0;
+
   const handleBid = async () => {
-    if (userBids <= 0 || isBidding) return;
+    if (actualUserBids <= 0 || isBidding) return;
     
     setIsBidding(true);
     try {
@@ -263,7 +266,7 @@ export const AuctionCard = ({
         {displayStatus === 'active' && (
           <Button 
             onClick={handleBid} 
-            disabled={userBids <= 0 || isBidding}
+            disabled={actualUserBids <= 0 || isBidding}
             variant={isBidding ? "success" : "bid"}
             size="lg" 
             className="w-full"
@@ -297,7 +300,7 @@ export const AuctionCard = ({
           </Button>
         )}
 
-        {userBids <= 0 && displayStatus === 'active' && (
+        {actualUserBids <= 0 && displayStatus === 'active' && (
           <p className="text-center text-destructive text-sm mt-2">
             Você precisa comprar lances para participar!
           </p>
