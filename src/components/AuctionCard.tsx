@@ -66,27 +66,20 @@ export const AuctionCard = ({
   const displayTotalBids = auctionData?.total_bids ?? totalBids;
   const displayWinnerName = auctionData?.winner_name ?? winnerName;
 
-  // Função para formatar preços
-  const formatPrice = (priceInCents: number) => {
-    // Garantir que o valor não seja null, undefined ou NaN
-    const safePriceInCents = priceInCents || 0;
+  // Função unificada para formatar preços (detecta automaticamente se está em centavos ou reais)
+  const formatPrice = (price: number) => {
+    const safePrice = price || 0;
+    
+    // Se o valor é muito grande (> 1000), provavelmente está em centavos
+    // Se é pequeno (< 1000), provavelmente já está em reais
+    const finalPrice = safePrice > 1000 ? safePrice / 100 : safePrice;
+    
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(safePriceInCents / 100);
-  };
-
-  // Função para formatar valores que já estão em reais
-  const formatPriceInReais = (priceInReais: number) => {
-    const safePrice = priceInReais || 0;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(safePrice);
+    }).format(finalPrice);
   };
 
   // Debug: Mostrar fonte dos dados e preço
@@ -204,7 +197,7 @@ export const AuctionCard = ({
 
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-lg font-semibold line-through text-muted-foreground">{formatPriceInReais(originalPrice)}</span>
+            <span className="text-lg font-semibold line-through text-muted-foreground">{formatPrice(originalPrice)}</span>
           </div>
 
           <div className="flex justify-between items-center">
