@@ -41,7 +41,7 @@ const Index = () => {
       ...auction,
       image: auction.image_url || '/placeholder.svg',
       currentPrice: (auction.current_price || 10) / 100,
-      originalPrice: (auction.market_value || 0) / 100,
+      originalPrice: auction.market_value || 0, // Already in reais
       totalBids: auction.total_bids || 0,
       participants: auction.participants_count || 0,
       recentBidders: auction.recentBidders || [], // Usar dados reais dos lances

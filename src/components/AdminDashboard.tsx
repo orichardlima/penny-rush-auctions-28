@@ -422,7 +422,7 @@ const AdminDashboard = () => {
           title: editingAuction.title,
           description: editingAuction.description,
           image_url: imageUrl,
-          market_value: editingAuction.market_value * 100, // Convert to cents
+          market_value: editingAuction.market_value, // Already in reais
           revenue_target: editingAuction.revenue_target, // Already in reais
         })
         .eq('id', editingAuction.id);
@@ -453,7 +453,7 @@ const AdminDashboard = () => {
   const handleEditClick = (auction: Auction) => {
     setEditingAuction({
       ...auction,
-      market_value: auction.market_value / 100, // Convert from cents
+      market_value: auction.market_value, // Already in reais
       revenue_target: auction.revenue_target, // Already in reais
     });
     setSelectedImage(null);
@@ -768,8 +768,8 @@ const AdminDashboard = () => {
                           id="market_value"
                           type="number"
                           step="0.01"
-                          value={newAuction.market_value / 100}
-                          onChange={(e) => setNewAuction({...newAuction, market_value: Math.round(parseFloat(e.target.value || '0') * 100)})}
+                          value={newAuction.market_value}
+                          onChange={(e) => setNewAuction({...newAuction, market_value: parseFloat(e.target.value || '0')})}
                           placeholder="8999.00"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
