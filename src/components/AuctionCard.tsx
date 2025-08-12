@@ -78,6 +78,17 @@ export const AuctionCard = ({
     }).format(safePriceInCents / 100);
   };
 
+  // Função para formatar valores que já estão em reais
+  const formatPriceInReais = (priceInReais: number) => {
+    const safePrice = priceInReais || 0;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(safePrice);
+  };
+
   // Debug: Mostrar fonte dos dados e preço
   const dataSource = auctionData ? 'REALTIME' : 'PROPS';
   console.log(`🎯 [${id}] Timer: ${displayTimeLeft}s | Status: ${displayStatus} | Source: ${dataSource}`);
@@ -193,7 +204,7 @@ export const AuctionCard = ({
 
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-lg font-semibold line-through text-muted-foreground">{formatPrice(originalPrice)}</span>
+            <span className="text-lg font-semibold line-through text-muted-foreground">{formatPriceInReais(originalPrice)}</span>
           </div>
 
           <div className="flex justify-between items-center">
