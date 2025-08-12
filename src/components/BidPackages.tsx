@@ -1,63 +1,67 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Zap, Crown, Gift } from "lucide-react";
+import { Star, Zap, Crown, Diamond, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface BidPackage {
   id: string;
   name: string;
-  bids: number;
+  bids_count: number;
   price: number;
-  originalPrice?: number;
-  popular?: boolean;
-  icon: React.ReactNode;
+  original_price?: number;
+  is_popular?: boolean;
+  icon: string;
   features: string[];
 }
 
 interface BidPackagesProps {
-  onPurchase: (packageId: string, bids: number) => void;
+  onPurchase: (packageId: string, bids: number, price: number) => void;
 }
 
+const getIcon = (iconName: string) => {
+  const icons = {
+    Star: <Star className="w-6 h-6" />,
+    Zap: <Zap className="w-6 h-6" />,
+    Crown: <Crown className="w-6 h-6" />,
+    Diamond: <Diamond className="w-6 h-6" />
+  };
+  return icons[iconName as keyof typeof icons] || <Star className="w-6 h-6" />;
+};
+
 export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
-  const packages: BidPackage[] = [
-    {
-      id: "starter",
-      name: "Iniciante",
-      bids: 10,
-      price: 15,
-      originalPrice: 20,
-      icon: <Star className="w-6 h-6" />,
-      features: ["10 lances", "Válido por 30 dias", "Suporte básico"]
-    },
-    {
-      id: "popular",
-      name: "Popular",
-      bids: 50,
-      price: 60,
-      originalPrice: 80,
-      popular: true,
-      icon: <Zap className="w-6 h-6" />,
-      features: ["50 lances", "Válido por 60 dias", "Suporte prioritário", "+5 lances bônus"]
-    },
-    {
-      id: "premium",
-      name: "Premium",
-      bids: 100,
-      price: 110,
-      originalPrice: 150,
-      icon: <Crown className="w-6 h-6" />,
-      features: ["100 lances", "Válido por 90 dias", "Suporte VIP", "+15 lances bônus", "Notificações exclusivas"]
-    },
-    {
-      id: "mega",
-      name: "Mega Pack",
-      bids: 250,
-      price: 250,
-      originalPrice: 350,
-      icon: <Gift className="w-6 h-6" />,
-      features: ["250 lances", "Válido por 120 dias", "Suporte VIP", "+50 lances bônus", "Acesso antecipado", "Consultoria gratuita"]
+  const [packages, setPackages] = useState<BidPackage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchPackages();
+  }, []);
+
+  const fetchPackages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bid_packages')
+        .select('*')
+        .order('price', { ascending: true });
+
+      if (error) throw error;
+      setPackages(data || []);
+    } catch (err) {
+      console.error('Error fetching packages:', err);
+      setError('Erro ao carregar pacotes');
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os pacotes de lances.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const formatPrice = (priceInCents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -65,6 +69,39 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
       currency: 'BRL'
     }).format(priceInCents / 100);
   };
+
+  if (loading) {
+    return (
+      <section className="py-16 bg-muted/30" id="pacotes">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando pacotes...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="py-16 bg-muted/30" id="pacotes">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <p className="text-destructive">Erro ao carregar pacotes de lances</p>
+            <Button 
+              variant="outline" 
+              onClick={fetchPackages}
+              className="mt-4"
+            >
+              Tentar Novamente
+            </Button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-16 bg-muted/30" id="pacotes">
@@ -84,33 +121,33 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
             <Card 
               key={pkg.id} 
               className={`relative overflow-hidden transition-all duration-300 hover:shadow-elegant hover:-translate-y-1 ${
-                pkg.popular ? 'ring-2 ring-primary shadow-glow' : ''
+                pkg.is_popular ? 'ring-2 ring-primary shadow-glow' : ''
               }`}
             >
-              {pkg.popular && (
+              {pkg.is_popular && (
                 <div className="absolute top-0 left-0 right-0 bg-gradient-primary text-primary-foreground text-center py-2 text-sm font-semibold">
                   🔥 MAIS POPULAR
                 </div>
               )}
               
-              <div className={`p-6 ${pkg.popular ? 'pt-12' : ''}`}>
+              <div className={`p-6 ${pkg.is_popular ? 'pt-12' : ''}`}>
                 <div className="text-center mb-6">
                   <div className={`inline-flex p-3 rounded-lg mb-4 ${
-                    pkg.popular ? 'bg-gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+                    pkg.is_popular ? 'bg-gradient-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
                   }`}>
-                    {pkg.icon}
+                    {getIcon(pkg.icon)}
                   </div>
                   <h3 className="text-xl font-bold mb-2">{pkg.name}</h3>
                   <div className="mb-2">
                     <span className="text-3xl font-bold text-primary">{formatPrice(pkg.price)}</span>
-                    {pkg.originalPrice && (
+                    {pkg.original_price && (
                       <span className="text-lg text-muted-foreground line-through ml-2">
-                        {formatPrice(pkg.originalPrice)}
+                        {formatPrice(pkg.original_price)}
                       </span>
                     )}
                   </div>
-                  <Badge variant={pkg.popular ? "default" : "secondary"} className="text-xs">
-                    {pkg.bids} lances inclusos
+                  <Badge variant={pkg.is_popular ? "default" : "secondary"} className="text-xs">
+                    {pkg.bids_count} lances inclusos
                   </Badge>
                 </div>
 
@@ -124,17 +161,17 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                 </ul>
 
                 <Button 
-                  onClick={() => onPurchase(pkg.id, pkg.bids)}
-                  variant={pkg.popular ? "default" : "outline"}
+                  onClick={() => onPurchase(pkg.id, pkg.bids_count, pkg.price)}
+                  variant={pkg.is_popular ? "default" : "outline"}
                   size="lg"
                   className="w-full"
                 >
                   Comprar Agora
                 </Button>
 
-                {pkg.originalPrice && (
+                {pkg.original_price && (
                   <p className="text-center text-xs text-success mt-2">
-                    Economize {formatPrice(pkg.originalPrice - pkg.price)}!
+                    Economize {formatPrice(pkg.original_price - pkg.price)}!
                   </p>
                 )}
               </div>

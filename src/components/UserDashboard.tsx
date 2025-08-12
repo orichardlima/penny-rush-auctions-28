@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { usePurchaseProcessor } from '@/hooks/usePurchaseProcessor';
 import { 
   User, 
   CreditCard, 
@@ -15,10 +16,14 @@ import {
   Zap, 
   TrendingUp,
   ShoppingCart,
-  LogOut
+  LogOut,
+  PieChart,
+  Target
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
+import { FinancialDashboard } from '@/components/FinancialDashboard';
+import { AuctionHistory } from '@/components/AuctionHistory';
 
 interface Bid {
   id: string;
@@ -46,6 +51,7 @@ interface Purchase {
 const UserDashboard = () => {
   const { profile, signOut } = useAuth();
   const { toast } = useToast();
+  const { processPurchase, processing } = usePurchaseProcessor();
   const [bids, setBids] = useState<Bid[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,38 +96,15 @@ const UserDashboard = () => {
     }
   };
 
-  const handlePurchase = async (packageId: string, bidsCount: number) => {
-    // Simular compra de pacote
-    toast({
-      title: 'Compra realizada!',
-      description: `Você comprou ${bidsCount} lances com sucesso.`,
-    });
+  const handlePurchase = async (packageId: string, bidsCount: number, price: number) => {
+    const result = await processPurchase(packageId, bidsCount, price);
     
-    // Atualizar saldo de lances do usuário
-    const newBalance = (profile?.bids_balance || 0) + bidsCount;
-    
-    // Aqui você implementaria a lógica real de pagamento
-    // Por enquanto, vamos apenas simular
-    const { error } = await supabase
-      .from('profiles')
-      .update({ bids_balance: newBalance })
-      .eq('user_id', profile?.user_id);
-
-    if (!error) {
-      // Registrar a compra
-      await supabase
-        .from('bid_purchases')
-        .insert([
-          {
-            user_id: profile?.user_id,
-            package_id: packageId,
-            bids_purchased: bidsCount,
-            amount_paid: 0, // Seria o valor real do pacote
-            payment_status: 'completed'
-          }
-        ]);
-      
+    if (result.success) {
+      // Recarregar dados do usuário após compra bem-sucedida
       fetchUserData();
+      
+      // Forçar atualização do contexto de auth para refletir novo saldo
+      window.location.reload();
     }
   };
 
@@ -217,13 +200,80 @@ const UserDashboard = () => {
         </div>
 
         {/* Tabs do Dashboard */}
-        <Tabs defaultValue="bids" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="bids">Meus Lances</TabsTrigger>
-            <TabsTrigger value="purchases">Compras</TabsTrigger>
+            <TabsTrigger value="auctions">Meus Leilões</TabsTrigger>
+            <TabsTrigger value="financial">Financeiro</TabsTrigger>
             <TabsTrigger value="packages">Comprar Lances</TabsTrigger>
             <TabsTrigger value="profile">Perfil</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Resumo Rápido */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2 h-5 w-5" />
+                    Resumo de Atividades
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Lances disponíveis</span>
+                    <span className="font-bold text-lg">{profile?.bids_balance || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Lances dados</span>
+                    <span className="font-medium">{bids.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Pacotes comprados</span>
+                    <span className="font-medium">{purchases.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Leilões ganhos</span>
+                    <span className="font-medium text-yellow-600">0</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Últimas Atividades */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <History className="mr-2 h-5 w-5" />
+                    Últimas Atividades
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {bids.length > 0 ? (
+                    <div className="space-y-3">
+                      {bids.slice(0, 3).map((bid) => (
+                        <div key={bid.id} className="flex justify-between items-center py-2 border-b last:border-b-0">
+                          <div>
+                            <p className="font-medium text-sm">{bid.auctions?.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(bid.created_at)}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {formatPrice(bid.cost_paid)}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-4 text-sm">
+                      Nenhuma atividade recente
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="bids" className="space-y-4">
             <Card>
@@ -313,8 +363,31 @@ const UserDashboard = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="auctions">
+            <AuctionHistory />
+          </TabsContent>
+
+          <TabsContent value="financial">
+            <FinancialDashboard />
+          </TabsContent>
+
           <TabsContent value="packages">
-            <BidPackages onPurchase={handlePurchase} />
+            <div className={processing ? 'pointer-events-none opacity-50' : ''}>
+              <BidPackages onPurchase={handlePurchase} />
+              {processing && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+                  <Card className="p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <div>
+                        <p className="font-medium">Processando compra...</p>
+                        <p className="text-sm text-muted-foreground">Por favor, aguarde</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-4">
