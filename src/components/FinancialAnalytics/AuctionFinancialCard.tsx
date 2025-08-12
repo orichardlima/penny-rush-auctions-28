@@ -31,7 +31,16 @@ export const AuctionFinancialCard: React.FC<AuctionFinancialCardProps> = ({
   auction, 
   onClick 
 }) => {
-  const formatCurrency = (valueInCents: number) => {
+  // Formatação para valores já em reais (não precisa dividir por 100)
+  const formatCurrencyFromReais = (valueInReais: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(valueInReais);
+  };
+
+  // Formatação para valores em centavos (precisa dividir por 100)
+  const formatCurrencyFromCents = (valueInCents: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
@@ -86,7 +95,7 @@ export const AuctionFinancialCard: React.FC<AuctionFinancialCardProps> = ({
             Receita Real
           </span>
           <span className="font-semibold text-lg">
-            {formatCurrency(auction.real_revenue)}
+            {formatCurrencyFromReais(auction.real_revenue)}
           </span>
         </div>
 
@@ -106,7 +115,7 @@ export const AuctionFinancialCard: React.FC<AuctionFinancialCardProps> = ({
             className="h-2"
           />
           <div className="text-xs text-muted-foreground text-right">
-            {formatCurrency(auction.revenue_target / 100)}
+            {formatCurrencyFromReais(auction.revenue_target)}
           </div>
         </div>
 
@@ -149,7 +158,7 @@ export const AuctionFinancialCard: React.FC<AuctionFinancialCardProps> = ({
           <div className="text-center">
             <div className="text-xs text-muted-foreground">Margem</div>
             <div className={`font-semibold ${getROIColor(auction.profit_margin)}`}>
-              {formatCurrency(auction.profit_margin)}
+              {formatCurrencyFromReais(auction.profit_margin)}
             </div>
           </div>
         </div>
