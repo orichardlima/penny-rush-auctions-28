@@ -289,7 +289,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onBuyBids={handleBuyBids} />
+      <Header userBids={userBids} onBuyBids={handleBuyBids} />
       
       <main>
         <HeroSection />
