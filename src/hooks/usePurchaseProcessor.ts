@@ -71,7 +71,19 @@ export const usePurchaseProcessor = () => {
         throw new Error('Erro ao atualizar saldo de lances');
       }
 
-      // 4. Mostrar notificação de sucesso
+      // 4. Recarregar perfil do banco para sincronizar saldo
+      const { data: updatedProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', profile.user_id)
+        .single();
+
+      if (updatedProfile) {
+        // Atualizar contexto com dados atualizados do banco
+        window.location.reload(); // Força reload para garantir sincronização
+      }
+
+      // 5. Mostrar notificação de sucesso
       toast({
         title: "Compra realizada com sucesso! 🎉",
         description: `${bidsCount} lances foram adicionados à sua conta.`,
