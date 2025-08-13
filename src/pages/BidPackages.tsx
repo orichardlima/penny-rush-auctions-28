@@ -5,28 +5,29 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
+import { useAuth } from "@/contexts/AuthContext";
 
 const BidPackagesPage = () => {
-  const [userBids, setUserBids] = useState(25);
   const { toast } = useToast();
+  const { processPurchase, processing } = usePurchaseProcessor();
+  const { refreshProfile } = useAuth();
 
   const handleBuyBids = () => {
     // Already on this page, scroll to packages
     document.getElementById('pacotes')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handlePurchasePackage = (packageId: string, bids: number) => {
-    setUserBids(prev => prev + bids);
-    toast({
-      title: "Pacote adquirido!",
-      description: `${bids} lances foram adicionados à sua conta.`,
-      variant: "default"
-    });
+  const handlePurchasePackage = async (packageId: string, bids: number, price: number) => {
+    const result = await processPurchase(packageId, bids, price);
+    if (result.success) {
+      await refreshProfile();
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <Header userBids={userBids} onBuyBids={handleBuyBids} />
+      <Header onBuyBids={handleBuyBids} />
       
       <main className="py-8">
         <div className="container mx-auto px-4">

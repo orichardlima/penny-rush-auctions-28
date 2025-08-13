@@ -11,16 +11,17 @@ interface HeaderProps {
 
 export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   // Try to get auth context, fallback to props if not available
-  let displayBids = userBids || 0;
+  let displayBids = userBids ?? 0;
   let user = null;
   try {
     const authContext = useAuth();
     user = authContext.user;
-    displayBids = userBids !== undefined ? userBids : (authContext.profile?.bids_balance || 0);
+    displayBids = (authContext.profile?.bids_balance ?? (userBids ?? 0));
   } catch (error) {
     // If useAuth fails (not within AuthProvider), use userBids from props
     console.log('Auth context not available in Header, using props');
   }
+
   return (
     <header className="bg-background/95 backdrop-blur-sm border-b border-border shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">

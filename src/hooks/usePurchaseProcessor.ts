@@ -11,7 +11,7 @@ interface PurchaseResult {
 
 export const usePurchaseProcessor = () => {
   const [processing, setProcessing] = useState(false);
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
 
   const processPurchase = async (
@@ -72,16 +72,7 @@ export const usePurchaseProcessor = () => {
       }
 
       // 4. Recarregar perfil do banco para sincronizar saldo
-      const { data: updatedProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', profile.user_id)
-        .single();
-
-      if (updatedProfile) {
-        // Atualizar contexto com dados atualizados do banco
-        window.location.reload(); // Força reload para garantir sincronização
-      }
+      await refreshProfile();
 
       // 5. Mostrar notificação de sucesso
       toast({

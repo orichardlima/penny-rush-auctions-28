@@ -11,6 +11,8 @@ import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
+import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [userBids, setUserBids] = useState(25); // User starts with 25 bids
@@ -18,6 +20,8 @@ const Index = () => {
   const [bidding, setBidding] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { processPurchase } = usePurchaseProcessor();
+  const { refreshProfile } = useAuth();
 
   const transformAuctionData = (auction: any) => {
     const brazilTimezone = 'America/Sao_Paulo';
@@ -278,18 +282,21 @@ const Index = () => {
     window.location.href = "/pacotes";
   };
 
-  const handlePurchasePackage = (packageId: string, bids: number) => {
-    setUserBids(prev => prev + bids);
-    toast({
-      title: "Pacote adquirido!",
-      description: `${bids} lances foram adicionados à sua conta.`,
-      variant: "default"
-    });
+  const handlePurchasePackage = async (packageId: string, bids: number, price: number) => {
+    const result = await processPurchase(packageId, bids, price);
+    if (result.success) {
+      await refreshProfile();
+      toast({
+        title: "Pacote adquirido!",
+        description: `${bids} lances foram adicionados à sua conta.`,
+        variant: "default"
+      });
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <Header userBids={userBids} onBuyBids={handleBuyBids} />
+      <Header onBuyBids={handleBuyBids} />
       
       <main>
         <HeroSection />
