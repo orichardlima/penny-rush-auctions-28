@@ -121,6 +121,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
       }
+      // Se status é finished, definir timer como 0
+      if (auctionData?.status === 'finished') {
+        setLocalTimeLeft(0);
+      }
       return;
     }
 
@@ -176,11 +180,16 @@ export const useAuctionRealtime = (auctionId?: string) => {
         });
         
         setAuctionData(data);
-        {
+        
+        // Se o leilão foi finalizado, definir timer como 0
+        if (data.status === 'finished') {
+          setLocalTimeLeft(0);
+        } else {
+          // Apenas calcular timer se ainda estiver ativo
           const endsAtMs = data.ends_at ? new Date(data.ends_at).getTime() : null;
           const nowMs = Date.now() + (serverOffsetRef.current || 0);
           const initial = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (data.time_left || 0);
-          setLocalTimeLeft(initial); // Sincronizar timer local com base no ends_at
+          setLocalTimeLeft(initial);
         }
         setLastSync(new Date());
       }
@@ -216,11 +225,16 @@ export const useAuctionRealtime = (auctionId?: string) => {
           console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
           setAuctionData(newAuctionData);
-          {
+          
+          // Se o leilão foi finalizado, parar timer
+          if (newAuctionData.status === 'finished') {
+            setLocalTimeLeft(0);
+          } else {
+            // Apenas resetar timer se ainda estiver ativo
             const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
             const nowMs = Date.now() + (serverOffsetRef.current || 0);
             const next = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
-            setLocalTimeLeft(next); // Resetar timer local com base no ends_at
+            setLocalTimeLeft(next);
           }
           setLastSync(new Date());
           setIsConnected(true);
