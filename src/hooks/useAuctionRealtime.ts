@@ -24,13 +24,40 @@ interface BidUpdate {
 export const useAuctionRealtime = (auctionId?: string) => {
   const [auctionData, setAuctionData] = useState<AuctionUpdate | null>(null);
   const [recentBids, setRecentBids] = useState<BidUpdate[]>([]);
+  const [localTimeLeft, setLocalTimeLeft] = useState<number | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const { toast } = useToast();
   
   const heartbeatRef = useRef<NodeJS.Timeout>();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const localTimerRef = useRef<NodeJS.Timeout>();
   const channelsRef = useRef<any[]>([]);
+
+  // Timer local para contagem regressiva visual
+  useEffect(() => {
+    if (localTimeLeft === null || localTimeLeft <= 0) {
+      if (localTimerRef.current) {
+        clearInterval(localTimerRef.current);
+      }
+      return;
+    }
+
+    localTimerRef.current = setInterval(() => {
+      setLocalTimeLeft(prev => {
+        if (prev === null || prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (localTimerRef.current) {
+        clearInterval(localTimerRef.current);
+      }
+    };
+  }, [localTimeLeft]);
 
   // Fetch inicial e polling de backup
   const fetchAuctionData = useCallback(async () => {
@@ -53,6 +80,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
       });
       
       setAuctionData(data);
+      setLocalTimeLeft(data.time_left || 0); // Sincronizar timer local
       setLastSync(new Date());
     } catch (error) {
       console.error('❌ [SYNC] Erro ao buscar dados:', error);
@@ -87,6 +115,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
           console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
           setAuctionData(newAuctionData);
+          setLocalTimeLeft(newAuctionData.time_left || 0); // Resetar timer local
           setLastSync(new Date());
           setIsConnected(true);
           
@@ -94,6 +123,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
           console.log('🕐 [REALTIME] Timer atualizado via banco:', {
             auction_id: newAuctionData.id,
             time_left: newAuctionData.time_left,
+            local_timer_reset: true,
             current_price: newAuctionData.current_price,
             total_bids: newAuctionData.total_bids,
             status: newAuctionData.status,
@@ -164,6 +194,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
         clearTimeout(reconnectTimeoutRef.current);
       }
       
+      if (localTimerRef.current) {
+        clearInterval(localTimerRef.current);
+      }
+      
       clearInterval(pollingInterval);
       
       channelsRef.current.forEach(channel => {
@@ -180,8 +214,11 @@ export const useAuctionRealtime = (auctionId?: string) => {
     fetchAuctionData();
   }, [fetchAuctionData]);
 
+  // Retornar timer local se disponível, senão usar o do banco
+  const displayTimeLeft = localTimeLeft !== null ? localTimeLeft : auctionData?.time_left;
+
   return {
-    auctionData,
+    auctionData: auctionData ? { ...auctionData, time_left: displayTimeLeft || 0 } : null,
     recentBids,
     isConnected,
     lastSync,
