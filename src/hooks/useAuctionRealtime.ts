@@ -158,11 +158,16 @@ export const useAuctionRealtime = (auctionId?: string) => {
         .from('auctions')
         .select('*')
         .eq('id', auctionId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       
-      if (isActiveRef.current) {
+      if (!data) {
+        console.log('⚠️ [SYNC] Leilão não encontrado - pode ter sido removido ou encerrado');
+        return;
+      }
+      
+      if (isActiveRef.current && data) {
         console.log('🔄 [SYNC] Dados atualizados do banco:', {
           auction_id: data.id,
           time_left: data.time_left,
