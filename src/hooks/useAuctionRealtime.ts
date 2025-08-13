@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -24,13 +24,51 @@ interface BidUpdate {
 export const useAuctionRealtime = (auctionId?: string) => {
   const [auctionData, setAuctionData] = useState<AuctionUpdate | null>(null);
   const [recentBids, setRecentBids] = useState<BidUpdate[]>([]);
-  const [calculatedTimeLeft, setCalculatedTimeLeft] = useState<number | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
   const { toast } = useToast();
+  
+  const heartbeatRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const channelsRef = useRef<any[]>([]);
 
+  // Fetch inicial e polling de backup
+  const fetchAuctionData = useCallback(async () => {
+    if (!auctionId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('*')
+        .eq('id', auctionId)
+        .single();
+      
+      if (error) throw error;
+      
+      console.log('🔄 [SYNC] Dados atualizados do banco:', {
+        auction_id: data.id,
+        time_left: data.time_left,
+        status: data.status,
+        timestamp: new Date().toISOString()
+      });
+      
+      setAuctionData(data);
+      setLastSync(new Date());
+    } catch (error) {
+      console.error('❌ [SYNC] Erro ao buscar dados:', error);
+    }
+  }, [auctionId]);
+
+  // Setup realtime com heartbeat e reconexão
   useEffect(() => {
     if (!auctionId) return;
 
     console.log('🔄 Configurando realtime para leilão:', auctionId);
+    
+    let isSubscribed = true;
+
+    // Fetch inicial
+    fetchAuctionData();
 
     // Canal para updates do leilão
     const auctionChannel = supabase
@@ -44,12 +82,13 @@ export const useAuctionRealtime = (auctionId?: string) => {
           filter: `id=eq.${auctionId}`
         },
         (payload) => {
+          if (!isSubscribed) return;
+          
           console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
           setAuctionData(newAuctionData);
-          
-          // Reset timer calculado quando recebe atualização do banco
-          setCalculatedTimeLeft(null);
+          setLastSync(new Date());
+          setIsConnected(true);
           
           // Log detalhado para debug
           console.log('🕐 [REALTIME] Timer atualizado via banco:', {
@@ -57,13 +96,19 @@ export const useAuctionRealtime = (auctionId?: string) => {
             time_left: newAuctionData.time_left,
             current_price: newAuctionData.current_price,
             total_bids: newAuctionData.total_bids,
-            ends_at: newAuctionData.ends_at,
             status: newAuctionData.status,
             timestamp: new Date().toISOString()
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 [REALTIME] Status do canal auction:', status);
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+        } else if (status === 'CLOSED') {
+          setIsConnected(false);
+        }
+      });
 
     // Canal para novos lances
     const bidsChannel = supabase
@@ -77,64 +122,69 @@ export const useAuctionRealtime = (auctionId?: string) => {
           filter: `auction_id=eq.${auctionId}`
         },
         (payload) => {
+          if (!isSubscribed) return;
+          
           console.log('🎯 Novo lance recebido:', payload);
           const newBid = payload.new as BidUpdate;
-          
-          setRecentBids(prev => [newBid, ...prev.slice(0, 9)]); // Manter apenas 10 lances
+          setRecentBids(prev => [newBid, ...prev.slice(0, 9)]);
         }
       )
       .subscribe();
 
+    channelsRef.current = [auctionChannel, bidsChannel];
+
+    // Heartbeat para verificar conexão
+    heartbeatRef.current = setInterval(() => {
+      const now = new Date();
+      if (lastSync && (now.getTime() - lastSync.getTime()) > 60000) {
+        console.log('⚠️ [HEARTBEAT] Sem atualizações há mais de 1 min, fazendo fetch manual');
+        setIsConnected(false);
+        fetchAuctionData();
+      }
+    }, 30000);
+
+    // Polling de backup a cada 30 segundos
+    const pollingInterval = setInterval(() => {
+      if (!isConnected) {
+        console.log('🔄 [POLLING] Fazendo backup sync (realtime desconectado)');
+        fetchAuctionData();
+      }
+    }, 30000);
+
     // Cleanup
     return () => {
+      isSubscribed = false;
       console.log('🔌 Desconectando realtime channels');
-      supabase.removeChannel(auctionChannel);
-      supabase.removeChannel(bidsChannel);
-    };
-  }, [auctionId, toast]);
-
-  // Timer em tempo real baseado no ends_at
-  useEffect(() => {
-    if (!auctionData?.ends_at || auctionData.status !== 'active') {
-      setCalculatedTimeLeft(null);
-      return;
-    }
-
-    const updateTimer = () => {
-      const now = new Date().getTime();
-      const endsAt = new Date(auctionData.ends_at).getTime();
-      const timeLeft = Math.max(0, Math.floor((endsAt - now) / 1000));
       
-      setCalculatedTimeLeft(timeLeft);
-      
-      if (timeLeft <= 0) {
-        setCalculatedTimeLeft(0);
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
       }
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      
+      clearInterval(pollingInterval);
+      
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      
+      setIsConnected(false);
     };
+  }, [auctionId, fetchAuctionData, lastSync]);
 
-    // Atualizar imediatamente
-    updateTimer();
-    
-    // Atualizar a cada segundo
-    const interval = setInterval(updateTimer, 1000);
-    
-    return () => clearInterval(interval);
-  }, [auctionData?.ends_at, auctionData?.status]);
-
-  // Função para resetar timer (simulação - na implementação real viria do realtime)
-  const resetTimer = () => {
-    if (auctionData) {
-      setAuctionData(prev => prev ? { ...prev, time_left: 15 } : null);
-      setCalculatedTimeLeft(15);
-    }
-  };
-
-  // Retornar timer calculado se disponível, senão usar o do banco
-  const displayTimeLeft = calculatedTimeLeft !== null ? calculatedTimeLeft : auctionData?.time_left;
+  // Função para forçar sincronização
+  const forceSync = useCallback(() => {
+    console.log('🔄 [FORCE] Sincronização forçada pelo usuário');
+    fetchAuctionData();
+  }, [fetchAuctionData]);
 
   return {
-    auctionData: auctionData ? { ...auctionData, time_left: displayTimeLeft || 0 } : null,
+    auctionData,
     recentBids,
-    resetTimer
+    isConnected,
+    lastSync,
+    forceSync
   };
 };

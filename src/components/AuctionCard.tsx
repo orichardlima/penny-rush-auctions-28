@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
 import { useAuctionRealtime } from '@/hooks/useAuctionRealtime';
+import { RealtimeStatus } from '@/components/RealtimeStatus';
 
 interface AuctionCardProps {
   id: string;
@@ -54,7 +55,7 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
 
   // Hook para escutar updates em tempo real do leilão
-  const { auctionData } = useAuctionRealtime(id);
+  const { auctionData, isConnected, lastSync, forceSync } = useAuctionRealtime(id);
 
   // DADOS PASSIVOS: Frontend sempre respeita o backend
   // 1ª prioridade: Dados do realtime (banco de dados)
@@ -190,6 +191,16 @@ export const AuctionCard = ({
       </div>
       
       <div className="p-6">
+        {/* Status da conexão realtime - apenas para leilões ativos */}
+        {displayStatus === 'active' && (
+          <div className="mb-4 p-2 bg-muted/50 rounded-lg">
+            <RealtimeStatus 
+              isConnected={isConnected} 
+              lastSync={lastSync} 
+              onForceSync={forceSync} 
+            />
+          </div>
+        )}
         <h3 className="font-semibold text-lg mb-3 text-foreground">{title}</h3>
         
         {displayStatus === 'waiting' && starts_at && (
