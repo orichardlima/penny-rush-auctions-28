@@ -31,6 +31,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
   const channelsRef = useRef<any[]>([]);
   const isActiveRef = useRef(true);
   const serverOffsetRef = useRef<number>(0);
+  const checkingStatusRef = useRef<boolean>(false);
 
   // Sincroniza offset de tempo com o servidor (corrige relógios do cliente)
   useEffect(() => {
@@ -58,6 +59,54 @@ export const useAuctionRealtime = (auctionId?: string) => {
     };
   }, []);
 
+  // Função para verificar status quando contador chega a zero
+  const checkAuctionStatusAndReset = useCallback(async () => {
+    if (!auctionId || checkingStatusRef.current || !isActiveRef.current) return;
+    
+    checkingStatusRef.current = true;
+    console.log('🔍 [ZERO] Verificando status do leilão ao chegar a 0 segundos');
+    
+    try {
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('status, ends_at, time_left')
+        .eq('id', auctionId)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data.status === 'finished') {
+        console.log('✅ [ZERO] Leilão encerrado - atualizando dados');
+        setAuctionData(prev => prev ? { ...prev, status: 'finished', ...data } : null);
+        setLocalTimeLeft(0);
+      } else if (data.status === 'active') {
+        console.log('🔄 [ZERO] Leilão ainda ativo - resetando contador para 15s');
+        // Calcular novo ends_at baseado no servidor (15 segundos a partir de agora)
+        const nowMs = Date.now() + (serverOffsetRef.current || 0);
+        const newEndsAt = new Date(nowMs + 15000).toISOString();
+        
+        setAuctionData(prev => prev ? { 
+          ...prev, 
+          ends_at: newEndsAt,
+          time_left: 15 
+        } : null);
+        setLocalTimeLeft(15);
+      }
+    } catch (error) {
+      console.error('❌ [ZERO] Erro ao verificar status:', error);
+      // Fallback: tentar novamente em 3 segundos
+      setTimeout(() => {
+        checkingStatusRef.current = false;
+        if (isActiveRef.current) {
+          checkAuctionStatusAndReset();
+        }
+      }, 3000);
+      return;
+    }
+    
+    checkingStatusRef.current = false;
+  }, [auctionId]);
+
   // Timer local baseado no ends_at do servidor
   useEffect(() => {
     if (!isActiveRef.current) return;
@@ -76,6 +125,11 @@ export const useAuctionRealtime = (auctionId?: string) => {
       const nowMs = Date.now() + (serverOffsetRef.current || 0);
       const remaining = Math.max(0, Math.round((endMs - nowMs) / 1000));
       setLocalTimeLeft(remaining);
+      
+      // Quando contador chega a 0, verificar status do leilão
+      if (remaining === 0 && auctionData.status === 'active') {
+        checkAuctionStatusAndReset();
+      }
     };
 
     // Executa imediatamente e depois a cada segundo
@@ -87,7 +141,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
         clearInterval(localTimerRef.current);
       }
     };
-  }, [auctionData?.ends_at, auctionData?.status]);
+  }, [auctionData?.ends_at, auctionData?.status, checkAuctionStatusAndReset]);
 
 
   // Fetch inicial dos dados
