@@ -55,7 +55,7 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
 
   // Hook para escutar updates em tempo real do leilão
-  const { auctionData, isConnected, lastSync, forceSync } = useAuctionRealtime(id);
+  const { auctionData, isConnected, lastSync, forceSync, isWaitingFinalization, finalizationMessage } = useAuctionRealtime(id);
 
   // DADOS PASSIVOS: Frontend sempre respeita o backend
   // 1ª prioridade: Dados do realtime (banco de dados)
@@ -182,17 +182,31 @@ export const AuctionCard = ({
         </div>
         {displayStatus === 'active' && (
           <div className="absolute top-3 left-3">
-            <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-5 h-5" />
-                  <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
-                    {displayTimeLeft}s
-                  </span>
+            {isWaitingFinalization ? (
+              <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-5 h-5" />
+                    <span className="font-medium text-sm">
+                      {finalizationMessage}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-5 h-5" />
+                    <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
+                      {displayTimeLeft}s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

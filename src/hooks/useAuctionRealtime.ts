@@ -59,55 +59,70 @@ export const useAuctionRealtime = (auctionId?: string) => {
     };
   }, []);
 
-  // Função para forçar fechamento imediato quando timer chega a zero
+  // Estado para aguardar finalização pelo cron job
+  const [isWaitingFinalization, setIsWaitingFinalization] = useState(false);
+  const [finalizationMessage, setFinalizationMessage] = useState('');
+
+  // Mensagens rotativas para aguardar finalização
+  const finalizationMessages = [
+    'Aguarde um momento',
+    'Finalizando leilão',
+    'Conferindo lances validos',
+    'Conferindo vencedor'
+  ];
+
+  // Controla as mensagens rotativas quando aguardando finalização
+  useEffect(() => {
+    if (!isWaitingFinalization) return;
+
+    let messageIndex = 0;
+    setFinalizationMessage(finalizationMessages[0]);
+
+    const messageInterval = setInterval(() => {
+      messageIndex = (messageIndex + 1) % finalizationMessages.length;
+      setFinalizationMessage(finalizationMessages[messageIndex]);
+    }, 1000);
+
+    return () => clearInterval(messageInterval);
+  }, [isWaitingFinalization]);
+
+  // Função chamada quando timer chega a zero
   const checkAuctionStatusAndReset = useCallback(async () => {
     if (!auctionId || checkingStatusRef.current || !isActiveRef.current) return;
     
     checkingStatusRef.current = true;
-    console.log('⚡ [ZERO] Forçando fechamento imediato do leilão');
+    setIsWaitingFinalization(true);
+    console.log('⚡ [ZERO] Aguardando cron job finalizar o leilão');
     
     try {
-      // Chama função do servidor para fechar leilão imediatamente
-      const { data, error } = await supabase.rpc('force_close_auction', {
-        auction_uuid: auctionId
-      });
+      // Verificação simples do status do leilão
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('status, time_left')
+        .eq('id', auctionId)
+        .maybeSingle();
       
       if (error) throw error;
       
-      if (data && data.length > 0) {
-        const auctionResult = data[0];
-        console.log('✅ [ZERO] Resultado do fechamento:', auctionResult);
-        
-        // Atualizar estado local imediatamente
+      if (data) {
+        console.log('🔄 [ZERO] Status verificado:', data);
         setAuctionData(prev => prev ? { 
           ...prev, 
-          status: auctionResult.status,
-          time_left: auctionResult.time_left,
-          winner_id: auctionResult.winner_id,
-          winner_name: auctionResult.winner_name
+          status: data.status,
+          time_left: data.time_left
         } : null);
-        setLocalTimeLeft(0);
+        setLocalTimeLeft(data.time_left);
+        
+        // Se o leilão foi finalizado, para de aguardar
+        if (data.status === 'finished') {
+          setIsWaitingFinalization(false);
+        }
       }
     } catch (error) {
-      console.error('❌ [ZERO] Erro ao forçar fechamento:', error);
-      // Fallback para verificação simples
-      try {
-        const { data, error } = await supabase
-          .from('auctions')
-          .select('status, time_left')
-          .eq('id', auctionId)
-          .maybeSingle();
-        
-        if (!error && data?.status === 'finished') {
-          setAuctionData(prev => prev ? { ...prev, status: 'finished', time_left: 0 } : null);
-          setLocalTimeLeft(0);
-        }
-      } catch (fallbackError) {
-        console.error('❌ [ZERO] Erro no fallback:', fallbackError);
-      }
+      console.error('❌ [ZERO] Erro ao verificar status:', error);
+    } finally {
+      checkingStatusRef.current = false;
     }
-    
-    checkingStatusRef.current = false;
   }, [auctionId]);
 
   // Timer local baseado no ends_at do servidor
@@ -323,6 +338,8 @@ export const useAuctionRealtime = (auctionId?: string) => {
     recentBids,
     isConnected,
     lastSync,
-    forceSync
+    forceSync,
+    isWaitingFinalization,
+    finalizationMessage
   };
 };
