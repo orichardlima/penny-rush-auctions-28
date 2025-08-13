@@ -71,9 +71,14 @@ export const useAuctionRealtime = (auctionId?: string) => {
         .from('auctions')
         .select('status, ends_at, time_left')
         .eq('id', auctionId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      
+      if (!data) {
+        console.log('⚠️ [ZERO] Leilão não encontrado - pode ter sido removido');
+        return;
+      }
       
       if (data.status === 'finished') {
         console.log('✅ [ZERO] Leilão encerrado - atualizando dados');
