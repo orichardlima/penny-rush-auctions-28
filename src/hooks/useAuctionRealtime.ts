@@ -59,7 +59,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
     };
   }, []);
 
-  // Função para verificar status quando contador chega a zero
+  // Função simplificada para verificar status quando contador chega a zero
   const checkAuctionStatusAndReset = useCallback(async () => {
     if (!auctionId || checkingStatusRef.current || !isActiveRef.current) return;
     
@@ -69,44 +69,27 @@ export const useAuctionRealtime = (auctionId?: string) => {
     try {
       const { data, error } = await supabase
         .from('auctions')
-        .select('status, ends_at, time_left')
+        .select('status, time_left')
         .eq('id', auctionId)
         .maybeSingle();
       
       if (error) throw error;
       
       if (!data) {
-        console.log('⚠️ [ZERO] Leilão não encontrado - pode ter sido removido');
+        console.log('⚠️ [ZERO] Leilão não encontrado');
         return;
       }
       
       if (data.status === 'finished') {
-        console.log('✅ [ZERO] Leilão encerrado - atualizando dados');
-        setAuctionData(prev => prev ? { ...prev, status: 'finished', ...data } : null);
+        console.log('✅ [ZERO] Leilão encerrado definitivamente');
+        setAuctionData(prev => prev ? { ...prev, status: 'finished', time_left: 0 } : null);
         setLocalTimeLeft(0);
-      } else if (data.status === 'active') {
-        console.log('🔄 [ZERO] Leilão ainda ativo - resetando contador para 15s');
-        // Calcular novo ends_at baseado no servidor (14 segundos para exibir 15 corretamente)
-        const nowMs = Date.now() + (serverOffsetRef.current || 0);
-        const newEndsAt = new Date(nowMs + 14000).toISOString();
-        
-        setAuctionData(prev => prev ? { 
-          ...prev, 
-          ends_at: newEndsAt,
-          time_left: 15 
-        } : null);
-        setLocalTimeLeft(15);
+      } else {
+        console.log('🔄 [ZERO] Aguardando encerramento automático pelo servidor');
+        // Não resetar mais o timer - deixar o servidor decidir
       }
     } catch (error) {
       console.error('❌ [ZERO] Erro ao verificar status:', error);
-      // Fallback: tentar novamente em 3 segundos
-      setTimeout(() => {
-        checkingStatusRef.current = false;
-        if (isActiveRef.current) {
-          checkAuctionStatusAndReset();
-        }
-      }, 3000);
-      return;
     }
     
     checkingStatusRef.current = false;
@@ -315,14 +298,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
     console.log('🔄 [FORCE] Sincronização forçada pelo usuário');
     fetchAuctionData();
   }, [fetchAuctionData]);
-  useEffect(() => {
-    if (!auctionId || !isActiveRef.current) return;
-    const remaining = localTimeLeft !== null ? localTimeLeft : (auctionData?.time_left ?? 0);
-    if (auctionData?.status === 'active' && remaining <= 2) {
-      // Sincroniza timer no servidor e permite finalização quando necessário
-      supabase.rpc('sync_auction_timer', { auction_uuid: auctionId });
-    }
-  }, [auctionId, localTimeLeft, auctionData?.status]);
+  // Remover sincronização manual - deixar o servidor decidir automaticamente
 
   // Retornar timer local se disponível, senão usar o do banco
   const displayTimeLeft = localTimeLeft !== null ? localTimeLeft : auctionData?.time_left;
