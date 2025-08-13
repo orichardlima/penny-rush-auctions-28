@@ -81,9 +81,9 @@ export const useAuctionRealtime = (auctionId?: string) => {
         setLocalTimeLeft(0);
       } else if (data.status === 'active') {
         console.log('🔄 [ZERO] Leilão ainda ativo - resetando contador para 15s');
-        // Calcular novo ends_at baseado no servidor (15 segundos a partir de agora)
+        // Calcular novo ends_at baseado no servidor (14 segundos para exibir 15 corretamente)
         const nowMs = Date.now() + (serverOffsetRef.current || 0);
-        const newEndsAt = new Date(nowMs + 15000).toISOString();
+        const newEndsAt = new Date(nowMs + 14000).toISOString();
         
         setAuctionData(prev => prev ? { 
           ...prev, 
