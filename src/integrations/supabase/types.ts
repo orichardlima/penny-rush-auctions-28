@@ -285,7 +285,7 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      cleanup_expired_auctions: {
+      auto_finalize_inactive_auctions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -365,10 +365,6 @@ export type Database = {
           ends_at: string
           status: string
         }[]
-      }
-      update_auction_timers: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
     }
     Enums: {
