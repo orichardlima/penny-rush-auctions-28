@@ -297,16 +297,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      force_close_auction: {
-        Args: { auction_uuid: string }
-        Returns: {
-          id: string
-          status: string
-          time_left: number
-          winner_id: string
-          winner_name: string
-        }[]
-      }
       get_auction_financials: {
         Args: { auction_uuid: string }
         Returns: {
