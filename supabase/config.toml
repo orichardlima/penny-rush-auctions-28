@@ -5,3 +5,8 @@ verify_jwt = false
 
 [functions.auction-monitor]
 verify_jwt = false
+
+[[functions.auction-monitor.cron]]
+name = "auction-monitor-cron"
+cron = "*/5 * * * * *"
+region = "us-east-1"
