@@ -30,34 +30,65 @@ export const useAuctionRealtime = (auctionId?: string) => {
   const localTimerRef = useRef<NodeJS.Timeout>();
   const channelsRef = useRef<any[]>([]);
   const isActiveRef = useRef(true);
+  const serverOffsetRef = useRef<number>(0);
 
-  // Timer local para contagem regressiva visual
+  // Sincroniza offset de tempo com o servidor (corrige relógios do cliente)
   useEffect(() => {
-    if (!isActiveRef.current || localTimeLeft === null || localTimeLeft <= 0) {
+    let cancelled = false;
+
+    const fetchServerTime = async () => {
+      try {
+        const { data, error } = await supabase.rpc('current_server_time');
+        if (!error && data && !cancelled) {
+          const serverMs = new Date(data as string).getTime();
+          serverOffsetRef.current = serverMs - Date.now();
+          console.log('[TIME] Offset servidor(ms):', serverOffsetRef.current);
+        }
+      } catch (err) {
+        console.warn('⚠️ [TIME] Falha ao obter hora do servidor', err);
+      }
+    };
+
+    fetchServerTime();
+    const interval = setInterval(fetchServerTime, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Timer local baseado no ends_at do servidor
+  useEffect(() => {
+    if (!isActiveRef.current) return;
+
+    // Se não tem ends_at ou não está ativo, limpar timer
+    if (!auctionData?.ends_at || auctionData.status !== 'active') {
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
       }
       return;
     }
 
-    localTimerRef.current = setInterval(() => {
+    const tick = () => {
       if (!isActiveRef.current) return;
-      
-      setLocalTimeLeft(prev => {
-        if (prev === null || prev <= 1) {
-          return 0;
-        }
-        console.log(`⏰ [TIMER] ${prev - 1}s restantes`);
-        return prev - 1;
-      });
-    }, 1000);
+      const endMs = new Date(auctionData.ends_at!).getTime();
+      const nowMs = Date.now() + (serverOffsetRef.current || 0);
+      const remaining = Math.max(0, Math.round((endMs - nowMs) / 1000));
+      setLocalTimeLeft(remaining);
+    };
+
+    // Executa imediatamente e depois a cada segundo
+    tick();
+    localTimerRef.current = setInterval(tick, 1000);
 
     return () => {
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
       }
     };
-  }, [localTimeLeft]);
+  }, [auctionData?.ends_at, auctionData?.status]);
+
 
   // Fetch inicial dos dados
   const fetchAuctionData = useCallback(async () => {
@@ -81,7 +112,12 @@ export const useAuctionRealtime = (auctionId?: string) => {
         });
         
         setAuctionData(data);
-        setLocalTimeLeft(data.time_left || 0); // Sincronizar timer local
+        {
+          const endsAtMs = data.ends_at ? new Date(data.ends_at).getTime() : null;
+          const nowMs = Date.now() + (serverOffsetRef.current || 0);
+          const initial = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (data.time_left || 0);
+          setLocalTimeLeft(initial); // Sincronizar timer local com base no ends_at
+        }
         setLastSync(new Date());
       }
     } catch (error) {
@@ -116,7 +152,12 @@ export const useAuctionRealtime = (auctionId?: string) => {
           console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
           setAuctionData(newAuctionData);
-          setLocalTimeLeft(newAuctionData.time_left || 0); // Resetar timer local
+          {
+            const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
+            const nowMs = Date.now() + (serverOffsetRef.current || 0);
+            const next = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
+            setLocalTimeLeft(next); // Resetar timer local com base no ends_at
+          }
           setLastSync(new Date());
           setIsConnected(true);
           
@@ -196,6 +237,14 @@ export const useAuctionRealtime = (auctionId?: string) => {
     console.log('🔄 [FORCE] Sincronização forçada pelo usuário');
     fetchAuctionData();
   }, [fetchAuctionData]);
+  useEffect(() => {
+    if (!auctionId || !isActiveRef.current) return;
+    const remaining = localTimeLeft !== null ? localTimeLeft : (auctionData?.time_left ?? 0);
+    if (auctionData?.status === 'active' && remaining <= 2) {
+      // Sincroniza timer no servidor e permite finalização quando necessário
+      supabase.rpc('sync_auction_timer', { auction_uuid: auctionId });
+    }
+  }, [auctionId, localTimeLeft, auctionData?.status]);
 
   // Retornar timer local se disponível, senão usar o do banco
   const displayTimeLeft = localTimeLeft !== null ? localTimeLeft : auctionData?.time_left;

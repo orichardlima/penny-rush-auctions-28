@@ -289,6 +289,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      current_server_time: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       finalize_expired_auctions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
