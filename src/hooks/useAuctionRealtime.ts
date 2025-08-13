@@ -59,37 +59,52 @@ export const useAuctionRealtime = (auctionId?: string) => {
     };
   }, []);
 
-  // Função simplificada para verificar status quando contador chega a zero
+  // Função para forçar fechamento imediato quando timer chega a zero
   const checkAuctionStatusAndReset = useCallback(async () => {
     if (!auctionId || checkingStatusRef.current || !isActiveRef.current) return;
     
     checkingStatusRef.current = true;
-    console.log('🔍 [ZERO] Verificando status do leilão ao chegar a 0 segundos');
+    console.log('⚡ [ZERO] Forçando fechamento imediato do leilão');
     
     try {
-      const { data, error } = await supabase
-        .from('auctions')
-        .select('status, time_left')
-        .eq('id', auctionId)
-        .maybeSingle();
+      // Chama função do servidor para fechar leilão imediatamente
+      const { data, error } = await supabase.rpc('force_close_auction', {
+        auction_uuid: auctionId
+      });
       
       if (error) throw error;
       
-      if (!data) {
-        console.log('⚠️ [ZERO] Leilão não encontrado');
-        return;
-      }
-      
-      if (data.status === 'finished') {
-        console.log('✅ [ZERO] Leilão encerrado definitivamente');
-        setAuctionData(prev => prev ? { ...prev, status: 'finished', time_left: 0 } : null);
+      if (data && data.length > 0) {
+        const auctionResult = data[0];
+        console.log('✅ [ZERO] Resultado do fechamento:', auctionResult);
+        
+        // Atualizar estado local imediatamente
+        setAuctionData(prev => prev ? { 
+          ...prev, 
+          status: auctionResult.status,
+          time_left: auctionResult.time_left,
+          winner_id: auctionResult.winner_id,
+          winner_name: auctionResult.winner_name
+        } : null);
         setLocalTimeLeft(0);
-      } else {
-        console.log('🔄 [ZERO] Aguardando encerramento automático pelo servidor');
-        // Não resetar mais o timer - deixar o servidor decidir
       }
     } catch (error) {
-      console.error('❌ [ZERO] Erro ao verificar status:', error);
+      console.error('❌ [ZERO] Erro ao forçar fechamento:', error);
+      // Fallback para verificação simples
+      try {
+        const { data, error } = await supabase
+          .from('auctions')
+          .select('status, time_left')
+          .eq('id', auctionId)
+          .maybeSingle();
+        
+        if (!error && data?.status === 'finished') {
+          setAuctionData(prev => prev ? { ...prev, status: 'finished', time_left: 0 } : null);
+          setLocalTimeLeft(0);
+        }
+      } catch (fallbackError) {
+        console.error('❌ [ZERO] Erro no fallback:', fallbackError);
+      }
     }
     
     checkingStatusRef.current = false;
