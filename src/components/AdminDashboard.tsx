@@ -137,7 +137,7 @@ const AdminDashboard = () => {
     starting_price: 1.00, // Agora em reais
     market_value: 0.00,   // Agora em reais
     revenue_target: 0.00, // Agora em reais
-    starts_at: new Date().toISOString().slice(0, 16),
+        starts_at: new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16), // 1 minuto a partir de agora
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -238,6 +238,20 @@ const AdminDashboard = () => {
       return;
     }
 
+    // Validar horário de início
+    const startTime = new Date(newAuction.starts_at);
+    const now = new Date();
+    const minimumStartTime = new Date(now.getTime() + 60 * 1000); // 1 minuto a partir de agora
+
+    if (startTime <= minimumStartTime) {
+      toast({
+        title: "Erro",
+        description: "O horário de início deve ser pelo menos 1 minuto após a hora atual",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setUploading(true);
     try {
       let imageUrl = newAuction.image_url;
@@ -246,11 +260,12 @@ const AdminDashboard = () => {
         imageUrl = await uploadImage(selectedImage);
       }
 
-      // Agora valores já estão em reais, sem conversão necessária
+      // Criar leilão com status "waiting" - será ativado automaticamente pelo timer
       const auctionData = {
         ...newAuction,
         image_url: imageUrl,
-        current_price: newAuction.starting_price, // current_price igual ao starting_price
+        current_price: newAuction.starting_price,
+        status: 'waiting', // Status inicial é sempre "waiting"
       };
 
       const { error } = await supabase
@@ -272,7 +287,7 @@ const AdminDashboard = () => {
         starting_price: 1.00,
         market_value: 0.00,
         revenue_target: 0.00,
-        starts_at: new Date().toISOString().slice(0, 16),
+        starts_at: new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16), // Reset para 1 minuto a partir de agora
       });
       setSelectedImage(null);
 
