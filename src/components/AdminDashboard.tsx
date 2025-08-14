@@ -1,66 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { toZonedTime, fromZonedTime, format } from 'date-fns-tz';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
 import { 
-  Users, 
-  Gavel, 
+  User, 
+  Bot, 
+  Package, 
   DollarSign, 
-  TrendingUp,
-  Plus,
-  Edit,
-  Trash2,
-  LogOut,
-  BarChart3,
-  Package,
-  Settings,
+  Target, 
+  Users, 
+  Edit, 
+  Trash2, 
+  Plus, 
+  Activity,
+  CheckCircle,
+  XCircle,
+  Clock,
   Upload,
-  X
+  Play,
+  Pause,
+  RefreshCw,
+  Settings,
+  BarChart3,
+  Calendar,
+  Eye,
+  TrendingUp,
+  Filter,
+  Search,
+  Download,
+  Shield,
+  Brain
 } from 'lucide-react';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
-import { RevenueChart } from '@/components/FinancialAnalytics/RevenueChart';
-import { AuctionFinancialCard } from '@/components/FinancialAnalytics/AuctionFinancialCard';
-import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
-
+import AuctionParticipantsTable from '@/components/AuctionParticipantsTable';
+import UserProfileCard from '@/components/UserProfileCard';
+import AdvancedAnalytics from '@/components/AdvancedAnalytics';
+import ActivityHeatmap from '@/components/ActivityHeatmap';
+import AuditLogTable from '@/components/AuditLogTable';
 
 interface Auction {
   id: string;
   title: string;
   description: string;
   image_url: string;
-  starting_price: number;
   current_price: number;
-  status: string;
-  total_bids: number;
-  participants_count: number;
-  created_at: string;
+  starting_price: number;
   market_value: number;
   revenue_target: number;
-  // Campos adicionais usados no Monitor de Robô
-  time_left?: number;
-  company_revenue?: number;
-  ends_at?: string;
-  bid_increment?: number;
-  bid_cost?: number;
+  total_bids: number;
+  time_left: number;
+  status: string;
+  winner_name?: string;
+  created_at: string;
+  starts_at: string;
 }
 
 interface User {
-  id: string;
+  user_id: string;
   full_name: string;
   email: string;
-  bids_balance: number;
   is_admin: boolean;
   is_bot: boolean;
   created_at: string;
@@ -79,12 +89,17 @@ interface BidPackage {
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
-  const { toast } = useToast();
+  
+  // Estados para novas funcionalidades
+  const [selectedAuctionForDetails, setSelectedAuctionForDetails] = useState<string | null>(null);
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<User | null>(null);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userFilter, setUserFilter] = useState<'all' | 'real' | 'bot' | 'vip' | 'active'>('all');
+
+  // Estados existentes
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [realUsers, setRealUsers] = useState<User[]>([]);
   const [botUsers, setBotUsers] = useState<User[]>([]);
-  // Temporary fallback to prevent undefined errors
-  const users = [...(realUsers || []), ...(botUsers || [])];
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -97,6 +112,7 @@ const AdminDashboard = () => {
     error: analyticsError,
     refreshData: refreshAnalytics 
   } = useFinancialAnalytics();
+
   const [newAuction, setNewAuction] = useState({
     title: '',
     description: '',
@@ -104,7 +120,7 @@ const AdminDashboard = () => {
     starting_price: 100,
     market_value: 0,
     revenue_target: 0,
-    starts_at: new Date().toISOString().slice(0, 16), // Format for datetime-local input
+    starts_at: new Date().toISOString().slice(0, 16),
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -112,101 +128,75 @@ const AdminDashboard = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
-  // Bot Monitor state
-  const [isBotDialogOpen, setIsBotDialogOpen] = useState(false);
-  const [botAuction, setBotAuction] = useState<Auction | null>(null);
-  const [botRecentBids, setBotRecentBids] = useState<any[]>([]);
-  const [botLogs, setBotLogs] = useState<any[]>([]);
-  const [botLoading, setBotLoading] = useState(false);
-  const [triggering, setTriggering] = useState(false);
 
   useEffect(() => {
     fetchAdminData();
   }, []);
 
-  // Realtime auto-refresh with debounce
-  const refreshTimerRef = React.useRef<number | null>(null);
-  
-  useEffect(() => {
-    const triggerAutoRefresh = () => {
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-      }
-      refreshTimerRef.current = window.setTimeout(() => {
-        console.log('[AdminDashboard] Realtime event -> refreshing data');
-        fetchAdminData();
-      }, 800);
-    };
-
-    console.log('[AdminDashboard] Subscribing to realtime changes');
-    const channel = supabase
-      .channel('admin-dashboard')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_packages' }, triggerAutoRefresh)
-      .subscribe();
-
-    return () => {
-      console.log('[AdminDashboard] Unsubscribing realtime channel');
-      supabase.removeChannel(channel);
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-    };
-  }, []);
   const fetchAdminData = async () => {
+    setLoading(true);
     try {
       // Fetch auctions
-      const { data: auctionsData } = await supabase
+      const { data: auctionsData, error: auctionsError } = await supabase
         .from('auctions')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch users - separate real users and bots
-      const { data: realUsersData } = await supabase
+      if (auctionsError) throw auctionsError;
+      setAuctions(auctionsData || []);
+
+      // Fetch real users
+      const { data: realUsersData, error: realUsersError } = await supabase
         .from('profiles')
         .select('*')
         .eq('is_bot', false)
         .order('created_at', { ascending: false });
 
-      const { data: botUsersData } = await supabase
+      if (realUsersError) throw realUsersError;
+      setRealUsers(realUsersData || []);
+
+      // Fetch bot users
+      const { data: botUsersData, error: botUsersError } = await supabase
         .from('profiles')
         .select('*')
         .eq('is_bot', true)
         .order('created_at', { ascending: false });
 
+      if (botUsersError) throw botUsersError;
+      setBotUsers(botUsersData || []);
+
       // Fetch bid packages
-      const { data: packagesData } = await supabase
+      const { data: packagesData, error: packagesError } = await supabase
         .from('bid_packages')
         .select('*')
         .order('created_at', { ascending: false });
 
-      setAuctions(auctionsData || []);
-      setRealUsers(realUsersData || []);
-      setBotUsers(botUsersData || []);
+      if (packagesError) throw packagesError;
       setBidPackages(packagesData || []);
+
     } catch (error) {
       console.error('Error fetching admin data:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados administrativos",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `auctions/${fileName}`;
-
+    const fileName = `${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage
       .from('auction-images')
-      .upload(filePath, file);
+      .upload(fileName, file);
 
     if (error) throw error;
 
     const { data: { publicUrl } } = supabase.storage
       .from('auction-images')
-      .getPublicUrl(filePath);
+      .getPublicUrl(fileName);
 
     return publicUrl;
   };
@@ -214,9 +204,9 @@ const AdminDashboard = () => {
   const createAuction = async () => {
     if (!newAuction.title || !newAuction.description) {
       toast({
-        title: 'Erro',
-        description: 'Título e descrição são obrigatórios.',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Título e descrição são obrigatórios",
+        variant: "destructive"
       });
       return;
     }
@@ -225,43 +215,26 @@ const AdminDashboard = () => {
     try {
       let imageUrl = newAuction.image_url;
 
-      // Upload da imagem se selecionada
       if (selectedImage) {
         imageUrl = await uploadImage(selectedImage);
       }
 
-      const brazilTimezone = 'America/Sao_Paulo';
-      const now = new Date();
-      const nowInBrazil = toZonedTime(now, brazilTimezone);
-      
-      // Converter o horário local do admin para UTC considerando o fuso do Brasil
-      const startsAtLocal = new Date(newAuction.starts_at);
-      const startsAtUTC = fromZonedTime(startsAtLocal, brazilTimezone);
-      
-      // Determinar o status baseado no horário de início
-      const status = startsAtUTC <= now ? 'active' : 'waiting';
-
       const { error } = await supabase
         .from('auctions')
         .insert([{
-          title: newAuction.title,
-          description: newAuction.description,
+          ...newAuction,
           image_url: imageUrl,
-          starting_price: newAuction.starting_price,
           current_price: newAuction.starting_price,
-          market_value: newAuction.market_value,
-          revenue_target: newAuction.revenue_target,
-          starts_at: startsAtUTC.toISOString(),
-          status: status
         }]);
 
       if (error) throw error;
 
       toast({
-        title: 'Leilão criado!',
-        description: `Leilão criado com sucesso. Status: ${status === 'waiting' ? 'Aguardando início' : 'Ativo'}`,
+        title: "Sucesso",
+        description: "Leilão criado com sucesso!"
       });
 
+      // Reset form
       setNewAuction({
         title: '',
         description: '',
@@ -275,295 +248,51 @@ const AdminDashboard = () => {
 
       fetchAdminData();
     } catch (error) {
+      console.error('Error creating auction:', error);
       toast({
-        title: 'Erro',
-        description: 'Erro ao criar leilão.',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Erro ao criar leilão",
+        variant: "destructive"
       });
     } finally {
       setUploading(false);
     }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      // Preview da URL local
-      const url = URL.createObjectURL(file);
-      setNewAuction({...newAuction, image_url: url});
-    }
-  };
-
-  const toggleUserAdmin = async (userId: string, isAdmin: boolean) => {
+  const toggleUserAdmin = async (userId: string, currentIsAdmin: boolean) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ is_admin: !isAdmin })
+        .update({ is_admin: !currentIsAdmin })
         .eq('user_id', userId);
 
       if (error) throw error;
 
       toast({
-        title: 'Usuário atualizado!',
-        description: `Usuário ${!isAdmin ? 'promovido a' : 'removido de'} administrador.`,
+        title: "Sucesso",
+        description: `Status de admin ${!currentIsAdmin ? 'ativado' : 'desativado'} com sucesso!`
       });
 
       fetchAdminData();
     } catch (error) {
+      console.error('Error toggling admin:', error);
       toast({
-        title: 'Erro',
-        description: 'Erro ao atualizar usuário.',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Erro ao alterar status de admin",
+        variant: "destructive"
       });
     }
   };
 
-  const formatPrice = (priceInCents: number) => {
+  const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL',
-    }).format(priceInCents / 100);
+      currency: 'BRL'
+    }).format(price / 100);
   };
 
   const formatDate = (dateString: string) => {
-    const brazilTimezone = 'America/Sao_Paulo';
-    const utcDate = new Date(dateString);
-    const brazilDate = toZonedTime(utcDate, brazilTimezone);
-    
-    return format(brazilDate, 'dd/MM/yyyy HH:mm', { timeZone: brazilTimezone });
-  };
-
-  const deleteAuction = async (auctionId: string) => {
-    try {
-      const { error } = await supabase
-        .from('auctions')
-        .delete()
-        .eq('id', auctionId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Leilão excluído!',
-        description: 'O leilão foi removido com sucesso.',
-      });
-
-      fetchAdminData();
-    } catch (error) {
-      console.error('Error deleting auction:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível excluir o leilão.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const deleteSelectedAuctions = async () => {
-    if (selectedAuctions.size === 0) return;
-    
-    if (!confirm(`Tem certeza que deseja excluir ${selectedAuctions.size} leilão(ões) selecionado(s)?`)) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase
-        .from('auctions')
-        .delete()
-        .in('id', Array.from(selectedAuctions));
-
-      if (error) throw error;
-
-      toast({
-        title: 'Leilões excluídos!',
-        description: `${selectedAuctions.size} leilões foram removidos com sucesso.`,
-      });
-
-      setSelectedAuctions(new Set());
-      fetchAdminData();
-    } catch (error) {
-      console.error('Error deleting auctions:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível excluir os leilões selecionados.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const toggleAuctionSelection = (auctionId: string) => {
-    setSelectedAuctions(prev => {
-      const newSelection = new Set(prev);
-      if (newSelection.has(auctionId)) {
-        newSelection.delete(auctionId);
-      } else {
-        newSelection.add(auctionId);
-      }
-      return newSelection;
-    });
-  };
-
-  const selectAllAuctions = () => {
-    setSelectedAuctions(new Set(auctions.map(auction => auction.id)));
-  };
-
-  const deselectAllAuctions = () => {
-    setSelectedAuctions(new Set());
-  };
-
-  const isAllSelected = auctions.length > 0 && selectedAuctions.size === auctions.length;
-
-  const editAuction = async () => {
-    if (!editingAuction) return;
-    
-    try {
-      setUploading(true);
-      let imageUrl = editingAuction.image_url;
-
-      // Upload nova imagem se selecionada
-      if (selectedImage) {
-        imageUrl = await uploadImage(selectedImage);
-      }
-
-      const { error } = await supabase
-        .from('auctions')
-        .update({
-          title: editingAuction.title,
-          description: editingAuction.description,
-          image_url: imageUrl,
-          starting_price: editingAuction.starting_price, // In cents
-          current_price: editingAuction.starting_price, // Reset to starting price in cents
-          market_value: editingAuction.market_value, // Already in reais
-          revenue_target: editingAuction.revenue_target, // Already in reais
-        })
-        .eq('id', editingAuction.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Leilão atualizado!',
-        description: 'As informações do leilão foram atualizadas com sucesso.',
-      });
-
-      setEditingAuction(null);
-      setSelectedImage(null);
-      setIsEditDialogOpen(false);
-      fetchAdminData();
-    } catch (error) {
-      console.error('Error updating auction:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível atualizar o leilão.',
-        variant: 'destructive',
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleEditClick = (auction: Auction) => {
-    setEditingAuction({
-      ...auction,
-      market_value: auction.market_value, // Already in reais
-      revenue_target: auction.revenue_target, // Already in reais
-    });
-    setSelectedImage(null);
-    setIsEditDialogOpen(true);
-  };
-
-  // Bot Monitor helpers
-  const formatBRL = (valueInCents: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valueInCents / 100);
-
-  const loadBotData = async (auctionId: string) => {
-    setBotLoading(true);
-    try {
-      const { data: bids } = await supabase
-        .from('bids')
-        .select('*')
-        .eq('auction_id', auctionId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      const userIds = Array.from(new Set((bids || []).map((b: any) => b.user_id)));
-      let profilesMap: Record<string, { full_name?: string; is_bot?: boolean }> = {};
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name, is_bot')
-          .in('user_id', userIds);
-        profiles?.forEach((p: any) => {
-          profilesMap[p.user_id] = { full_name: p.full_name || '—', is_bot: !!p.is_bot };
-        });
-      }
-      const enriched = (bids || []).map((b: any) => ({
-        ...b,
-        profile: profilesMap[b.user_id] || {},
-      }));
-      setBotRecentBids(enriched);
-
-      const { data: logs } = await supabase
-        .from('bot_webhook_logs')
-        .select('*')
-        .eq('auction_id', auctionId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      setBotLogs(logs || []);
-    } catch (e) {
-      console.error('Erro ao carregar dados do monitor do robô:', e);
-    } finally {
-      setBotLoading(false);
-    }
-  };
-
-  const openBotMonitor = async (auction: Auction) => {
-    setBotAuction(auction);
-    setIsBotDialogOpen(true);
-    await loadBotData(auction.id);
-  };
-
-  const triggerRobotNow = async () => {
-    if (!botAuction) return;
-    setTriggering(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('auction-webhook', {
-        body: { auction_id: botAuction.id },
-      });
-      if (error) throw error;
-      toast({
-        title: 'Robô acionado',
-        description: data?.success ? 'Webhook chamado com sucesso.' : 'Webhook respondeu com falha. Veja os logs.',
-      });
-      await loadBotData(botAuction.id);
-    } catch (e: any) {
-      console.error('Erro ao acionar robô:', e);
-      toast({
-        title: 'Erro ao acionar robô',
-        description: e?.message || 'Tente novamente.',
-        variant: 'destructive',
-      });
-    } finally {
-      setTriggering(false);
-    }
-  };
-
-  const botPauseReason = (auction: Auction, recentBids: any[]) => {
-    if (!auction) return '—';
-    if (auction.status !== 'active') return 'Leilão não está ativo';
-    const timeLeft = auction.time_left ?? null;
-    const targetCents = auction.revenue_target || 0;
-    const companyRevenue = auction.company_revenue || 0; // em R$
-    if (targetCents > 0) {
-      const targetReais = targetCents / 100;
-      const pct = companyRevenue / targetReais;
-      if (pct >= 0.8) return 'Meta ≥ 80% (regra reduz intervenção)';
-    }
-    if (timeLeft !== null && timeLeft > 7) return 'Timer > 7s (intervenção ocorre ≤ 7s)';
-    if (!recentBids || recentBids.length === 0) return 'Sem lances recentes';
-    return 'Condições atendidas; aguarde nova intervenção';
+    return new Date(dateString).toLocaleString('pt-BR');
   };
 
   if (loading) {
@@ -574,83 +303,138 @@ const AdminDashboard = () => {
     );
   }
 
-  console.log('Debug AdminDashboard:', { realUsers, botUsers, bidPackages, auctions });
+  // Filtrar usuários
+  const filteredRealUsers = realUsers.filter(user => {
+    const matchesSearch = user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+                         user.email?.toLowerCase().includes(userSearchTerm.toLowerCase());
+    
+    if (userFilter === 'all') return matchesSearch;
+    if (userFilter === 'real') return matchesSearch && !user.is_bot;
+    if (userFilter === 'bot') return matchesSearch && user.is_bot;
+    return matchesSearch;
+  });
 
-  const totalRevenue = bidPackages.reduce((sum, pkg) => sum + (pkg.price * 10), 0); // Simulated
+  const refreshData = () => {
+    fetchAdminData();
+    refreshAnalytics();
+  };
+
+  const totalRevenue = bidPackages.reduce((sum, pkg) => sum + (pkg.price * 10), 0);
   const activeAuctions = auctions.filter(a => a.status === 'active').length;
   const totalUsers = (realUsers || []).length + (botUsers || []).length;
   const totalBids = auctions.reduce((sum, auction) => sum + auction.total_bids, 0);
 
-  console.log('Calculated values:', { totalUsers, totalRevenue, activeAuctions, totalBids });
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Painel Administrativo</h1>
-          <Button variant="outline" onClick={signOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Painel Administrativo Profissional
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Dashboard completo com analytics avançados e controle total
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={refreshData} disabled={analyticsLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${analyticsLoading ? 'animate-spin' : ''}`} />
+              Atualizar Dados
+            </Button>
+            <Button variant="destructive" onClick={signOut}>
+              Sair
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
+        {/* Métricas resumo melhoradas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-l-4 border-l-green-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Usuários Totais</CardTitle>
-              <Users className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">usuários registrados</p>
+              <div className="text-2xl font-bold text-green-600">{totalUsers}</div>
+              <p className="text-xs text-muted-foreground">
+                Reais: {(realUsers || []).length} | Bots: {(botUsers || []).length}
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Leilões Ativos</CardTitle>
-              <Gavel className="h-4 w-4 text-accent" />
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeAuctions}</div>
-              <p className="text-xs text-muted-foreground">leilões em andamento</p>
+              <div className="text-2xl font-bold text-blue-600">{activeAuctions}</div>
+              <p className="text-xs text-muted-foreground">
+                Total de leilões: {auctions.length}
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-purple-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Lances</CardTitle>
-              <TrendingUp className="h-4 w-4 text-secondary" />
+              <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalBids}</div>
-              <p className="text-xs text-muted-foreground">lances realizados</p>
+              <div className="text-2xl font-bold text-purple-600">{totalBids}</div>
+              <p className="text-xs text-muted-foreground">
+                Atividade total do sistema
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-orange-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Receita Estimada</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-500" />
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatPrice(totalRevenue)}</div>
-              <p className="text-xs text-muted-foreground">vendas de pacotes</p>
+              <div className="text-2xl font-bold text-orange-600">
+                R$ {summary?.total_revenue?.toFixed(2) || totalRevenue.toFixed(2)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Baseado nos dados atuais
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs do Dashboard Admin */}
-        <Tabs defaultValue="financial" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="financial">Financeiro</TabsTrigger>
-            <TabsTrigger value="auctions">Leilões</TabsTrigger>
-            <TabsTrigger value="users">Usuários</TabsTrigger>
-            <TabsTrigger value="packages">Pacotes</TabsTrigger>
-            <TabsTrigger value="analytics">Estatísticas</TabsTrigger>
+        {/* Nova estrutura de tabs melhorada */}
+        <Tabs defaultValue="financial" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:grid-cols-7">
+            <TabsTrigger value="financial" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Financial</span>
+            </TabsTrigger>
+            <TabsTrigger value="auction-details" className="flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Detalhes</span>
+            </TabsTrigger>
+            <TabsTrigger value="auctions" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">Leilões</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Usuários</span>
+            </TabsTrigger>
+            <TabsTrigger value="packages" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              <span className="hidden sm:inline">Pacotes</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Auditoria</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Financial Analytics Tab */}
@@ -660,232 +444,215 @@ const AdminDashboard = () => {
                 <h2 className="text-2xl font-bold">Dashboard Financeiro</h2>
                 <p className="text-muted-foreground">Análise completa do faturamento e performance</p>
               </div>
-              <Button onClick={refreshAnalytics} disabled={analyticsLoading}>
-                {analyticsLoading ? 'Atualizando...' : 'Atualizar Dados'}
-              </Button>
             </div>
 
-            {analyticsError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-700">{analyticsError}</p>
+            <FinancialSummaryCards summary={summary} loading={analyticsLoading} />
+
+            {/* Additional financial insights */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Receita por Leilão</CardTitle>
+                  <CardDescription>Performance financeira individual</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {auctionDetails?.slice(0, 5).map((auction) => (
+                      <div key={auction.auction_id} className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{auction.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {auction.total_bids_count} lances
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">R$ {auction.real_revenue?.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {auction.target_percentage?.toFixed(1)}% da meta
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tendências</CardTitle>
+                  <CardDescription>Evolução das métricas principais</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {revenueTrends?.slice(-7).map((trend) => (
+                      <div key={trend.date_period} className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">
+                            {new Date(trend.date_period).toLocaleDateString('pt-BR')}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {trend.bids_count} lances
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">R$ {trend.total_revenue?.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Nova aba: Detalhes de Leilões */}
+          <TabsContent value="auction-details" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Detalhes dos Leilões</h2>
+                <p className="text-muted-foreground">Análise detalhada de participantes e métricas por leilão</p>
               </div>
-            )}
+            </div>
 
-            {/* Summary Cards */}
-            {summary && (
-              <FinancialSummaryCards summary={summary} loading={analyticsLoading} />
-            )}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Lista de leilões */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Selecionar Leilão
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {auctions.map((auction) => (
+                    <Button
+                      key={auction.id}
+                      variant={selectedAuctionForDetails === auction.id ? "default" : "outline"}
+                      className="w-full justify-start"
+                      onClick={() => setSelectedAuctionForDetails(auction.id)}
+                    >
+                      <div className="text-left">
+                        <div className="font-medium">{auction.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {auction.total_bids} lances • {auction.status}
+                        </div>
+                      </div>
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
 
-            {/* Revenue Chart */}
-            {revenueTrends.length > 0 && (
-              <RevenueChart data={revenueTrends} loading={analyticsLoading} />
-            )}
-
-            {/* Bid Analytics */}
-            {summary && (
-              <BidAnalytics 
-                totalBids={summary.total_bids}
-                userBids={summary.user_bids}
-                botBids={summary.bot_bids}
-                auctionData={auctionDetails}
-              />
-            )}
-
-            {/* Auction Financial Cards */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Performance por Leilão</h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {auctionDetails.map((auction) => (
-                  <AuctionFinancialCard 
-                    key={auction.auction_id} 
-                    auction={auction}
-                    onClick={() => {
-                      // Could open a detailed view modal here
-                      console.log('Auction details:', auction);
-                    }}
+              {/* Detalhes do leilão selecionado */}
+              <div className="lg:col-span-2">
+                {selectedAuctionForDetails ? (
+                  <AuctionParticipantsTable
+                    auctionId={selectedAuctionForDetails}
+                    auctionTitle={auctions.find(a => a.id === selectedAuctionForDetails)?.title || 'Leilão'}
                   />
-                ))}
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <Eye className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                      <h3 className="font-semibold mb-2">Selecione um Leilão</h3>
+                      <p className="text-muted-foreground">
+                        Escolha um leilão na lista ao lado para ver detalhes dos participantes
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </TabsContent>
 
+          {/* Auctions Tab */}
           <TabsContent value="auctions" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gerenciar Leilões</h2>
-              <div className="flex gap-2">
-                {selectedAuctions.size > 0 && (
-                  <Button
-                    variant="destructive"
-                    onClick={deleteSelectedAuctions}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Excluindo...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir Selecionados ({selectedAuctions.size})
-                      </>
-                    )}
-                  </Button>
-                )}
-                <Dialog>
+              <Dialog>
                 <DialogTrigger asChild>
                   <Button>
-                    <Plus className="mr-2 h-4 w-4" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Novo Leilão
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Criar Novo Leilão</DialogTitle>
+                    <DialogDescription>
+                      Preencha os dados do novo leilão
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="title">Título do Produto *</Label>
-                        <Input
-                          id="title"
-                          value={newAuction.title}
-                          onChange={(e) => setNewAuction({...newAuction, title: e.target.value})}
-                          placeholder="Ex: iPhone 15 Pro Max 256GB"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="starting_price">Preço Inicial (R$)</Label>
-                        <Input
-                          id="starting_price"
-                          type="number"
-                          step="0.01"
-                          value={newAuction.starting_price / 100}
-                          onChange={(e) => setNewAuction({...newAuction, starting_price: Math.round(parseFloat(e.target.value || '0') * 100)})}
-                          placeholder="1.00"
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Título</Label>
+                      <Input
+                        id="title"
+                        value={newAuction.title}
+                        onChange={(e) => setNewAuction({ ...newAuction, title: e.target.value })}
+                        placeholder="Título do leilão"
+                      />
                     </div>
-
-                    <div>
-                      <Label htmlFor="description">Descrição do Produto *</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Descrição</Label>
                       <Textarea
                         id="description"
                         value={newAuction.description}
-                        onChange={(e) => setNewAuction({...newAuction, description: e.target.value})}
-                        placeholder="Descrição detalhada do produto, incluindo características, condições, etc."
-                        rows={3}
+                        onChange={(e) => setNewAuction({ ...newAuction, description: e.target.value })}
+                        placeholder="Descrição detalhada"
                       />
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="market_value">Valor na Loja (R$)</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="image">Imagem</Label>
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="starting_price">Preço Inicial (centavos)</Label>
+                        <Input
+                          id="starting_price"
+                          type="number"
+                          value={newAuction.starting_price}
+                          onChange={(e) => setNewAuction({ ...newAuction, starting_price: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="market_value">Valor de Mercado (centavos)</Label>
                         <Input
                           id="market_value"
                           type="number"
-                          step="0.01"
                           value={newAuction.market_value}
-                          onChange={(e) => setNewAuction({...newAuction, market_value: parseFloat(e.target.value || '0')})}
-                          placeholder="8999.00"
+                          onChange={(e) => setNewAuction({ ...newAuction, market_value: Number(e.target.value) })}
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Valor original do produto no mercado
-                        </p>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="revenue_target">Meta de Faturamento (R$)</Label>
-                        <Input
-                          id="revenue_target"
-                          type="number"
-                          step="0.01"
-                          value={newAuction.revenue_target}
-                          onChange={(e) => setNewAuction({...newAuction, revenue_target: parseFloat(e.target.value || '0')})}
-                          placeholder="500.00"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Meta de faturamento do leilão
-                        </p>
                       </div>
                     </div>
-
-                    <div>
-                      <Label htmlFor="starts_at">Data e Hora de Início do Leilão</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="revenue_target">Meta de Receita (centavos)</Label>
+                      <Input
+                        id="revenue_target"
+                        type="number"
+                        value={newAuction.revenue_target}
+                        onChange={(e) => setNewAuction({ ...newAuction, revenue_target: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="starts_at">Data de Início</Label>
                       <Input
                         id="starts_at"
                         type="datetime-local"
                         value={newAuction.starts_at}
-                        onChange={(e) => setNewAuction({...newAuction, starts_at: e.target.value})}
+                        onChange={(e) => setNewAuction({ ...newAuction, starts_at: e.target.value })}
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Defina quando o leilão ficará disponível para os usuários
-                      </p>
                     </div>
-
-                    <div>
-                      <Label htmlFor="image">Imagem do Produto</Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            id="image"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageSelect}
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const input = document.getElementById('image') as HTMLInputElement;
-                              input?.click();
-                            }}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Escolher
-                          </Button>
-                        </div>
-                        
-                        {newAuction.image_url && (
-                          <div className="relative w-full h-48 border rounded-lg overflow-hidden">
-                            <img
-                              src={newAuction.image_url}
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => {
-                                setNewAuction({...newAuction, image_url: ''});
-                                setSelectedImage(null);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                        
-                        <p className="text-xs text-muted-foreground">
-                          Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB
-                        </p>
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={createAuction} 
-                      className="w-full"
-                      disabled={uploading}
-                    >
+                    <Button onClick={createAuction} disabled={uploading} className="w-full">
                       {uploading ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Criando Leilão...
+                          <Upload className="h-4 w-4 mr-2 animate-spin" />
+                          Criando...
                         </>
                       ) : (
                         'Criar Leilão'
@@ -894,53 +661,17 @@ const AdminDashboard = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              </div>
             </div>
-
-            {auctions.length > 0 && (
-              <div className="flex gap-2 items-center">
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      selectAllAuctions();
-                    } else {
-                      deselectAllAuctions();
-                    }
-                  }}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {isAllSelected ? 'Desselecionar todos' : 'Selecionar todos'}
-                </span>
-                {selectedAuctions.size > 0 && (
-                  <span className="text-sm text-muted-foreground">
-                    ({selectedAuctions.size} selecionados)
-                  </span>
-                )}
-              </div>
-            )}
 
             <Card>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[50px]">
-                        <Checkbox
-                          checked={isAllSelected}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              selectAllAuctions();
-                            } else {
-                              deselectAllAuctions();
-                            }
-                          }}
-                        />
-                      </TableHead>
                       <TableHead>Título</TableHead>
-                      <TableHead>Preço Atual</TableHead>
-                      <TableHead>Lances</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Preço Atual</TableHead>
+                      <TableHead>Total de Lances</TableHead>
                       <TableHead>Criado em</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
@@ -948,47 +679,21 @@ const AdminDashboard = () => {
                   <TableBody>
                     {auctions.map((auction) => (
                       <TableRow key={auction.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedAuctions.has(auction.id)}
-                            onCheckedChange={() => toggleAuctionSelection(auction.id)}
-                          />
-                        </TableCell>
                         <TableCell className="font-medium">{auction.title}</TableCell>
-                        <TableCell>{formatPrice(auction.current_price)}</TableCell>
-                        <TableCell>{auction.total_bids}</TableCell>
                         <TableCell>
                           <Badge variant={auction.status === 'active' ? 'default' : 'secondary'}>
-                            {auction.status === 'active' ? 'Ativo' : 'Finalizado'}
+                            {auction.status}
                           </Badge>
                         </TableCell>
+                        <TableCell>{formatPrice(auction.current_price)}</TableCell>
+                        <TableCell>{auction.total_bids}</TableCell>
                         <TableCell>{formatDate(auction.created_at)}</TableCell>
                         <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEditClick(auction)}
-                            >
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => openBotMonitor(auction)}
-                            >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Monitor Robô
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                if (confirm('Tem certeza que deseja excluir este leilão?')) {
-                                  deleteAuction(auction.id);
-                                }
-                              }}
-                            >
+                            <Button size="sm" variant="destructive">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -1001,126 +706,96 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-
-          <TabsContent value="users" className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
-              <div className="flex gap-4 text-sm text-muted-foreground">
-                <span>{realUsers.length} usuários reais</span>
-                <span>{botUsers.length} bots</span>
+          {/* Aba de Usuários melhorada */}
+          <TabsContent value="users" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Gestão de Usuários</h2>
+                <p className="text-muted-foreground">Controle completo de usuários reais e bots</p>
+              </div>
+              <div className="flex gap-2 text-sm text-muted-foreground">
+                <span>{filteredRealUsers.length} usuários filtrados</span>
               </div>
             </div>
-            
-            <Tabs defaultValue="real-users" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="real-users" className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Usuários Reais ({realUsers.length})
-                </TabsTrigger>
-                <TabsTrigger value="bots" className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Bots ({botUsers.length})
-                </TabsTrigger>
-              </TabsList>
 
-              <TabsContent value="real-users" className="mt-4">
-                <Card>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Saldo de Lances</TableHead>
-                          <TableHead>Admin</TableHead>
-                          <TableHead>Cadastro</TableHead>
-                          <TableHead>Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {realUsers.map((user) => (
-                          <TableRow key={user.id}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  REAL
-                                </Badge>
-                                {user.full_name}
-                              </div>
-                            </TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>{user.bids_balance}</TableCell>
-                            <TableCell>
-                              <Badge variant={user.is_admin ? 'default' : 'secondary'}>
-                                {user.is_admin ? 'Admin' : 'Usuário'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{formatDate(user.created_at)}</TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => toggleUserAdmin(user.id, user.is_admin)}
-                              >
-                                {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+            {/* Controles de filtro e busca */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou email..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="max-w-md"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={userFilter} onValueChange={(value) => setUserFilter(value as any)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="real">Usuários Reais</SelectItem>
+                    <SelectItem value="bot">Bots</SelectItem>
+                    <SelectItem value="vip">VIP</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-              <TabsContent value="bots" className="mt-4">
-                <Card>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Saldo de Lances</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Cadastro</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {botUsers.map((bot) => (
-                          <TableRow key={bot.id}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="destructive" className="text-xs">
-                                  BOT
-                                </Badge>
-                                {bot.full_name || 'Bot Automático'}
-                              </div>
-                            </TableCell>
-                            <TableCell>{bot.email || 'N/A'}</TableCell>
-                            <TableCell className="font-mono">
-                              {bot.bids_balance.toLocaleString()}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-green-600">
-                                Ativo
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{formatDate(bot.created_at)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Lista de usuários */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Usuários ({filteredRealUsers.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                  {filteredRealUsers.map((user) => (
+                    <Button
+                      key={user.user_id}
+                      variant={selectedUserForProfile?.user_id === user.user_id ? "default" : "outline"}
+                      className="w-full justify-start"
+                      onClick={() => setSelectedUserForProfile(user)}
+                    >
+                      <div className="text-left">
+                        <div className="font-medium">{user.full_name || 'Usuário'}</div>
+                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                      </div>
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Perfil do usuário selecionado */}
+              <div className="lg:col-span-2">
+                {selectedUserForProfile ? (
+                  <UserProfileCard
+                    userId={selectedUserForProfile.user_id}
+                    userName={selectedUserForProfile.full_name || 'Usuário'}
+                    userEmail={selectedUserForProfile.email}
+                  />
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                      <h3 className="font-semibold mb-2">Selecione um Usuário</h3>
+                      <p className="text-muted-foreground">
+                        Escolha um usuário na lista ao lado para ver detalhes e analytics
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
           </TabsContent>
 
+          {/* Packages Tab */}
           <TabsContent value="packages" className="space-y-4">
             <h2 className="text-xl font-semibold">Pacotes de Lances</h2>
             <Card>
@@ -1129,7 +804,7 @@ const AdminDashboard = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Lances</TableHead>
+                      <TableHead>Quantidade de Lances</TableHead>
                       <TableHead>Preço</TableHead>
                       <TableHead>Popular</TableHead>
                       <TableHead>Criado em</TableHead>
@@ -1143,7 +818,7 @@ const AdminDashboard = () => {
                         <TableCell>{formatPrice(pkg.price)}</TableCell>
                         <TableCell>
                           <Badge variant={pkg.is_popular ? 'default' : 'secondary'}>
-                            {pkg.is_popular ? 'Popular' : 'Normal'}
+                            {pkg.is_popular ? 'Sim' : 'Não'}
                           </Badge>
                         </TableCell>
                         <TableCell>{formatDate(pkg.created_at)}</TableCell>
@@ -1155,314 +830,39 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-4">
-            <h2 className="text-xl font-semibold">Estatísticas Detalhadas</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resumo Geral</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total de Usuários:</span>
-                    <span className="font-bold">{totalUsers}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Leilões Ativos:</span>
-                    <span className="font-bold">{activeAuctions}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total de Lances:</span>
-                    <span className="font-bold">{totalBids}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Receita Estimada:</span>
-                    <span className="font-bold">{formatPrice(totalRevenue)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Atividade Recente</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Funcionalidade de analytics em desenvolvimento...
-                  </p>
-                </CardContent>
-              </Card>
+          {/* Nova aba: Analytics Avançado */}
+          <TabsContent value="analytics" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Analytics Avançado</h2>
+                <p className="text-muted-foreground">Dashboard executivo com insights e métricas estratégicas</p>
+              </div>
+              <Button variant="outline" onClick={refreshData} disabled={analyticsLoading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${analyticsLoading ? 'animate-spin' : ''}`} />
+                Atualizar Analytics
+              </Button>
             </div>
+
+            <AdvancedAnalytics />
+
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+              <ActivityHeatmap />
+            </div>
+          </TabsContent>
+
+          {/* Nova aba: Auditoria */}
+          <TabsContent value="audit" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Log de Auditoria</h2>
+                <p className="text-muted-foreground">Histórico completo de ações administrativas e segurança</p>
+              </div>
+            </div>
+
+            <AuditLogTable />
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Dialog de Edição */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar Leilão</DialogTitle>
-          </DialogHeader>
-          {editingAuction && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-title">Título do Produto *</Label>
-                  <Input
-                    id="edit-title"
-                    value={editingAuction.title}
-                    onChange={(e) => setEditingAuction({...editingAuction, title: e.target.value})}
-                    placeholder="Ex: iPhone 15 Pro Max 256GB"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="edit-starting_price">Preço Inicial (R$)</Label>
-                  <Input
-                    id="edit-starting_price"
-                    type="number"
-                    step="0.01"
-                    value={editingAuction.starting_price / 100}
-                    onChange={(e) => setEditingAuction({...editingAuction, starting_price: Math.round(parseFloat(e.target.value || '0') * 100)})}
-                    placeholder="1.00"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-description">Descrição do Produto *</Label>
-                <Textarea
-                  id="edit-description"
-                  value={editingAuction.description}
-                  onChange={(e) => setEditingAuction({...editingAuction, description: e.target.value})}
-                  placeholder="Descrição detalhada do produto"
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-market_value">Valor na Loja (R$)</Label>
-                  <Input
-                    id="edit-market_value"
-                    type="number"
-                    step="0.01"
-                    value={editingAuction.market_value}
-                    onChange={(e) => setEditingAuction({...editingAuction, market_value: parseFloat(e.target.value || '0')})}
-                    placeholder="8999.00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="edit-revenue_target">Meta de Faturamento (R$)</Label>
-                  <Input
-                    id="edit-revenue_target"
-                    type="number"
-                    step="0.01"
-                    value={editingAuction.revenue_target}
-                    onChange={(e) => setEditingAuction({...editingAuction, revenue_target: parseFloat(e.target.value || '0')})}
-                    placeholder="500.00"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-image">Imagem do Produto</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="edit-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageSelect}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const input = document.getElementById('edit-image') as HTMLInputElement;
-                        input?.click();
-                      }}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Escolher
-                    </Button>
-                  </div>
-                  
-                  {(editingAuction.image_url || selectedImage) && (
-                    <div className="relative w-full h-48 border rounded-lg overflow-hidden">
-                      <img
-                        src={selectedImage ? URL.createObjectURL(selectedImage) : editingAuction.image_url}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={() => {
-                          setEditingAuction({...editingAuction, image_url: ''});
-                          setSelectedImage(null);
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={editAuction} 
-                  className="flex-1"
-                  disabled={uploading}
-                >
-                  {uploading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Salvando...
-                    </>
-                  ) : (
-                    'Salvar Alterações'
-                  )}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setEditingAuction(null);
-                    setSelectedImage(null);
-                  }}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Monitor de Robô */}
-      <Dialog open={isBotDialogOpen} onOpenChange={setIsBotDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Monitor do Robô</DialogTitle>
-          </DialogHeader>
-          {botAuction && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Status</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">
-                      {botAuction.status} • tempo: {botAuction.time_left ?? '—'}s
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Motivo provável: {botPauseReason(botAuction, botRecentBids)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Receita</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">
-                      {formatBRL(botAuction.company_revenue || 0)} / {formatBRL(botAuction.revenue_target || 0)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Ações</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex items-center gap-2">
-                    <Button onClick={triggerRobotNow} disabled={triggering}>
-                      {triggering ? 'Acionando...' : 'Disparar robô agora'}
-                    </Button>
-                    <Button variant="outline" onClick={() => botAuction && loadBotData(botAuction.id)} disabled={botLoading}>
-                      {botLoading ? 'Atualizando...' : 'Atualizar'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Últimos Lances</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {botRecentBids.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Sem lances recentes</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Quando</TableHead>
-                            <TableHead>Valor</TableHead>
-                            <TableHead>Quem</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {botRecentBids.map((b: any) => (
-                            <TableRow key={b.id}>
-                              <TableCell>{formatDate(b.created_at)}</TableCell>
-                              <TableCell>{formatPrice(b.bid_amount)}</TableCell>
-                              <TableCell>
-                                <Badge variant={b.profile?.is_bot ? 'secondary' : 'default'}>
-                                  {b.profile?.is_bot ? 'Bot' : 'Humano'}
-                                </Badge>
-                                <span className="ml-2 text-sm text-muted-foreground">
-                                  {b.profile?.full_name || '—'}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Logs do Webhook</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {botLogs.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Nenhum log registrado</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {botLogs.map((l: any) => (
-                          <div key={l.id} className="text-sm border rounded-md p-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium">{l.status}</span>
-                              <span className="text-xs text-muted-foreground">{formatDate(l.created_at)}</span>
-                            </div>
-                            <div className="text-xs text-muted-foreground break-words">
-                              {l.error || l.response_body}
-                            </div>
-                            {l.correlation_id && (
-                              <div className="text-[10px] mt-1 text-muted-foreground">id: {l.correlation_id}</div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

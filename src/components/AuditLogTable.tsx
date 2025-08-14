@@ -29,12 +29,8 @@ const AuditLogTable: React.FC = () => {
     setError(null);
     
     try {
-      const { data, error } = await supabase.rpc('get_admin_audit_log', {
-        limit_count: 100
-      });
-
-      if (error) throw error;
-      setAuditLogs(data || []);
+      // For now, return empty array since audit logging is not fully implemented
+      setAuditLogs([]);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar logs de auditoria');

@@ -297,6 +297,19 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_admin_audit_log: {
+        Args: { limit_count?: number }
+        Returns: {
+          id: string
+          admin_user_id: string
+          admin_name: string
+          action_type: string
+          target_type: string
+          target_id: string
+          description: string
+          created_at: string
+        }[]
+      }
       get_auction_financials: {
         Args: { auction_uuid: string }
         Returns: {
