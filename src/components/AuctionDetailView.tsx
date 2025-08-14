@@ -68,12 +68,7 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
   auction,
   financialData
 }) => {
-  const formatCurrency = (valueInCents: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(valueInCents / 100);
-  };
+  // Removida formatCurrency com divisão por 100 - agora só usamos formatCurrencyFromReais
 
   const formatCurrencyFromReais = (valueInReais: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -199,13 +194,13 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
               <div className="text-center p-3 bg-blue-50 rounded-lg">
                 <div className="text-sm text-blue-600 font-medium mb-1">Preço Atual</div>
                 <div className="text-2xl font-bold text-blue-700">
-                  {formatCurrency(auction.current_price)}
+                  {formatCurrencyFromReais(auction.current_price)}
                 </div>
               </div>
               <div className="text-center p-3 bg-purple-50 rounded-lg">
                 <div className="text-sm text-purple-600 font-medium mb-1">Valor de Mercado</div>
                 <div className="text-2xl font-bold text-purple-700">
-                  {formatCurrency(auction.market_value)}
+                  {formatCurrencyFromReais(auction.market_value)}
                 </div>
               </div>
             </div>

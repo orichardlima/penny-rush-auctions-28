@@ -1,4 +1,7 @@
 project_id = "tlcdidkkxigofdhxnzzo"
 
+[functions.sync-timers-and-protection]
+verify_jwt = false
+
 [functions.auction-webhook]
 verify_jwt = false
