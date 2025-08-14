@@ -62,6 +62,7 @@ interface User {
   email: string;
   bids_balance: number;
   is_admin: boolean;
+  is_bot: boolean;
   created_at: string;
 }
 
@@ -80,7 +81,8 @@ const AdminDashboard = () => {
   const { signOut } = useAuth();
   const { toast } = useToast();
   const [auctions, setAuctions] = useState<Auction[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [realUsers, setRealUsers] = useState<User[]>([]);
+  const [botUsers, setBotUsers] = useState<User[]>([]);
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -159,10 +161,17 @@ const AdminDashboard = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch users
-      const { data: usersData } = await supabase
+      // Fetch users - separate real users and bots
+      const { data: realUsersData } = await supabase
         .from('profiles')
         .select('*')
+        .eq('is_bot', false)
+        .order('created_at', { ascending: false });
+
+      const { data: botUsersData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_bot', true)
         .order('created_at', { ascending: false });
 
       // Fetch bid packages
@@ -172,7 +181,8 @@ const AdminDashboard = () => {
         .order('created_at', { ascending: false });
 
       setAuctions(auctionsData || []);
-      setUsers(usersData || []);
+      setRealUsers(realUsersData || []);
+      setBotUsers(botUsersData || []);
       setBidPackages(packagesData || []);
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -564,7 +574,7 @@ const AdminDashboard = () => {
 
   const totalRevenue = bidPackages.reduce((sum, pkg) => sum + (pkg.price * 10), 0); // Simulated
   const activeAuctions = auctions.filter(a => a.status === 'active').length;
-  const totalUsers = users.length;
+  const totalUsers = realUsers.length + botUsers.length;
   const totalBids = auctions.reduce((sum, auction) => sum + auction.total_bids, 0);
 
   return (
@@ -987,47 +997,122 @@ const AdminDashboard = () => {
 
 
           <TabsContent value="users" className="space-y-4">
-            <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
-            <Card>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Saldo de Lances</TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead>Cadastro</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.full_name}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.bids_balance}</TableCell>
-                        <TableCell>
-                          <Badge variant={user.is_admin ? 'default' : 'secondary'}>
-                            {user.is_admin ? 'Admin' : 'Usuário'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDate(user.created_at)}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleUserAdmin(user.id, user.is_admin)}
-                          >
-                            {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span>{realUsers.length} usuários reais</span>
+                <span>{botUsers.length} bots</span>
+              </div>
+            </div>
+            
+            <Tabs defaultValue="real-users" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="real-users" className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Usuários Reais ({realUsers.length})
+                </TabsTrigger>
+                <TabsTrigger value="bots" className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Bots ({botUsers.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="real-users" className="mt-4">
+                <Card>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Saldo de Lances</TableHead>
+                          <TableHead>Admin</TableHead>
+                          <TableHead>Cadastro</TableHead>
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {realUsers.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  REAL
+                                </Badge>
+                                {user.full_name}
+                              </div>
+                            </TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{user.bids_balance}</TableCell>
+                            <TableCell>
+                              <Badge variant={user.is_admin ? 'default' : 'secondary'}>
+                                {user.is_admin ? 'Admin' : 'Usuário'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{formatDate(user.created_at)}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toggleUserAdmin(user.id, user.is_admin)}
+                              >
+                                {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="bots" className="mt-4">
+                <Card>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Saldo de Lances</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Cadastro</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {botUsers.map((bot) => (
+                          <TableRow key={bot.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="destructive" className="text-xs">
+                                  BOT
+                                </Badge>
+                                {bot.full_name || 'Bot Automático'}
+                              </div>
+                            </TableCell>
+                            <TableCell>{bot.email || 'N/A'}</TableCell>
+                            <TableCell className="font-mono">
+                              {bot.bids_balance.toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-green-600">
+                                Ativo
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{formatDate(bot.created_at)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="packages" className="space-y-4">
