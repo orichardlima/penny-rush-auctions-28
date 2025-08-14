@@ -83,6 +83,8 @@ const AdminDashboard = () => {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [realUsers, setRealUsers] = useState<User[]>([]);
   const [botUsers, setBotUsers] = useState<User[]>([]);
+  // Temporary fallback to prevent undefined errors
+  const users = [...(realUsers || []), ...(botUsers || [])];
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -572,10 +574,14 @@ const AdminDashboard = () => {
     );
   }
 
+  console.log('Debug AdminDashboard:', { realUsers, botUsers, bidPackages, auctions });
+
   const totalRevenue = bidPackages.reduce((sum, pkg) => sum + (pkg.price * 10), 0); // Simulated
   const activeAuctions = auctions.filter(a => a.status === 'active').length;
-  const totalUsers = realUsers.length + botUsers.length;
+  const totalUsers = (realUsers || []).length + (botUsers || []).length;
   const totalBids = auctions.reduce((sum, auction) => sum + auction.total_bids, 0);
+
+  console.log('Calculated values:', { totalUsers, totalRevenue, activeAuctions, totalBids });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
