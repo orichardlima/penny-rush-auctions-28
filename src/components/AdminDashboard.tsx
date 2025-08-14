@@ -45,6 +45,7 @@ import {
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 import AuctionParticipantsTable from '@/components/AuctionParticipantsTable';
+import { AuctionDetailView } from '@/components/AuctionDetailView';
 import UserProfileCard from '@/components/UserProfileCard';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
@@ -63,6 +64,11 @@ interface Auction {
   time_left: number;
   status: string;
   winner_name?: string;
+  winner_id?: string;
+  participants_count: number;
+  finished_at?: string;
+  ends_at?: string;
+  company_revenue: number;
   created_at: string;
   starts_at: string;
 }
@@ -405,12 +411,8 @@ const AdminDashboard = () => {
         </div>
 
         {/* Nova estrutura de tabs melhorada */}
-        <Tabs defaultValue="financial" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:grid-cols-7">
-            <TabsTrigger value="financial" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Financial</span>
-            </TabsTrigger>
+        <Tabs defaultValue="auction-details" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
             <TabsTrigger value="auction-details" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
@@ -437,93 +439,26 @@ const AdminDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Financial Analytics Tab */}
-          <TabsContent value="financial" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Dashboard Financeiro</h2>
-                <p className="text-muted-foreground">Análise completa do faturamento e performance</p>
-              </div>
-            </div>
 
-            <FinancialSummaryCards summary={summary} loading={analyticsLoading} />
-
-            {/* Additional financial insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Receita por Leilão</CardTitle>
-                  <CardDescription>Performance financeira individual</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {auctionDetails?.slice(0, 5).map((auction) => (
-                      <div key={auction.auction_id} className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">{auction.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {auction.total_bids_count} lances
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">R$ {auction.real_revenue?.toFixed(2)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {auction.target_percentage?.toFixed(1)}% da meta
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tendências</CardTitle>
-                  <CardDescription>Evolução das métricas principais</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {revenueTrends?.slice(-7).map((trend) => (
-                      <div key={trend.date_period} className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">
-                            {new Date(trend.date_period).toLocaleDateString('pt-BR')}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {trend.bids_count} lances
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold">R$ {trend.total_revenue?.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Nova aba: Detalhes de Leilões */}
+          {/* Aba Unificada: Detalhes Completos do Leilão */}
           <TabsContent value="auction-details" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold">Detalhes dos Leilões</h2>
-                <p className="text-muted-foreground">Análise detalhada de participantes e métricas por leilão</p>
+                <h2 className="text-2xl font-bold">Detalhes Completos do Leilão</h2>
+                <p className="text-muted-foreground">Visão 360° com todas as informações, métricas e participantes</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Lista de leilões */}
-              <Card>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Sidebar de seleção de leilão */}
+              <Card className="lg:col-span-1">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
                     Selecionar Leilão
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
                   {auctions.map((auction) => (
                     <Button
                       key={auction.id}
@@ -532,7 +467,7 @@ const AdminDashboard = () => {
                       onClick={() => setSelectedAuctionForDetails(auction.id)}
                     >
                       <div className="text-left">
-                        <div className="font-medium">{auction.title}</div>
+                        <div className="font-medium truncate">{auction.title}</div>
                         <div className="text-xs text-muted-foreground">
                           {auction.total_bids} lances • {auction.status}
                         </div>
@@ -542,12 +477,12 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Detalhes do leilão selecionado */}
-              <div className="lg:col-span-2">
+              {/* View completa do leilão selecionado */}
+              <div className="lg:col-span-3">
                 {selectedAuctionForDetails ? (
-                  <AuctionParticipantsTable
-                    auctionId={selectedAuctionForDetails}
-                    auctionTitle={auctions.find(a => a.id === selectedAuctionForDetails)?.title || 'Leilão'}
+                  <AuctionDetailView
+                    auction={auctions.find(a => a.id === selectedAuctionForDetails)!}
+                    financialData={auctionDetails?.find(d => d.auction_id === selectedAuctionForDetails)}
                   />
                 ) : (
                   <Card>
@@ -555,7 +490,7 @@ const AdminDashboard = () => {
                       <Eye className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                       <h3 className="font-semibold mb-2">Selecione um Leilão</h3>
                       <p className="text-muted-foreground">
-                        Escolha um leilão na lista ao lado para ver detalhes dos participantes
+                        Escolha um leilão na lista ao lado para ver a análise completa com todas as informações, métricas financeiras e participantes
                       </p>
                     </CardContent>
                   </Card>
