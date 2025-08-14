@@ -347,6 +347,18 @@ export type Database = {
         Args: { auction_uuid: string }
         Returns: number
       }
+      get_conversion_funnel: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_users: number
+          users_with_purchases: number
+          users_with_bids: number
+          users_with_wins: number
+          purchase_conversion_rate: number
+          bid_conversion_rate: number
+          win_conversion_rate: number
+        }[]
+      }
       get_financial_summary: {
         Args: Record<PropertyKey, never>
         Returns: {
