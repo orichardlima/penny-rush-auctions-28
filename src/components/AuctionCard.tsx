@@ -67,19 +67,8 @@ export const AuctionCard = ({
   const displayTotalBids = auctionData?.total_bids ?? totalBids;
   const displayWinnerName = auctionData?.winner_name ?? winnerName;
 
-  // Função para formatar preços em centavos (current_price)
-  const formatCurrentPrice = (priceInCents: number) => {
-    const safePriceInCents = priceInCents || 0;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(safePriceInCents / 100);
-  };
-
-  // Função para formatar preços em reais (market_value, originalPrice)
-  const formatMarketPrice = (priceInReais: number) => {
+  // Função para formatar preços em reais (agora tudo está em reais)
+  const formatPrice = (priceInReais: number) => {
     const safePriceInReais = priceInReais || 0;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -92,7 +81,7 @@ export const AuctionCard = ({
   // Debug: Mostrar fonte dos dados e preço
   const dataSource = auctionData ? 'REALTIME' : 'PROPS';
   console.log(`🎯 [${id}] Timer: ${displayTimeLeft}s | Status: ${displayStatus} | Source: ${dataSource}`);
-  console.log(`💰 [${id}] Current Price: ${displayCurrentPrice} centavos | Formatted: ${formatCurrentPrice(displayCurrentPrice)} | Original: ${originalPrice}`);
+  console.log(`💰 [${id}] Current Price: R$ ${displayCurrentPrice} | Original: R$ ${originalPrice}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -154,9 +143,8 @@ export const AuctionCard = ({
   const isAuctionStarted = !startsAtInBrazil || startsAtInBrazil <= nowInBrazil;
 
   const calculateDiscount = () => {
-    // currentPrice está em centavos, originalPrice em reais
-    const currentPriceInReais = displayCurrentPrice / 100;
-    const discount = ((originalPrice - currentPriceInReais) / originalPrice) * 100;
+    // Agora ambos estão em reais
+    const discount = ((originalPrice - displayCurrentPrice) / originalPrice) * 100;
     return Math.round(discount);
   };
 
@@ -235,12 +223,12 @@ export const AuctionCard = ({
         <div className="space-y-3 mb-4">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Preço atual:</span>
-            <span className="text-2xl font-bold text-primary">{formatCurrentPrice(displayCurrentPrice)}</span>
+            <span className="text-2xl font-bold text-primary">{formatPrice(displayCurrentPrice)}</span>
           </div>
 
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-lg font-semibold line-through text-muted-foreground">{formatMarketPrice(originalPrice)}</span>
+            <span className="text-lg font-semibold line-through text-muted-foreground">{formatPrice(originalPrice)}</span>
           </div>
 
           <div className="flex justify-between items-center">
@@ -290,7 +278,7 @@ export const AuctionCard = ({
               {displayWinnerName}
             </p>
             <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-              Parabéns! Produto arrematado por {formatCurrentPrice(displayCurrentPrice)}
+              Parabéns! Produto arrematado por {formatPrice(displayCurrentPrice)}
             </p>
           </div>
         )}

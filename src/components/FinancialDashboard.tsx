@@ -196,11 +196,13 @@ export const FinancialDashboard = () => {
     });
   };
 
-  const formatPrice = (priceInCents: number) => {
+  const formatPrice = (priceInReais: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL'
-    }).format(priceInCents / 100);
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(priceInReais || 0);
   };
 
   const formatDate = (dateString: string) => {

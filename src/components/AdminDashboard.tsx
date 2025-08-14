@@ -218,9 +218,14 @@ const AdminDashboard = () => {
     return publicUrl;
   };
 
-  // Função para converter reais para centavos
-  const convertReaisToCents = (reais: number): number => {
-    return Math.round(reais * 100);
+  // Helper function para formatar preços em reais
+  const formatPrice = (priceInReais: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(priceInReais || 0);
   };
 
   const createAuction = async () => {
@@ -241,14 +246,11 @@ const AdminDashboard = () => {
         imageUrl = await uploadImage(selectedImage);
       }
 
-      // Converter valores de reais para centavos antes de inserir no banco
+      // Agora valores já estão em reais, sem conversão necessária
       const auctionData = {
         ...newAuction,
         image_url: imageUrl,
-        starting_price: convertReaisToCents(newAuction.starting_price),
-        market_value: convertReaisToCents(newAuction.market_value),
-        revenue_target: convertReaisToCents(newAuction.revenue_target),
-        current_price: convertReaisToCents(newAuction.starting_price),
+        current_price: newAuction.starting_price, // current_price igual ao starting_price
       };
 
       const { error } = await supabase
@@ -323,9 +325,9 @@ const AdminDashboard = () => {
         .update({
           title: editingAuction.title,
           description: editingAuction.description,
-          starting_price: convertReaisToCents(editingAuction.starting_price / 100), // Já vem em centavos, converter para reais primeiro
-          market_value: convertReaisToCents(editingAuction.market_value / 100),
-          revenue_target: convertReaisToCents(editingAuction.revenue_target / 100),
+          starting_price: editingAuction.starting_price,
+          market_value: editingAuction.market_value,
+          revenue_target: editingAuction.revenue_target,
         })
         .eq('id', editingAuction.id);
 
@@ -374,12 +376,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(price / 100);
-  };
+  // Função removida - usando a função formatPrice já definida acima
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('pt-BR');
@@ -962,10 +959,10 @@ const AdminDashboard = () => {
                       id="edit-starting-price"
                       type="number"
                       step="0.01"
-                      value={(editingAuction.starting_price / 100).toFixed(2)}
+                      value={editingAuction.starting_price}
                       onChange={(e) => setEditingAuction({ 
                         ...editingAuction, 
-                        starting_price: Math.round(Number(e.target.value) * 100)
+                        starting_price: Number(e.target.value)
                       })}
                     />
                   </div>
@@ -975,10 +972,10 @@ const AdminDashboard = () => {
                       id="edit-market-value"
                       type="number"
                       step="0.01"
-                      value={(editingAuction.market_value / 100).toFixed(2)}
+                      value={editingAuction.market_value}
                       onChange={(e) => setEditingAuction({ 
                         ...editingAuction, 
-                        market_value: Math.round(Number(e.target.value) * 100)
+                        market_value: Number(e.target.value)
                       })}
                     />
                   </div>
@@ -989,10 +986,10 @@ const AdminDashboard = () => {
                     id="edit-revenue-target"
                     type="number"
                     step="0.01"
-                    value={(editingAuction.revenue_target / 100).toFixed(2)}
+                    value={editingAuction.revenue_target}
                     onChange={(e) => setEditingAuction({ 
                       ...editingAuction, 
-                      revenue_target: Math.round(Number(e.target.value) * 100)
+                      revenue_target: Number(e.target.value)
                     })}
                   />
                 </div>
