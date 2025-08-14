@@ -124,9 +124,9 @@ const AdminDashboard = () => {
     title: '',
     description: '',
     image_url: '',
-    starting_price: 100,
-    market_value: 0,
-    revenue_target: 0,
+    starting_price: 1.00, // Agora em reais
+    market_value: 0.00,   // Agora em reais
+    revenue_target: 0.00, // Agora em reais
     starts_at: new Date().toISOString().slice(0, 16),
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -208,6 +208,11 @@ const AdminDashboard = () => {
     return publicUrl;
   };
 
+  // Função para converter reais para centavos
+  const convertReaisToCents = (reais: number): number => {
+    return Math.round(reais * 100);
+  };
+
   const createAuction = async () => {
     if (!newAuction.title || !newAuction.description) {
       toast({
@@ -226,13 +231,19 @@ const AdminDashboard = () => {
         imageUrl = await uploadImage(selectedImage);
       }
 
+      // Converter valores de reais para centavos antes de inserir no banco
+      const auctionData = {
+        ...newAuction,
+        image_url: imageUrl,
+        starting_price: convertReaisToCents(newAuction.starting_price),
+        market_value: convertReaisToCents(newAuction.market_value),
+        revenue_target: convertReaisToCents(newAuction.revenue_target),
+        current_price: convertReaisToCents(newAuction.starting_price),
+      };
+
       const { error } = await supabase
         .from('auctions')
-        .insert([{
-          ...newAuction,
-          image_url: imageUrl,
-          current_price: newAuction.starting_price,
-        }]);
+        .insert([auctionData]);
 
       if (error) throw error;
 
@@ -246,9 +257,9 @@ const AdminDashboard = () => {
         title: '',
         description: '',
         image_url: '',
-        starting_price: 100,
-        market_value: 0,
-        revenue_target: 0,
+        starting_price: 1.00,
+        market_value: 0.00,
+        revenue_target: 0.00,
         starts_at: new Date().toISOString().slice(0, 16),
       });
       setSelectedImage(null);
@@ -557,31 +568,40 @@ const AdminDashboard = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="starting_price">Preço Inicial (centavos)</Label>
+                        <Label htmlFor="starting_price">Preço Inicial (R$)</Label>
                         <Input
                           id="starting_price"
                           type="number"
+                          step="0.01"
+                          min="0.01"
                           value={newAuction.starting_price}
                           onChange={(e) => setNewAuction({ ...newAuction, starting_price: Number(e.target.value) })}
+                          placeholder="1.00"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="market_value">Valor de Mercado (centavos)</Label>
+                        <Label htmlFor="market_value">Valor de Mercado (R$)</Label>
                         <Input
                           id="market_value"
                           type="number"
+                          step="0.01"
+                          min="0"
                           value={newAuction.market_value}
                           onChange={(e) => setNewAuction({ ...newAuction, market_value: Number(e.target.value) })}
+                          placeholder="0.00"
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="revenue_target">Meta de Receita (centavos)</Label>
+                      <Label htmlFor="revenue_target">Meta de Receita (R$)</Label>
                       <Input
                         id="revenue_target"
                         type="number"
+                        step="0.01"
+                        min="0"
                         value={newAuction.revenue_target}
                         onChange={(e) => setNewAuction({ ...newAuction, revenue_target: Number(e.target.value) })}
+                        placeholder="0.00"
                       />
                     </div>
                     <div className="space-y-2">
