@@ -352,6 +352,16 @@ export type Database = {
           conversion_rate: number
         }[]
       }
+      get_hourly_activity: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          hour_of_day: number
+          day_of_week: number
+          bid_count: number
+          user_count: number
+          revenue: number
+        }[]
+      }
       get_random_bot: {
         Args: Record<PropertyKey, never>
         Returns: string
