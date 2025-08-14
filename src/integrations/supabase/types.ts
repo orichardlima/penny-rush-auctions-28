@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -300,47 +300,47 @@ export type Database = {
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
-          id: string
-          admin_user_id: string
-          admin_name: string
           action_type: string
-          target_type: string
-          target_id: string
-          description: string
+          admin_name: string
+          admin_user_id: string
           created_at: string
+          description: string
+          id: string
+          target_id: string
+          target_type: string
         }[]
       }
       get_auction_financials: {
         Args: { auction_uuid: string }
         Returns: {
           auction_id: string
+          bot_bids_count: number
+          bot_bids_percentage: number
+          current_price: number
+          market_value: number
+          profit_margin: number
+          real_revenue: number
+          revenue_target: number
+          roi_percentage: number
+          status: string
+          target_percentage: number
           title: string
           total_bids_count: number
           user_bids_count: number
-          bot_bids_count: number
           user_bids_percentage: number
-          bot_bids_percentage: number
-          real_revenue: number
-          revenue_target: number
-          target_percentage: number
-          current_price: number
-          market_value: number
-          roi_percentage: number
-          profit_margin: number
-          status: string
         }[]
       }
       get_auction_participants: {
         Args: { auction_uuid: string }
         Returns: {
-          user_id: string
-          user_name: string
-          is_bot: boolean
-          total_spent: number
+          avg_time_between_bids: unknown
           bid_count: number
           first_bid_at: string
+          is_bot: boolean
           last_bid_at: string
-          avg_time_between_bids: unknown
+          total_spent: number
+          user_id: string
+          user_name: string
         }[]
       }
       get_auction_revenue: {
@@ -350,41 +350,41 @@ export type Database = {
       get_conversion_funnel: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_users: number
-          users_with_purchases: number
-          users_with_bids: number
-          users_with_wins: number
-          purchase_conversion_rate: number
           bid_conversion_rate: number
+          purchase_conversion_rate: number
+          total_users: number
+          users_with_bids: number
+          users_with_purchases: number
+          users_with_wins: number
           win_conversion_rate: number
         }[]
       }
       get_financial_summary: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_revenue: number
-          auction_revenue: number
-          package_revenue: number
-          total_auctions: number
           active_auctions: number
-          finished_auctions: number
-          total_users: number
-          paying_users: number
+          auction_revenue: number
           average_auction_revenue: number
-          total_bids: number
-          user_bids: number
           bot_bids: number
           conversion_rate: number
+          finished_auctions: number
+          package_revenue: number
+          paying_users: number
+          total_auctions: number
+          total_bids: number
+          total_revenue: number
+          total_users: number
+          user_bids: number
         }[]
       }
       get_hourly_activity: {
         Args: Record<PropertyKey, never>
         Returns: {
-          hour_of_day: number
-          day_of_week: number
           bid_count: number
-          user_count: number
+          day_of_week: number
+          hour_of_day: number
           revenue: number
+          user_count: number
         }[]
       }
       get_random_bot: {
@@ -394,29 +394,29 @@ export type Database = {
       get_revenue_trends: {
         Args: Record<PropertyKey, never>
         Returns: {
-          date_period: string
           auction_revenue: number
+          bids_count: number
+          date_period: string
           package_revenue: number
           total_revenue: number
-          bids_count: number
         }[]
       }
       get_user_analytics: {
         Args: { user_uuid: string }
         Returns: {
-          user_id: string
-          full_name: string
-          email: string
-          is_bot: boolean
-          total_spent: number
-          total_bids: number
           auctions_participated: number
           auctions_won: number
           avg_bid_cost: number
-          first_activity: string
-          last_activity: string
-          user_classification: string
+          email: string
           favorite_time_slot: string
+          first_activity: string
+          full_name: string
+          is_bot: boolean
+          last_activity: string
+          total_bids: number
+          total_spent: number
+          user_classification: string
+          user_id: string
         }[]
       }
       is_admin_user: {
@@ -426,10 +426,10 @@ export type Database = {
       sync_auction_timer: {
         Args: { auction_uuid: string }
         Returns: {
-          id: string
-          time_left: number
           ends_at: string
+          id: string
           status: string
+          time_left: number
         }[]
       }
     }
