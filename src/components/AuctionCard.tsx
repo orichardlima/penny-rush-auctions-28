@@ -10,7 +10,6 @@ import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
 import { useAuctionRealtime } from '@/hooks/useAuctionRealtime';
 import { RealtimeStatus } from '@/components/RealtimeStatus';
-
 interface AuctionCardProps {
   id: string;
   title: string;
@@ -31,17 +30,16 @@ interface AuctionCardProps {
   winnerId?: string;
   winnerName?: string;
 }
-
-export const AuctionCard = ({ 
-  id, 
-  title, 
-  image, 
-  currentPrice, 
-  originalPrice, 
-  totalBids, 
-  participants, 
-  onBid, 
-  userBids, 
+export const AuctionCard = ({
+  id,
+  title,
+  image,
+  currentPrice,
+  originalPrice,
+  totalBids,
+  participants,
+  onBid,
+  userBids,
   recentBidders,
   currentRevenue = 0,
   timeLeft: initialTimeLeft = 15,
@@ -55,7 +53,14 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
 
   // Hook para escutar updates em tempo real do leilão
-  const { auctionData, isConnected, lastSync, forceSync, isWaitingFinalization, finalizationMessage } = useAuctionRealtime(id);
+  const {
+    auctionData,
+    isConnected,
+    lastSync,
+    forceSync,
+    isWaitingFinalization,
+    finalizationMessage
+  } = useAuctionRealtime(id);
 
   // DADOS PASSIVOS: Frontend sempre respeita o backend
   // 1ª prioridade: Dados do realtime (banco de dados)
@@ -88,16 +93,16 @@ export const AuctionCard = ({
   // Try to get auth context, fallback to props if not available
   let actualUserBids = userBids;
   try {
-    const { profile } = useAuth();
-    actualUserBids = (profile?.bids_balance ?? userBids);
+    const {
+      profile
+    } = useAuth();
+    actualUserBids = profile?.bids_balance ?? userBids;
   } catch (error) {
     // If useAuth fails (not within AuthProvider), use userBids from props
     console.log('Auth context not available, using props userBids');
   }
-
   const handleBid = async () => {
     if (actualUserBids <= 0 || isBidding) return;
-    
     setIsBidding(true);
     try {
       await onBid(id);
@@ -106,7 +111,6 @@ export const AuctionCard = ({
       setIsBidding(false);
     }
   };
-
   const getTimerClasses = () => {
     if (displayTimeLeft > 10) {
       return {
@@ -128,39 +132,28 @@ export const AuctionCard = ({
       animation: "animate-countdown"
     };
   };
-
   const formatDateTime = (dateString: string) => {
     const brazilTimezone = 'America/Sao_Paulo';
     const utcDate = new Date(dateString);
     const brazilDate = toZonedTime(utcDate, brazilTimezone);
-    
-    return format(brazilDate, 'dd/MM/yyyy HH:mm', { timeZone: brazilTimezone });
+    return format(brazilDate, 'dd/MM/yyyy HH:mm', {
+      timeZone: brazilTimezone
+    });
   };
-
   const brazilTimezone = 'America/Sao_Paulo';
   const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
   const startsAtInBrazil = starts_at ? toZonedTime(new Date(starts_at), brazilTimezone) : null;
   const isAuctionStarted = !startsAtInBrazil || startsAtInBrazil <= nowInBrazil;
-
   const calculateDiscount = () => {
     // Agora ambos estão em reais
-    const discount = ((originalPrice - displayCurrentPrice) / originalPrice) * 100;
+    const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;
     return Math.round(discount);
   };
-
-  return (
-    <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group">
+  return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group">
       <div className="relative">
-        <img 
-          src={image} 
-          alt={title} 
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+        <img src={image} alt={title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
-          <Badge 
-            variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} 
-            className="shadow-md"
-          >
+          <Badge variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} className="shadow-md">
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
           </Badge>
           {/* Debug badge */}
@@ -168,10 +161,8 @@ export const AuctionCard = ({
             {dataSource}
           </Badge>
         </div>
-        {displayStatus === 'active' && (
-          <div className="absolute top-3 left-3">
-            {isWaitingFinalization ? (
-              <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
+        {displayStatus === 'active' && <div className="absolute top-3 left-3">
+            {isWaitingFinalization ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
                   <div className="flex items-center gap-1">
@@ -181,9 +172,7 @@ export const AuctionCard = ({
                     </span>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+              </div> : <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
                   <div className="flex items-center gap-1">
@@ -193,32 +182,22 @@ export const AuctionCard = ({
                     </span>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              </div>}
+          </div>}
       </div>
       
       <div className="p-6">
         {/* Status da conexão realtime - apenas para leilões ativos */}
-        {displayStatus === 'active' && (
-          <div className="mb-4 p-2 bg-muted/50 rounded-lg">
-            <RealtimeStatus 
-              isConnected={isConnected} 
-              lastSync={lastSync} 
-              onForceSync={forceSync} 
-            />
-          </div>
-        )}
+        {displayStatus === 'active' && <div className="mb-4 p-2 bg-muted/50 rounded-lg">
+            <RealtimeStatus isConnected={isConnected} lastSync={lastSync} onForceSync={forceSync} />
+          </div>}
         <h3 className="font-semibold text-lg mb-3 text-foreground">{title}</h3>
         
-        {displayStatus === 'waiting' && starts_at && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        {displayStatus === 'waiting' && starts_at && <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
               🕒 Leilão inicia em: {formatDateTime(starts_at)}
             </p>
-          </div>
-        )}
+          </div>}
         
         <div className="space-y-3 mb-4">
           <div className="flex justify-between items-center">
@@ -248,26 +227,19 @@ export const AuctionCard = ({
           </div>
 
 
-          {recentBidders.length > 0 && (
-            <div className="pt-2 border-t border-border">
+          {recentBidders.length > 0 && <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Últimos lances:</p>
               <div className="flex flex-wrap gap-1">
-                {recentBidders.slice(0, 3).map((bidder, index) => (
-                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
+                {recentBidders.slice(0, 3).map((bidder, index) => <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
                     {bidder}
-                  </span>
-                ))}
-                {recentBidders.length > 3 && (
-                  <span className="text-xs text-muted-foreground">+{recentBidders.length - 3} mais</span>
-                )}
+                  </span>)}
+                {recentBidders.length > 3}
               </div>
-            </div>
-          )}
+            </div>}
         </div>
 
         {/* Winner Section - Only show for finished auctions */}
-        {displayStatus === 'finished' && displayWinnerName && (
-          <div className="mb-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
+        {displayStatus === 'finished' && displayWinnerName && <div className="mb-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Trophy className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               <span className="font-bold text-lg text-yellow-800 dark:text-yellow-200">
@@ -280,52 +252,26 @@ export const AuctionCard = ({
             <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
               Parabéns! Produto arrematado por {formatPrice(displayCurrentPrice)}
             </p>
-          </div>
-        )}
+          </div>}
 
-        {displayStatus === 'active' && (
-          <Button 
-            onClick={handleBid} 
-            disabled={actualUserBids <= 0 || isBidding}
-            variant={isBidding ? "success" : "bid"}
-            size="lg" 
-            className="w-full"
-          >
+        {displayStatus === 'active' && <Button onClick={handleBid} disabled={actualUserBids <= 0 || isBidding} variant={isBidding ? "success" : "bid"} size="lg" className="w-full">
             <TrendingUp className="w-4 h-4 mr-2" />
             {isBidding ? "PROCESSANDO..." : "DAR LANCE (R$ 1,00)"}
-          </Button>
-        )}
+          </Button>}
 
-        {displayStatus === 'waiting' && (
-          <Button 
-            disabled 
-            variant="outline"
-            size="lg" 
-            className="w-full"
-          >
+        {displayStatus === 'waiting' && <Button disabled variant="outline" size="lg" className="w-full">
             <Clock className="w-4 h-4 mr-2" />
             AGUARDANDO INÍCIO
-          </Button>
-        )}
+          </Button>}
 
-        {displayStatus === 'finished' && (
-          <Button 
-            disabled 
-            variant="secondary"
-            size="lg" 
-            className="w-full"
-          >
+        {displayStatus === 'finished' && <Button disabled variant="secondary" size="lg" className="w-full">
             <Trophy className="w-4 h-4 mr-2" />
             LEILÃO FINALIZADO
-          </Button>
-        )}
+          </Button>}
 
-        {actualUserBids <= 0 && displayStatus === 'active' && (
-          <p className="text-center text-destructive text-sm mt-2">
+        {actualUserBids <= 0 && displayStatus === 'active' && <p className="text-center text-destructive text-sm mt-2">
             Você precisa comprar lances para participar!
-          </p>
-        )}
+          </p>}
       </div>
-    </Card>
-  );
+    </Card>;
 };
