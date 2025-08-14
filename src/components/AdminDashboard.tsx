@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { 
@@ -274,6 +274,68 @@ const AdminDashboard = () => {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Função para deletar leilão
+  const deleteAuction = async (auctionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('auctions')
+        .delete()
+        .eq('id', auctionId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Leilão deletado com sucesso!"
+      });
+
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error deleting auction:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao deletar leilão",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Função para atualizar leilão
+  const updateAuction = async () => {
+    if (!editingAuction) return;
+
+    try {
+      const { error } = await supabase
+        .from('auctions')
+        .update({
+          title: editingAuction.title,
+          description: editingAuction.description,
+          starting_price: convertReaisToCents(editingAuction.starting_price / 100), // Já vem em centavos, converter para reais primeiro
+          market_value: convertReaisToCents(editingAuction.market_value / 100),
+          revenue_target: convertReaisToCents(editingAuction.revenue_target / 100),
+        })
+        .eq('id', editingAuction.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Leilão atualizado com sucesso!"
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingAuction(null);
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error updating auction:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar leilão",
+        variant: "destructive"
+      });
     }
   };
 
@@ -655,12 +717,40 @@ const AdminDashboard = () => {
                         <TableCell>{formatDate(auction.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setEditingAuction(auction);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Deletar Leilão</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja deletar o leilão "{auction.title}"? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteAuction(auction.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Deletar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -827,6 +917,82 @@ const AdminDashboard = () => {
             <AuditLogTable />
           </TabsContent>
         </Tabs>
+
+        {/* Dialog de Edição de Leilão */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Editar Leilão</DialogTitle>
+              <DialogDescription>
+                Modifique os dados do leilão
+              </DialogDescription>
+            </DialogHeader>
+            {editingAuction && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-title">Título</Label>
+                  <Input
+                    id="edit-title"
+                    value={editingAuction.title}
+                    onChange={(e) => setEditingAuction({ ...editingAuction, title: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Descrição</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editingAuction.description}
+                    onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-starting-price">Preço Inicial (R$)</Label>
+                    <Input
+                      id="edit-starting-price"
+                      type="number"
+                      step="0.01"
+                      value={(editingAuction.starting_price / 100).toFixed(2)}
+                      onChange={(e) => setEditingAuction({ 
+                        ...editingAuction, 
+                        starting_price: Math.round(Number(e.target.value) * 100)
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-market-value">Valor de Mercado (R$)</Label>
+                    <Input
+                      id="edit-market-value"
+                      type="number"
+                      step="0.01"
+                      value={(editingAuction.market_value / 100).toFixed(2)}
+                      onChange={(e) => setEditingAuction({ 
+                        ...editingAuction, 
+                        market_value: Math.round(Number(e.target.value) * 100)
+                      })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-revenue-target">Meta de Receita (R$)</Label>
+                  <Input
+                    id="edit-revenue-target"
+                    type="number"
+                    step="0.01"
+                    value={(editingAuction.revenue_target / 100).toFixed(2)}
+                    onChange={(e) => setEditingAuction({ 
+                      ...editingAuction, 
+                      revenue_target: Math.round(Number(e.target.value) * 100)
+                    })}
+                  />
+                </div>
+                <Button onClick={updateAuction} className="w-full">
+                  Atualizar Leilão
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
