@@ -46,6 +46,7 @@ import { FinancialSummaryCards } from '@/components/FinancialAnalytics/Financial
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 import AuctionParticipantsTable from '@/components/AuctionParticipantsTable';
 import { AuctionDetailView } from '@/components/AuctionDetailView';
+import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import UserProfileCard from '@/components/UserProfileCard';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
@@ -417,6 +418,10 @@ const AdminDashboard = () => {
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
             </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              <span className="hidden sm:inline">Financeiro</span>
+            </TabsTrigger>
             <TabsTrigger value="auctions" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Leilões</span>
@@ -497,6 +502,11 @@ const AdminDashboard = () => {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* Aba Financeira Administrativa */}
+          <TabsContent value="financial" className="space-y-6">
+            <AdminFinancialOverview auctions={auctions} users={[...realUsers, ...botUsers]} />
           </TabsContent>
 
           {/* Auctions Tab */}
