@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Shield, RefreshCw, Search, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
 
 interface AuditLogEntry {
   id: string;
@@ -29,8 +28,22 @@ const AuditLogTable: React.FC = () => {
     setError(null);
     
     try {
-      // For now, return empty array since audit logging is not fully implemented
-      setAuditLogs([]);
+      // For now, we'll use mock data since the audit log table is empty
+      // In the future, when audit logging is implemented, this will fetch real data
+      const mockData: AuditLogEntry[] = [
+        {
+          id: '1',
+          admin_user_id: 'admin-1',
+          admin_name: 'Sistema',
+          action_type: 'CREATE',
+          target_type: 'AUCTION',
+          target_id: 'auction-1',
+          description: 'Leilão criado automaticamente pelo sistema',
+          created_at: new Date().toISOString()
+        }
+      ];
+      
+      setAuditLogs(mockData);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar logs de auditoria');
@@ -215,7 +228,7 @@ const AuditLogTable: React.FC = () => {
             <p>
               {searchTerm 
                 ? 'Nenhum log encontrado para os critérios de busca'
-                : 'Nenhum log de auditoria disponível'
+                : 'Sistema de auditoria será implementado em breve'
               }
             </p>
           </div>
@@ -224,8 +237,8 @@ const AuditLogTable: React.FC = () => {
         {/* Informação sobre retenção */}
         <div className="text-xs text-muted-foreground text-center p-4 bg-muted/30 rounded-lg">
           <p>
-            ℹ️ Os logs são mantidos por 90 dias para conformidade e auditoria.
-            Logs críticos podem ser mantidos por períodos mais longos.
+            ℹ️ Os logs serão mantidos por 90 dias para conformidade e auditoria.
+            Esta funcionalidade será implementada em uma próxima versão.
           </p>
         </div>
       </CardContent>
