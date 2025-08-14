@@ -317,6 +317,19 @@ export type Database = {
           status: string
         }[]
       }
+      get_auction_participants: {
+        Args: { auction_uuid: string }
+        Returns: {
+          user_id: string
+          user_name: string
+          is_bot: boolean
+          total_spent: number
+          bid_count: number
+          first_bid_at: string
+          last_bid_at: string
+          avg_time_between_bids: unknown
+        }[]
+      }
       get_auction_revenue: {
         Args: { auction_uuid: string }
         Returns: number
