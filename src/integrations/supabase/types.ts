@@ -366,6 +366,24 @@ export type Database = {
           bids_count: number
         }[]
       }
+      get_user_analytics: {
+        Args: { user_uuid: string }
+        Returns: {
+          user_id: string
+          full_name: string
+          email: string
+          is_bot: boolean
+          total_spent: number
+          total_bids: number
+          auctions_participated: number
+          auctions_won: number
+          avg_bid_cost: number
+          first_activity: string
+          last_activity: string
+          user_classification: string
+          favorite_time_slot: string
+        }[]
+      }
       is_admin_user: {
         Args: { user_uuid: string }
         Returns: boolean
