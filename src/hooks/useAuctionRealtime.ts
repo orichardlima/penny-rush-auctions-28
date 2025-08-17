@@ -62,6 +62,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
   // Estado para aguardar finalização pelo cron job
   const [isWaitingFinalization, setIsWaitingFinalization] = useState(false);
   const [finalizationMessage, setFinalizationMessage] = useState('');
+  const finalizationTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Mensagens rotativas para aguardar finalização
   const finalizationMessages = [
@@ -73,7 +74,14 @@ export const useAuctionRealtime = (auctionId?: string) => {
 
   // Controla as mensagens rotativas quando aguardando finalização
   useEffect(() => {
-    if (!isWaitingFinalization) return;
+    if (!isWaitingFinalization) {
+      // Limpar timeout de proteção quando sair do estado de finalização
+      if (finalizationTimeoutRef.current) {
+        clearTimeout(finalizationTimeoutRef.current);
+        finalizationTimeoutRef.current = undefined;
+      }
+      return;
+    }
 
     let messageIndex = 0;
     setFinalizationMessage(finalizationMessages[0]);
@@ -83,7 +91,19 @@ export const useAuctionRealtime = (auctionId?: string) => {
       setFinalizationMessage(finalizationMessages[messageIndex]);
     }, 1000);
 
-    return () => clearInterval(messageInterval);
+    // Timeout de proteção: sair do estado de finalização após 30 segundos
+    finalizationTimeoutRef.current = setTimeout(() => {
+      console.log('⚠️ [FINALIZATION] Timeout de proteção ativado - saindo do estado de finalização');
+      setIsWaitingFinalization(false);
+    }, 30000);
+
+    return () => {
+      clearInterval(messageInterval);
+      if (finalizationTimeoutRef.current) {
+        clearTimeout(finalizationTimeoutRef.current);
+        finalizationTimeoutRef.current = undefined;
+      }
+    };
   }, [isWaitingFinalization]);
 
   // Função chamada quando timer chega a zero
@@ -237,18 +257,29 @@ export const useAuctionRealtime = (auctionId?: string) => {
           
           console.log('📡 [REALTIME] Update do leilão recebido:', payload);
           const newAuctionData = payload.new as AuctionUpdate;
+          const wasWaitingFinalization = isWaitingFinalization;
+          
           setAuctionData(newAuctionData);
           
-          // Se o leilão foi finalizado, parar timer
+          // Se o leilão foi finalizado, parar timer e sair do estado de finalização
           if (newAuctionData.status === 'finished') {
             setLocalTimeLeft(0);
+            setIsWaitingFinalization(false);
+            console.log('✅ [FINALIZATION] Leilão finalizado - saindo do estado de finalização');
           } else {
-            // Apenas resetar timer se ainda estiver ativo
+            // Calcular novo timer
             const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
             const nowMs = Date.now() + (serverOffsetRef.current || 0);
             const next = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
             setLocalTimeLeft(next);
+            
+            // **CORREÇÃO PRINCIPAL**: Se estava aguardando finalização e agora tem timer > 0, resetar estado
+            if (wasWaitingFinalization && next > 0 && newAuctionData.status === 'active') {
+              setIsWaitingFinalization(false);
+              console.log('🔄 [FINALIZATION] Timer resetado para', next, 's - saindo do estado de finalização');
+            }
           }
+          
           setLastSync(new Date());
           setIsConnected(true);
           
@@ -260,6 +291,8 @@ export const useAuctionRealtime = (auctionId?: string) => {
             current_price: newAuctionData.current_price,
             total_bids: newAuctionData.total_bids,
             status: newAuctionData.status,
+            was_waiting_finalization: wasWaitingFinalization,
+            finalization_reset: wasWaitingFinalization && newAuctionData.time_left > 0,
             timestamp: new Date().toISOString()
           });
         }
@@ -311,6 +344,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
       
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
+      }
+      
+      if (finalizationTimeoutRef.current) {
+        clearTimeout(finalizationTimeoutRef.current);
       }
       
       clearInterval(pollingInterval);
