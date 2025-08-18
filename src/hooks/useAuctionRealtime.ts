@@ -91,11 +91,11 @@ export const useAuctionRealtime = (auctionId?: string) => {
       setFinalizationMessage(finalizationMessages[messageIndex]);
     }, 1000);
 
-    // Timeout de proteção: sair do estado de finalização após 30 segundos
+    // Timeout de proteção reduzido para 10 segundos
     finalizationTimeoutRef.current = setTimeout(() => {
       console.log('⚠️ [FINALIZATION] Timeout de proteção ativado - saindo do estado de finalização');
       setIsWaitingFinalization(false);
-    }, 30000);
+    }, 10000);
 
     return () => {
       clearInterval(messageInterval);
@@ -106,26 +106,34 @@ export const useAuctionRealtime = (auctionId?: string) => {
     };
   }, [isWaitingFinalization]);
 
-  // Função chamada quando timer chega a zero
+  // Função chamada quando timer chega a zero - com verificação de segurança inteligente
   const checkAuctionStatusAndReset = useCallback(async () => {
     if (!auctionId || checkingStatusRef.current || !isActiveRef.current) return;
     
     checkingStatusRef.current = true;
-    setIsWaitingFinalization(true);
-    console.log('⚡ [ZERO] Aguardando cron job finalizar o leilão');
+    console.log('⚡ [ZERO] Timer chegou a zero - verificando se deve mostrar finalização');
     
     try {
-      // Verificação simples do status do leilão
+      // VERIFICAÇÃO DE SEGURANÇA: Só mostrar finalização se realmente deve encerrar
       const { data, error } = await supabase
         .from('auctions')
-        .select('status, time_left')
+        .select('status, time_left, updated_at')
         .eq('id', auctionId)
         .maybeSingle();
       
       if (error) throw error;
       
       if (data) {
-        console.log('🔄 [ZERO] Status verificado:', data);
+        console.log('🔍 [ZERO] Status verificado:', data);
+        
+        // Calcular segundos desde última atividade
+        const lastActivityMs = new Date(data.updated_at).getTime();
+        const nowMs = Date.now();
+        const secondsSinceActivity = Math.floor((nowMs - lastActivityMs) / 1000);
+        
+        console.log('📊 [ZERO] Segundos desde última atividade:', secondsSinceActivity);
+        
+        // Atualizar dados do leilão
         setAuctionData(prev => prev ? { 
           ...prev, 
           status: data.status,
@@ -133,9 +141,75 @@ export const useAuctionRealtime = (auctionId?: string) => {
         } : null);
         setLocalTimeLeft(data.time_left);
         
-        // Se o leilão foi finalizado, para de aguardar
+        // LÓGICA INTELIGENTE DE FINALIZAÇÃO:
         if (data.status === 'finished') {
+          // Leilão já foi encerrado pelo cron job
           setIsWaitingFinalization(false);
+          console.log('✅ [ZERO] Leilão já finalizado - não mostrar mensagens');
+        } else if (data.time_left > 0) {
+          // Novo lance chegou, resetar timer
+          console.log('🔄 [ZERO] Timer resetado para', data.time_left, 's - não mostrar mensagens');
+        } else if (secondsSinceActivity >= 15 && data.status === 'active') {
+          // Realmente deve mostrar finalização (15+ segundos sem atividade)
+          setIsWaitingFinalization(true);
+          console.log('⏳ [ZERO] Mostrando finalização - 15+ segundos sem atividade');
+          
+          // Polling agressivo para verificar mudanças a cada 2 segundos
+          const pollingInterval = setInterval(async () => {
+            try {
+              const { data: pollData } = await supabase
+                .from('auctions')
+                .select('status, time_left')
+                .eq('id', auctionId)
+                .maybeSingle();
+              
+              if (pollData) {
+                console.log('🔄 [POLLING] Status durante finalização:', pollData);
+                if (pollData.status === 'finished' || pollData.time_left > 0) {
+                  setIsWaitingFinalization(false);
+                  clearInterval(pollingInterval);
+                  console.log('✅ [POLLING] Saindo da finalização:', pollData);
+                }
+              }
+            } catch (err) {
+              console.error('❌ [POLLING] Erro:', err);
+            }
+          }, 2000);
+          
+          // Limpar polling após 10 segundos
+          setTimeout(() => {
+            clearInterval(pollingInterval);
+          }, 10000);
+          
+        } else {
+          // Menos de 15 segundos - não mostrar finalização ainda
+          console.log('⏰ [ZERO] Apenas', secondsSinceActivity, 's de inatividade - aguardando mais atividade');
+          
+          // Polling a cada 1 segundo por 10 segundos para verificar se timer reseta
+          let pollCount = 0;
+          const quickPolling = setInterval(async () => {
+            pollCount++;
+            if (pollCount > 10) {
+              clearInterval(quickPolling);
+              return;
+            }
+            
+            try {
+              const { data: quickData } = await supabase
+                .from('auctions')
+                .select('time_left, status')
+                .eq('id', auctionId)
+                .maybeSingle();
+              
+              if (quickData && quickData.time_left > 0) {
+                console.log('🔄 [QUICK] Timer resetado para', quickData.time_left, 's');
+                setLocalTimeLeft(quickData.time_left);
+                clearInterval(quickPolling);
+              }
+            } catch (err) {
+              console.error('❌ [QUICK] Erro:', err);
+            }
+          }, 1000);
         }
       }
     } catch (error) {
