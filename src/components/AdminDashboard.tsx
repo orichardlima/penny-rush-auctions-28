@@ -50,7 +50,8 @@ import {
   Search,
   Download,
   Shield,
-  Brain
+  Brain,
+  Pencil
 } from 'lucide-react';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
@@ -61,6 +62,7 @@ import UserProfileCard from '@/components/UserProfileCard';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
 import AuditLogTable from '@/components/AuditLogTable';
+import { BidPackageFormDialog } from '@/components/BidPackageFormDialog';
 
 interface Auction {
   id: string;
@@ -99,6 +101,7 @@ interface BidPackage {
   bids_count: number;
   price: number;
   original_price?: number;
+  icon?: string;
   is_popular: boolean;
   features: string[];
   created_at: string;
@@ -145,6 +148,10 @@ const AdminDashboard = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Bid Package Management States
+  const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<BidPackage | null>(null);
 
   useEffect(() => {
     fetchAdminData();
@@ -389,6 +396,50 @@ const AdminDashboard = () => {
         variant: "destructive"
       });
     }
+  };
+
+  // Bid Package CRUD Functions
+  const handleCreatePackage = () => {
+    setEditingPackage(null);
+    setIsPackageDialogOpen(true);
+  };
+
+  const handleEditPackage = (pkg: BidPackage) => {
+    setEditingPackage(pkg);
+    setIsPackageDialogOpen(true);
+  };
+
+  const handleDeletePackage = async (pkg: BidPackage) => {
+    if (!confirm(`Tem certeza que deseja deletar o pacote "${pkg.name}"?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bid_packages')
+        .delete()
+        .eq('id', pkg.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Pacote deletado!",
+        description: `${pkg.name} foi removido com sucesso.`
+      });
+
+      fetchAdminData();
+    } catch (error) {
+      console.error('Erro ao deletar pacote:', error);
+      toast({
+        title: "Erro!",
+        description: "Não foi possível deletar o pacote.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePackageSuccess = () => {
+    fetchAdminData();
   };
 
   // Função removida - usando a função formatPrice já definida acima
@@ -874,7 +925,17 @@ const AdminDashboard = () => {
 
           {/* Packages Tab */}
           <TabsContent value="packages" className="space-y-4">
-            <h2 className="text-xl font-semibold">Pacotes de Lances</h2>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Pacotes de Lances</h2>
+                <p className="text-muted-foreground">Gerencie os pacotes de lances disponíveis para compra</p>
+              </div>
+              <Button onClick={handleCreatePackage}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Novo Pacote
+              </Button>
+            </div>
+            
             <Card>
               <CardContent>
                 <Table>
@@ -883,24 +944,61 @@ const AdminDashboard = () => {
                       <TableHead>Nome</TableHead>
                       <TableHead>Quantidade de Lances</TableHead>
                       <TableHead>Preço</TableHead>
+                      <TableHead>Preço Original</TableHead>
                       <TableHead>Popular</TableHead>
                       <TableHead>Criado em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bidPackages.map((pkg) => (
-                      <TableRow key={pkg.id}>
-                        <TableCell className="font-medium">{pkg.name}</TableCell>
-                        <TableCell>{pkg.bids_count}</TableCell>
-                        <TableCell>{formatPrice(pkg.price)}</TableCell>
-                        <TableCell>
-                          <Badge variant={pkg.is_popular ? 'default' : 'secondary'}>
-                            {pkg.is_popular ? 'Sim' : 'Não'}
-                          </Badge>
+                    {bidPackages.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          Nenhum pacote encontrado. Crie o primeiro pacote!
                         </TableCell>
-                        <TableCell>{formatDate(pkg.created_at)}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      bidPackages.map((pkg) => (
+                        <TableRow key={pkg.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {pkg.icon && <Package className="h-4 w-4" />}
+                              {pkg.name}
+                            </div>
+                          </TableCell>
+                          <TableCell>{pkg.bids_count}</TableCell>
+                          <TableCell>{formatPrice(pkg.price)}</TableCell>
+                          <TableCell>
+                            {pkg.original_price ? formatPrice(pkg.original_price) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={pkg.is_popular ? 'default' : 'secondary'}>
+                              {pkg.is_popular ? 'Sim' : 'Não'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatDate(pkg.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-1 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditPackage(pkg)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeletePackage(pkg)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1015,6 +1113,14 @@ const AdminDashboard = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Gerenciamento de Pacotes */}
+        <BidPackageFormDialog
+          open={isPackageDialogOpen}
+          onOpenChange={setIsPackageDialogOpen}
+          package={editingPackage}
+          onSuccess={handlePackageSuccess}
+        />
       </div>
     </div>
   );
