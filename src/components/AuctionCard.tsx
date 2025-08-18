@@ -90,17 +90,9 @@ export const AuctionCard = ({
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
-  // Try to get auth context, fallback to props if not available
-  let actualUserBids = userBids;
-  try {
-    const {
-      profile
-    } = useAuth();
-    actualUserBids = profile?.bids_balance ?? userBids;
-  } catch (error) {
-    // If useAuth fails (not within AuthProvider), use userBids from props
-    console.log('Auth context not available, using props userBids');
-  }
+  // Get auth context for user bids
+  const { profile } = useAuth();
+  const actualUserBids = profile?.bids_balance ?? userBids;
   const handleBid = async () => {
     if (actualUserBids <= 0 || isBidding) return;
     setIsBidding(true);

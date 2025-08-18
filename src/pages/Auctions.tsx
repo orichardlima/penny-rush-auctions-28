@@ -1,7 +1,8 @@
-import { useState } from "react";
 import { Header } from "@/components/Header";
 import { AuctionCard } from "@/components/AuctionCard";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 // Import product images
 import iphoneImage from "@/assets/iphone-15-pro.jpg";
@@ -12,8 +13,8 @@ import tvImage from "@/assets/smart-tv-55.jpg";
 import watchImage from "@/assets/apple-watch-ultra.jpg";
 
 const Auctions = () => {
-  const [userBids, setUserBids] = useState(25);
   const { toast } = useToast();
+  const { profile, refreshProfile } = useAuth();
 
   const auctions = [
     {
@@ -78,8 +79,22 @@ const Auctions = () => {
     }
   ];
 
-  const handleBid = (auctionId: string) => {
-    if (userBids <= 0) {
+  const handleBid = async (auctionId: string) => {
+    // Verificar se o usuário está autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user || !profile) {
+      toast({
+        title: "Faça login para dar lances",
+        description: "Você precisa estar logado para participar dos leilões.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Verificar saldo de lances do usuário
+    const currentBalance = profile.bids_balance || 0;
+    if (currentBalance < 1) {
       toast({
         title: "Sem lances disponíveis!",
         description: "Compre mais lances para continuar participando dos leilões.",
@@ -88,12 +103,67 @@ const Auctions = () => {
       return;
     }
 
-    setUserBids(prev => prev - 1);
-    toast({
-      title: "Lance realizado!",
-      description: "Seu lance foi registrado com sucesso. Boa sorte!",
-      variant: "default"
-    });
+    try {
+      // 1. Descontar R$ 1,00 do saldo do usuário
+      const newBalance = currentBalance - 1;
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ bids_balance: newBalance })
+        .eq('user_id', user.id);
+
+      if (balanceError) {
+        console.error('❌ Erro ao descontar saldo:', balanceError);
+        toast({
+          title: "Erro ao processar lance",
+          description: "Não foi possível descontar o valor do lance. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // 2. Inserir o lance no banco de dados
+      const { error: bidError } = await supabase
+        .from('bids')
+        .insert({
+          auction_id: auctionId,
+          user_id: user.id,
+          bid_amount: 1, // 1 centavo
+          cost_paid: 1.00 // Custo do lance em reais (R$ 1,00)
+        });
+
+      if (bidError) {
+        console.error('❌ Erro ao registrar lance:', bidError);
+        
+        // Reverter o desconto do saldo em caso de erro
+        await supabase
+          .from('profiles')
+          .update({ bids_balance: currentBalance })
+          .eq('user_id', user.id);
+
+        toast({
+          title: "Erro ao dar lance",
+          description: "Não foi possível registrar seu lance. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // 3. Atualizar o perfil do usuário no contexto
+      await refreshProfile();
+
+      toast({
+        title: "Lance realizado!",
+        description: "Seu lance foi registrado com sucesso. Boa sorte!",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('❌ Erro ao dar lance:', error);
+      toast({
+        title: "Erro ao dar lance",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleBuyBids = () => {
@@ -102,7 +172,7 @@ const Auctions = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header userBids={userBids} onBuyBids={handleBuyBids} />
+      <Header onBuyBids={handleBuyBids} />
       
       <main className="py-16">
         <div className="container mx-auto px-4">
@@ -126,7 +196,7 @@ const Auctions = () => {
                 originalPrice={auction.originalPrice}
                 totalBids={auction.totalBids}
                 participants={auction.participants}
-                userBids={userBids}
+                userBids={profile?.bids_balance || 0}
                 onBid={handleBid}
                 recentBidders={auction.recentBidders}
               />
