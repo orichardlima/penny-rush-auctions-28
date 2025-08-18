@@ -456,14 +456,27 @@ const AdminDashboard = () => {
     );
   }
 
-  // Filtrar usuários
-  const filteredRealUsers = realUsers.filter(user => {
+  // Combinar todos os usuários (reais + bots)
+  const allUsers = [...realUsers, ...botUsers];
+  
+  // Filtrar usuários combinados
+  const filteredUsers = allUsers.filter(user => {
     const matchesSearch = user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
                          user.email?.toLowerCase().includes(userSearchTerm.toLowerCase());
     
     if (userFilter === 'all') return matchesSearch;
     if (userFilter === 'real') return matchesSearch && !user.is_bot;
     if (userFilter === 'bot') return matchesSearch && user.is_bot;
+    if (userFilter === 'vip') {
+      // Implementar lógica VIP baseada em critérios específicos
+      // Por exemplo: usuários que gastaram mais de R$ 100
+      return matchesSearch && !user.is_bot; // Placeholder - pode ser implementado com dados de compras
+    }
+    if (userFilter === 'active') {
+      // Implementar lógica de usuários ativos
+      // Por exemplo: usuários que fizeram lances recentemente
+      return matchesSearch && !user.is_bot; // Placeholder - pode ser implementado com dados de atividade
+    }
     return matchesSearch;
   });
 
@@ -842,7 +855,7 @@ const AdminDashboard = () => {
                 <p className="text-muted-foreground">Controle completo de usuários reais e bots</p>
               </div>
               <div className="flex gap-2 text-sm text-muted-foreground">
-                <span>{filteredRealUsers.length} usuários filtrados</span>
+                <span>{filteredUsers.length} usuários filtrados</span>
               </div>
             </div>
 
@@ -880,11 +893,11 @@ const AdminDashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    Usuários ({filteredRealUsers.length})
+                    Usuários ({filteredUsers.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredRealUsers.map((user) => (
+                  {filteredUsers.map((user) => (
                     <Button
                       key={user.user_id}
                       variant={selectedUserForProfile?.user_id === user.user_id ? "default" : "outline"}
@@ -892,7 +905,11 @@ const AdminDashboard = () => {
                       onClick={() => setSelectedUserForProfile(user)}
                     >
                       <div className="text-left">
-                        <div className="font-medium">{user.full_name || 'Usuário'}</div>
+                        <div className="font-medium flex items-center gap-2">
+                          {user.full_name || 'Usuário'}
+                          {user.is_bot && <Bot className="h-3 w-3 text-orange-500" />}
+                          {user.is_admin && <Shield className="h-3 w-3 text-blue-500" />}
+                        </div>
                         <div className="text-xs text-muted-foreground">{user.email}</div>
                       </div>
                     </Button>
