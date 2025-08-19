@@ -7,7 +7,9 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
     const checkAndActivateWaitingAuctions = async () => {
       try {
         const brazilTimezone = 'America/Sao_Paulo';
-        const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
+        // Usar horário brasileiro local do cliente
+        const nowInBrazil = new Date().toLocaleString("en-US", {timeZone: brazilTimezone});
+        const clientBrazilTime = new Date(nowInBrazil);
         
         const { data: waitingAuctions, error } = await supabase
           .from('auctions')
@@ -21,7 +23,7 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
 
         const auctionsToActivate = waitingAuctions?.filter(auction => 
           auction.starts_at && 
-          toZonedTime(new Date(auction.starts_at), brazilTimezone) <= nowInBrazil
+          new Date(auction.starts_at) <= clientBrazilTime
         ) || [];
 
         for (const auction of auctionsToActivate) {
@@ -31,7 +33,7 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
             .eq('id', auction.id);
           
           if (!updateError) {
-            console.log(`✅ Leilão ativado: ${auction.title} - Webhook será disparado automaticamente`);
+            console.log(`✅ Leilão ativado: ${auction.title} - Webhook será disparado automaticamente (BR)`);
           }
         }
 
