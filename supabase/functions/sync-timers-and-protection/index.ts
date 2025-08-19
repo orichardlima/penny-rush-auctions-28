@@ -35,10 +35,13 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Usar fuso brasileiro para todas as operações
+    const brazilTimezone = 'America/Sao_Paulo';
     const now = new Date();
-    const currentTime = now.toISOString();
+    const brazilDate = new Date(now.toLocaleString("en-US", {timeZone: brazilTimezone}));
+    const currentTime = brazilDate.toISOString();
     
-    console.log(`🔍 [SYNC] Iniciando sincronização às ${currentTime}`);
+    console.log(`🔍 [SYNC] Iniciando sincronização às ${currentTime} (BR)`);
 
     // 1. Ativar leilões que estão "waiting" e já passaram do starts_at
     const { data: waitingAuctions, error: waitingError } = await supabase
@@ -60,7 +63,7 @@ Deno.serve(async (req) => {
         .from('auctions')
         .update({
           status: 'active',
-          ends_at: new Date(Date.now() + 15000).toISOString(), // 15 segundos a partir de agora
+          ends_at: new Date(brazilDate.getTime() + 15000).toISOString(), // 15 segundos a partir de agora (BR)
           time_left: 15,
           updated_at: currentTime
         })
@@ -89,7 +92,7 @@ Deno.serve(async (req) => {
     let syncedCount = 0;
     for (const auction of activeAuctions || []) {
       const endsAt = new Date(auction.ends_at);
-      const timeLeftInSeconds = Math.max(0, Math.floor((endsAt.getTime() - now.getTime()) / 1000));
+      const timeLeftInSeconds = Math.max(0, Math.floor((endsAt.getTime() - brazilDate.getTime()) / 1000));
       
       if (timeLeftInSeconds !== auction.time_left) {
         const { error: syncError } = await supabase

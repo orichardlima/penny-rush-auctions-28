@@ -33,7 +33,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
   const serverOffsetRef = useRef<number>(0);
   const checkingStatusRef = useRef<boolean>(false);
 
-  // Sincroniza offset de tempo com o servidor (corrige relógios do cliente)
+  // Sincroniza offset de tempo com o servidor brasileiro
   useEffect(() => {
     let cancelled = false;
 
@@ -41,12 +41,15 @@ export const useAuctionRealtime = (auctionId?: string) => {
       try {
         const { data, error } = await supabase.rpc('current_server_time');
         if (!error && data && !cancelled) {
+          // Servidor agora retorna horário brasileiro
           const serverMs = new Date(data as string).getTime();
-          serverOffsetRef.current = serverMs - Date.now();
-          console.log('[TIME] Offset servidor(ms):', serverOffsetRef.current);
+          const clientBrazilMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+          const clientBrazilDate = new Date(clientBrazilMs);
+          serverOffsetRef.current = serverMs - clientBrazilDate.getTime();
+          console.log('[TIME] Offset servidor brasileiro (ms):', serverOffsetRef.current);
         }
       } catch (err) {
-        console.warn('⚠️ [TIME] Falha ao obter hora do servidor', err);
+        console.warn('⚠️ [TIME] Falha ao obter hora do servidor brasileiro', err);
       }
     };
 
@@ -126,9 +129,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
       if (data) {
         console.log('🔍 [ZERO] Status verificado:', data);
         
-        // Calcular segundos desde última atividade
+        // Calcular segundos desde última atividade (usando fuso brasileiro)
         const lastActivityMs = new Date(data.updated_at).getTime();
-        const nowMs = Date.now();
+        const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+        const nowMs = new Date(brazilNowMs).getTime();
         const secondsSinceActivity = Math.floor((nowMs - lastActivityMs) / 1000);
         
         console.log('📊 [ZERO] Segundos desde última atividade:', secondsSinceActivity);
@@ -238,7 +242,9 @@ export const useAuctionRealtime = (auctionId?: string) => {
     const tick = () => {
       if (!isActiveRef.current) return;
       const endMs = new Date(auctionData.ends_at!).getTime();
-      const nowMs = Date.now() + (serverOffsetRef.current || 0);
+      // Usar horário brasileiro para cálculo
+      const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+      const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
       const remaining = Math.max(0, Math.round((endMs - nowMs) / 1000));
       setLocalTimeLeft(remaining);
       
@@ -292,9 +298,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
         if (data.status === 'finished') {
           setLocalTimeLeft(0);
         } else {
-          // Apenas calcular timer se ainda estiver ativo
+          // Apenas calcular timer se ainda estiver ativo (usando fuso brasileiro)
           const endsAtMs = data.ends_at ? new Date(data.ends_at).getTime() : null;
-          const nowMs = Date.now() + (serverOffsetRef.current || 0);
+          const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+          const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
           const initial = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (data.time_left || 0);
           setLocalTimeLeft(initial);
         }
@@ -341,9 +348,10 @@ export const useAuctionRealtime = (auctionId?: string) => {
             setIsWaitingFinalization(false);
             console.log('✅ [FINALIZATION] Leilão finalizado - saindo do estado de finalização');
           } else {
-            // Calcular novo timer
+            // Calcular novo timer (usando fuso brasileiro)
             const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
-            const nowMs = Date.now() + (serverOffsetRef.current || 0);
+            const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+            const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
             const next = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
             setLocalTimeLeft(next);
             
