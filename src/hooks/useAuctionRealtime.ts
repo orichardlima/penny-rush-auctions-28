@@ -369,17 +369,23 @@ export const useAuctionRealtime = (auctionId?: string) => {
             setLocalTimeLeft(0);
             setIsWaitingFinalization(false);
             console.log('✅ [FINALIZATION] Leilão finalizado - saindo do estado de finalização');
-          } else if (timerWasReset) {
-            // Timer foi resetado - sincronizar imediatamente
-            console.log(`🎯 [SMART-SYNC] Timer reset detectado: ends_at mudou de ${currentEndsAt} → ${newEndsAt}`);
+          } else if (timerWasReset || newAuctionData.time_left > (localTimeLeft || 0)) {
+            // Timer foi resetado OU recebemos um valor maior (indica lance de bot)
+            const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
+            const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+            const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
+            const calculatedTime = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
+            
+            setLocalTimeLeft(calculatedTime);
+            console.log(`🎯 [SYNC-RESET] Timer sincronizado: ${calculatedTime}s (was: ${localTimeLeft}, received: ${newAuctionData.time_left})`);
             
             if (wasWaitingFinalization) {
               setIsWaitingFinalization(false);
               console.log('🔄 [FINALIZATION] Timer resetado - saindo do estado de finalização');
             }
-          } else if (newAuctionData.time_left > 0) {
-            // ANTI-DEADLOCK: Se recebemos time_left > 0, sempre sincronizar
-            console.log(`🚨 [ANTI-DEADLOCK] Forçando sync: time_left=${newAuctionData.time_left} (evitando travamento)`);
+          } else if (newAuctionData.time_left > 0 && (localTimeLeft === null || localTimeLeft <= 0)) {
+            // ANTI-DEADLOCK: Se timer local está travado e recebemos valor > 0
+            console.log(`🚨 [ANTI-DEADLOCK] Forçando sync: time_left=${newAuctionData.time_left} (timer local: ${localTimeLeft})`);
             setLocalTimeLeft(newAuctionData.time_left);
             
             if (wasWaitingFinalization) {
