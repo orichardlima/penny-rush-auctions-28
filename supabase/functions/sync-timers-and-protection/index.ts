@@ -44,19 +44,36 @@ Deno.serve(async (req) => {
     console.log(`🔍 [SYNC] Iniciando sincronização às ${currentTime} (BR)`);
 
     // 1. Ativar leilões que estão "waiting" e já passaram do starts_at
+    // Buscar todos os leilões waiting e fazer comparação manual com fuso brasileiro
     const { data: waitingAuctions, error: waitingError } = await supabase
       .from('auctions')
       .select('id, title, starts_at, status')
-      .eq('status', 'waiting')
-      .lte('starts_at', currentTime);
+      .eq('status', 'waiting');
 
     if (waitingError) {
       console.error('Erro ao buscar leilões waiting:', waitingError);
       throw waitingError;
     }
 
+    // Filtrar leilões que realmente devem ser ativados
+    const auctionsToActivate = (waitingAuctions || []).filter(auction => {
+      if (!auction.starts_at) return false;
+      
+      // Converter starts_at para fuso brasileiro para comparação precisa
+      const startsAtBrazil = new Date(auction.starts_at).toLocaleString("en-US", {timeZone: brazilTimezone});
+      const startsAtDate = new Date(startsAtBrazil);
+      
+      const shouldActivate = startsAtDate <= brazilDate;
+      
+      if (shouldActivate) {
+        console.log(`🎯 [CHECK] Leilão ${auction.id} deve ser ativado - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+      }
+      
+      return shouldActivate;
+    });
+
     let activatedCount = 0;
-    for (const auction of waitingAuctions || []) {
+    for (const auction of auctionsToActivate) {
       console.log(`🚀 [ACTIVATE] Ativando leilão ${auction.id} ("${auction.title}") - starts_at: ${auction.starts_at}`);
       
       const { error: updateError } = await supabase
@@ -113,12 +130,28 @@ Deno.serve(async (req) => {
     }
 
     // 3. Proteção: verificar se há leilões que não deveriam estar ativos
-    const { data: prematureAuctions, error: prematureError } = await supabase
+    // Buscar todos os leilões ativos e fazer verificação manual
+    const { data: allActiveAuctions, error: prematureError } = await supabase
       .from('auctions')
       .select('id, title, starts_at, status, total_bids')
       .eq('status', 'active')
-      .gt('starts_at', currentTime)
       .eq('total_bids', 0); // Só revertir se não houver lances
+
+    const prematureAuctions = (allActiveAuctions || []).filter(auction => {
+      if (!auction.starts_at) return false;
+      
+      // Converter starts_at para fuso brasileiro para comparação precisa
+      const startsAtBrazil = new Date(auction.starts_at).toLocaleString("en-US", {timeZone: brazilTimezone});
+      const startsAtDate = new Date(startsAtBrazil);
+      
+      const isPremature = startsAtDate > brazilDate;
+      
+      if (isPremature) {
+        console.log(`⚠️ [CHECK] Leilão ${auction.id} é prematuro - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+      }
+      
+      return isPremature;
+    });
 
     if (prematureError) {
       console.error('Erro ao buscar leilões prematuros:', prematureError);

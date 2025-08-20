@@ -23,10 +23,17 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
         const auctionsToActivate = waitingAuctions?.filter(auction => {
           if (!auction.starts_at) return false;
           
+          // Converter starts_at para fuso brasileiro para comparação precisa
           const startsAtBrazil = new Date(auction.starts_at).toLocaleString("en-US", {timeZone: brazilTimezone});
           const startsAtDate = new Date(startsAtBrazil);
           
-          return startsAtDate <= brazilDate;
+          const shouldActivate = startsAtDate <= brazilDate;
+          
+          if (shouldActivate) {
+            console.log(`🎯 [FRONTEND-CHECK] Leilão ${auction.id} deve ser ativado - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+          }
+          
+          return shouldActivate;
         }) || [];
 
         for (const auction of auctionsToActivate) {
