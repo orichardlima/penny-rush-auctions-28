@@ -54,6 +54,7 @@ import {
   Brain,
   Pencil
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 import AuctionParticipantsTable from '@/components/AuctionParticipantsTable';
@@ -160,6 +161,59 @@ const AdminDashboard = () => {
   // Bid Package Management States
   const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<BidPackage | null>(null);
+
+  // Funções para seleção múltipla de leilões
+  const handleSelectAuction = (auctionId: string, checked: boolean) => {
+    const newSelected = new Set(selectedAuctions);
+    if (checked) {
+      newSelected.add(auctionId);
+    } else {
+      newSelected.delete(auctionId);
+    }
+    setSelectedAuctions(newSelected);
+  };
+
+  const handleSelectAllAuctions = (checked: boolean) => {
+    if (checked) {
+      setSelectedAuctions(new Set(auctions.map(a => a.id)));
+    } else {
+      setSelectedAuctions(new Set());
+    }
+  };
+
+  const deleteSelectedAuctions = async () => {
+    if (selectedAuctions.size === 0) return;
+    
+    const confirmed = window.confirm(`Tem certeza que deseja excluir ${selectedAuctions.size} leilão(ões)? Esta ação não pode ser desfeita.`);
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('auctions')
+        .delete()
+        .in('id', Array.from(selectedAuctions));
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `${selectedAuctions.size} leilão(ões) excluído(s) com sucesso!`
+      });
+
+      setSelectedAuctions(new Set());
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error deleting auctions:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir leilões selecionados",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     fetchAdminData();
@@ -700,7 +754,7 @@ const AdminDashboard = () => {
 
           {/* Auctions Tab */}
           <TabsContent value="auctions" className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Gerenciar Leilões</h2>
               <Dialog>
                 <DialogTrigger asChild>
@@ -809,11 +863,61 @@ const AdminDashboard = () => {
               </Dialog>
             </div>
 
+            {/* Controles de seleção múltipla */}
+            {selectedAuctions.size > 0 && (
+              <Card className="mb-4 border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-orange-600" />
+                      <span className="font-medium text-orange-800">
+                        {selectedAuctions.size} leilão(ões) selecionado(s)
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setSelectedAuctions(new Set())}
+                      >
+                        Limpar Seleção
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={deleteSelectedAuctions}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Excluindo...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir Selecionados
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={auctions.length > 0 && selectedAuctions.size === auctions.length}
+                          onCheckedChange={handleSelectAllAuctions}
+                          aria-label="Selecionar todos os leilões"
+                        />
+                      </TableHead>
                       <TableHead>Título</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Preço Atual</TableHead>
@@ -825,6 +929,13 @@ const AdminDashboard = () => {
                   <TableBody>
                     {auctions.map((auction) => (
                       <TableRow key={auction.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedAuctions.has(auction.id)}
+                            onCheckedChange={(checked) => handleSelectAuction(auction.id, checked as boolean)}
+                            aria-label={`Selecionar leilão ${auction.title}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">{auction.title}</TableCell>
                         <TableCell>
                           <Badge variant={auction.status === 'active' ? 'default' : 'secondary'}>
