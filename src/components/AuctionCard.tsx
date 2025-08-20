@@ -135,7 +135,15 @@ export const AuctionCard = ({
   const brazilTimezone = 'America/Sao_Paulo';
   const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
   const startsAtInBrazil = starts_at ? toZonedTime(new Date(starts_at), brazilTimezone) : null;
+  
+  // Corrigir comparação de fuso horário
   const isAuctionStarted = !startsAtInBrazil || startsAtInBrazil <= nowInBrazil;
+  
+  console.log(`🕒 [AUCTION-CARD] ${title}:`);
+  console.log(`   starts_at UTC: ${starts_at}`);
+  console.log(`   starts_at BR: ${startsAtInBrazil?.toISOString()}`);
+  console.log(`   now BR: ${nowInBrazil.toISOString()}`);
+  console.log(`   isAuctionStarted: ${isAuctionStarted}`);
   const calculateDiscount = () => {
     // Agora ambos estão em reais
     const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;

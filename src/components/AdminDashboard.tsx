@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -133,6 +134,16 @@ const AdminDashboard = () => {
     refreshData: refreshAnalytics 
   } = useFinancialAnalytics();
 
+  // Helper function para criar timestamp no fuso brasileiro
+  const getInitialStartTime = () => {
+    const brazilTimezone = 'America/Sao_Paulo';
+    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
+    const futureTimeInBrazil = new Date(nowInBrazil.getTime() + 60 * 1000); // 1 minuto no futuro no fuso brasileiro
+    // Converter para UTC para salvar no banco
+    const utcTime = fromZonedTime(futureTimeInBrazil, brazilTimezone);
+    return utcTime.toISOString().slice(0, 16);
+  };
+
   const [newAuction, setNewAuction] = useState({
     title: '',
     description: '',
@@ -140,7 +151,7 @@ const AdminDashboard = () => {
     starting_price: 1.00, // Agora em reais
     market_value: 0.00,   // Agora em reais
     revenue_target: 0.00, // Agora em reais
-        starts_at: new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16), // 1 minuto a partir de agora
+    starts_at: getInitialStartTime(),
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -245,19 +256,31 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Validar horário de início
-    const startTime = new Date(newAuction.starts_at);
-    const now = new Date();
-    const minimumStartTime = new Date(now.getTime() + 60 * 1000); // 1 minuto a partir de agora
+  // Validar horário de início - comparar em fuso brasileiro
+    const brazilTimezone = 'America/Sao_Paulo';
+    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
+    const startTimeUtc = new Date(newAuction.starts_at);
+    const startTimeInBrazil = toZonedTime(startTimeUtc, brazilTimezone);
+    const minimumStartTime = new Date(nowInBrazil.getTime() + 60 * 1000);
 
-    if (startTime <= minimumStartTime) {
+    if (startTimeInBrazil <= minimumStartTime) {
       toast({
         title: "Erro",
-        description: "O horário de início deve ser pelo menos 1 minuto após a hora atual",
+        description: "O horário de início deve ser pelo menos 1 minuto após a hora atual (horário de Brasília)",
         variant: "destructive"
       });
       return;
     }
+
+    // Converter o starts_at do input (que está em formato local) para UTC
+    const localStartTime = new Date(newAuction.starts_at);
+    const utcStartTime = fromZonedTime(localStartTime, brazilTimezone);
+
+    console.log(`🕒 [AUCTION-CREATE] Criando leilão:`);
+    console.log(`   Input local: ${newAuction.starts_at}`);
+    console.log(`   Interpretado como BR: ${localStartTime.toISOString()}`);
+    console.log(`   Convertido para UTC: ${utcStartTime.toISOString()}`);
+    console.log(`   Comparação - agora BR: ${nowInBrazil.toISOString()}, início BR: ${startTimeInBrazil.toISOString()}`);
 
     setUploading(true);
     try {
@@ -272,7 +295,8 @@ const AdminDashboard = () => {
         ...newAuction,
         image_url: imageUrl,
         current_price: newAuction.starting_price,
-        status: 'waiting', // Status inicial é sempre "waiting"
+        status: 'waiting',
+        starts_at: utcStartTime.toISOString(), // Salvar em UTC
       };
 
       const { error } = await supabase
@@ -294,7 +318,7 @@ const AdminDashboard = () => {
         starting_price: 1.00,
         market_value: 0.00,
         revenue_target: 0.00,
-        starts_at: new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16), // Reset para 1 minuto a partir de agora
+        starts_at: getInitialStartTime(),
       });
       setSelectedImage(null);
 
@@ -444,8 +468,27 @@ const AdminDashboard = () => {
 
   // Função removida - usando a função formatPrice já definida acima
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR');
+  // Função para formatar datetime-local no fuso brasileiro
+  const formatDateTimeLocal = (utcDateString: string) => {
+    const brazilTimezone = 'America/Sao_Paulo';
+    const utcDate = new Date(utcDateString);
+    const brazilDate = toZonedTime(utcDate, brazilTimezone);
+    
+    // Retornar no formato YYYY-MM-DDTHH:MM para datetime-local
+    const year = brazilDate.getFullYear();
+    const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
+    const day = String(brazilDate.getDate()).padStart(2, '0');
+    const hours = String(brazilDate.getHours()).padStart(2, '0');
+    const minutes = String(brazilDate.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const brazilTimezone = 'America/Sao_Paulo';
+    const utcDate = new Date(dateString);
+    const brazilDate = toZonedTime(utcDate, brazilTimezone);
+    return brazilDate.toLocaleString('pt-BR');
   };
 
   if (loading) {
@@ -757,8 +800,14 @@ const AdminDashboard = () => {
                       <Input
                         id="starts_at"
                         type="datetime-local"
-                        value={newAuction.starts_at}
-                        onChange={(e) => setNewAuction({ ...newAuction, starts_at: e.target.value })}
+                        value={formatDateTimeLocal(newAuction.starts_at)}
+                        onChange={(e) => {
+                          // Tratar input datetime-local como horário brasileiro
+                          const brazilTimezone = 'America/Sao_Paulo';
+                          const localTime = new Date(e.target.value);
+                          const utcTime = fromZonedTime(localTime, brazilTimezone);
+                          setNewAuction({ ...newAuction, starts_at: utcTime.toISOString().slice(0, 16) });
+                        }}
                       />
                     </div>
                     <Button onClick={createAuction} disabled={uploading} className="w-full">
@@ -800,7 +849,7 @@ const AdminDashboard = () => {
                         </TableCell>
                         <TableCell>{formatPrice(auction.current_price)}</TableCell>
                         <TableCell>{auction.total_bids}</TableCell>
-                        <TableCell>{formatDate(auction.created_at)}</TableCell>
+                        <TableCell>{formatDateTime(auction.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button 
@@ -993,7 +1042,7 @@ const AdminDashboard = () => {
                               {pkg.is_popular ? 'Sim' : 'Não'}
                             </Badge>
                           </TableCell>
-                          <TableCell>{formatDate(pkg.created_at)}</TableCell>
+                          <TableCell>{formatDateTime(pkg.created_at)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
                               <Button
