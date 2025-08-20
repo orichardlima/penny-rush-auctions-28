@@ -223,7 +223,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
     }
   }, [auctionId]);
 
-  // Timer local baseado no ends_at do servidor
+  // Timer local baseado no ends_at do servidor - PRIORIDADE ABSOLUTA
   useEffect(() => {
     if (!isActiveRef.current) return;
 
@@ -231,21 +231,29 @@ export const useAuctionRealtime = (auctionId?: string) => {
     if (!auctionData?.ends_at || auctionData.status !== 'active') {
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
+        localTimerRef.current = null;
       }
       // Se status é finished, definir timer como 0
       if (auctionData?.status === 'finished') {
         setLocalTimeLeft(0);
+      } else {
+        setLocalTimeLeft(null);
       }
       return;
     }
 
-    const tick = () => {
-      if (!isActiveRef.current) return;
+    // NOVA LÓGICA: Sempre reinicializar timer quando ends_at muda (indica reset por bot)
+    const calculateTimeLeft = () => {
+      if (!isActiveRef.current) return 0;
       const endMs = new Date(auctionData.ends_at!).getTime();
-      // Usar horário brasileiro para cálculo
       const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
       const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
-      const remaining = Math.max(0, Math.round((endMs - nowMs) / 1000));
+      return Math.max(0, Math.round((endMs - nowMs) / 1000));
+    };
+
+    const tick = () => {
+      if (!isActiveRef.current) return;
+      const remaining = calculateTimeLeft();
       setLocalTimeLeft(remaining);
       
       // Quando contador chega a 0, verificar status do leilão
@@ -254,13 +262,22 @@ export const useAuctionRealtime = (auctionId?: string) => {
       }
     };
 
-    // Executa imediatamente e depois a cada segundo
-    tick();
+    // Limpar timer anterior
+    if (localTimerRef.current) {
+      clearInterval(localTimerRef.current);
+    }
+
+    // Inicializar novo timer
+    const initialTime = calculateTimeLeft();
+    setLocalTimeLeft(initialTime);
     localTimerRef.current = setInterval(tick, 1000);
+
+    console.log(`🎯 [TIMER] Timer reinicializado: ${initialTime}s (ends_at mudou: ${auctionData.ends_at})`);
 
     return () => {
       if (localTimerRef.current) {
         clearInterval(localTimerRef.current);
+        localTimerRef.current = null;
       }
     };
   }, [auctionData?.ends_at, auctionData?.status, checkAuctionStatusAndReset]);
@@ -340,6 +357,11 @@ export const useAuctionRealtime = (auctionId?: string) => {
           const newAuctionData = payload.new as AuctionUpdate;
           const wasWaitingFinalization = isWaitingFinalization;
           
+          // SMART SYNC: Só sincronizar se houve mudança significativa
+          const currentEndsAt = auctionData?.ends_at;
+          const newEndsAt = newAuctionData.ends_at;
+          const timerWasReset = newEndsAt !== currentEndsAt;
+          
           setAuctionData(newAuctionData);
           
           // Se o leilão foi finalizado, parar timer e sair do estado de finalização
@@ -347,19 +369,18 @@ export const useAuctionRealtime = (auctionId?: string) => {
             setLocalTimeLeft(0);
             setIsWaitingFinalization(false);
             console.log('✅ [FINALIZATION] Leilão finalizado - saindo do estado de finalização');
-          } else {
-            // Calcular novo timer (usando fuso brasileiro)
-            const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
-            const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-            const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
-            const next = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
-            setLocalTimeLeft(next);
+          } else if (timerWasReset && newAuctionData.status === 'active') {
+            // APENAS resetar timer local se ends_at realmente mudou (indica lance de bot)
+            console.log(`🎯 [SMART-SYNC] Timer reset detectado: ends_at mudou de ${currentEndsAt} → ${newEndsAt}`);
             
-            // **CORREÇÃO PRINCIPAL**: Se estava aguardando finalização e agora tem timer > 0, resetar estado
-            if (wasWaitingFinalization && next > 0 && newAuctionData.status === 'active') {
+            // Se estava aguardando finalização, sair do estado
+            if (wasWaitingFinalization) {
               setIsWaitingFinalization(false);
-              console.log('🔄 [FINALIZATION] Timer resetado para', next, 's - saindo do estado de finalização');
+              console.log('🔄 [FINALIZATION] Timer resetado - saindo do estado de finalização');
             }
+          } else {
+            // NÃO alterar localTimeLeft se timer não foi resetado (evita oscilação)
+            console.log('⚪ [SYNC] Update normal - mantendo timer local para evitar oscilação');
           }
           
           setLastSync(new Date());
@@ -369,12 +390,11 @@ export const useAuctionRealtime = (auctionId?: string) => {
           console.log('🕐 [REALTIME] Timer atualizado via banco:', {
             auction_id: newAuctionData.id,
             time_left: newAuctionData.time_left,
-            local_timer_reset: true,
+            timer_reset: timerWasReset,
             current_price: newAuctionData.current_price,
             total_bids: newAuctionData.total_bids,
             status: newAuctionData.status,
             was_waiting_finalization: wasWaitingFinalization,
-            finalization_reset: wasWaitingFinalization && newAuctionData.time_left > 0,
             timestamp: new Date().toISOString()
           });
         }
@@ -449,11 +469,11 @@ export const useAuctionRealtime = (auctionId?: string) => {
   }, [fetchAuctionData]);
   // Remover sincronização manual - deixar o servidor decidir automaticamente
 
-  // Retornar timer local se disponível, senão usar o do banco
-  const displayTimeLeft = localTimeLeft !== null ? localTimeLeft : auctionData?.time_left;
+  // PRIORIDADE ABSOLUTA: Timer local sempre tem precedência (elimina oscilação)
+  const displayTimeLeft = localTimeLeft !== null ? localTimeLeft : (auctionData?.time_left || 0);
 
   return {
-    auctionData: auctionData ? { ...auctionData, time_left: displayTimeLeft || 0 } : null,
+    auctionData: auctionData ? { ...auctionData, time_left: displayTimeLeft } : null,
     recentBids,
     isConnected,
     lastSync,
