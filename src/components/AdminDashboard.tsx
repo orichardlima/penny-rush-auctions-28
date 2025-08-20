@@ -134,14 +134,11 @@ const AdminDashboard = () => {
     refreshData: refreshAnalytics 
   } = useFinancialAnalytics();
 
-  // Helper function para criar timestamp no fuso brasileiro
+  // Helper function para criar timestamp inicial (local)
   const getInitialStartTime = () => {
-    const brazilTimezone = 'America/Sao_Paulo';
-    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
-    const futureTimeInBrazil = new Date(nowInBrazil.getTime() + 60 * 1000); // 1 minuto no futuro no fuso brasileiro
-    // Converter para UTC para salvar no banco
-    const utcTime = fromZonedTime(futureTimeInBrazil, brazilTimezone);
-    return utcTime.toISOString().slice(0, 16);
+    const now = new Date();
+    const future = new Date(now.getTime() + 60 * 1000); // 1 minuto no futuro
+    return future.toISOString().slice(0, 16);
   };
 
   const [newAuction, setNewAuction] = useState({
@@ -256,31 +253,25 @@ const AdminDashboard = () => {
       return;
     }
 
-  // Validar horário de início - comparar em fuso brasileiro
+    // Validar horário de início (tratando como horário brasileiro)
     const brazilTimezone = 'America/Sao_Paulo';
-    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
-    const startTimeUtc = new Date(newAuction.starts_at);
-    const startTimeInBrazil = toZonedTime(startTimeUtc, brazilTimezone);
-    const minimumStartTime = new Date(nowInBrazil.getTime() + 60 * 1000);
+    const inputTime = new Date(newAuction.starts_at); // Input datetime-local como horário brasileiro
+    const utcStartTime = fromZonedTime(inputTime, brazilTimezone); // Converter para UTC
+    const now = new Date();
+    const minimumTime = new Date(now.getTime() + 60 * 1000); // 1 minuto no futuro
 
-    if (startTimeInBrazil <= minimumStartTime) {
+    if (utcStartTime <= minimumTime) {
       toast({
-        title: "Erro",
-        description: "O horário de início deve ser pelo menos 1 minuto após a hora atual (horário de Brasília)",
+        title: "Erro", 
+        description: "O horário de início deve ser pelo menos 1 minuto no futuro",
         variant: "destructive"
       });
       return;
     }
 
-    // Converter o starts_at do input (que está em formato local) para UTC
-    const localStartTime = new Date(newAuction.starts_at);
-    const utcStartTime = fromZonedTime(localStartTime, brazilTimezone);
-
     console.log(`🕒 [AUCTION-CREATE] Criando leilão:`);
-    console.log(`   Input local: ${newAuction.starts_at}`);
-    console.log(`   Interpretado como BR: ${localStartTime.toISOString()}`);
-    console.log(`   Convertido para UTC: ${utcStartTime.toISOString()}`);
-    console.log(`   Comparação - agora BR: ${nowInBrazil.toISOString()}, início BR: ${startTimeInBrazil.toISOString()}`);
+    console.log(`   Input (horário BR): ${newAuction.starts_at}`);
+    console.log(`   UTC para salvar: ${utcStartTime.toISOString()}`);
 
     setUploading(true);
     try {
@@ -468,20 +459,16 @@ const AdminDashboard = () => {
 
   // Função removida - usando a função formatPrice já definida acima
 
-  // Função para formatar datetime-local no fuso brasileiro
-  const formatDateTimeLocal = (utcDateString: string) => {
-    const brazilTimezone = 'America/Sao_Paulo';
-    const utcDate = new Date(utcDateString);
-    const brazilDate = toZonedTime(utcDate, brazilTimezone);
+  // Função para formatar datetime-local (simples)
+  const formatDateTimeLocal = (dateTimeString: string) => {
+    // Se já está no formato correto, retorna diretamente
+    if (dateTimeString && dateTimeString.includes('T') && dateTimeString.length >= 16) {
+      return dateTimeString.slice(0, 16);
+    }
     
-    // Retornar no formato YYYY-MM-DDTHH:MM para datetime-local
-    const year = brazilDate.getFullYear();
-    const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
-    const day = String(brazilDate.getDate()).padStart(2, '0');
-    const hours = String(brazilDate.getHours()).padStart(2, '0');
-    const minutes = String(brazilDate.getMinutes()).padStart(2, '0');
-    
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    // Se for uma data ISO, converte para local
+    const date = new Date(dateTimeString);
+    return date.toISOString().slice(0, 16);
   };
 
   const formatDateTime = (dateString: string) => {
@@ -802,11 +789,8 @@ const AdminDashboard = () => {
                         type="datetime-local"
                         value={formatDateTimeLocal(newAuction.starts_at)}
                         onChange={(e) => {
-                          // Tratar input datetime-local como horário brasileiro
-                          const brazilTimezone = 'America/Sao_Paulo';
-                          const localTime = new Date(e.target.value);
-                          const utcTime = fromZonedTime(localTime, brazilTimezone);
-                          setNewAuction({ ...newAuction, starts_at: utcTime.toISOString().slice(0, 16) });
+                          // Armazenar o valor diretamente como string local
+                          setNewAuction({ ...newAuction, starts_at: e.target.value });
                         }}
                       />
                     </div>
