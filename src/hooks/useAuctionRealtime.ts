@@ -357,7 +357,7 @@ export const useAuctionRealtime = (auctionId?: string) => {
           const newAuctionData = payload.new as AuctionUpdate;
           const wasWaitingFinalization = isWaitingFinalization;
           
-          // SMART SYNC: Só sincronizar se houve mudança significativa
+          // ANTI-DEADLOCK: Sempre permitir sincronização se recebemos dados do banco
           const currentEndsAt = auctionData?.ends_at;
           const newEndsAt = newAuctionData.ends_at;
           const timerWasReset = newEndsAt !== currentEndsAt;
@@ -369,32 +369,36 @@ export const useAuctionRealtime = (auctionId?: string) => {
             setLocalTimeLeft(0);
             setIsWaitingFinalization(false);
             console.log('✅ [FINALIZATION] Leilão finalizado - saindo do estado de finalização');
-          } else if (timerWasReset && newAuctionData.status === 'active') {
-            // APENAS resetar timer local se ends_at realmente mudou (indica lance de bot)
+          } else if (timerWasReset) {
+            // Timer foi resetado - sincronizar imediatamente
             console.log(`🎯 [SMART-SYNC] Timer reset detectado: ends_at mudou de ${currentEndsAt} → ${newEndsAt}`);
             
-            // Se estava aguardando finalização, sair do estado
             if (wasWaitingFinalization) {
               setIsWaitingFinalization(false);
               console.log('🔄 [FINALIZATION] Timer resetado - saindo do estado de finalização');
             }
+          } else if (newAuctionData.time_left > 0) {
+            // ANTI-DEADLOCK: Se recebemos time_left > 0, sempre sincronizar
+            console.log(`🚨 [ANTI-DEADLOCK] Forçando sync: time_left=${newAuctionData.time_left} (evitando travamento)`);
+            setLocalTimeLeft(newAuctionData.time_left);
+            
+            if (wasWaitingFinalization) {
+              setIsWaitingFinalization(false);
+            }
           } else {
-            // NÃO alterar localTimeLeft se timer não foi resetado (evita oscilação)
-            console.log('⚪ [SYNC] Update normal - mantendo timer local para evitar oscilação');
+            console.log('⚪ [SYNC] Update normal - mantendo timer local');
           }
           
           setLastSync(new Date());
           setIsConnected(true);
           
-          // Log detalhado para debug
-          console.log('🕐 [REALTIME] Timer atualizado via banco:', {
+          console.log('🕐 [REALTIME] Timer atualizado:', {
             auction_id: newAuctionData.id,
-            time_left: newAuctionData.time_left,
+            db_time_left: newAuctionData.time_left,
+            local_time_left: localTimeLeft,
             timer_reset: timerWasReset,
-            current_price: newAuctionData.current_price,
-            total_bids: newAuctionData.total_bids,
+            anti_deadlock: newAuctionData.time_left > 0,
             status: newAuctionData.status,
-            was_waiting_finalization: wasWaitingFinalization,
             timestamp: new Date().toISOString()
           });
         }
