@@ -297,6 +297,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      fix_stuck_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
