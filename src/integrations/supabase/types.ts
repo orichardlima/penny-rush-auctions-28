@@ -423,6 +423,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      resurrect_incorrectly_finished_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       sync_auction_timer: {
         Args: { auction_uuid: string }
         Returns: {
@@ -431,6 +435,10 @@ export type Database = {
           status: string
           time_left: number
         }[]
+      }
+      sync_auction_timers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
