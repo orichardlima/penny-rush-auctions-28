@@ -30,7 +30,7 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
           const shouldActivate = startsAtDate <= brazilDate;
           
           if (shouldActivate) {
-            console.log(`🎯 [FRONTEND-CHECK] Leilão ${auction.id} deve ser ativado - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+            console.log(`🎯 [FRONTEND-ACTIVATE] Leilão ${auction.id} deve ser ativado - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
           }
           
           return shouldActivate;
@@ -43,7 +43,7 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
             .eq('id', auction.id);
           
           if (!updateError) {
-            console.log(`✅ Leilão ativado (BR): ${auction.title} - Webhook será disparado automaticamente`);
+            console.log(`✅ [FRONTEND-ACTIVATE] Leilão ativado: ${auction.title} - Sistema backend gerenciará finalização por inatividade`);
           }
         }
 
@@ -55,11 +55,15 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
       }
     };
 
+    // NOVA LÓGICA: Frontend só ativa leilões aguardando
+    // Finalização é responsabilidade EXCLUSIVA do backend por inatividade de lances
+    console.log('🔄 [FRONTEND-TIMER] Frontend gerencia apenas ativação - finalização é por inatividade no backend');
+
     // Verificar imediatamente ao carregar
     checkAndActivateWaitingAuctions();
 
-    // Timer para verificar periodicamente
-    const statusCheckInterval = setInterval(checkAndActivateWaitingAuctions, 30000);
+    // Timer para verificar periodicamente (pode ser menos frequente)
+    const statusCheckInterval = setInterval(checkAndActivateWaitingAuctions, 60000); // 1 minuto
 
     return () => {
       clearInterval(statusCheckInterval);

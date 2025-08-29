@@ -293,6 +293,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      finalize_auctions_by_inactivity: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       finalize_expired_auctions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -441,6 +445,10 @@ export type Database = {
         }[]
       }
       sync_auction_timers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      sync_auction_timers_visual: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
