@@ -80,7 +80,6 @@ Deno.serve(async (req) => {
         .from('auctions')
         .update({
           status: 'active',
-          ends_at: new Date(brazilDate.getTime() + 15000).toISOString(), // 15 segundos a partir de agora (BR)
           time_left: 15,
           updated_at: currentTime
         })
@@ -94,40 +93,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Sincronizar time_left de leilões ativos baseado no ends_at
-    const { data: activeAuctions, error: activeError } = await supabase
-      .from('auctions')
-      .select('id, title, ends_at, time_left')
-      .eq('status', 'active')
-      .not('ends_at', 'is', null);
-
-    if (activeError) {
-      console.error('Erro ao buscar leilões ativos:', activeError);
-      throw activeError;
-    }
-
-    let syncedCount = 0;
-    for (const auction of activeAuctions || []) {
-      const endsAt = new Date(auction.ends_at);
-      const timeLeftInSeconds = Math.max(0, Math.floor((endsAt.getTime() - brazilDate.getTime()) / 1000));
-      
-      if (timeLeftInSeconds !== auction.time_left) {
-        const { error: syncError } = await supabase
-          .from('auctions')
-          .update({
-            time_left: timeLeftInSeconds,
-            updated_at: currentTime
-          })
-          .eq('id', auction.id);
-
-        if (syncError) {
-          console.error(`Erro ao sincronizar timer do leilão ${auction.id}:`, syncError);
-        } else {
-          syncedCount++;
-          console.log(`⏰ [SYNC] Leilão ${auction.id} sincronizado: time_left=${timeLeftInSeconds}s`);
-        }
-      }
-    }
+    // Edge Function só ativa leilões - timers são gerenciados pelos triggers e cron jobs
 
     // 3. Proteção: verificar se há leilões que não deveriam estar ativos
     // Buscar todos os leilões ativos e fazer verificação manual
@@ -187,8 +153,6 @@ Deno.serve(async (req) => {
       timestamp: currentTime,
       waiting_auctions: waitingAuctions?.length || 0,
       activated_count: activatedCount,
-      active_auctions: activeAuctions?.length || 0,
-      synced_count: syncedCount,
       premature_auctions: prematureAuctions?.length || 0,
       reverted_count: prematureAuctions?.length || 0
     };

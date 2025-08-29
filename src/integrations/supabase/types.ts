@@ -281,27 +281,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      auto_bid_system: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      auto_finalize_inactive_auctions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       current_server_time: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
       finalize_auctions_by_inactivity: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      finalize_expired_auctions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      fix_stuck_auctions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -430,23 +414,6 @@ export type Database = {
       is_admin_user: {
         Args: { user_uuid: string }
         Returns: boolean
-      }
-      resurrect_incorrectly_finished_auctions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      sync_auction_timer: {
-        Args: { auction_uuid: string }
-        Returns: {
-          ends_at: string
-          id: string
-          status: string
-          time_left: number
-        }[]
-      }
-      sync_auction_timers: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       sync_auction_timers_visual: {
         Args: Record<PropertyKey, never>
