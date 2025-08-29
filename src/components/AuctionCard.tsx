@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
-import { useAuctionRealtime } from '@/hooks/useAuctionRealtime';
+import { useAuctionDetail } from '@/hooks/useAuctionDetail';
 import { RealtimeStatus } from '@/components/RealtimeStatus';
 interface AuctionCardProps {
   id: string;
@@ -60,7 +60,7 @@ export const AuctionCard = ({
     forceSync,
     isWaitingFinalization,
     finalizationMessage
-  } = useAuctionRealtime(id);
+  } = useAuctionDetail(id);
 
   // DADOS PASSIVOS: Frontend sempre respeita o backend
   // 1ª prioridade: Dados do realtime (banco de dados)

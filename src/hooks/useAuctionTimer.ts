@@ -5,32 +5,27 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
   useEffect(() => {
     const checkAndActivateWaitingAuctions = async () => {
       try {
-        const brazilTimezone = 'America/Sao_Paulo';
-        // Usar fuso brasileiro para comparações
-        const nowInBrazil = new Date().toLocaleString("en-US", {timeZone: brazilTimezone});
-        const brazilDate = new Date(nowInBrazil);
-        
+        // NOVO: Uso simplificado - o backend já gerencia tudo em horário brasileiro
         const { data: waitingAuctions, error } = await supabase
           .from('auctions')
           .select('*')
           .eq('status', 'waiting');
 
         if (error) {
-          console.error('Erro ao buscar leilões aguardando:', error);
+          console.error('❌ [FRONTEND] Erro ao buscar leilões aguardando:', error);
           return;
         }
 
+        const nowUTC = new Date();
         const auctionsToActivate = waitingAuctions?.filter(auction => {
           if (!auction.starts_at) return false;
           
-          // Converter starts_at para fuso brasileiro para comparação precisa
-          const startsAtBrazil = new Date(auction.starts_at).toLocaleString("en-US", {timeZone: brazilTimezone});
-          const startsAtDate = new Date(startsAtBrazil);
-          
-          const shouldActivate = startsAtDate <= brazilDate;
+          // Comparação simples em UTC - backend converte tudo
+          const startsAtDate = new Date(auction.starts_at);
+          const shouldActivate = startsAtDate <= nowUTC;
           
           if (shouldActivate) {
-            console.log(`🎯 [FRONTEND-ACTIVATE] Leilão ${auction.id} deve ser ativado - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+            console.log(`🎯 [FRONTEND-ACTIVATE] Leilão ${auction.id} será ativado - starts_at: ${startsAtDate.toISOString()}, now: ${nowUTC.toISOString()}`);
           }
           
           return shouldActivate;
@@ -43,7 +38,7 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
             .eq('id', auction.id);
           
           if (!updateError) {
-            console.log(`✅ [FRONTEND-ACTIVATE] Leilão ativado: ${auction.title} - Sistema backend gerenciará finalização por inatividade`);
+            console.log(`✅ [FRONTEND] Leilão ativado: ${auction.title} - Backend gerencia timer automaticamente`);
           }
         }
 
@@ -51,18 +46,14 @@ export const useAuctionTimer = (onAuctionUpdate: () => void) => {
           onAuctionUpdate();
         }
       } catch (error) {
-        console.error('Erro ao verificar status dos leilões:', error);
+        console.error('❌ [FRONTEND] Erro ao verificar status dos leilões:', error);
       }
     };
-
-    // NOVA LÓGICA: Frontend só ativa leilões aguardando
-    // Finalização é responsabilidade EXCLUSIVA do backend por inatividade de lances
-    console.log('🔄 [FRONTEND-TIMER] Frontend gerencia apenas ativação - finalização é por inatividade no backend');
 
     // Verificar imediatamente ao carregar
     checkAndActivateWaitingAuctions();
 
-    // Timer para verificar periodicamente (pode ser menos frequente)
+    // Timer para verificar periodicamente (reduzido - backend faz o trabalho pesado)
     const statusCheckInterval = setInterval(checkAndActivateWaitingAuctions, 60000); // 1 minuto
 
     return () => {

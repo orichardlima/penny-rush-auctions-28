@@ -1,494 +1,151 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-interface AuctionUpdate {
+export interface AuctionData {
   id: string;
+  title: string;
   current_price: number;
-  total_bids: number;
   time_left: number;
-  ends_at: string;
+  total_bids: number;
   status: string;
-  winner_id?: string;
   winner_name?: string;
+  ends_at?: string;
+  image_url?: string;
+  description?: string;
 }
 
-interface BidUpdate {
-  id: string;
-  auction_id: string;
-  user_id: string;
-  bid_amount: number;
-  created_at: string;
-}
-
-export const useAuctionRealtime = (auctionId?: string) => {
-  const [auctionData, setAuctionData] = useState<AuctionUpdate | null>(null);
-  const [recentBids, setRecentBids] = useState<BidUpdate[]>([]);
-  const [localTimeLeft, setLocalTimeLeft] = useState<number | null>(null);
+export const useAuctionRealtime = () => {
+  const [auctions, setAuctions] = useState<AuctionData[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  
-  const localTimerRef = useRef<NodeJS.Timeout>();
-  const channelsRef = useRef<any[]>([]);
-  const isActiveRef = useRef(true);
-  const serverOffsetRef = useRef<number>(0);
-  const checkingStatusRef = useRef<boolean>(false);
+  const { toast } = useToast();
 
-  // Sincroniza offset de tempo com o servidor brasileiro
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchServerTime = async () => {
-      try {
-        const { data, error } = await supabase.rpc('current_server_time');
-        if (!error && data && !cancelled) {
-          // Servidor agora retorna horário brasileiro
-          const serverMs = new Date(data as string).getTime();
-          const clientBrazilMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-          const clientBrazilDate = new Date(clientBrazilMs);
-          serverOffsetRef.current = serverMs - clientBrazilDate.getTime();
-          console.log('[TIME] Offset servidor brasileiro (ms):', serverOffsetRef.current);
-        }
-      } catch (err) {
-        console.warn('⚠️ [TIME] Falha ao obter hora do servidor brasileiro', err);
-      }
-    };
-
-    fetchServerTime();
-    const interval = setInterval(fetchServerTime, 60000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Estado para aguardar finalização pelo cron job
-  const [isWaitingFinalization, setIsWaitingFinalization] = useState(false);
-  const [finalizationMessage, setFinalizationMessage] = useState('');
-  const finalizationTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Mensagens rotativas para aguardar finalização
-  const finalizationMessages = [
-    'Aguarde um momento',
-    'Finalizando leilão',
-    'Conferindo lances validos',
-    'Conferindo vencedor'
-  ];
-
-  // Controla as mensagens rotativas quando aguardando finalização
-  useEffect(() => {
-    if (!isWaitingFinalization) {
-      // Limpar timeout de proteção quando sair do estado de finalização
-      if (finalizationTimeoutRef.current) {
-        clearTimeout(finalizationTimeoutRef.current);
-        finalizationTimeoutRef.current = undefined;
-      }
-      return;
-    }
-
-    let messageIndex = 0;
-    setFinalizationMessage(finalizationMessages[0]);
-
-    const messageInterval = setInterval(() => {
-      messageIndex = (messageIndex + 1) % finalizationMessages.length;
-      setFinalizationMessage(finalizationMessages[messageIndex]);
-    }, 1000);
-
-    // Timeout de proteção reduzido para 10 segundos
-    finalizationTimeoutRef.current = setTimeout(() => {
-      console.log('⚠️ [FINALIZATION] Timeout de proteção ativado - saindo do estado de finalização');
-      setIsWaitingFinalization(false);
-    }, 10000);
-
-    return () => {
-      clearInterval(messageInterval);
-      if (finalizationTimeoutRef.current) {
-        clearTimeout(finalizationTimeoutRef.current);
-        finalizationTimeoutRef.current = undefined;
-      }
-    };
-  }, [isWaitingFinalization]);
-
-  // Função chamada quando timer chega a zero - com verificação de segurança inteligente
-  const checkAuctionStatusAndReset = useCallback(async () => {
-    if (!auctionId || checkingStatusRef.current || !isActiveRef.current) return;
-    
-    checkingStatusRef.current = true;
-    console.log('⚡ [ZERO] Timer chegou a zero - verificando se deve mostrar finalização');
-    
+  const syncAuctions = useCallback(async () => {
     try {
-      // VERIFICAÇÃO DE SEGURANÇA: Só mostrar finalização se realmente deve encerrar
-      const { data, error } = await supabase
-        .from('auctions')
-        .select('status, time_left, updated_at')
-        .eq('id', auctionId)
-        .maybeSingle();
-      
-      if (error) throw error;
-      
-      if (data) {
-        console.log('🔍 [ZERO] Status verificado:', data);
-        
-        // Calcular segundos desde última atividade (usando fuso brasileiro)
-        const lastActivityMs = new Date(data.updated_at).getTime();
-        const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-        const nowMs = new Date(brazilNowMs).getTime();
-        const secondsSinceActivity = Math.floor((nowMs - lastActivityMs) / 1000);
-        
-        console.log('📊 [ZERO] Segundos desde última atividade:', secondsSinceActivity);
-        
-        // Atualizar dados do leilão
-        setAuctionData(prev => prev ? { 
-          ...prev, 
-          status: data.status,
-          time_left: data.time_left
-        } : null);
-        setLocalTimeLeft(data.time_left);
-        
-        // LÓGICA INTELIGENTE DE FINALIZAÇÃO:
-        if (data.status === 'finished') {
-          // Leilão já foi encerrado pelo cron job
-          setIsWaitingFinalization(false);
-          console.log('✅ [ZERO] Leilão já finalizado - não mostrar mensagens');
-        } else if (data.time_left > 0) {
-          // Novo lance chegou, resetar timer
-          console.log('🔄 [ZERO] Timer resetado para', data.time_left, 's - não mostrar mensagens');
-        } else if (secondsSinceActivity >= 15 && data.status === 'active') {
-          // Realmente deve mostrar finalização (15+ segundos sem atividade)
-          setIsWaitingFinalization(true);
-          console.log('⏳ [ZERO] Mostrando finalização - 15+ segundos sem atividade');
-          
-          // Polling agressivo para verificar mudanças a cada 2 segundos
-          const pollingInterval = setInterval(async () => {
-            try {
-              const { data: pollData } = await supabase
-                .from('auctions')
-                .select('status, time_left')
-                .eq('id', auctionId)
-                .maybeSingle();
-              
-              if (pollData) {
-                console.log('🔄 [POLLING] Status durante finalização:', pollData);
-                if (pollData.status === 'finished' || pollData.time_left > 0) {
-                  setIsWaitingFinalization(false);
-                  clearInterval(pollingInterval);
-                  console.log('✅ [POLLING] Saindo da finalização:', pollData);
-                }
-              }
-            } catch (err) {
-              console.error('❌ [POLLING] Erro:', err);
-            }
-          }, 2000);
-          
-          // Limpar polling após 10 segundos
-          setTimeout(() => {
-            clearInterval(pollingInterval);
-          }, 10000);
-          
-        } else {
-          // Menos de 15 segundos - não mostrar finalização ainda
-          console.log('⏰ [ZERO] Apenas', secondsSinceActivity, 's de inatividade - aguardando mais atividade');
-          
-          // Polling a cada 1 segundo por 10 segundos para verificar se timer reseta
-          let pollCount = 0;
-          const quickPolling = setInterval(async () => {
-            pollCount++;
-            if (pollCount > 10) {
-              clearInterval(quickPolling);
-              return;
-            }
-            
-            try {
-              const { data: quickData } = await supabase
-                .from('auctions')
-                .select('time_left, status')
-                .eq('id', auctionId)
-                .maybeSingle();
-              
-              if (quickData && quickData.time_left > 0) {
-                console.log('🔄 [QUICK] Timer resetado para', quickData.time_left, 's');
-                setLocalTimeLeft(quickData.time_left);
-                clearInterval(quickPolling);
-              }
-            } catch (err) {
-              console.error('❌ [QUICK] Erro:', err);
-            }
-          }, 1000);
-        }
-      }
-    } catch (error) {
-      console.error('❌ [ZERO] Erro ao verificar status:', error);
-    } finally {
-      checkingStatusRef.current = false;
-    }
-  }, [auctionId]);
-
-  // Timer local baseado no ends_at do servidor - PRIORIDADE ABSOLUTA
-  useEffect(() => {
-    if (!isActiveRef.current) return;
-
-    // Se não tem ends_at ou não está ativo, limpar timer
-    if (!auctionData?.ends_at || auctionData.status !== 'active') {
-      if (localTimerRef.current) {
-        clearInterval(localTimerRef.current);
-        localTimerRef.current = null;
-      }
-      // Se status é finished, definir timer como 0
-      if (auctionData?.status === 'finished') {
-        setLocalTimeLeft(0);
-      } else {
-        setLocalTimeLeft(null);
-      }
-      return;
-    }
-
-    // NOVA LÓGICA: Sempre reinicializar timer quando ends_at muda (indica reset por bot)
-    const calculateTimeLeft = () => {
-      if (!isActiveRef.current) return 0;
-      const endMs = new Date(auctionData.ends_at!).getTime();
-      const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-      const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
-      return Math.max(0, Math.round((endMs - nowMs) / 1000));
-    };
-
-    const tick = () => {
-      if (!isActiveRef.current) return;
-      const remaining = calculateTimeLeft();
-      setLocalTimeLeft(remaining);
-      
-      // Quando contador chega a 0, verificar status do leilão
-      if (remaining === 0 && auctionData.status === 'active') {
-        checkAuctionStatusAndReset();
-      }
-    };
-
-    // Limpar timer anterior
-    if (localTimerRef.current) {
-      clearInterval(localTimerRef.current);
-    }
-
-    // Inicializar novo timer
-    const initialTime = calculateTimeLeft();
-    setLocalTimeLeft(initialTime);
-    localTimerRef.current = setInterval(tick, 1000);
-
-    console.log(`🎯 [TIMER] Timer reinicializado: ${initialTime}s (ends_at mudou: ${auctionData.ends_at})`);
-
-    return () => {
-      if (localTimerRef.current) {
-        clearInterval(localTimerRef.current);
-        localTimerRef.current = null;
-      }
-    };
-  }, [auctionData?.ends_at, auctionData?.status, checkAuctionStatusAndReset]);
-
-
-  // Fetch inicial dos dados
-  const fetchAuctionData = useCallback(async () => {
-    if (!auctionId || !isActiveRef.current) return;
-    
-    try {
+      console.log('🔄 [SYNC] Fazendo sincronização');
       const { data, error } = await supabase
         .from('auctions')
         .select('*')
-        .eq('id', auctionId)
-        .maybeSingle();
-      
-      if (error) throw error;
-      
-      if (!data) {
-        console.log('⚠️ [SYNC] Leilão não encontrado - pode ter sido removido ou encerrado');
-        return;
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ [SYNC] Erro na sincronização:', error);
+        throw error;
       }
-      
-      if (isActiveRef.current && data) {
-        console.log('🔄 [SYNC] Dados atualizados do banco:', {
-          auction_id: data.id,
-          time_left: data.time_left,
-          status: data.status,
-          timestamp: new Date().toISOString()
-        });
-        
-        setAuctionData(data);
-        
-        // Se o leilão foi finalizado, definir timer como 0
-        if (data.status === 'finished') {
-          setLocalTimeLeft(0);
-        } else {
-          // Apenas calcular timer se ainda estiver ativo (usando fuso brasileiro)
-          const endsAtMs = data.ends_at ? new Date(data.ends_at).getTime() : null;
-          const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-          const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
-          const initial = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (data.time_left || 0);
-          setLocalTimeLeft(initial);
-        }
+
+      if (data) {
+        setAuctions(data);
         setLastSync(new Date());
+        console.log(`✅ [SYNC] Sincronização OK: ${data.length} leilões`);
       }
     } catch (error) {
-      console.error('❌ [SYNC] Erro ao buscar dados:', error);
+      console.error('❌ [SYNC] Sincronização falhou:', error);
+      toast({
+        title: "Erro de conexão",
+        description: "Problemas para sincronizar dados dos leilões",
+        variant: "destructive",
+      });
     }
-  }, [auctionId]);
+  }, [toast]);
 
-  // Setup realtime
   useEffect(() => {
-    if (!auctionId) return;
+    let channel: any = null;
+    let pollInterval: NodeJS.Timeout | null = null;
 
-    isActiveRef.current = true;
-    console.log('🔄 Configurando realtime para leilão:', auctionId);
-    
-    // Fetch inicial
-    fetchAuctionData();
+    const initializeRealtime = async () => {
+      try {
+        // Carregar dados iniciais
+        await syncAuctions();
 
-    // Canal para updates do leilão
-    const auctionChannel = supabase
-      .channel(`auction-${auctionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'auctions',
-          filter: `id=eq.${auctionId}`
-        },
-        (payload) => {
-          if (!isActiveRef.current) return;
-          
-          console.log('📡 [REALTIME] Update do leilão recebido:', payload);
-          const newAuctionData = payload.new as AuctionUpdate;
-          const wasWaitingFinalization = isWaitingFinalization;
-          
-          // ANTI-DEADLOCK: Sempre permitir sincronização se recebemos dados do banco
-          const currentEndsAt = auctionData?.ends_at;
-          const newEndsAt = newAuctionData.ends_at;
-          const timerWasReset = newEndsAt !== currentEndsAt;
-          
-          setAuctionData(newAuctionData);
-          
-          // Se o leilão foi finalizado, parar timer e sair do estado de finalização
-          if (newAuctionData.status === 'finished') {
-            setLocalTimeLeft(0);
-            setIsWaitingFinalization(false);
-            console.log('✅ [FINALIZATION] Leilão finalizado - saindo do estado de finalização');
-          } else if (timerWasReset || newAuctionData.time_left > (localTimeLeft || 0)) {
-            // Timer foi resetado OU recebemos um valor maior (indica lance de bot)
-            const endsAtMs = newAuctionData.ends_at ? new Date(newAuctionData.ends_at).getTime() : null;
-            const brazilNowMs = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-            const nowMs = new Date(brazilNowMs).getTime() + (serverOffsetRef.current || 0);
-            const calculatedTime = endsAtMs ? Math.max(0, Math.round((endsAtMs - nowMs) / 1000)) : (newAuctionData.time_left || 0);
-            
-            setLocalTimeLeft(calculatedTime);
-            console.log(`🎯 [SYNC-RESET] Timer sincronizado: ${calculatedTime}s (was: ${localTimeLeft}, received: ${newAuctionData.time_left})`);
-            
-            if (wasWaitingFinalization) {
-              setIsWaitingFinalization(false);
-              console.log('🔄 [FINALIZATION] Timer resetado - saindo do estado de finalização');
+        // Configurar realtime
+        channel = supabase
+          .channel('auction-updates')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'auctions'
+            },
+            (payload) => {
+              const auction_id = (payload.new as any)?.id || (payload.old as any)?.id;
+              const time_left = (payload.new as any)?.time_left;
+              const status = (payload.new as any)?.status;
+              
+              console.log('🔄 [REALTIME] Update recebido:', {
+                auction_id,
+                time_left,
+                status,
+                event: payload.eventType,
+                timestamp: new Date().toISOString()
+              });
+              
+              setAuctions(current => {
+                if (payload.eventType === 'DELETE') {
+                  return current.filter(a => a.id !== (payload.old as any).id);
+                }
+                
+                if (payload.eventType === 'INSERT') {
+                  return [payload.new as AuctionData, ...current];
+                }
+                
+                if (payload.eventType === 'UPDATE') {
+                  return current.map(auction => 
+                    auction.id === auction_id 
+                      ? { ...auction, ...payload.new }
+                      : auction
+                  );
+                }
+                
+                return current;
+              });
+              
+              setLastSync(new Date());
             }
-          } else if (newAuctionData.time_left > 0 && (localTimeLeft === null || localTimeLeft <= 0)) {
-            // ANTI-DEADLOCK: Se timer local está travado e recebemos valor > 0
-            console.log(`🚨 [ANTI-DEADLOCK] Forçando sync: time_left=${newAuctionData.time_left} (timer local: ${localTimeLeft})`);
-            setLocalTimeLeft(newAuctionData.time_left);
+          )
+          .subscribe((status) => {
+            console.log('🔌 [REALTIME] Status da conexão:', status);
+            setIsConnected(status === 'SUBSCRIBED');
             
-            if (wasWaitingFinalization) {
-              setIsWaitingFinalization(false);
+            if (status === 'CLOSED') {
+              toast({
+                title: "Conexão perdida",
+                description: "Tentando reconectar automaticamente...",
+                variant: "destructive",
+              });
             }
-          } else {
-            console.log('⚪ [SYNC] Update normal - mantendo timer local');
-          }
-          
-          setLastSync(new Date());
-          setIsConnected(true);
-          
-          console.log('🕐 [REALTIME] Timer atualizado:', {
-            auction_id: newAuctionData.id,
-            db_time_left: newAuctionData.time_left,
-            local_time_left: localTimeLeft,
-            timer_reset: timerWasReset,
-            anti_deadlock: newAuctionData.time_left > 0,
-            status: newAuctionData.status,
-            timestamp: new Date().toISOString()
           });
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 [REALTIME] Status do canal auction:', status);
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-        } else if (status === 'CLOSED') {
-          setIsConnected(false);
-        }
-      });
 
-    // Canal para novos lances
-    const bidsChannel = supabase
-      .channel(`bids-${auctionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'bids',
-          filter: `auction_id=eq.${auctionId}`
-        },
-        (payload) => {
-          if (!isActiveRef.current) return;
-          
-          console.log('🎯 Novo lance recebido:', payload);
-          const newBid = payload.new as BidUpdate;
-          setRecentBids(prev => [newBid, ...prev.slice(0, 9)]);
-        }
-      )
-      .subscribe();
+        // Polling de backup menos frequente (backend gerencia a lógica principal)
+        pollInterval = setInterval(syncAuctions, 60000); // 1 minuto
 
-    channelsRef.current = [auctionChannel, bidsChannel];
-
-    // Polling de backup a cada 30 segundos
-    const pollingInterval = setInterval(() => {
-      if (isActiveRef.current && !isConnected) {
-        console.log('🔄 [POLLING] Fazendo backup sync');
-        fetchAuctionData();
+      } catch (error) {
+        console.error('❌ [REALTIME] Erro na inicialização:', error);
+        toast({
+          title: "Erro de inicialização", 
+          description: "Falha ao conectar com o sistema de leilões",
+          variant: "destructive",
+        });
       }
-    }, 30000);
-
-    // Cleanup
-    return () => {
-      isActiveRef.current = false;
-      console.log('🔌 Desconectando realtime channels');
-      
-      if (localTimerRef.current) {
-        clearInterval(localTimerRef.current);
-      }
-      
-      if (finalizationTimeoutRef.current) {
-        clearTimeout(finalizationTimeoutRef.current);
-      }
-      
-      clearInterval(pollingInterval);
-      
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
-      });
-      
-      setIsConnected(false);
     };
-  }, [auctionId, fetchAuctionData]);
 
-  // Função para forçar sincronização
-  const forceSync = useCallback(() => {
-    console.log('🔄 [FORCE] Sincronização forçada pelo usuário');
-    fetchAuctionData();
-  }, [fetchAuctionData]);
-  // Remover sincronização manual - deixar o servidor decidir automaticamente
+    initializeRealtime();
 
-  // PRIORIDADE ABSOLUTA: Timer local sempre tem precedência (elimina oscilação)
-  const displayTimeLeft = localTimeLeft !== null ? localTimeLeft : (auctionData?.time_left || 0);
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [syncAuctions, toast]);
 
   return {
-    auctionData: auctionData ? { ...auctionData, time_left: displayTimeLeft } : null,
-    recentBids,
+    auctions,
     isConnected,
     lastSync,
-    forceSync,
-    isWaitingFinalization,
-    finalizationMessage
+    forceSync: syncAuctions
   };
 };
