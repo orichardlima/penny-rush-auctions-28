@@ -169,7 +169,65 @@ export const useAuctionDetail = (auctionId?: string) => {
     };
   }, [auctionId, fetchAuctionData]);
 
-  // Timer visual decremental
+  // Verificar se leilão deve ser finalizado quando timer chega a zero
+  const checkForFinalization = useCallback(async () => {
+    if (!auctionId || !auctionData || auctionData.status !== 'active') return;
+
+    console.log(`🏁 [FINALIZATION-CHECK] Timer zerou para leilão ${auctionId}, verificando últimos lances...`);
+    
+    try {
+      // Buscar último lance para confirmar inatividade
+      const { data: lastBids, error } = await supabase
+        .from('bids')
+        .select('created_at')
+        .eq('auction_id', auctionId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao verificar últimos lances:', error);
+        return;
+      }
+
+      const now = new Date();
+      const lastBidTime = lastBids && lastBids.length > 0 ? new Date(lastBids[0].created_at) : null;
+      const secondsSinceLastBid = lastBidTime ? Math.floor((now.getTime() - lastBidTime.getTime()) / 1000) : Infinity;
+
+      console.log(`🔍 [FINALIZATION-CHECK] Último lance há ${secondsSinceLastBid}s`);
+
+      // Se não há lances recentes (15+ segundos), finalizar via Edge Function
+      if (secondsSinceLastBid >= 15) {
+        console.log(`✅ [FINALIZATION-START] Iniciando finalização do leilão ${auctionId}`);
+        setIsWaitingFinalization(true);
+        
+        try {
+          // Chamar Edge Function para finalizar leilão
+          const { error: functionError } = await supabase.functions.invoke('finalize-auction', {
+            body: { auction_id: auctionId }
+          });
+
+          if (functionError) {
+            console.error('Erro ao chamar Edge Function de finalização:', functionError);
+          } else {
+            console.log(`🎯 [FINALIZATION] Edge Function chamada com sucesso para ${auctionId}`);
+          }
+        } catch (error) {
+          console.error('Erro ao finalizar leilão:', error);
+        }
+        
+        // Forçar sincronização para pegar o status atualizado
+        setTimeout(() => fetchAuctionData(), 1000);
+      } else {
+        console.log(`⏳ [FINALIZATION-WAIT] Lance muito recente (${secondsSinceLastBid}s), aguardando...`);
+        // Se houve lance recente, resetar timer para continuar
+        setLocalTimeLeft(15 - secondsSinceLastBid);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar finalização:', error);
+    }
+  }, [auctionId, auctionData, fetchAuctionData]);
+
+  // Timer visual decremental com finalização automática
   useEffect(() => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -179,6 +237,8 @@ export const useAuctionDetail = (auctionId?: string) => {
       timerIntervalRef.current = setInterval(() => {
         setLocalTimeLeft(prev => {
           if (prev === null || prev <= 1) {
+            // Timer chegou a zero - verificar se deve finalizar
+            checkForFinalization();
             return null;
           }
           return prev - 1;
@@ -191,7 +251,7 @@ export const useAuctionDetail = (auctionId?: string) => {
         clearInterval(timerIntervalRef.current);
       }
     };
-  }, [localTimeLeft]);
+  }, [localTimeLeft, checkForFinalization]);
 
   const forceSync = useCallback(() => {
     console.log(`🔄 [${auctionId}] Sincronização forçada`);
