@@ -26,35 +26,49 @@ serve(async (req) => {
       );
     }
 
-    console.log(`🏁 [FINALIZE] Iniciando finalização do leilão: ${auction_id}`);
+    console.log(`🏁 [FINALIZE-AUCTION] Iniciando finalização do leilão ${auction_id}`);
 
-    // 1. Verificar se leilão existe e está ativo
+    // Buscar dados do leilão
     const { data: auction, error: auctionError } = await supabase
       .from('auctions')
-      .select('id, title, status, time_left')
+      .select('*')
       .eq('id', auction_id)
       .single();
 
     if (auctionError || !auction) {
-      console.error(`❌ [FINALIZE] Leilão não encontrado: ${auction_id}`, auctionError);
+      console.error(`❌ [FINALIZE-ERROR] Leilão não encontrado: ${auction_id}`, auctionError);
       return new Response(
         JSON.stringify({ error: 'Leilão não encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (auction.status !== 'active') {
-      console.log(`⚠️ [FINALIZE] Leilão ${auction_id} não está ativo (status: ${auction.status})`);
+    // Verificar se já está finalizado
+    if (auction.status === 'finished') {
+      console.log(`✅ [FINALIZE-SKIP] Leilão ${auction_id} já finalizado`);
       return new Response(
         JSON.stringify({ 
-          message: 'Leilão não está ativo',
-          current_status: auction.status 
+          success: true, 
+          message: 'Leilão já finalizado',
+          auction_id 
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 2. Verificar inatividade real
+    // Verificar se é um leilão ativo
+    if (auction.status !== 'active') {
+      console.log(`⚠️ [FINALIZE-SKIP] Leilão ${auction_id} não está ativo (status: ${auction.status})`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Leilão não está ativo',
+          current_status: auction.status 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Buscar último lance para verificar inatividade
     const { data: lastBids, error: bidError } = await supabase
       .from('bids')
       .select('created_at, user_id')
@@ -63,32 +77,34 @@ serve(async (req) => {
       .limit(1);
 
     if (bidError) {
-      console.error(`❌ [FINALIZE] Erro ao buscar lances: ${auction_id}`, bidError);
-      throw bidError;
+      console.error(`❌ [FINALIZE-ERROR] Erro ao buscar lances:`, bidError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao verificar lances' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const now = new Date();
     const lastBidTime = lastBids && lastBids.length > 0 ? new Date(lastBids[0].created_at) : null;
-    const secondsSinceLastBid = lastBidTime 
-      ? Math.floor((now.getTime() - lastBidTime.getTime()) / 1000)
-      : Infinity;
+    const lastActivityTime = lastBidTime || new Date(auction.updated_at);
+    const secondsSinceActivity = Math.floor((now.getTime() - lastActivityTime.getTime()) / 1000);
 
-    console.log(`⏱️ [FINALIZE] Leilão "${auction.title}": ${secondsSinceLastBid}s desde último lance`);
+    console.log(`🔍 [FINALIZE-CHECK] Leilão ${auction_id}: ${secondsSinceActivity}s desde última atividade`);
 
-    // 3. Verificar se pode finalizar (15+ segundos de inatividade)
-    if (lastBidTime && secondsSinceLastBid < 15) {
-      console.log(`⏳ [FINALIZE] Muito cedo para finalizar - apenas ${secondsSinceLastBid}s de inatividade`);
+    // Verificar se há inatividade suficiente (15+ segundos)
+    if (secondsSinceActivity < 15) {
+      console.log(`⏳ [FINALIZE-DENIED] Leilão ${auction_id} ainda ativo (${secondsSinceActivity}s < 15s)`);
       return new Response(
         JSON.stringify({ 
-          message: 'Leilão ainda ativo',
-          seconds_since_last_bid: secondsSinceLastBid,
-          required_seconds: 15
+          error: 'Leilão ainda ativo',
+          seconds_since_activity: secondsSinceActivity,
+          minimum_required: 15
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 4. Determinar ganhador
+    // Determinar ganhador
     let winnerId = null;
     let winnerName = 'Nenhum ganhador';
     
@@ -105,7 +121,7 @@ serve(async (req) => {
       winnerName = profile?.full_name || `Usuário ${winnerId.substring(0, 8)}`;
     }
 
-    // 5. FINALIZAR LEILÃO (forçado, sem triggers de proteção)
+    // FINALIZAR LEILÃO
     const { error: finalizeError } = await supabase
       .from('auctions')
       .update({
@@ -119,35 +135,37 @@ serve(async (req) => {
       .eq('id', auction_id);
 
     if (finalizeError) {
-      console.error(`❌ [FINALIZE] Erro ao finalizar leilão ${auction_id}:`, finalizeError);
-      throw finalizeError;
+      console.error(`❌ [FINALIZE-ERROR] Erro ao finalizar leilão ${auction_id}:`, finalizeError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Erro ao finalizar leilão',
+          details: finalizeError.message 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const result = {
-      success: true,
-      auction_id,
-      auction_title: auction.title,
-      winner_id: winnerId,
-      winner_name: winnerName,
-      seconds_since_last_bid: secondsSinceLastBid,
-      finalized_at: now.toISOString()
-    };
-
-    console.log(`✅ [FINALIZE] Leilão "${auction.title}" finalizado com sucesso!`, result);
+    console.log(`🏁 [FINALIZE-SUCCESS] Leilão ${auction_id} finalizado! Ganhador: "${winnerName}" (${secondsSinceActivity}s inatividade)`);
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({
+        success: true,
+        auction_id,
+        winner_id: winnerId,
+        winner_name: winnerName,
+        seconds_since_activity: secondsSinceActivity,
+        finalized_at: now.toISOString()
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('❌ [FINALIZE] Erro na finalização:', error);
+    console.error('❌ [FINALIZE-CRITICAL] Erro crítico na finalização:', error);
     
     return new Response(
       JSON.stringify({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString()
+        error: 'Erro interno do servidor',
+        message: error.message
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

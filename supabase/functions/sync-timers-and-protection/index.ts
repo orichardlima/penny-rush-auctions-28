@@ -142,6 +142,8 @@ serve(async (req) => {
 
         // ✅ FINALIZAR SE INATIVIDADE >= 15 SEGUNDOS
         if (secondsSinceActivity >= 15) {
+          console.log(`🔥 [FORCE-FINALIZE] Finalizando leilão "${auction.title}" com ${secondsSinceActivity}s de inatividade`);
+          
           // Buscar ganhador (último lance)
           let winnerId = null;
           let winnerName = 'Nenhum ganhador';
@@ -159,24 +161,36 @@ serve(async (req) => {
             winnerName = profile?.full_name || `Usuário ${winnerId.substring(0, 8)}`;
           }
 
-          // FINALIZAR LEILÃO
-          const { error: finalizeError } = await supabase
-            .from('auctions')
-            .update({
-              status: 'finished',
-              time_left: 0,
-              winner_id: winnerId,
-              winner_name: winnerName,
-              finished_at: currentTime,
-              updated_at: currentTime
-            })
-            .eq('id', auction.id);
+          // ✅ FINALIZAR LEILÃO COM RETRY EM CASO DE FALHA
+          let attemptCount = 0;
+          let finalizeSuccess = false;
+          
+          while (!finalizeSuccess && attemptCount < 3) {
+            attemptCount++;
+            console.log(`🔄 [FINALIZE-ATTEMPT-${attemptCount}] Tentativa ${attemptCount} de finalização do leilão ${auction.id}`);
+            
+            const { error: finalizeError } = await supabase
+              .from('auctions')
+              .update({
+                status: 'finished',
+                time_left: 0,
+                winner_id: winnerId,
+                winner_name: winnerName,
+                finished_at: currentTime,
+                updated_at: currentTime
+              })
+              .eq('id', auction.id);
 
-          if (!finalizeError) {
-            finalizedCount++;
-            console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado! Ganhador: "${winnerName}" (${secondsSinceActivity}s inatividade)`);
-          } else {
-            console.error(`❌ [FINALIZE-ERROR] Erro ao finalizar leilão ${auction.id}:`, finalizeError);
+            if (!finalizeError) {
+              finalizedCount++;
+              finalizeSuccess = true;
+              console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado com sucesso! Ganhador: "${winnerName}" (${secondsSinceActivity}s inatividade)`);
+            } else {
+              console.error(`❌ [FINALIZE-ERROR-${attemptCount}] Tentativa ${attemptCount} falhou:`, finalizeError);
+              if (attemptCount >= 3) {
+                console.error(`💀 [FINALIZE-FAILED] FALHA CRÍTICA: Não foi possível finalizar leilão ${auction.id} após 3 tentativas`);
+              }
+            }
           }
         } else {
           // ✅ APENAS ATUALIZAR TIME_LEFT (visual)

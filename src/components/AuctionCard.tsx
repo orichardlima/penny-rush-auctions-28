@@ -70,6 +70,19 @@ export const AuctionCard = ({
   const displayTimeLeft = localTimeLeft ?? auctionData?.time_left ?? initialTimeLeft;
   const displayIsActive = auctionData?.status === 'active' ? auctionData.time_left > 0 : initialIsActive;
   const displayStatus = auctionData?.status ?? auctionStatus;
+  
+  // LÓGICA DE FINALIZAÇÃO VISUAL
+  const shouldShowFinalizationMessage = displayTimeLeft === 0 && displayStatus === 'active';
+  
+  console.log(`🎯 [${id}] Timer Display: ${displayTimeLeft}s | Status: ${displayStatus} | Local: ${localTimeLeft} | Backend: ${auctionData?.time_left}`);
+  
+  // Mostrar mensagem de finalização quando timer local chega a 0
+  useEffect(() => {
+    if (shouldShowFinalizationMessage && !isWaitingFinalization) {
+      console.log(`🏁 [${id}] Iniciando exibição de finalização (timer chegou a 0)`);
+      // A lógica de finalização já está no hook useAuctionDetail
+    }
+  }, [shouldShowFinalizationMessage, isWaitingFinalization, id]);
   const displayCurrentPrice = auctionData?.current_price ?? currentPrice;
   const displayTotalBids = auctionData?.total_bids ?? totalBids;
   const displayWinnerName = auctionData?.winner_name ?? winnerName;
