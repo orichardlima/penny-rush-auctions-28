@@ -35,13 +35,13 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Usar fuso brasileiro para todas as operações
-    const brazilTimezone = 'America/Sao_Paulo';
+    // CORREÇÃO DEFINITIVA TIMEZONE - Usar UTC puro com offset Brasil (-3h)
     const now = new Date();
-    const brazilDate = new Date(now.toLocaleString("en-US", {timeZone: brazilTimezone}));
-    const currentTime = brazilDate.toISOString();
+    const brazilOffsetMs = -3 * 60 * 60 * 1000; // UTC-3 em millisegundos
+    const brazilTime = new Date(now.getTime() + brazilOffsetMs);
+    const currentTime = now.toISOString(); // Usar UTC para database
     
-    console.log(`🔍 [SYNC] Iniciando sincronização às ${currentTime} (BR)`);
+    console.log(`🔍 [SYNC] Iniciando sincronização às ${brazilTime.toISOString().replace('Z', '-03:00')} (BR) | UTC: ${currentTime}`);
 
     // 1. Ativar leilões que estão "waiting" e já passaram do starts_at
     // Buscar todos os leilões waiting e fazer comparação manual com fuso brasileiro
@@ -55,18 +55,16 @@ Deno.serve(async (req) => {
       throw waitingError;
     }
 
-    // Filtrar leilões que realmente devem ser ativados
+    // Filtrar leilões que realmente devem ser ativados - TIMEZONE CORRIGIDO
     const auctionsToActivate = (waitingAuctions || []).filter(auction => {
       if (!auction.starts_at) return false;
       
-      // Converter starts_at para fuso brasileiro para comparação precisa
-      const startsAtBrazil = new Date(auction.starts_at).toLocaleString("en-US", {timeZone: brazilTimezone});
-      const startsAtDate = new Date(startsAtBrazil);
-      
-      const shouldActivate = startsAtDate <= brazilDate;
+      // starts_at vem em UTC do database, converter para comparação
+      const startsAtDate = new Date(auction.starts_at);
+      const shouldActivate = startsAtDate <= now;
       
       if (shouldActivate) {
-        console.log(`🎯 [CHECK] Leilão ${auction.id} deve ser ativado - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+        console.log(`🎯 [CHECK] Leilão ${auction.id} deve ser ativado - starts_at: ${startsAtDate.toISOString()}, now: ${now.toISOString()}`);
       }
       
       return shouldActivate;
@@ -119,16 +117,15 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Determinar última atividade (último lance ou updated_at)
+        // Determinar última atividade (último lance ou updated_at) - TIMEZONE CORRIGIDO
         const lastBidTime = lastBids && lastBids.length > 0 ? lastBids[0].created_at : null;
         const lastActivityTime = lastBidTime || auction.updated_at;
         
-        // Converter para fuso brasileiro
-        const lastActivityBrazil = new Date(lastActivityTime).toLocaleString("en-US", {timeZone: brazilTimezone});
-        const lastActivityDate = new Date(lastActivityBrazil);
+        // Usar UTC diretamente (database já retorna em UTC)
+        const lastActivityDate = new Date(lastActivityTime);
         
         // Calcular segundos desde última atividade
-        const secondsSinceActivity = Math.floor((brazilDate.getTime() - lastActivityDate.getTime()) / 1000);
+        const secondsSinceActivity = Math.floor((now.getTime() - lastActivityDate.getTime()) / 1000);
         
         // Calcular novo time_left baseado na inatividade
         const newTimeLeft = Math.max(0, 15 - secondsSinceActivity);
@@ -206,14 +203,12 @@ Deno.serve(async (req) => {
     const prematureAuctions = (allActiveAuctions || []).filter(auction => {
       if (!auction.starts_at) return false;
       
-      // Converter starts_at para fuso brasileiro para comparação precisa
-      const startsAtBrazil = new Date(auction.starts_at).toLocaleString("en-US", {timeZone: brazilTimezone});
-      const startsAtDate = new Date(startsAtBrazil);
-      
-      const isPremature = startsAtDate > brazilDate;
+      // starts_at vem em UTC do database - TIMEZONE CORRIGIDO
+      const startsAtDate = new Date(auction.starts_at);
+      const isPremature = startsAtDate > now;
       
       if (isPremature) {
-        console.log(`⚠️ [CHECK] Leilão ${auction.id} é prematuro - starts_at (BR): ${startsAtDate.toISOString()}, now (BR): ${brazilDate.toISOString()}`);
+        console.log(`⚠️ [CHECK] Leilão ${auction.id} é prematuro - starts_at: ${startsAtDate.toISOString()}, now: ${now.toISOString()}`);
       }
       
       return isPremature;
