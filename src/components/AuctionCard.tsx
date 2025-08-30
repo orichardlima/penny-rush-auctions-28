@@ -59,13 +59,15 @@ export const AuctionCard = ({
     lastSync,
     forceSync,
     isWaitingFinalization,
-    finalizationMessage
+    finalizationMessage,
+    localTimeLeft
   } = useAuctionDetail(id);
 
   // DADOS PASSIVOS: Frontend sempre respeita o backend
-  // 1ª prioridade: Dados do realtime (banco de dados)
-  // 2ª prioridade: Props iniciais (só para primeiro render)
-  const displayTimeLeft = auctionData?.time_left ?? initialTimeLeft;
+  // 1ª prioridade: Timer local decremental (UX)
+  // 2ª prioridade: Dados do realtime (banco de dados)
+  // 3ª prioridade: Props iniciais (só para primeiro render)
+  const displayTimeLeft = localTimeLeft ?? auctionData?.time_left ?? initialTimeLeft;
   const displayIsActive = auctionData?.status === 'active' ? auctionData.time_left > 0 : initialIsActive;
   const displayStatus = auctionData?.status ?? auctionStatus;
   const displayCurrentPrice = auctionData?.current_price ?? currentPrice;

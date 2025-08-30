@@ -18,9 +18,11 @@ export const useAuctionDetail = (auctionId?: string) => {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [isWaitingFinalization, setIsWaitingFinalization] = useState(false);
   const [finalizationMessage, setFinalizationMessage] = useState('');
+  const [localTimeLeft, setLocalTimeLeft] = useState<number | null>(null);
   
   const intervalRef = useRef<NodeJS.Timeout>();
   const finalizationTimeoutRef = useRef<NodeJS.Timeout>();
+  const timerIntervalRef = useRef<NodeJS.Timeout>();
 
   // Mensagens rotativas para aguardar finalização
   const finalizationMessages = [
@@ -80,6 +82,13 @@ export const useAuctionDetail = (auctionId?: string) => {
         setAuctionData(data);
         setLastSync(new Date());
         
+        // Sincronizar timer local com dados do banco
+        if (data.status === 'active' && data.time_left > 0) {
+          setLocalTimeLeft(data.time_left);
+        } else {
+          setLocalTimeLeft(null);
+        }
+        
         // Se leilão foi finalizado, sair do estado de finalização
         if (data.status === 'finished') {
           setIsWaitingFinalization(false);
@@ -120,6 +129,13 @@ export const useAuctionDetail = (auctionId?: string) => {
           setAuctionData(newData);
           setLastSync(new Date());
           
+          // Sincronizar timer local com dados do realtime
+          if (newData.status === 'active' && newData.time_left > 0) {
+            setLocalTimeLeft(newData.time_left);
+          } else {
+            setLocalTimeLeft(null);
+          }
+          
           // Lógica de finalização baseada no novo sistema
           if (newData.status === 'finished') {
             setIsWaitingFinalization(false);
@@ -145,10 +161,37 @@ export const useAuctionDetail = (auctionId?: string) => {
       if (finalizationTimeoutRef.current) {
         clearTimeout(finalizationTimeoutRef.current);
       }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
       supabase.removeChannel(channel);
       setIsConnected(false);
     };
   }, [auctionId, fetchAuctionData]);
+
+  // Timer visual decremental
+  useEffect(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+
+    if (localTimeLeft !== null && localTimeLeft > 0) {
+      timerIntervalRef.current = setInterval(() => {
+        setLocalTimeLeft(prev => {
+          if (prev === null || prev <= 1) {
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [localTimeLeft]);
 
   const forceSync = useCallback(() => {
     console.log(`🔄 [${auctionId}] Sincronização forçada`);
@@ -161,6 +204,7 @@ export const useAuctionDetail = (auctionId?: string) => {
     lastSync,
     forceSync,
     isWaitingFinalization,
-    finalizationMessage
+    finalizationMessage,
+    localTimeLeft
   };
 };
