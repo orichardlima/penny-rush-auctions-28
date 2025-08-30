@@ -93,7 +93,107 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Edge Function só ativa leilões - timers são gerenciados pelos triggers e cron jobs
+    // 2. DECREMENTAR TIMERS de leilões ativos (NOVA FUNCIONALIDADE)
+    const { data: activeAuctions, error: activeError } = await supabase
+      .from('auctions')
+      .select('id, title, time_left, updated_at')
+      .eq('status', 'active');
+
+    if (activeError) {
+      console.error('Erro ao buscar leilões ativos:', activeError);
+    } else {
+      let decrementedCount = 0;
+      let finalizedCount = 0;
+      
+      for (const auction of activeAuctions || []) {
+        // Buscar último lance
+        const { data: lastBids, error: bidError } = await supabase
+          .from('bids')
+          .select('created_at')
+          .eq('auction_id', auction.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (bidError) {
+          console.error(`Erro ao buscar lances do leilão ${auction.id}:`, bidError);
+          continue;
+        }
+
+        // Determinar última atividade (último lance ou updated_at)
+        const lastBidTime = lastBids && lastBids.length > 0 ? lastBids[0].created_at : null;
+        const lastActivityTime = lastBidTime || auction.updated_at;
+        
+        // Converter para fuso brasileiro
+        const lastActivityBrazil = new Date(lastActivityTime).toLocaleString("en-US", {timeZone: brazilTimezone});
+        const lastActivityDate = new Date(lastActivityBrazil);
+        
+        // Calcular segundos desde última atividade
+        const secondsSinceActivity = Math.floor((brazilDate.getTime() - lastActivityDate.getTime()) / 1000);
+        
+        // Calcular novo time_left baseado na inatividade
+        const newTimeLeft = Math.max(0, 15 - secondsSinceActivity);
+        
+        console.log(`⏱️ [TIMER] Leilão ${auction.id}: ${secondsSinceActivity}s inatividade, time_left: ${auction.time_left} → ${newTimeLeft}`);
+        
+        if (newTimeLeft <= 0) {
+          // FINALIZAR LEILÃO
+          const { data: winnerBids, error: winnerError } = await supabase
+            .from('bids')
+            .select('user_id, profiles!inner(full_name)')
+            .eq('auction_id', auction.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          let winnerId = null;
+          let winnerName = 'Nenhum ganhador';
+          
+          if (!winnerError && winnerBids && winnerBids.length > 0) {
+            const winner = winnerBids[0];
+            winnerId = winner.user_id;
+            winnerName = winner.profiles?.full_name || `Usuário ${winner.user_id.substring(0, 8)}`;
+          }
+
+          const { error: finalizeError } = await supabase
+            .from('auctions')
+            .update({
+              status: 'finished',
+              time_left: 0,
+              winner_id: winnerId,
+              winner_name: winnerName,
+              finished_at: currentTime,
+              updated_at: currentTime
+            })
+            .eq('id', auction.id);
+
+          if (finalizeError) {
+            console.error(`Erro ao finalizar leilão ${auction.id}:`, finalizeError);
+          } else {
+            finalizedCount++;
+            console.log(`🏁 [FINALIZED] Leilão ${auction.id} ("${auction.title}") finalizado! Ganhador: ${winnerName}`);
+          }
+        } else if (auction.time_left !== newTimeLeft) {
+          // DECREMENTAR TIMER
+          const { error: decrementError } = await supabase
+            .from('auctions')
+            .update({
+              time_left: newTimeLeft,
+              updated_at: currentTime
+            })
+            .eq('id', auction.id);
+
+          if (decrementError) {
+            console.error(`Erro ao decrementar timer do leilão ${auction.id}:`, decrementError);
+          } else {
+            decrementedCount++;
+            console.log(`⏰ [DECREMENTED] Leilão ${auction.id}: timer ${auction.time_left}s → ${newTimeLeft}s`);
+          }
+        }
+      }
+      
+      if (decrementedCount > 0 || finalizedCount > 0) {
+        console.log(`⏰ [TIMERS] ${decrementedCount} timers decrementados, ${finalizedCount} leilões finalizados`);
+      }
+    }
 
     // 3. Proteção: verificar se há leilões que não deveriam estar ativos
     // Buscar todos os leilões ativos e fazer verificação manual
