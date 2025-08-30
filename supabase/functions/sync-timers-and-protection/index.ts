@@ -35,13 +35,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // CORREÇÃO DEFINITIVA TIMEZONE - Usar UTC puro com offset Brasil (-3h)
+    // TIMEZONE SÃO PAULO DEFINITIVO - Correção completa do timezone
     const now = new Date();
-    const brazilOffsetMs = -3 * 60 * 60 * 1000; // UTC-3 em millisegundos
-    const brazilTime = new Date(now.getTime() + brazilOffsetMs);
-    const currentTime = now.toISOString(); // Usar UTC para database
+    const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    const currentTimeISO = brazilTime.toISOString();
     
-    console.log(`🔍 [SYNC] Iniciando sincronização às ${brazilTime.toISOString().replace('Z', '-03:00')} (BR) | UTC: ${currentTime}`);
+    console.log(`🔍 [SYNC] Iniciando sincronização às ${currentTimeISO} (Brasil/São_Paulo)`);
 
     // 1. Ativar leilões que estão "waiting" e já passaram do starts_at
     // Buscar todos os leilões waiting e fazer comparação manual com fuso brasileiro
@@ -55,16 +54,18 @@ Deno.serve(async (req) => {
       throw waitingError;
     }
 
-    // Filtrar leilões que realmente devem ser ativados - TIMEZONE CORRIGIDO
+    // Filtrar leilões que devem ser ativados - timezone Brasil correto
     const auctionsToActivate = (waitingAuctions || []).filter(auction => {
       if (!auction.starts_at) return false;
       
-      // starts_at vem em UTC do database, converter para comparação
-      const startsAtDate = new Date(auction.starts_at);
-      const shouldActivate = startsAtDate <= now;
+      // Converter starts_at para timezone Brasil para comparação
+      const startsAt = new Date(auction.starts_at);
+      const startsAtBrazil = new Date(startsAt.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      
+      const shouldActivate = startsAtBrazil <= brazilTime;
       
       if (shouldActivate) {
-        console.log(`🎯 [CHECK] Leilão ${auction.id} deve ser ativado - starts_at: ${startsAtDate.toISOString()}, now: ${now.toISOString()}`);
+        console.log(`🎯 [ACTIVATE] Leilão "${auction.title}" deve ser ativado - starts_at (BR): ${startsAtBrazil.toISOString()}, now (BR): ${brazilTime.toISOString()}`);
       }
       
       return shouldActivate;
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
         .update({
           status: 'active',
           time_left: 15,
-          updated_at: currentTime
+          updated_at: currentTimeISO
         })
         .eq('id', auction.id);
 
@@ -117,15 +118,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Determinar última atividade (último lance ou updated_at) - TIMEZONE CORRIGIDO
+        // Determinar última atividade (último lance ou updated_at) - timezone Brasil
         const lastBidTime = lastBids && lastBids.length > 0 ? lastBids[0].created_at : null;
         const lastActivityTime = lastBidTime || auction.updated_at;
         
-        // Usar UTC diretamente (database já retorna em UTC)
-        const lastActivityDate = new Date(lastActivityTime);
+        // Converter para timezone Brasil
+        const lastActivity = new Date(lastActivityTime);
+        const lastActivityBrazil = new Date(lastActivity.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
         
         // Calcular segundos desde última atividade
-        const secondsSinceActivity = Math.floor((now.getTime() - lastActivityDate.getTime()) / 1000);
+        const secondsSinceActivity = Math.floor((brazilTime.getTime() - lastActivityBrazil.getTime()) / 1000);
         
         // Calcular novo time_left baseado na inatividade
         const newTimeLeft = Math.max(0, 15 - secondsSinceActivity);
@@ -157,8 +159,8 @@ Deno.serve(async (req) => {
               time_left: 0,
               winner_id: winnerId,
               winner_name: winnerName,
-              finished_at: currentTime,
-              updated_at: currentTime
+              finished_at: currentTimeISO,
+              updated_at: currentTimeISO
             })
             .eq('id', auction.id);
 
@@ -174,7 +176,7 @@ Deno.serve(async (req) => {
             .from('auctions')
             .update({
               time_left: newTimeLeft,
-              updated_at: currentTime
+              updated_at: currentTimeISO
             })
             .eq('id', auction.id);
 
@@ -203,12 +205,14 @@ Deno.serve(async (req) => {
     const prematureAuctions = (allActiveAuctions || []).filter(auction => {
       if (!auction.starts_at) return false;
       
-      // starts_at vem em UTC do database - TIMEZONE CORRIGIDO
-      const startsAtDate = new Date(auction.starts_at);
-      const isPremature = startsAtDate > now;
+      // Converter starts_at para timezone Brasil
+      const startsAt = new Date(auction.starts_at);
+      const startsAtBrazil = new Date(startsAt.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      
+      const isPremature = startsAtBrazil > brazilTime;
       
       if (isPremature) {
-        console.log(`⚠️ [CHECK] Leilão ${auction.id} é prematuro - starts_at: ${startsAtDate.toISOString()}, now: ${now.toISOString()}`);
+        console.log(`⚠️ [PREMATURE] Leilão "${auction.title}" é prematuro - starts_at (BR): ${startsAtBrazil.toISOString()}, now (BR): ${brazilTime.toISOString()}`);
       }
       
       return isPremature;
@@ -227,7 +231,7 @@ Deno.serve(async (req) => {
             status: 'waiting',
             ends_at: null,
             time_left: 15,
-            updated_at: currentTime
+            updated_at: currentTimeISO
           })
           .eq('id', auction.id);
 
@@ -245,7 +249,7 @@ Deno.serve(async (req) => {
     }
 
     const summary = {
-      timestamp: currentTime,
+      timestamp: currentTimeISO,
       waiting_auctions: waitingAuctions?.length || 0,
       activated_count: activatedCount,
       premature_auctions: prematureAuctions?.length || 0,
