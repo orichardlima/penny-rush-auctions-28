@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.auction-webhook]
 verify_jwt = false
+
+[functions.mercado-pago-payment]
+verify_jwt = false
+
+[functions.mercado-pago-webhook]
+verify_jwt = false

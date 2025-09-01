@@ -7,6 +7,12 @@ interface PurchaseResult {
   success: boolean;
   error?: string;
   purchaseId?: string;
+  paymentData?: {
+    paymentId: string;
+    qrCode?: string;
+    qrCodeBase64?: string;
+    pixCopyPaste?: string;
+  };
 }
 
 export const usePurchaseProcessor = () => {
@@ -41,49 +47,35 @@ export const usePurchaseProcessor = () => {
         throw new Error('Dados do pacote não conferem. Recarregue a página e tente novamente.');
       }
 
-      // 2. Criar registro de compra
-      const { data: purchaseData, error: purchaseError } = await supabase
-        .from('bid_purchases')
-        .insert([
-          {
-            user_id: profile.user_id,
-            package_id: packageId,
-            bids_purchased: bidsCount,
-            amount_paid: price,
-            payment_status: 'completed' // Por enquanto, marcar como concluído diretamente
-          }
-        ])
-        .select()
-        .single();
+      // 2. Criar pagamento via Mercado Pago
+      const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('mercado-pago-payment', {
+        body: {
+          packageId,
+          userId: profile.user_id,
+          userEmail: profile.email,
+          userName: profile.full_name
+        }
+      });
 
-      if (purchaseError) {
-        throw new Error('Erro ao registrar compra');
+      if (paymentError || !paymentResponse) {
+        throw new Error(paymentResponse?.error || 'Erro ao gerar pagamento PIX');
       }
 
-      // 3. Atualizar saldo de lances do usuário
-      const newBalance = (profile.bids_balance || 0) + bidsCount;
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ bids_balance: newBalance })
-        .eq('user_id', profile.user_id);
-
-      if (updateError) {
-        throw new Error('Erro ao atualizar saldo de lances');
-      }
-
-      // 4. Recarregar perfil do banco para sincronizar saldo
-      await refreshProfile();
-
-      // 5. Mostrar notificação de sucesso
       toast({
-        title: "Compra realizada com sucesso! 🎉",
-        description: `${bidsCount} lances foram adicionados à sua conta.`,
+        title: "PIX gerado com sucesso! 💳",
+        description: "Escaneie o QR Code ou copie o código PIX para pagar.",
         variant: "default"
       });
 
       return { 
         success: true, 
-        purchaseId: purchaseData.id 
+        purchaseId: paymentResponse.purchaseId,
+        paymentData: {
+          paymentId: paymentResponse.paymentId,
+          qrCode: paymentResponse.qrCode,
+          qrCodeBase64: paymentResponse.qrCodeBase64,
+          pixCopyPaste: paymentResponse.pixCopyPaste
+        }
       };
 
     } catch (error) {
