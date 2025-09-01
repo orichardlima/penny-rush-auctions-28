@@ -77,9 +77,16 @@ serve(async (req) => {
       let paymentId = `payment_${Date.now()}`;
       let qrCode = null;
 
-      // Se for PIX, gerar um código QR simulado
+      // Se for PIX, gerar um código QR seguindo padrão EMV
       if (paymentData.payment_method_id === 'pix') {
-        qrCode = `00020126330014BR.GOV.BCB.PIX0111${user.id}520400005303986540${price}${user.email ? `5802${user.email.substring(0, 2)}` : ''}5925Leilao Centavos6009SAO PAULO62${`${externalReference}`.length.toString().padStart(2, '0')}${externalReference}6304`;
+        qrCode = generatePixQRCode({
+          pixKey: user.email || user.id,
+          merchantName: 'Leilao Centavos',
+          merchantCity: 'SAO PAULO',
+          amount: price,
+          description: `${packageName} - ${bidsCount} Lances`,
+          reference: externalReference
+        });
         paymentStatus = 'pending'; // PIX geralmente fica pendente até confirmação
       }
 
@@ -320,3 +327,94 @@ serve(async (req) => {
     });
   }
 });
+
+// Função para gerar código PIX seguindo padrão EMV QR Code
+function generatePixQRCode(params: {
+  pixKey: string;
+  merchantName: string;
+  merchantCity: string;
+  amount: number;
+  description?: string;
+  reference?: string;
+}): string {
+  const { pixKey, merchantName, merchantCity, amount, description, reference } = params;
+  
+  // Função auxiliar para formatar campos EMV
+  function formatEMVField(id: string, value: string): string {
+    const length = value.length.toString().padStart(2, '0');
+    return `${id}${length}${value}`;
+  }
+
+  // Campos obrigatórios do QR Code PIX
+  let qrCodeData = '';
+  
+  // 00 - Payload Format Indicator
+  qrCodeData += formatEMVField('00', '01');
+  
+  // 01 - Point of Initiation Method (12 = dinâmico, 11 = estático)
+  qrCodeData += formatEMVField('01', '12');
+  
+  // 26 - Merchant Account Information (PIX)
+  let pixData = '';
+  pixData += formatEMVField('00', 'BR.GOV.BCB.PIX'); // GUI
+  pixData += formatEMVField('01', pixKey); // Chave PIX
+  if (description) {
+    pixData += formatEMVField('02', description); // Description
+  }
+  qrCodeData += formatEMVField('26', pixData);
+  
+  // 52 - Merchant Category Code
+  qrCodeData += formatEMVField('52', '0000');
+  
+  // 53 - Transaction Currency (986 = Real brasileiro)
+  qrCodeData += formatEMVField('53', '986');
+  
+  // 54 - Transaction Amount
+  qrCodeData += formatEMVField('54', amount.toFixed(2));
+  
+  // 58 - Country Code
+  qrCodeData += formatEMVField('58', 'BR');
+  
+  // 59 - Merchant Name
+  qrCodeData += formatEMVField('59', merchantName.substring(0, 25));
+  
+  // 60 - Merchant City
+  qrCodeData += formatEMVField('60', merchantCity.substring(0, 15));
+  
+  // 62 - Additional Data Field Template
+  if (reference) {
+    let additionalData = '';
+    additionalData += formatEMVField('05', reference.substring(0, 25)); // Reference Label
+    qrCodeData += formatEMVField('62', additionalData);
+  }
+  
+  // 63 - CRC16 (será calculado e adicionado)
+  qrCodeData += '6304';
+  
+  // Calcular CRC16
+  const crc = calculateCRC16(qrCodeData);
+  qrCodeData = qrCodeData.substring(0, qrCodeData.length - 4) + '63' + '04' + crc;
+  
+  return qrCodeData;
+}
+
+// Função para calcular CRC16 seguindo padrão ISO/IEC 13239
+function calculateCRC16(data: string): string {
+  const polynomial = 0x1021;
+  let crc = 0xFFFF;
+  
+  for (let i = 0; i < data.length; i++) {
+    crc ^= (data.charCodeAt(i) << 8);
+    
+    for (let j = 0; j < 8; j++) {
+      if (crc & 0x8000) {
+        crc = (crc << 1) ^ polynomial;
+      } else {
+        crc = crc << 1;
+      }
+      crc &= 0xFFFF;
+    }
+  }
+  
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}

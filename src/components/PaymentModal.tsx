@@ -6,9 +6,10 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CreditCard, Smartphone, Building, X, QrCode } from 'lucide-react';
+import { CreditCard, Smartphone, Building, X, QrCode, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import QRCode from 'qrcode';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const PaymentModal = ({ isOpen, onClose, packageData, onPaymentSuccess }:
     docNumber: ''
   });
   const [pixQrCode, setPixQrCode] = useState('');
+  const [pixQrCodeImage, setPixQrCodeImage] = useState('');
   const [showPixCode, setShowPixCode] = useState(false);
   const { toast } = useToast();
 
@@ -107,6 +109,22 @@ export const PaymentModal = ({ isOpen, onClose, packageData, onPaymentSuccess }:
 
       if (selectedMethod === 'pix' && data.qr_code) {
         setPixQrCode(data.qr_code);
+        
+        // Gerar QR Code visual
+        try {
+          const qrCodeImage = await QRCode.toDataURL(data.qr_code, {
+            width: 256,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF',
+            },
+          });
+          setPixQrCodeImage(qrCodeImage);
+        } catch (error) {
+          console.error('Erro ao gerar QR Code visual:', error);
+        }
+        
         setShowPixCode(true);
         toast({
           title: "PIX gerado!",
@@ -338,21 +356,47 @@ export const PaymentModal = ({ isOpen, onClose, packageData, onPaymentSuccess }:
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-4">
-                <div className="p-4 bg-white rounded-lg">
-                  <div className="text-xs font-mono break-all p-2 bg-gray-50 rounded">
-                    {pixQrCode}
+                {/* QR Code Visual */}
+                {pixQrCodeImage && (
+                  <div className="flex justify-center">
+                    <img 
+                      src={pixQrCodeImage} 
+                      alt="QR Code PIX" 
+                      className="w-64 h-64 border border-border rounded-lg shadow-sm"
+                    />
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Código PIX Copia e Cola:</p>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="text-xs font-mono break-all text-muted-foreground">
+                      {pixQrCode}
+                    </div>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Copie o código PIX acima ou escaneie o QR code para pagar
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => navigator.clipboard.writeText(pixQrCode)}
-                  className="w-full"
-                >
-                  Copiar Código PIX
-                </Button>
+                
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pixQrCode);
+                      toast({
+                        title: "Código copiado!",
+                        description: "Cole no seu app de pagamento",
+                        variant: "default"
+                      });
+                    }}
+                    className="w-full"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copiar Código PIX
+                  </Button>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Escaneie o QR Code com seu app de pagamento ou copie o código PIX acima
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
