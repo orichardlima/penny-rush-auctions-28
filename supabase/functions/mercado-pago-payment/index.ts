@@ -26,9 +26,130 @@ serve(async (req) => {
   );
 
   try {
-    const { action, ...data } = await req.json();
+    const url = new URL(req.url);
+    let data: any = {};
+    
+    // Handle webhook via query params (Mercado Pago can send this way)
+    if (url.searchParams.get('action') === 'webhook') {
+      const id = url.searchParams.get('id') || url.searchParams.get('data.id');
+      const topic = url.searchParams.get('topic') || url.searchParams.get('type');
+      
+      if (!id || !topic) {
+        console.log('🚨 Webhook inválido - missing id or topic:', { id, topic });
+        return new Response("Missing id or topic", { headers: corsHeaders, status: 400 });
+      }
+      
+      data = { action: 'webhook', id, topic };
+    } else {
+      const requestData = await req.json();
+      data = requestData;
+    }
 
-    // Retrieve authenticated user
+    const { action } = data;
+
+    const mercadoPagoAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
+    if (!mercadoPagoAccessToken) {
+      throw new Error("Mercado Pago access token não configurado");
+    }
+
+    // Webhook não precisa de autenticação (é chamado pelo Mercado Pago)
+    if (action === "webhook") {
+      // Processar webhook do Mercado Pago
+      const { id, topic } = data;
+
+      console.log(`📨 Webhook recebido - Topic: ${topic}, ID: ${id}`);
+
+      if (topic === "payment") {
+        // Buscar informações do pagamento
+        const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
+          headers: {
+            "Authorization": `Bearer ${mercadoPagoAccessToken}`
+          }
+        });
+
+        if (!paymentResponse.ok) {
+          console.error(`❌ Erro ao buscar pagamento ${id}:`, await paymentResponse.text());
+          throw new Error("Erro ao buscar informações do pagamento");
+        }
+
+        const paymentData = await paymentResponse.json();
+        const externalReference = paymentData.external_reference;
+
+        console.log(`💳 Dados do pagamento:`, { 
+          id: paymentData.id, 
+          status: paymentData.status, 
+          external_reference: externalReference 
+        });
+
+        if (!externalReference) {
+          console.error("❌ Referência externa não encontrada no pagamento");
+          throw new Error("Referência externa não encontrada");
+        }
+
+        // Buscar a compra no banco
+        const { data: purchaseData, error: purchaseError } = await supabaseService
+          .from('bid_purchases')
+          .select('*')
+          .eq('external_reference', externalReference)
+          .single();
+
+        if (purchaseError || !purchaseData) {
+          console.error("❌ Compra não encontrada:", externalReference, purchaseError);
+          throw new Error("Compra não encontrada");
+        }
+
+        // Atualizar status do pagamento
+        let newStatus = 'pending';
+        if (paymentData.status === 'approved') {
+          newStatus = 'completed';
+        } else if (paymentData.status === 'rejected' || paymentData.status === 'cancelled') {
+          newStatus = 'failed';
+        }
+
+        console.log(`🔄 Atualizando status de ${purchaseData.payment_status} para ${newStatus}`);
+
+        const { error: updateError } = await supabaseService
+          .from('bid_purchases')
+          .update({ payment_status: newStatus })
+          .eq('id', purchaseData.id);
+
+        if (updateError) {
+          console.error("❌ Erro ao atualizar compra:", updateError);
+          throw new Error("Erro ao atualizar status da compra");
+        }
+
+        // Se pagamento aprovado, atualizar saldo do usuário
+        if (newStatus === 'completed') {
+          const { data: profileData } = await supabaseService
+            .from('profiles')
+            .select('bids_balance')
+            .eq('user_id', purchaseData.user_id)
+            .single();
+
+          const currentBalance = profileData?.bids_balance || 0;
+          const newBalance = currentBalance + purchaseData.bids_purchased;
+
+          const { error: balanceError } = await supabaseService
+            .from('profiles')
+            .update({ bids_balance: newBalance })
+            .eq('user_id', purchaseData.user_id);
+
+          if (balanceError) {
+            console.error("❌ Erro ao atualizar saldo:", balanceError);
+            throw new Error("Erro ao atualizar saldo");
+          }
+
+          console.log(`✅ Saldo atualizado: ${currentBalance} → ${newBalance} (usuário ${purchaseData.user_id})`);
+        }
+      }
+
+      return new Response("OK", {
+        headers: corsHeaders,
+        status: 200,
+      });
+    }
+
+    // Para outras ações, verificar autenticação
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Usuário não autenticado");
@@ -40,11 +161,6 @@ serve(async (req) => {
     
     if (!user) {
       throw new Error("Usuário não autenticado");
-    }
-
-    const mercadoPagoAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
-    if (!mercadoPagoAccessToken) {
-      throw new Error("Mercado Pago access token não configurado");
     }
 
     if (action === "process_payment") {
@@ -67,80 +183,92 @@ serve(async (req) => {
 
       const externalReference = `${user.id}_${packageId}_${Date.now()}`;
 
-      // Para este exemplo, vamos simular um pagamento aprovado
-      // Em produção, você integraria com a API real do Mercado Pago
-      
-      // Simular delay de processamento
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`🔄 Processando pagamento PIX: ${externalReference}`);
 
-      let paymentStatus = 'approved';
-      let paymentId = `payment_${Date.now()}`;
-      let qrCode = null;
-
-      // Se for PIX, gerar um código QR seguindo padrão EMV
+      // Criar pagamento PIX real na API do Mercado Pago
       if (paymentData.payment_method_id === 'pix') {
-        qrCode = generatePixQRCode({
-          pixKey: user.email || user.id,
-          merchantName: 'Leilao Centavos',
-          merchantCity: 'SAO PAULO',
-          amount: price,
+        const paymentPayload = {
+          transaction_amount: price,
+          payment_method_id: 'pix',
+          payer: {
+            email: user.email || `user${user.id}@leilaocentavos.com`,
+            first_name: 'Cliente',
+            last_name: 'LeilãoCentavos',
+            identification: {
+              type: 'CPF',
+              number: '12345678901' // Em produção, solicitar CPF real do usuário
+            }
+          },
           description: `${packageName} - ${bidsCount} Lances`,
-          reference: externalReference
+          external_reference: externalReference,
+          notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mercado-pago-payment?action=webhook`,
+          date_of_expiration: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutos
+        };
+
+        console.log(`📡 Enviando requisição para Mercado Pago:`, paymentPayload);
+
+        const response = await fetch("https://api.mercadopago.com/v1/payments", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${mercadoPagoAccessToken}`,
+            "Content-Type": "application/json",
+            "X-Idempotency-Key": externalReference
+          },
+          body: JSON.stringify(paymentPayload)
         });
-        paymentStatus = 'pending'; // PIX geralmente fica pendente até confirmação
+
+        const responseText = await response.text();
+        console.log(`📨 Resposta Mercado Pago (${response.status}):`, responseText);
+
+        if (!response.ok) {
+          console.error("❌ Erro na API do Mercado Pago:", responseText);
+          throw new Error(`Erro na API do Mercado Pago: ${response.status} - ${responseText}`);
+        }
+
+        const paymentResponse = JSON.parse(responseText);
+        console.log(`✅ Pagamento criado:`, paymentResponse);
+
+        // Criar registro de compra
+        const { error: purchaseError } = await supabaseService
+          .from('bid_purchases')
+          .insert([
+            {
+              user_id: user.id,
+              package_id: packageId,
+              bids_purchased: bidsCount,
+              amount_paid: price,
+              payment_status: 'pending',
+              external_reference: externalReference,
+              payment_id: paymentResponse.id?.toString()
+            }
+          ]);
+
+        if (purchaseError) {
+          console.error("❌ Erro ao criar registro de compra:", purchaseError);
+          throw new Error('Erro ao registrar compra');
+        }
+
+        // Retornar dados do pagamento PIX real
+        const result = {
+          status: paymentResponse.status,
+          payment_id: paymentResponse.id,
+          qr_code: paymentResponse.point_of_interaction?.transaction_data?.qr_code,
+          qr_code_base64: paymentResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+          ticket_url: paymentResponse.point_of_interaction?.transaction_data?.ticket_url,
+          external_reference: externalReference,
+          date_of_expiration: paymentResponse.date_of_expiration
+        };
+
+        console.log(`📋 Resultado PIX:`, result);
+
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
       }
 
-      // Criar registro de compra
-      const { error: purchaseError } = await supabaseService
-        .from('bid_purchases')
-        .insert([
-          {
-            user_id: user.id,
-            package_id: packageId,
-            bids_purchased: bidsCount,
-            amount_paid: price,
-            payment_status: paymentStatus === 'approved' ? 'completed' : paymentStatus,
-            external_reference: externalReference
-          }
-        ]);
-
-      if (purchaseError) {
-        console.error("Error creating purchase record:", purchaseError);
-        throw new Error('Erro ao registrar compra');
-      }
-
-      // Se pagamento aprovado, atualizar saldo do usuário
-      if (paymentStatus === 'approved') {
-        const { data: profileData } = await supabaseService
-          .from('profiles')
-          .select('bids_balance')
-          .eq('user_id', user.id)
-          .single();
-
-        const currentBalance = profileData?.bids_balance || 0;
-        const newBalance = currentBalance + bidsCount;
-
-        await supabaseService
-          .from('profiles')
-          .update({ bids_balance: newBalance })
-          .eq('user_id', user.id);
-      }
-
-      // Retornar resultado
-      const result: any = {
-        status: paymentStatus,
-        payment_id: paymentId
-      };
-
-      // Para PIX, retornar QR code
-      if (paymentData.payment_method_id === 'pix' && qrCode) {
-        result.qr_code = qrCode;
-      }
-
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      // Para outros métodos de pagamento (cartão, etc.)
+      throw new Error("Método de pagamento não suportado");
     }
 
     if (action === "create_preference") {
@@ -226,88 +354,6 @@ serve(async (req) => {
         sandbox_init_point: preferenceData.sandbox_init_point
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    if (action === "webhook") {
-      // Processar webhook do Mercado Pago
-      const { id, topic } = data;
-
-      if (topic === "payment") {
-        // Buscar informações do pagamento
-        const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
-          headers: {
-            "Authorization": `Bearer ${mercadoPagoAccessToken}`
-          }
-        });
-
-        if (!paymentResponse.ok) {
-          throw new Error("Erro ao buscar informações do pagamento");
-        }
-
-        const paymentData = await paymentResponse.json();
-        const externalReference = paymentData.external_reference;
-
-        if (!externalReference) {
-          throw new Error("Referência externa não encontrada");
-        }
-
-        // Buscar a compra no banco
-        const { data: purchaseData, error: purchaseError } = await supabaseService
-          .from('bid_purchases')
-          .select('*')
-          .eq('external_reference', externalReference)
-          .single();
-
-        if (purchaseError || !purchaseData) {
-          console.error("Purchase not found:", externalReference);
-          throw new Error("Compra não encontrada");
-        }
-
-        // Atualizar status do pagamento
-        let newStatus = 'pending';
-        if (paymentData.status === 'approved') {
-          newStatus = 'completed';
-        } else if (paymentData.status === 'rejected' || paymentData.status === 'cancelled') {
-          newStatus = 'failed';
-        }
-
-        const { error: updateError } = await supabaseService
-          .from('bid_purchases')
-          .update({ payment_status: newStatus })
-          .eq('id', purchaseData.id);
-
-        if (updateError) {
-          console.error("Error updating purchase:", updateError);
-          throw new Error("Erro ao atualizar status da compra");
-        }
-
-        // Se pagamento aprovado, atualizar saldo do usuário
-        if (newStatus === 'completed') {
-          const { data: profileData } = await supabaseService
-            .from('profiles')
-            .select('bids_balance')
-            .eq('user_id', purchaseData.user_id)
-            .single();
-
-          const currentBalance = profileData?.bids_balance || 0;
-          const newBalance = currentBalance + purchaseData.bids_purchased;
-
-          const { error: balanceError } = await supabaseService
-            .from('profiles')
-            .update({ bids_balance: newBalance })
-            .eq('user_id', purchaseData.user_id);
-
-          if (balanceError) {
-            console.error("Error updating balance:", balanceError);
-            throw new Error("Erro ao atualizar saldo");
-          }
-        }
-      }
-
-      return new Response("OK", {
-        headers: corsHeaders,
         status: 200,
       });
     }
