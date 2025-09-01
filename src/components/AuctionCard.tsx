@@ -164,9 +164,9 @@ export const AuctionCard = ({
     const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;
     return Math.round(discount);
   };
-  return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group">
+  return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
       <div className="relative">
-        <img src={image} alt={title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
+        <img src={image} alt={title} className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <Badge variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} className="shadow-md">
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
@@ -201,12 +201,12 @@ export const AuctionCard = ({
           </div>}
       </div>
       
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         {/* Status da conexão realtime - apenas para leilões ativos */}
-        {displayStatus === 'active' && <div className="mb-4 p-2 bg-muted/50 rounded-lg">
+        {displayStatus === 'active' && <div className="mb-3 sm:mb-4 p-2 bg-muted/50 rounded-lg">
             <RealtimeStatus isConnected={isConnected} lastSync={lastSync} onForceSync={forceSync} />
           </div>}
-        <h3 className="font-semibold text-lg mb-3 text-foreground">{title}</h3>
+        <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">{title}</h3>
         
         {displayStatus === 'waiting' && starts_at && <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
@@ -214,29 +214,29 @@ export const AuctionCard = ({
             </p>
           </div>}
         
-        <div className="space-y-3 mb-4">
+        <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Preço atual:</span>
-            <span className="text-2xl font-bold text-primary">{formatPrice(displayCurrentPrice)}</span>
+            <span className="text-muted-foreground text-sm sm:text-base">Preço atual:</span>
+            <span className="text-xl sm:text-2xl font-bold text-primary">{formatPrice(displayCurrentPrice)}</span>
           </div>
 
-          <div className="flex justify-between items-center text-sm">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-lg font-semibold line-through text-muted-foreground">{formatPrice(originalPrice)}</span>
+            <span className="text-sm sm:text-lg font-semibold line-through text-muted-foreground">{formatPrice(originalPrice)}</span>
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Economia:</span>
-            <span className="text-lg font-bold text-success">{calculateDiscount()}% OFF</span>
+            <span className="text-muted-foreground text-sm sm:text-base">Economia:</span>
+            <span className="text-base sm:text-lg font-bold text-success">{calculateDiscount()}% OFF</span>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
             <div className="flex items-center text-muted-foreground">
-              <Gavel className="w-4 h-4 mr-1" />
+              <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               {displayTotalBids} lances
             </div>
             <div className="flex items-center text-muted-foreground">
-              <Users className="w-4 h-4 mr-1" />
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               {participants} pessoas
             </div>
           </div>

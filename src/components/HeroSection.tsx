@@ -5,59 +5,59 @@ import { Link } from "react-router-dom";
 
 export const HeroSection = () => {
   return (
-    <section className="py-20 bg-gradient-hero text-center relative overflow-hidden">
+    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-hero text-center relative overflow-hidden min-h-[80vh] flex items-center">
       {/* Background decorative elements */}
       <div className="absolute inset-0 bg-black/10"></div>
-      <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
-      <div className="absolute bottom-20 right-10 w-32 h-32 bg-accent/20 rounded-full blur-xl"></div>
+      <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
+      <div className="absolute bottom-10 sm:bottom-20 right-5 sm:right-10 w-24 h-24 sm:w-32 sm:h-32 bg-accent/20 rounded-full blur-xl"></div>
       
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 relative z-10 w-full">
         <div className="max-w-4xl mx-auto">
-          <Badge className="mb-6 bg-background/20 text-foreground border-white/20">
+          <Badge className="mb-4 sm:mb-6 bg-background/20 text-foreground border-white/20 text-xs sm:text-sm">
             🔥 Leilões ao vivo agora!
           </Badge>
           
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
+          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-bold mb-4 sm:mb-6 text-white leading-tight">
             Ganhe Produtos Incríveis por
-            <span className="block text-accent-glow">Centavos!</span>
+            <span className="block text-accent-glow mt-1 sm:mt-2">Centavos!</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0">
             Participe dos leilões mais emocionantes do Brasil. 
             Cada lance custa apenas R$ 1 e pode te dar produtos de até R$ 10.000!
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Link to="/leiloes">
-              <Button size="xl" variant="accent" className="shadow-glow w-full sm:w-auto">
-                <TrendingUp className="w-5 h-5 mr-2" />
+          <div className="flex flex-col gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4 sm:px-0">
+            <Link to="/leiloes" className="w-full sm:w-auto">
+              <Button size="xl" variant="accent" className="shadow-glow w-full text-base sm:text-lg">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Ver Leilões Ativos
               </Button>
             </Link>
-            <Link to="/como-funciona">
-              <Button size="xl" variant="outline-hero" className="w-full sm:w-auto">
+            <Link to="/como-funciona" className="w-full sm:w-auto">
+              <Button size="xl" variant="outline-hero" className="w-full text-base sm:text-lg">
                 Como Funciona
               </Button>
             </Link>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-              <div className="text-2xl font-bold text-white mb-1">500K+</div>
-              <div className="text-white/70 text-sm">Usuários Ativos</div>
+          {/* Stats - Mobile optimized */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mt-8 sm:mt-16 px-2 sm:px-0">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-6">
+              <div className="text-lg sm:text-2xl font-bold text-white mb-1">500K+</div>
+              <div className="text-white/70 text-xs sm:text-sm">Usuários Ativos</div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-              <div className="text-2xl font-bold text-white mb-1">R$ 2Mi+</div>
-              <div className="text-white/70 text-sm">Em Prêmios</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-6">
+              <div className="text-lg sm:text-2xl font-bold text-white mb-1">R$ 2Mi+</div>
+              <div className="text-white/70 text-xs sm:text-sm">Em Prêmios</div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-              <div className="text-2xl font-bold text-white mb-1">15s</div>
-              <div className="text-white/70 text-sm">Por Leilão</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-6">
+              <div className="text-lg sm:text-2xl font-bold text-white mb-1">15s</div>
+              <div className="text-white/70 text-xs sm:text-sm">Por Leilão</div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-              <div className="text-2xl font-bold text-white mb-1">98%</div>
-              <div className="text-white/70 text-sm">Satisfação</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-6">
+              <div className="text-lg sm:text-2xl font-bold text-white mb-1">98%</div>
+              <div className="text-white/70 text-xs sm:text-sm">Satisfação</div>
             </div>
           </div>
         </div>

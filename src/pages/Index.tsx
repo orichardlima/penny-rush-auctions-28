@@ -329,18 +329,18 @@ const Index = () => {
         <HeroSection />
         
         {/* Active Auctions Section */}
-        <section className="py-16 bg-background" id="leiloes">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
+        <section className="py-8 sm:py-12 lg:py-16 bg-background" id="leiloes">
+          <div className="container mx-auto px-3 sm:px-4 lg:px-6">
+            <div className="text-center mb-8 sm:mb-12">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 bg-gradient-primary bg-clip-text text-transparent">
                 Leilões Ativos Agora
               </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4 sm:px-0">
                 Participe dos leilões mais quentes do momento! Cada segundo conta.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               {loading ? (
                 <div className="col-span-full text-center py-12">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
