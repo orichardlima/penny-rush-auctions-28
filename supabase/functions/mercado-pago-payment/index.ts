@@ -197,17 +197,32 @@ serve(async (req) => {
       const { packageId, bidsCount, price, packageName, paymentData } = data;
 
       // Verificar se o pacote existe
+      console.log(`🔍 [MERCADO-PAGO] Verificando pacote: ${packageId}`);
       const { data: packageData, error: packageError } = await supabaseService
         .from('bid_packages')
         .select('*')
         .eq('id', packageId)
-        .single();
+        .maybeSingle();
 
-      if (packageError || !packageData) {
+      console.log(`📦 [MERCADO-PAGO] Dados do pacote:`, packageData);
+      console.log(`❓ [MERCADO-PAGO] Erro do pacote:`, packageError);
+
+      if (packageError) {
+        console.error(`❌ [MERCADO-PAGO] Erro ao buscar pacote:`, packageError);
+        throw new Error('Erro ao buscar pacote: ' + packageError.message);
+      }
+
+      if (!packageData) {
+        console.error(`❌ [MERCADO-PAGO] Pacote não encontrado: ${packageId}`);
         throw new Error('Pacote não encontrado');
       }
 
+      console.log(`✅ [MERCADO-PAGO] Pacote encontrado: ${packageData.name}`);
+      console.log(`💰 [MERCADO-PAGO] Validando preços - Recebido: ${price}, DB: ${packageData.price}`);
+      console.log(`🎯 [MERCADO-PAGO] Validando lances - Recebido: ${bidsCount}, DB: ${packageData.bids_count}`);
+
       if (packageData.price !== price || packageData.bids_count !== bidsCount) {
+        console.error(`❌ [MERCADO-PAGO] Dados não conferem - Price: ${packageData.price} vs ${price}, Bids: ${packageData.bids_count} vs ${bidsCount}`);
         throw new Error('Dados do pacote não conferem');
       }
 
@@ -391,13 +406,23 @@ serve(async (req) => {
     throw new Error("Ação não reconhecida");
 
   } catch (error) {
-    console.error('Error processing Mercado Pago request:', error);
+    console.error('❌ [MERCADO-PAGO] Erro no processamento:', error);
     
     const errorMessage = error instanceof Error 
       ? error.message 
       : 'Erro interno do servidor';
+    
+    console.error('❌ [MERCADO-PAGO] Erro detalhado:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : 'N/A',
+      type: typeof error,
+      error: error
+    });
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: error instanceof Error ? error.stack : String(error)
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
