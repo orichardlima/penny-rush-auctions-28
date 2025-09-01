@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,6 +37,68 @@ export const PixPaymentModal = ({
   const [checking, setChecking] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'approved' | 'failed'>('pending');
   const { toast } = useToast();
+
+  // Real-time payment detection
+  useEffect(() => {
+    if (!open || !purchaseId || paymentStatus !== 'pending') return;
+
+    console.log('🔗 Setting up realtime subscription for purchase:', purchaseId);
+
+    const channel = supabase
+      .channel('payment-status')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bid_purchases',
+          filter: `id=eq.${purchaseId}`
+        },
+        (payload) => {
+          console.log('💰 Payment status updated:', payload);
+          
+          const newStatus = payload.new.payment_status;
+          
+          if (newStatus === 'completed') {
+            setPaymentStatus('approved');
+            toast({
+              title: "Pagamento aprovado automaticamente! 🎉",
+              description: "Seus lances foram adicionados à sua conta.",
+              variant: "default"
+            });
+            
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 2000);
+          } else if (newStatus === 'failed') {
+            setPaymentStatus('failed');
+            toast({
+              title: "Pagamento rejeitado",
+              description: "Tente novamente ou use outro método.",
+              variant: "destructive"
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Timeout de segurança (5 minutos)
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Payment timeout reached');
+      toast({
+        title: "Tempo limite excedido",
+        description: "Use o botão 'Já fiz o pagamento' se o pagamento foi efetuado.",
+        variant: "default"
+      });
+    }, 5 * 60 * 1000); // 5 minutos
+
+    return () => {
+      console.log('🔌 Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+      clearTimeout(timeoutId);
+    };
+  }, [open, purchaseId, paymentStatus, onSuccess, onClose, toast]);
 
   const copyToClipboard = () => {
     if (paymentData.pixCopyPaste) {
@@ -123,6 +185,10 @@ export const PixPaymentModal = ({
               <div className="flex items-center justify-center gap-2 text-orange-600">
                 <Clock className="w-5 h-5" />
                 <span>Aguardando pagamento</span>
+              </div>
+              
+              <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
+                💡 O pagamento será detectado automaticamente
               </div>
               
               {/* QR Code */}
