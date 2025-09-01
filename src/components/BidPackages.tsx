@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Zap, Crown, Diamond, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { PaymentModal } from "@/components/PaymentModal";
 
 interface BidPackage {
   id: string;
@@ -19,7 +18,7 @@ interface BidPackage {
 }
 
 interface BidPackagesProps {
-  onPurchase: (packageId: string, bids: number, price: number, packageName: string) => void;
+  onPurchase: (packageId: string, bids: number, price: number) => void;
 }
 
 const getIcon = (iconName: string) => {
@@ -36,8 +35,6 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
   const [packages, setPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<BidPackage | null>(null);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -73,17 +70,6 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(priceInReais || 0);
-  };
-
-  const handlePurchaseClick = (pkg: BidPackage) => {
-    setSelectedPackage(pkg);
-    setPaymentModalOpen(true);
-  };
-
-  const handlePaymentSuccess = () => {
-    if (selectedPackage) {
-      onPurchase(selectedPackage.id, selectedPackage.bids_count, selectedPackage.price, selectedPackage.name);
-    }
   };
 
   if (loading) {
@@ -177,7 +163,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                 </ul>
 
                 <Button 
-                  onClick={() => handlePurchaseClick(pkg)}
+                  onClick={() => onPurchase(pkg.id, pkg.bids_count, pkg.price)}
                   variant={pkg.is_popular ? "default" : "outline"}
                   size="lg"
                   className="w-full"
@@ -195,21 +181,6 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
           ))}
         </div>
       </div>
-
-      {selectedPackage && (
-        <PaymentModal
-          isOpen={paymentModalOpen}
-          onClose={() => setPaymentModalOpen(false)}
-          packageData={{
-            id: selectedPackage.id,
-            name: selectedPackage.name,
-            price: selectedPackage.price,
-            bids: selectedPackage.bids_count,
-            originalPrice: selectedPackage.original_price
-          }}
-          onPaymentSuccess={handlePaymentSuccess}
-        />
-      )}
     </section>
   );
 };
