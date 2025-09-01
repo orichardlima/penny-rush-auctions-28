@@ -7,27 +7,31 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log(`🚀 [MERCADO-PAGO] ${req.method} ${req.url}`);
-  
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    console.log(`✅ [MERCADO-PAGO] CORS preflight`);
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  // Create Supabase clients
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-
-  const supabaseService = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
-
   try {
+    console.log(`🚀 [MERCADO-PAGO] ${req.method} ${req.url}`);
+    
+    // Handle CORS preflight requests
+    if (req.method === "OPTIONS") {
+      console.log(`✅ [MERCADO-PAGO] CORS preflight`);
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    console.log(`🔧 [MERCADO-PAGO] Iniciando processamento...`);
+
+    // Create Supabase clients
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    console.log(`🔧 [MERCADO-PAGO] Clients criados`);
+
     const url = new URL(req.url);
     let data: any = {};
     
@@ -46,8 +50,9 @@ serve(async (req) => {
       data = { action: 'webhook', id, topic };
     } else {
       try {
+        console.log(`📨 [MERCADO-PAGO] Lendo JSON...`);
         data = await req.json();
-        console.log(`📨 [MERCADO-PAGO] Dados:`, data);
+        console.log(`📨 [MERCADO-PAGO] JSON lido:`, data);
       } catch (error) {
         console.error(`❌ [MERCADO-PAGO] JSON inválido:`, error);
         return new Response(JSON.stringify({ error: "Invalid JSON" }), {
@@ -63,11 +68,17 @@ serve(async (req) => {
     const mercadoPagoAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!mercadoPagoAccessToken) {
       console.error(`❌ [MERCADO-PAGO] Token não configurado`);
-      throw new Error("Mercado Pago access token não configurado");
+      return new Response(JSON.stringify({ error: "Mercado Pago access token não configurado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
     }
+    
+    console.log(`🔑 [MERCADO-PAGO] Token OK`);
 
     // === WEBHOOK ===
     if (action === "webhook") {
+      console.log(`📨 [MERCADO-PAGO] Processando webhook...`);
       const { id, topic } = data;
       console.log(`📨 Webhook - Topic: ${topic}, ID: ${id}`);
 
@@ -148,28 +159,38 @@ serve(async (req) => {
     }
 
     // === PAGAMENTO ===
+    console.log(`💳 [MERCADO-PAGO] Processando pagamento...`);
+    
     // Verificar autenticação
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error(`❌ [MERCADO-PAGO] Sem authorization header`);
-      throw new Error("Usuário não autenticado");
+      return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     }
 
     const token = authHeader.replace("Bearer ", "");
+    console.log(`🔑 [MERCADO-PAGO] Token length: ${token.length}`);
+    
     const { data: userData, error: authError } = await supabaseClient.auth.getUser(token);
     
     if (authError || !userData.user) {
       console.error(`❌ [MERCADO-PAGO] Erro de auth:`, authError);
-      throw new Error("Usuário não autenticado");
+      return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     }
 
     const user = userData.user;
-    console.log(`👤 [MERCADO-PAGO] User: ${user.id}`);
+    console.log(`👤 [MERCADO-PAGO] User: ${user.id} (${user.email})`);
 
     if (action === "process_payment") {
       const { packageId, bidsCount, price, packageName, paymentData } = data;
 
-      console.log(`🔍 [MERCADO-PAGO] Verificando pacote: ${packageId}`);
+      console.log(`🔍 [MERCADO-PAGO] Dados:`, { packageId, bidsCount, price, packageName });
       
       // Verificar pacote
       const { data: packageData, error: packageError } = await supabaseService
@@ -180,19 +201,28 @@ serve(async (req) => {
 
       if (packageError) {
         console.error(`❌ [MERCADO-PAGO] Erro busca pacote:`, packageError);
-        throw new Error('Erro ao buscar pacote');
+        return new Response(JSON.stringify({ error: 'Erro ao buscar pacote' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
       }
 
       if (!packageData) {
         console.error(`❌ [MERCADO-PAGO] Pacote não encontrado: ${packageId}`);
-        throw new Error('Pacote não encontrado');
+        return new Response(JSON.stringify({ error: 'Pacote não encontrado' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404,
+        });
       }
 
       console.log(`📦 [MERCADO-PAGO] Pacote: ${packageData.name}, Preço: ${packageData.price}, Lances: ${packageData.bids_count}`);
 
       if (packageData.price !== price || packageData.bids_count !== bidsCount) {
-        console.error(`❌ [MERCADO-PAGO] Dados não conferem`);
-        throw new Error('Dados do pacote não conferem');
+        console.error(`❌ [MERCADO-PAGO] Dados não conferem - DB: ${packageData.price}/${packageData.bids_count} vs Req: ${price}/${bidsCount}`);
+        return new Response(JSON.stringify({ error: 'Dados do pacote não conferem' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
       }
 
       const externalReference = `${user.id}_${packageId}_${Date.now()}`;
@@ -209,7 +239,7 @@ serve(async (req) => {
             last_name: 'LeilãoCentavos',
             identification: {
               type: 'CPF',
-              number: '12345678901' // Em produção usar CPF real
+              number: '12345678901'
             }
           },
           description: `${packageName} - ${bidsCount} Lances`,
@@ -218,7 +248,7 @@ serve(async (req) => {
           date_of_expiration: new Date(Date.now() + 30 * 60 * 1000).toISOString()
         };
 
-        console.log(`📡 [MERCADO-PAGO] Payload:`, paymentPayload);
+        console.log(`📡 [MERCADO-PAGO] Enviando para API...`);
 
         const response = await fetch("https://api.mercadopago.com/v1/payments", {
           method: "POST",
@@ -231,11 +261,14 @@ serve(async (req) => {
         });
 
         const responseText = await response.text();
-        console.log(`📨 [MERCADO-PAGO] Response (${response.status}):`, responseText.substring(0, 200));
+        console.log(`📨 [MERCADO-PAGO] Response (${response.status}):`, responseText.substring(0, 100) + '...');
 
         if (!response.ok) {
           console.error("❌ [MERCADO-PAGO] API Error:", responseText);
-          throw new Error(`Erro API Mercado Pago: ${response.status}`);
+          return new Response(JSON.stringify({ error: `Erro API Mercado Pago: ${response.status}` }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          });
         }
 
         const paymentResponse = JSON.parse(responseText);
@@ -256,7 +289,10 @@ serve(async (req) => {
 
         if (purchaseError) {
           console.error("❌ [MERCADO-PAGO] Erro insert:", purchaseError);
-          throw new Error('Erro ao registrar compra');
+          return new Response(JSON.stringify({ error: 'Erro ao registrar compra' }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          });
         }
 
         const result = {
@@ -275,13 +311,20 @@ serve(async (req) => {
         });
       }
 
-      throw new Error("Método de pagamento não suportado");
+      return new Response(JSON.stringify({ error: "Método de pagamento não suportado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
 
-    throw new Error("Ação não reconhecida");
+    return new Response(JSON.stringify({ error: "Ação não reconhecida" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
 
   } catch (error) {
-    console.error('❌ [MERCADO-PAGO] ERRO:', error);
+    console.error('❌ [MERCADO-PAGO] ERRO CRÍTICO:', error);
+    console.error('❌ [MERCADO-PAGO] Stack:', error instanceof Error ? error.stack : 'N/A');
     
     const errorMessage = error instanceof Error ? error.message : 'Erro interno';
     
