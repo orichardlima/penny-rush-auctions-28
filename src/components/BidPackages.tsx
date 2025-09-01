@@ -18,7 +18,7 @@ interface BidPackage {
 }
 
 interface BidPackagesProps {
-  onPurchase: (packageId: string, bids: number, price: number) => void;
+  onPurchase: (packageId: string, bids: number, price: number, packageName: string) => void;
 }
 
 const getIcon = (iconName: string) => {
@@ -163,7 +163,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                 </ul>
 
                 <Button 
-                  onClick={() => onPurchase(pkg.id, pkg.bids_count, pkg.price)}
+                  onClick={() => onPurchase(pkg.id, pkg.bids_count, pkg.price, pkg.name)}
                   variant={pkg.is_popular ? "default" : "outline"}
                   size="lg"
                   className="w-full"

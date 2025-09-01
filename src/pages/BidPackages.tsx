@@ -18,8 +18,8 @@ const BidPackagesPage = () => {
     document.getElementById('pacotes')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handlePurchasePackage = async (packageId: string, bids: number, price: number) => {
-    const result = await processPurchase(packageId, bids, price);
+  const handlePurchasePackage = async (packageId: string, bids: number, price: number, packageName: string) => {
+    const result = await processPurchase(packageId, bids, price, packageName);
     if (result.success) {
       await refreshProfile();
     }

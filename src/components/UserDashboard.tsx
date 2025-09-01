@@ -96,8 +96,8 @@ const UserDashboard = () => {
     }
   };
 
-  const handlePurchase = async (packageId: string, bidsCount: number, price: number) => {
-    const result = await processPurchase(packageId, bidsCount, price);
+  const handlePurchase = async (packageId: string, bidsCount: number, price: number, packageName: string) => {
+    const result = await processPurchase(packageId, bidsCount, price, packageName);
     
     if (result.success) {
       // Recarregar dados do usuário após compra bem-sucedida

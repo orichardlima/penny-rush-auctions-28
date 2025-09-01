@@ -17,7 +17,8 @@ export const usePurchaseProcessor = () => {
   const processPurchase = async (
     packageId: string, 
     bidsCount: number, 
-    price: number
+    price: number,
+    packageName: string
   ): Promise<PurchaseResult> => {
     if (!profile?.user_id) {
       return { success: false, error: 'Usuário não autenticado' };
@@ -26,64 +27,33 @@ export const usePurchaseProcessor = () => {
     setProcessing(true);
 
     try {
-      // 1. Verificar se o pacote existe e tem o preço correto
-      const { data: packageData, error: packageError } = await supabase
-        .from('bid_packages')
-        .select('*')
-        .eq('id', packageId)
-        .single();
+      // Criar preferência no Mercado Pago
+      const { data, error } = await supabase.functions.invoke('mercado-pago-payment', {
+        body: {
+          action: 'create_preference',
+          packageId,
+          bidsCount,
+          price,
+          packageName
+        }
+      });
 
-      if (packageError || !packageData) {
-        throw new Error('Pacote não encontrado');
+      if (error) {
+        throw new Error(error.message || 'Erro ao processar pagamento');
       }
 
-      if (packageData.price !== price || packageData.bids_count !== bidsCount) {
-        throw new Error('Dados do pacote não conferem. Recarregue a página e tente novamente.');
-      }
+      // Redirecionar para checkout do Mercado Pago
+      window.open(data.init_point, '_blank');
 
-      // 2. Criar registro de compra
-      const { data: purchaseData, error: purchaseError } = await supabase
-        .from('bid_purchases')
-        .insert([
-          {
-            user_id: profile.user_id,
-            package_id: packageId,
-            bids_purchased: bidsCount,
-            amount_paid: price,
-            payment_status: 'completed' // Por enquanto, marcar como concluído diretamente
-          }
-        ])
-        .select()
-        .single();
-
-      if (purchaseError) {
-        throw new Error('Erro ao registrar compra');
-      }
-
-      // 3. Atualizar saldo de lances do usuário
-      const newBalance = (profile.bids_balance || 0) + bidsCount;
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ bids_balance: newBalance })
-        .eq('user_id', profile.user_id);
-
-      if (updateError) {
-        throw new Error('Erro ao atualizar saldo de lances');
-      }
-
-      // 4. Recarregar perfil do banco para sincronizar saldo
-      await refreshProfile();
-
-      // 5. Mostrar notificação de sucesso
       toast({
-        title: "Compra realizada com sucesso! 🎉",
-        description: `${bidsCount} lances foram adicionados à sua conta.`,
+        title: "Redirecionando para pagamento",
+        description: "Você será redirecionado para completar o pagamento no Mercado Pago.",
         variant: "default"
       });
 
       return { 
         success: true, 
-        purchaseId: purchaseData.id 
+        purchaseId: data.preference_id 
       };
 
     } catch (error) {
