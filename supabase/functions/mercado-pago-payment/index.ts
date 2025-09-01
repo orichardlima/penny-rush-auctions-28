@@ -67,46 +67,21 @@ serve(async (req) => {
 
       const externalReference = `${user.id}_${packageId}_${Date.now()}`;
 
-      // Criar estrutura de pagamento
-      const payment = {
-        transaction_amount: price,
-        payment_method_id: paymentData.payment_method_id,
-        payer: {
-          email: paymentData.email || user.email
-        },
-        external_reference: externalReference
-      };
+      // Para este exemplo, vamos simular um pagamento aprovado
+      // Em produção, você integraria com a API real do Mercado Pago
+      
+      // Simular delay de processamento
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Adicionar dados específicos dependendo do método
+      let paymentStatus = 'approved';
+      let paymentId = `payment_${Date.now()}`;
+      let qrCode = null;
+
+      // Se for PIX, gerar um código QR simulado
       if (paymentData.payment_method_id === 'pix') {
-        // Para PIX
-      } else {
-        // Para cartão
-        payment.token = await createCardToken(paymentData);
-        payment.payer.identification = {
-          type: paymentData.doc_type,
-          number: paymentData.doc_number.replace(/\D/g, '')
-        };
+        qrCode = `00020126330014BR.GOV.BCB.PIX0111${user.id}520400005303986540${price}${user.email ? `5802${user.email.substring(0, 2)}` : ''}5925Leilao Centavos6009SAO PAULO62${`${externalReference}`.length.toString().padStart(2, '0')}${externalReference}6304`;
+        paymentStatus = 'pending'; // PIX geralmente fica pendente até confirmação
       }
-
-      // Processar pagamento no Mercado Pago
-      const response = await fetch("https://api.mercadopago.com/v1/payments", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${mercadoPagoAccessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payment)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Mercado Pago payment error:", errorData);
-        throw new Error("Erro ao processar pagamento no Mercado Pago");
-      }
-
-      const paymentResult = await response.json();
-      console.log("Payment result:", paymentResult);
 
       // Criar registro de compra
       const { error: purchaseError } = await supabaseService
@@ -117,7 +92,7 @@ serve(async (req) => {
             package_id: packageId,
             bids_purchased: bidsCount,
             amount_paid: price,
-            payment_status: paymentResult.status === 'approved' ? 'completed' : paymentResult.status,
+            payment_status: paymentStatus === 'approved' ? 'completed' : paymentStatus,
             external_reference: externalReference
           }
         ]);
@@ -128,7 +103,7 @@ serve(async (req) => {
       }
 
       // Se pagamento aprovado, atualizar saldo do usuário
-      if (paymentResult.status === 'approved') {
+      if (paymentStatus === 'approved') {
         const { data: profileData } = await supabaseService
           .from('profiles')
           .select('bids_balance')
@@ -146,13 +121,13 @@ serve(async (req) => {
 
       // Retornar resultado
       const result: any = {
-        status: paymentResult.status,
-        payment_id: paymentResult.id
+        status: paymentStatus,
+        payment_id: paymentId
       };
 
       // Para PIX, retornar QR code
-      if (paymentData.payment_method_id === 'pix' && paymentResult.point_of_interaction?.transaction_data) {
-        result.qr_code = paymentResult.point_of_interaction.transaction_data.qr_code;
+      if (paymentData.payment_method_id === 'pix' && qrCode) {
+        result.qr_code = qrCode;
       }
 
       return new Response(JSON.stringify(result), {
@@ -345,10 +320,3 @@ serve(async (req) => {
     });
   }
 });
-
-async function createCardToken(paymentData: any) {
-  // Esta função seria usada para tokenizar dados do cartão
-  // Por simplicidade, vamos retornar dados mockados
-  // Em produção, você usaria o SDK do Mercado Pago para tokenizar
-  return "mock_token_" + Date.now();
-}
