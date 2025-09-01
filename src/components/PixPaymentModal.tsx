@@ -45,7 +45,11 @@ export const PixPaymentModal = ({
     console.log('🔗 Setting up realtime subscription for purchase:', purchaseId);
 
     const channel = supabase
-      .channel('payment-status')
+      .channel(`payment-status-${purchaseId}`, {
+        config: {
+          broadcast: { self: true }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -55,11 +59,15 @@ export const PixPaymentModal = ({
           filter: `id=eq.${purchaseId}`
         },
         (payload) => {
-          console.log('💰 Payment status updated:', payload);
+          console.log('💰 Payment status updated via realtime:', payload);
           
-          const newStatus = payload.new.payment_status;
+          const newStatus = payload.new?.payment_status;
+          const oldStatus = payload.old?.payment_status;
           
-          if (newStatus === 'completed') {
+          console.log(`Status change: ${oldStatus} -> ${newStatus}`);
+          
+          if (newStatus === 'completed' && oldStatus === 'pending') {
+            console.log('✅ Payment approved! Updating UI...');
             setPaymentStatus('approved');
             toast({
               title: "Pagamento aprovado automaticamente! 🎉",
@@ -81,7 +89,53 @@ export const PixPaymentModal = ({
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to payment updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime subscription error');
+        }
+      });
+
+    // Polling de backup a cada 3 segundos
+    const pollingInterval = setInterval(async () => {
+      if (paymentStatus !== 'pending') {
+        clearInterval(pollingInterval);
+        return;
+      }
+
+      try {
+        console.log('🔍 Polling payment status...');
+        const { data, error } = await supabase
+          .from('bid_purchases')
+          .select('payment_status')
+          .eq('id', purchaseId)
+          .single();
+
+        if (error) {
+          console.error('Polling error:', error);
+          return;
+        }
+
+        if (data.payment_status === 'completed') {
+          console.log('✅ Payment completed detected via polling!');
+          setPaymentStatus('approved');
+          toast({
+            title: "Pagamento aprovado! 🎉",
+            description: "Seus lances foram adicionados à sua conta.",
+            variant: "default"
+          });
+          
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 3000);
 
     // Timeout de segurança (5 minutos)
     const timeoutId = setTimeout(() => {
@@ -91,11 +145,12 @@ export const PixPaymentModal = ({
         description: "Use o botão 'Já fiz o pagamento' se o pagamento foi efetuado.",
         variant: "default"
       });
-    }, 5 * 60 * 1000); // 5 minutos
+    }, 5 * 60 * 1000);
 
     return () => {
-      console.log('🔌 Cleaning up realtime subscription');
+      console.log('🔌 Cleaning up realtime subscription and polling');
       supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
       clearTimeout(timeoutId);
     };
   }, [open, purchaseId, paymentStatus, onSuccess, onClose, toast]);
