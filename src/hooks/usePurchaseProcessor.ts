@@ -27,33 +27,11 @@ export const usePurchaseProcessor = () => {
     setProcessing(true);
 
     try {
-      // Criar preferência no Mercado Pago
-      const { data, error } = await supabase.functions.invoke('mercado-pago-payment', {
-        body: {
-          action: 'create_preference',
-          packageId,
-          bidsCount,
-          price,
-          packageName
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Erro ao processar pagamento');
-      }
-
-      // Redirecionar para checkout do Mercado Pago
-      window.open(data.init_point, '_blank');
-
-      toast({
-        title: "Redirecionando para pagamento",
-        description: "Você será redirecionado para completar o pagamento no Mercado Pago.",
-        variant: "default"
-      });
-
+      // Processar compra direto no modal - não fazemos nada aqui
+      // O processamento será feito dentro do PaymentModal
       return { 
         success: true, 
-        purchaseId: data.preference_id 
+        purchaseId: packageId 
       };
 
     } catch (error) {

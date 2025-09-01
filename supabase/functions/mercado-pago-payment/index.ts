@@ -47,6 +47,120 @@ serve(async (req) => {
       throw new Error("Mercado Pago access token não configurado");
     }
 
+    if (action === "process_payment") {
+      const { packageId, bidsCount, price, packageName, paymentData } = data;
+
+      // Verificar se o pacote existe
+      const { data: packageData, error: packageError } = await supabaseService
+        .from('bid_packages')
+        .select('*')
+        .eq('id', packageId)
+        .single();
+
+      if (packageError || !packageData) {
+        throw new Error('Pacote não encontrado');
+      }
+
+      if (packageData.price !== price || packageData.bids_count !== bidsCount) {
+        throw new Error('Dados do pacote não conferem');
+      }
+
+      const externalReference = `${user.id}_${packageId}_${Date.now()}`;
+
+      // Criar estrutura de pagamento
+      const payment = {
+        transaction_amount: price,
+        payment_method_id: paymentData.payment_method_id,
+        payer: {
+          email: paymentData.email || user.email
+        },
+        external_reference: externalReference
+      };
+
+      // Adicionar dados específicos dependendo do método
+      if (paymentData.payment_method_id === 'pix') {
+        // Para PIX
+      } else {
+        // Para cartão
+        payment.token = await createCardToken(paymentData);
+        payment.payer.identification = {
+          type: paymentData.doc_type,
+          number: paymentData.doc_number.replace(/\D/g, '')
+        };
+      }
+
+      // Processar pagamento no Mercado Pago
+      const response = await fetch("https://api.mercadopago.com/v1/payments", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${mercadoPagoAccessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payment)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Mercado Pago payment error:", errorData);
+        throw new Error("Erro ao processar pagamento no Mercado Pago");
+      }
+
+      const paymentResult = await response.json();
+      console.log("Payment result:", paymentResult);
+
+      // Criar registro de compra
+      const { error: purchaseError } = await supabaseService
+        .from('bid_purchases')
+        .insert([
+          {
+            user_id: user.id,
+            package_id: packageId,
+            bids_purchased: bidsCount,
+            amount_paid: price,
+            payment_status: paymentResult.status === 'approved' ? 'completed' : paymentResult.status,
+            external_reference: externalReference
+          }
+        ]);
+
+      if (purchaseError) {
+        console.error("Error creating purchase record:", purchaseError);
+        throw new Error('Erro ao registrar compra');
+      }
+
+      // Se pagamento aprovado, atualizar saldo do usuário
+      if (paymentResult.status === 'approved') {
+        const { data: profileData } = await supabaseService
+          .from('profiles')
+          .select('bids_balance')
+          .eq('user_id', user.id)
+          .single();
+
+        const currentBalance = profileData?.bids_balance || 0;
+        const newBalance = currentBalance + bidsCount;
+
+        await supabaseService
+          .from('profiles')
+          .update({ bids_balance: newBalance })
+          .eq('user_id', user.id);
+      }
+
+      // Retornar resultado
+      const result: any = {
+        status: paymentResult.status,
+        payment_id: paymentResult.id
+      };
+
+      // Para PIX, retornar QR code
+      if (paymentData.payment_method_id === 'pix' && paymentResult.point_of_interaction?.transaction_data) {
+        result.qr_code = paymentResult.point_of_interaction.transaction_data.qr_code;
+      }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     if (action === "create_preference") {
       const { packageId, bidsCount, price, packageName } = data;
 
@@ -231,3 +345,10 @@ serve(async (req) => {
     });
   }
 });
+
+async function createCardToken(paymentData: any) {
+  // Esta função seria usada para tokenizar dados do cartão
+  // Por simplicidade, vamos retornar dados mockados
+  // Em produção, você usaria o SDK do Mercado Pago para tokenizar
+  return "mock_token_" + Date.now();
+}
