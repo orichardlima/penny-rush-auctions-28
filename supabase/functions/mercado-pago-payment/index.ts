@@ -7,8 +7,11 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log(`🚀 [MERCADO-PAGO] Requisição recebida: ${req.method} ${req.url}`);
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
+    console.log(`✅ [MERCADO-PAGO] CORS preflight respondido`);
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -29,6 +32,8 @@ serve(async (req) => {
     const url = new URL(req.url);
     let data: any = {};
     
+    console.log(`🔍 [MERCADO-PAGO] URL: ${url.pathname}, Query: ${url.search}`);
+    
     // Handle webhook via query params (Mercado Pago can send this way)
     if (url.searchParams.get('action') === 'webhook') {
       const id = url.searchParams.get('id') || url.searchParams.get('data.id');
@@ -41,14 +46,25 @@ serve(async (req) => {
       
       data = { action: 'webhook', id, topic };
     } else {
-      const requestData = await req.json();
-      data = requestData;
+      try {
+        const requestData = await req.json();
+        data = requestData;
+        console.log(`📨 [MERCADO-PAGO] Dados da requisição:`, JSON.stringify(data, null, 2));
+      } catch (error) {
+        console.error(`❌ [MERCADO-PAGO] Erro ao parsear JSON:`, error);
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
     }
 
     const { action } = data;
+    console.log(`🎯 [MERCADO-PAGO] Ação: ${action}`);
 
     const mercadoPagoAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!mercadoPagoAccessToken) {
+      console.error(`❌ [MERCADO-PAGO] Token do Mercado Pago não configurado`);
       throw new Error("Mercado Pago access token não configurado");
     }
 
@@ -151,17 +167,31 @@ serve(async (req) => {
 
     // Para outras ações, verificar autenticação
     const authHeader = req.headers.get("Authorization");
+    console.log(`🔐 [MERCADO-PAGO] Authorization header presente: ${!!authHeader}`);
+    
     if (!authHeader) {
+      console.error(`❌ [MERCADO-PAGO] Usuário não autenticado - header ausente`);
       throw new Error("Usuário não autenticado");
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData } = await supabaseClient.auth.getUser(token);
+    console.log(`🔑 [MERCADO-PAGO] Token extraído (length): ${token.length}`);
+    
+    const { data: userData, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError) {
+      console.error(`❌ [MERCADO-PAGO] Erro de autenticação:`, authError);
+      throw new Error("Erro de autenticação");
+    }
+    
     const user = userData.user;
     
     if (!user) {
+      console.error(`❌ [MERCADO-PAGO] Usuário não encontrado`);
       throw new Error("Usuário não autenticado");
     }
+
+    console.log(`👤 [MERCADO-PAGO] Usuário autenticado: ${user.id} (${user.email})`);
 
     if (action === "process_payment") {
       const { packageId, bidsCount, price, packageName, paymentData } = data;

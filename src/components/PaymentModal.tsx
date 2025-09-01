@@ -103,7 +103,10 @@ export const PaymentModal = ({ isOpen, onClose, packageData, onPaymentSuccess }:
         }
       });
 
+      console.log(`🔍 [PAYMENT-MODAL] Resposta completa da função:`, { data, error });
+
       if (error) {
+        console.error(`❌ [PAYMENT-MODAL] Erro da função:`, error);
         throw new Error(error.message || 'Erro ao processar pagamento');
       }
 
