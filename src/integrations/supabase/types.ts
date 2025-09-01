@@ -136,6 +136,7 @@ export type Database = {
           external_reference: string | null
           id: string
           package_id: string
+          payment_id: string | null
           payment_status: string | null
           user_id: string
         }
@@ -146,6 +147,7 @@ export type Database = {
           external_reference?: string | null
           id?: string
           package_id: string
+          payment_id?: string | null
           payment_status?: string | null
           user_id: string
         }
@@ -156,6 +158,7 @@ export type Database = {
           external_reference?: string | null
           id?: string
           package_id?: string
+          payment_id?: string | null
           payment_status?: string | null
           user_id?: string
         }

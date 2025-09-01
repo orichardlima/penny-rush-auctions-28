@@ -108,6 +108,7 @@ export const PaymentModal = ({ isOpen, onClose, packageData, onPaymentSuccess }:
       }
 
       if (selectedMethod === 'pix' && data.qr_code) {
+        console.log('✅ QR Code PIX recebido da API:', data.qr_code.substring(0, 50) + '...');
         setPixQrCode(data.qr_code);
         
         // Gerar QR Code visual
@@ -121,14 +122,15 @@ export const PaymentModal = ({ isOpen, onClose, packageData, onPaymentSuccess }:
             },
           });
           setPixQrCodeImage(qrCodeImage);
+          console.log('✅ QR Code visual gerado com sucesso');
         } catch (error) {
-          console.error('Erro ao gerar QR Code visual:', error);
+          console.error('❌ Erro ao gerar QR Code visual:', error);
         }
         
         setShowPixCode(true);
         toast({
-          title: "PIX gerado!",
-          description: "Escaneie o código QR ou copie o código PIX para pagar",
+          title: "PIX gerado com sucesso!",
+          description: "Escaneie o código QR ou copie o código PIX para pagar. O pagamento é processado automaticamente.",
           variant: "default"
         });
       } else if (data.status === 'approved') {
