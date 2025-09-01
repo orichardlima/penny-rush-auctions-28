@@ -133,6 +133,7 @@ export type Database = {
           amount_paid: number
           bids_purchased: number
           created_at: string
+          external_reference: string | null
           id: string
           package_id: string
           payment_status: string | null
@@ -142,6 +143,7 @@ export type Database = {
           amount_paid: number
           bids_purchased: number
           created_at?: string
+          external_reference?: string | null
           id?: string
           package_id: string
           payment_status?: string | null
@@ -151,6 +153,7 @@ export type Database = {
           amount_paid?: number
           bids_purchased?: number
           created_at?: string
+          external_reference?: string | null
           id?: string
           package_id?: string
           payment_status?: string | null
