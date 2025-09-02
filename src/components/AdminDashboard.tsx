@@ -484,6 +484,24 @@ const AdminDashboard = () => {
     }
 
     try {
+      // Verificar se existe alguma compra deste pacote
+      const { data: purchases, error: purchaseError } = await supabase
+        .from('bid_purchases')
+        .select('id')
+        .eq('package_id', pkg.id)
+        .limit(1);
+
+      if (purchaseError) throw purchaseError;
+
+      if (purchases && purchases.length > 0) {
+        toast({
+          title: "Não é possível deletar!",
+          description: "Este pacote não pode ser removido pois já possui compras associadas.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('bid_packages')
         .delete()
