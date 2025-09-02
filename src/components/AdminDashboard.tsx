@@ -479,29 +479,23 @@ const AdminDashboard = () => {
   };
 
   const handleDeletePackage = async (pkg: BidPackage) => {
-    if (!confirm(`Tem certeza que deseja deletar o pacote "${pkg.name}"?`)) {
+    if (!confirm(`Tem certeza que deseja deletar o pacote "${pkg.name}"? Isso também removerá todas as compras associadas.`)) {
       return;
     }
 
     try {
-      // Verificar se existe alguma compra deste pacote
-      const { data: purchases, error: purchaseError } = await supabase
+      // Admin tem plenos poderes - deletar compras associadas primeiro
+      const { error: purchaseDeleteError } = await supabase
         .from('bid_purchases')
-        .select('id')
-        .eq('package_id', pkg.id)
-        .limit(1);
+        .delete()
+        .eq('package_id', pkg.id);
 
-      if (purchaseError) throw purchaseError;
-
-      if (purchases && purchases.length > 0) {
-        toast({
-          title: "Não é possível deletar!",
-          description: "Este pacote não pode ser removido pois já possui compras associadas.",
-          variant: "destructive"
-        });
-        return;
+      if (purchaseDeleteError) {
+        console.warn('Erro ao deletar compras associadas:', purchaseDeleteError);
+        // Continuar mesmo se não houver compras para deletar
       }
 
+      // Agora deletar o pacote
       const { error } = await supabase
         .from('bid_packages')
         .delete()
@@ -511,7 +505,7 @@ const AdminDashboard = () => {
 
       toast({
         title: "Pacote deletado!",
-        description: `${pkg.name} foi removido com sucesso.`
+        description: `${pkg.name} foi removido com sucesso (incluindo compras associadas).`
       });
 
       fetchAdminData();
