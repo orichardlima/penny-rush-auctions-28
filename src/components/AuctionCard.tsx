@@ -182,9 +182,7 @@ export const AuctionCard = ({
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
           </Badge>
           {/* Debug badge */}
-          <Badge variant="outline" className="text-xs">
-            {dataSource}
-          </Badge>
+          
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
             {isWaitingFinalization ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
