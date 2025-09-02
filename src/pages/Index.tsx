@@ -199,16 +199,26 @@ const Index = () => {
   }, [toast]);
 
   const handleBid = async (auctionId: string) => {
+    console.log('🎯 [LANCE] Iniciando lance para leilão:', auctionId);
+    
     // Verificar se já está processando um lance para este leilão
     if (bidding.has(auctionId)) {
-      console.log('🚫 Lance já sendo processado para:', auctionId);
+      console.log('🚫 [LANCE] Lance já sendo processado para:', auctionId);
+      toast({
+        title: "Aguarde!",
+        description: "Já estamos processando um lance seu. Aguarde alguns segundos.",
+        variant: "destructive"
+      });
       return;
     }
 
     // Verificar se o usuário está autenticado
     const { data: { user } } = await supabase.auth.getUser();
+    console.log('👤 [LANCE] Usuário:', user ? user.id : 'não logado');
+    console.log('📊 [LANCE] Profile:', profile ? `${profile.full_name} - Saldo: ${profile.bids_balance}` : 'não carregado');
     
     if (!user || !profile) {
+      console.log('❌ [LANCE] Usuário não autenticado ou perfil não carregado');
       toast({
         title: "Faça login para dar lances",
         description: "Você precisa estar logado para participar dos leilões.",
@@ -219,7 +229,10 @@ const Index = () => {
 
     // Verificar saldo de lances do usuário
     const currentBalance = profile.bids_balance || 0;
+    console.log('💰 [LANCE] Saldo atual:', currentBalance);
+    
     if (currentBalance < 1) {
+      console.log('❌ [LANCE] Saldo insuficiente:', currentBalance);
       toast({
         title: "Sem lances disponíveis!",
         description: "Compre mais lances para continuar participando dos leilões.",
@@ -230,28 +243,34 @@ const Index = () => {
 
     // Marcar como processando
     setBidding(prev => new Set(prev).add(auctionId));
+    console.log('⏳ [LANCE] Marcado como processando');
     
     try {
-      console.log('🎯 Enviando lance para leilão:', auctionId);
+      console.log('🎯 [LANCE] Iniciando transação para leilão:', auctionId);
 
       // 1. Descontar R$ 1,00 do saldo do usuário
       const newBalance = currentBalance - 1;
+      console.log('💸 [LANCE] Descontando do saldo:', currentBalance, '->', newBalance);
+      
       const { error: balanceError } = await supabase
         .from('profiles')
         .update({ bids_balance: newBalance })
         .eq('user_id', user.id);
 
       if (balanceError) {
-        console.error('❌ Erro ao descontar saldo:', balanceError);
+        console.error('❌ [LANCE] Erro ao descontar saldo:', balanceError);
         toast({
           title: "Erro ao processar lance",
-          description: "Não foi possível descontar o valor do lance. Tente novamente.",
+          description: `Erro no saldo: ${balanceError.message}`,
           variant: "destructive"
         });
         return;
       }
+      
+      console.log('✅ [LANCE] Saldo descontado com sucesso');
 
       // 2. Inserir o lance no banco de dados
+      console.log('📝 [LANCE] Inserindo lance no banco...');
       const { error: bidError } = await supabase
         .from('bids')
         .insert({
@@ -262,9 +281,10 @@ const Index = () => {
         });
 
       if (bidError) {
-        console.error('❌ Erro ao registrar lance:', bidError);
+        console.error('❌ [LANCE] Erro ao registrar lance:', bidError);
         
         // Reverter o desconto do saldo em caso de erro
+        console.log('🔄 [LANCE] Revertendo desconto do saldo...');
         await supabase
           .from('profiles')
           .update({ bids_balance: currentBalance })
@@ -272,27 +292,29 @@ const Index = () => {
 
         toast({
           title: "Erro ao dar lance",
-          description: "Não foi possível registrar seu lance. Tente novamente.",
+          description: `Erro no banco: ${bidError.message}`,
           variant: "destructive"
         });
         return;
       }
 
-      console.log('✅ Lance registrado com sucesso');
+      console.log('✅ [LANCE] Lance registrado com sucesso no banco');
       
       // 3. Atualizar o perfil do usuário no contexto
+      console.log('🔄 [LANCE] Atualizando perfil do usuário...');
       await refreshProfile();
       
+      console.log('🎉 [LANCE] Processo completo com sucesso!');
       toast({
         title: "Lance realizado!",
         description: "Seu lance foi registrado com sucesso. Boa sorte!",
         variant: "default"
       });
     } catch (error) {
-      console.error('❌ Erro ao dar lance:', error);
+      console.error('❌ [LANCE] Erro geral:', error);
       toast({
         title: "Erro ao dar lance",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        description: `Erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
     } finally {
@@ -301,6 +323,7 @@ const Index = () => {
         setBidding(prev => {
           const newSet = new Set(prev);
           newSet.delete(auctionId);
+          console.log('✅ [LANCE] Removido da lista de processamento:', auctionId);
           return newSet;
         });
       }, 2000);
