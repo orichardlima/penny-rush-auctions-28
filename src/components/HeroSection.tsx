@@ -2,10 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Users, Clock, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
-
 export const HeroSection = () => {
-  return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-hero text-center relative overflow-hidden min-h-[80vh] flex items-center">
+  return <section className="py-12 sm:py-16 lg:py-20 bg-gradient-hero text-center relative overflow-hidden min-h-[80vh] flex items-center">
       {/* Background decorative elements */}
       <div className="absolute inset-0 bg-black/10"></div>
       <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
@@ -22,10 +20,7 @@ export const HeroSection = () => {
             <span className="block text-accent-glow mt-1 sm:mt-2">Centavos!</span>
           </h1>
           
-          <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0">
-            Participe dos leilões mais emocionantes do Brasil. 
-            Cada lance custa apenas R$ 1 e pode te dar produtos de até R$ 10.000!
-          </p>
+          <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0">Participe dos leilões mais emocionantes do Brasil. Cada lance custa apenas R$ 1 e pode te dar produtos de até R$ 100.000!</p>
 
           <div className="flex flex-col gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4 sm:px-0">
             <Link to="/leiloes" className="w-full sm:w-auto">
@@ -62,6 +57,5 @@ export const HeroSection = () => {
           </div>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
