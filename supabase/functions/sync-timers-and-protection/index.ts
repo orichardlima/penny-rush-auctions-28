@@ -193,17 +193,24 @@ serve(async (req) => {
             }
           }
         } else {
-          // ✅ APENAS ATUALIZAR TIME_LEFT (visual)
-          const { error: updateError } = await supabase
-            .from('auctions')
-            .update({
-              time_left: newTimeLeft,
-              updated_at: currentTime
-            })
-            .eq('id', auction.id);
+          // ✅ APENAS ATUALIZAR TIME_LEFT (visual) - SEM updated_at para não sincronizar timers
+          // Só atualizar se o time_left realmente mudou
+          if (newTimeLeft !== auction.time_left) {
+            const { error: updateError } = await supabase
+              .from('auctions')
+              .update({
+                time_left: newTimeLeft
+                // ❌ NÃO atualizar updated_at para manter timers individuais
+              })
+              .eq('id', auction.id);
 
-          if (updateError) {
-            console.error(`❌ [UPDATE-ERROR] Erro ao atualizar timer do leilão ${auction.id}:`, updateError);
+            if (updateError) {
+              console.error(`❌ [UPDATE-ERROR] Erro ao atualizar timer do leilão ${auction.id}:`, updateError);
+            } else {
+              console.log(`🔄 [TIMER-UPDATE] Leilão "${auction.title}": time_left ${auction.time_left} → ${newTimeLeft}`);
+            }
+          } else {
+            console.log(`⏸️ [TIMER-UNCHANGED] Leilão "${auction.title}": time_left mantido em ${newTimeLeft}`);
           }
         }
 
