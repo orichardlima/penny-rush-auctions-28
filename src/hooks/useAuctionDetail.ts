@@ -148,11 +148,27 @@ export const useAuctionDetail = (auctionId?: string) => {
       )
       .subscribe((status) => {
         console.log(`🔌 [${auctionId}] Realtime status:`, status);
-        setIsConnected(status === 'SUBSCRIBED');
+        const connected = status === 'SUBSCRIBED';
+        setIsConnected(connected);
+        
+        // Log de debugging aprimorado
+        if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.warn(`⚠️ [${auctionId}] Conexão realtime perdida. Status: ${status}`);
+        } else if (status === 'SUBSCRIBED') {
+          console.log(`✅ [${auctionId}] Reconectado ao realtime com sucesso`);
+        }
       });
 
-    // Polling de backup menos frequente
-    intervalRef.current = setInterval(fetchAuctionData, 30000);
+    // Polling adaptativo: mais frequente quando desconectado
+    intervalRef.current = setInterval(() => {
+      if (!isConnected) {
+        console.log(`📊 [${auctionId}] Polling de emergência (realtime desconectado)`);
+        fetchAuctionData();
+      } else {
+        // Polling menos frequente quando conectado (backup)
+        fetchAuctionData();
+      }
+    }, isConnected ? 30000 : 5000); // 30s quando conectado, 5s quando desconectado
 
     return () => {
       if (intervalRef.current) {

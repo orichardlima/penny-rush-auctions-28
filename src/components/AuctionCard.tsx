@@ -168,7 +168,21 @@ export const AuctionCard = ({
   };
   return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
       <div className="relative">
-        <img src={image} alt={title} className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
+        <img 
+          src={image} 
+          alt={title} 
+          className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            console.warn('❌ Erro ao carregar imagem:', image);
+            const target = e.target as HTMLImageElement;
+            target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3e%3ccircle cx='12' cy='13' r='3'/%3e%3c/svg%3e";
+            target.style.opacity = '0.3';
+            target.style.backgroundColor = 'hsl(var(--muted))';
+          }}
+          onLoad={() => {
+            console.log('✅ Imagem carregada:', image);
+          }}
+        />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <Badge variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} className="shadow-md">
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
