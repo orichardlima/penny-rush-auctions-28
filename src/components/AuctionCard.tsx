@@ -72,12 +72,11 @@ export const AuctionCard = ({
   const displayTimeLeft = localTimeLeft ?? auctionData?.time_left ?? initialTimeLeft;
   const displayIsActive = auctionData?.status === 'active' ? auctionData.time_left > 0 : initialIsActive;
   const displayStatus = auctionData?.status ?? auctionStatus;
-  
+
   // LÓGICA DE FINALIZAÇÃO VISUAL
   const shouldShowFinalizationMessage = displayTimeLeft === 0 && displayStatus === 'active';
-  
   console.log(`🎯 [${id}] Timer Display: ${displayTimeLeft}s | Status: ${displayStatus} | Local: ${localTimeLeft} | Backend: ${auctionData?.time_left}`);
-  
+
   // Mostrar mensagem de finalização quando timer local chega a 0
   useEffect(() => {
     if (shouldShowFinalizationMessage && !isWaitingFinalization) {
@@ -108,7 +107,9 @@ export const AuctionCard = ({
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
   // Get auth context for user bids
-  const { profile } = useAuth();
+  const {
+    profile
+  } = useAuth();
   const actualUserBids = profile?.bids_balance ?? userBids;
   const handleBid = async () => {
     if (actualUserBids <= 0 || isBidding) return;
@@ -152,10 +153,9 @@ export const AuctionCard = ({
   const brazilTimezone = 'America/Sao_Paulo';
   const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
   const startsAtInBrazil = starts_at ? toZonedTime(new Date(starts_at), brazilTimezone) : null;
-  
+
   // Corrigir comparação de fuso horário
   const isAuctionStarted = !startsAtInBrazil || startsAtInBrazil <= nowInBrazil;
-  
   console.log(`🕒 [AUCTION-CARD] ${title}:`);
   console.log(`   starts_at UTC: ${starts_at}`);
   console.log(`   starts_at BR: ${startsAtInBrazil?.toISOString()}`);
@@ -168,21 +168,15 @@ export const AuctionCard = ({
   };
   return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
       <div className="relative">
-        <img 
-          src={image} 
-          alt={title} 
-          className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={(e) => {
-            console.warn('❌ Erro ao carregar imagem:', image);
-            const target = e.target as HTMLImageElement;
-            target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3e%3ccircle cx='12' cy='13' r='3'/%3e%3c/svg%3e";
-            target.style.opacity = '0.3';
-            target.style.backgroundColor = 'hsl(var(--muted))';
-          }}
-          onLoad={() => {
-            console.log('✅ Imagem carregada:', image);
-          }}
-        />
+        <img src={image} alt={title} className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300" onError={e => {
+        console.warn('❌ Erro ao carregar imagem:', image);
+        const target = e.target as HTMLImageElement;
+        target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3e%3ccircle cx='12' cy='13' r='3'/%3e%3c/svg%3e";
+        target.style.opacity = '0.3';
+        target.style.backgroundColor = 'hsl(var(--muted))';
+      }} onLoad={() => {
+        console.log('✅ Imagem carregada:', image);
+      }} />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <Badge variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} className="shadow-md">
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
@@ -219,16 +213,12 @@ export const AuctionCard = ({
       
       <div className="p-3 sm:p-6">
         {/* Status da conexão realtime - apenas para leilões ativos */}
-        {displayStatus === 'active' && <div className="mb-3 sm:mb-4 p-2 bg-muted/50 rounded-lg">
-            <RealtimeStatus isConnected={isConnected} lastSync={lastSync} onForceSync={forceSync} />
-          </div>}
+        {displayStatus === 'active'}
         <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">{title}</h3>
         
-        {description && (
-          <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
+        {description && <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
             {description}
-          </p>
-        )}
+          </p>}
         
         {displayStatus === 'waiting' && starts_at && <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
