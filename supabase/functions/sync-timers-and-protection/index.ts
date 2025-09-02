@@ -140,9 +140,9 @@ serve(async (req) => {
         
         console.log(`⏱️ [TIMER] Leilão "${auction.title}": ${secondsSinceActivity}s inatividade, time_left: ${newTimeLeft}`);
 
-         // ✅ FINALIZAR SE INATIVIDADE >= 15 SEGUNDOS
+        // 🎯 OPÇÃO A: APENAS FINALIZAR LEILÕES EXPIRADOS - NÃO MEXER EM TIMERS VISUAIS
         if (secondsSinceActivity >= 15) {
-          console.log(`🔥 [FORCE-FINALIZE] Finalizando leilão "${auction.title}" com ${secondsSinceActivity}s de inatividade`);
+          console.log(`🔥 [FINALIZE-EXPIRED] Finalizando leilão "${auction.title}" com ${secondsSinceActivity}s de inatividade`);
           
           // Buscar ganhador (último lance)
           let winnerId = null;
@@ -161,40 +161,30 @@ serve(async (req) => {
             winnerName = profile?.full_name || `Usuário ${winnerId.substring(0, 8)}`;
           }
 
-          // ✅ FINALIZAR LEILÃO COM RETRY EM CASO DE FALHA
-          let attemptCount = 0;
-          let finalizeSuccess = false;
-          
-          while (!finalizeSuccess && attemptCount < 3) {
-            attemptCount++;
-            console.log(`🔄 [FINALIZE-ATTEMPT-${attemptCount}] Tentativa ${attemptCount} de finalização do leilão ${auction.id}`);
-            
-            const { error: finalizeError } = await supabase
-              .from('auctions')
-              .update({
-                status: 'finished',
-                time_left: 0,
-                winner_id: winnerId,
-                winner_name: winnerName,
-                finished_at: currentTime,
-                updated_at: currentTime
-              })
-              .eq('id', auction.id);
+          // FINALIZAR LEILÃO
+          const { error: finalizeError } = await supabase
+            .from('auctions')
+            .update({
+              status: 'finished',
+              time_left: 0,
+              winner_id: winnerId,
+              winner_name: winnerName,
+              finished_at: currentTime
+            })
+            .eq('id', auction.id);
 
-            if (!finalizeError) {
-              finalizedCount++;
-              finalizeSuccess = true;
-              console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado com sucesso! Ganhador: "${winnerName}" (${secondsSinceActivity}s inatividade)`);
-            } else {
-              console.error(`❌ [FINALIZE-ERROR-${attemptCount}] Tentativa ${attemptCount} falhou:`, finalizeError);
-              if (attemptCount >= 3) {
-                console.error(`💀 [FINALIZE-FAILED] FALHA CRÍTICA: Não foi possível finalizar leilão ${auction.id} após 3 tentativas`);
-              }
-            }
+          if (!finalizeError) {
+            finalizedCount++;
+            console.log(`✅ [FINALIZED] Leilão "${auction.title}" finalizado! Ganhador: "${winnerName}"`);
+          } else {
+            console.error(`❌ [FINALIZE-ERROR] Erro ao finalizar leilão ${auction.id}:`, finalizeError);
           }
+        } else {
+          console.log(`⏳ [ACTIVE] Leilão "${auction.title}" ativo: ${secondsSinceActivity}s < 15s`);
         }
-        // ❌ REMOVIDO: Não mais atualiza timers visuais para evitar sincronização
-        // Os timers agora são controlados APENAS pelos triggers individuais de bid
+
+        // 🎯 OPÇÃO A: ZERO INTERFERÊNCIA EM TIMERS VISUAIS
+        // Os timers são calculados localmente pelo frontend baseado no último bid
 
       } catch (error) {
         console.error(`❌ [PROCESSING-ERROR] Erro ao processar leilão ${auction.id}:`, error);

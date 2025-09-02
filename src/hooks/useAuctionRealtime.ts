@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLocalTimers } from '@/hooks/useLocalTimers';
 
 export interface AuctionData {
   id: string;
@@ -13,6 +14,8 @@ export interface AuctionData {
   ends_at?: string;
   image_url?: string;
   description?: string;
+  updated_at?: string;
+  local_timer?: boolean; // Flag para indicar timer calculado localmente
 }
 
 export const useAuctionRealtime = () => {
@@ -21,33 +24,84 @@ export const useAuctionRealtime = () => {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const { toast } = useToast();
 
+  // 🎯 OPÇÃO A: Função para atualizar leilão específico
+  const updateAuction = useCallback((id: string, updates: any) => {
+    setAuctions(current => 
+      current.map(auction => 
+        auction.id === id ? { ...auction, ...updates } : auction
+      )
+    );
+  }, []);
+
+  // 🎯 OPÇÃO A: Hook para timers locais em tempo real
+  useLocalTimers(auctions, updateAuction);
+
+  // 🎯 OPÇÃO A: Calcular timer local para sincronização inicial
+  const calculateInitialTimer = useCallback((auction: any, lastBidTime?: string) => {
+    if (auction.status !== 'active') return auction.time_left || 0;
+    
+    const now = new Date();
+    const lastActivity = lastBidTime ? new Date(lastBidTime) : new Date(auction.updated_at);
+    const secondsSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / 1000);
+    const localTimer = Math.max(0, 15 - secondsSinceActivity);
+    
+    console.log(`🎯 [${auction.id}] Timer inicial: ${localTimer}s (${secondsSinceActivity}s desde atividade)`);
+    return localTimer;
+  }, []);
+
   const syncAuctions = useCallback(async () => {
     try {
-      console.log('🔄 [SYNC] Fazendo sincronização');
-      const { data, error } = await supabase
+      console.log('🔄 [REALTIME] Sincronizando leilões...');
+      
+      const { data: auctionsData, error } = await supabase
         .from('auctions')
         .select('*')
+        .in('status', ['active', 'waiting', 'finished'])
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ [SYNC] Erro na sincronização:', error);
-        throw error;
+        console.error('❌ [REALTIME] Erro ao buscar leilões:', error);
+        toast({
+          title: "Erro de conexão",
+          description: "Falha ao sincronizar leilões. Tentando novamente...",
+          variant: "destructive",
+        });
+        return;
       }
 
-      if (data) {
-        setAuctions(data);
+      if (auctionsData) {
+        // 🎯 OPÇÃO A: Buscar último bid para cada leilão ativo para calcular timer local
+        const auctionsWithLocalTimers = await Promise.all(
+          auctionsData.map(async (auction) => {
+            if (auction.status === 'active') {
+              const { data: lastBid } = await supabase
+                .from('bids')
+                .select('created_at')
+                .eq('auction_id', auction.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+              
+              const lastBidTime = lastBid?.[0]?.created_at;
+              const localTimer = calculateInitialTimer(auction, lastBidTime);
+              
+              return {
+                ...auction,
+                time_left: localTimer,
+                local_timer: true // Flag para indicar timer calculado localmente
+              };
+            }
+            return auction;
+          })
+        );
+
+        setAuctions(auctionsWithLocalTimers);
         setLastSync(new Date());
-        console.log(`✅ [SYNC] Sincronização OK: ${data.length} leilões`);
+        console.log(`✅ [REALTIME] ${auctionsData.length} leilões sincronizados com timers locais`);
       }
     } catch (error) {
-      console.error('❌ [SYNC] Sincronização falhou:', error);
-      toast({
-        title: "Erro de conexão",
-        description: "Problemas para sincronizar dados dos leilões",
-        variant: "destructive",
-      });
+      console.error('❌ [REALTIME] Erro na sincronização:', error);
     }
-  }, [toast]);
+  }, [calculateInitialTimer, toast]);
 
   useEffect(() => {
     let channel: any = null;
@@ -68,7 +122,7 @@ export const useAuctionRealtime = () => {
               schema: 'public',
               table: 'auctions'
             },
-            (payload) => {
+            async (payload) => {
               const auction_id = (payload.new as any)?.id || (payload.old as any)?.id;
               const time_left = (payload.new as any)?.time_left;
               const status = (payload.new as any)?.status;
@@ -91,11 +145,24 @@ export const useAuctionRealtime = () => {
                 }
                 
                 if (payload.eventType === 'UPDATE') {
-                  return current.map(auction => 
-                    auction.id === auction_id 
-                      ? { ...auction, ...payload.new }
-                      : auction
-                  );
+                  const updatedAuction = payload.new as AuctionData;
+                  
+                  return current.map(auction => {
+                    if (auction.id === auction_id) {
+                      // 🎯 OPÇÃO A: Se for leilão ativo, manter timer local (não usar do backend)
+                      if (updatedAuction.status === 'active') {
+                        return {
+                          ...auction,
+                          ...updatedAuction,
+                          // Manter timer local existente se houver
+                          time_left: auction.local_timer ? auction.time_left : updatedAuction.time_left,
+                          local_timer: auction.local_timer || false
+                        };
+                      }
+                      return { ...auction, ...updatedAuction };
+                    }
+                    return auction;
+                  });
                 }
                 
                 return current;
