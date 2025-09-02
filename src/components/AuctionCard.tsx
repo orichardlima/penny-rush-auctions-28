@@ -62,7 +62,11 @@ export const AuctionCard = ({
     forceSync,
     isWaitingFinalization,
     finalizationMessage,
-    localTimeLeft
+    localTimeLeft,
+    connectionQuality,
+    networkQuality,
+    heartbeatStatus,
+    retryCount
   } = useAuctionDetail(id);
 
   // DADOS PASSIVOS: Frontend sempre respeita o backend
@@ -220,7 +224,15 @@ export const AuctionCard = ({
       <div className="p-3 sm:p-6">
         {/* Status da conexão realtime - apenas para leilões ativos */}
         {displayStatus === 'active' && <div className="mb-3 sm:mb-4 p-2 bg-muted/50 rounded-lg">
-            <RealtimeStatus isConnected={isConnected} lastSync={lastSync} onForceSync={forceSync} />
+            <RealtimeStatus 
+              isConnected={isConnected} 
+              lastSync={lastSync} 
+              onForceSync={forceSync}
+              connectionQuality={connectionQuality}
+              networkQuality={networkQuality}
+              heartbeatStatus={heartbeatStatus}
+              retryCount={retryCount}
+            />
           </div>}
         <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">{title}</h3>
         
