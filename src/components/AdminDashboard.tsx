@@ -520,7 +520,9 @@ const AdminDashboard = () => {
   };
 
   const handlePackageSuccess = () => {
-    fetchAdminData();
+    // Não precisa chamar fetchAdminData() aqui porque o useFinancialAnalytics
+    // já está escutando mudanças via realtime e vai refresh automaticamente
+    console.log('[AdminDashboard] Pacote atualizado com sucesso - realtime vai fazer o refresh');
   };
 
   // Função removida - usando a função formatPrice já definida acima

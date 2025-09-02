@@ -49,6 +49,7 @@ export const useFinancialAnalytics = () => {
   const [revenueTrends, setRevenueTrends] = useState<RevenueData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchFinancialSummary = async () => {
     try {
@@ -117,6 +118,13 @@ export const useFinancialAnalytics = () => {
   };
 
   const refreshData = async () => {
+    // Evitar múltiplas chamadas simultâneas
+    if (isRefreshing) {
+      console.log('[useFinancialAnalytics] Refresh já em andamento, ignorando');
+      return;
+    }
+
+    setIsRefreshing(true);
     setLoading(true);
     setError(null);
     
@@ -128,8 +136,10 @@ export const useFinancialAnalytics = () => {
       ]);
     } catch (err) {
       console.error('Error refreshing financial data:', err);
+      setError('Erro ao carregar dados financeiros');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -139,16 +149,25 @@ export const useFinancialAnalytics = () => {
 
   // Realtime auto-refresh with debounce
   const refreshTimerRef = useRef<number | null>(null);
+  const lastRefreshRef = useRef<number>(0);
   
   useEffect(() => {
     const triggerAutoRefresh = () => {
+      const now = Date.now();
+      // Evitar refresh muito frequente (mínimo 2 segundos entre chamadas)
+      if (now - lastRefreshRef.current < 2000) {
+        console.log('[useFinancialAnalytics] Refresh muito frequente, ignorando');
+        return;
+      }
+
       if (refreshTimerRef.current) {
         window.clearTimeout(refreshTimerRef.current);
       }
       refreshTimerRef.current = window.setTimeout(() => {
+        lastRefreshRef.current = Date.now();
         console.log('[useFinancialAnalytics] Realtime event -> refreshing');
         refreshData();
-      }, 800);
+      }, 1500); // Aumentado para 1.5 segundos
     };
 
     console.log('[useFinancialAnalytics] Subscribing to realtime changes');
@@ -177,6 +196,7 @@ export const useFinancialAnalytics = () => {
     revenueTrends,
     loading,
     error,
-    refreshData
+    refreshData,
+    isRefreshing
   };
 };
