@@ -6,6 +6,7 @@ import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime } from 'date-fns-tz';
+import { useNavigate } from "react-router-dom";
 
 const Auctions = () => {
   const [auctions, setAuctions] = useState<any[]>([]);
@@ -13,6 +14,7 @@ const Auctions = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
 
   const transformAuctionData = (auction: any) => {
     const brazilTimezone = 'America/Sao_Paulo';
@@ -297,7 +299,7 @@ const Auctions = () => {
   };
 
   const handleBuyBids = () => {
-    window.location.href = "/pacotes";
+    navigate("/pacotes");
   };
 
   return (

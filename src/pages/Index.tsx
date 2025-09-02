@@ -8,7 +8,7 @@ import { RecentWinners } from "@/components/RecentWinners";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
 import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
@@ -21,6 +21,7 @@ const Index = () => {
   const { toast } = useToast();
   const { processPurchase } = usePurchaseProcessor();
   const { profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
 
   const transformAuctionData = (auction: any) => {
     const brazilTimezone = 'America/Sao_Paulo';
@@ -306,7 +307,7 @@ const Index = () => {
   };
 
   const handleBuyBids = () => {
-    window.location.href = "/pacotes";
+    navigate("/pacotes");
   };
 
   const handlePurchasePackage = async (packageId: string, bids: number, price: number) => {

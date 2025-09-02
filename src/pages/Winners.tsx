@@ -2,11 +2,13 @@ import { Header } from "@/components/Header";
 import { RecentWinners } from "@/components/RecentWinners";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Winners = () => {
+  const navigate = useNavigate();
+  
   const handleBuyBids = () => {
-    window.location.href = "/pacotes";
+    navigate("/pacotes");
   };
 
   return (
