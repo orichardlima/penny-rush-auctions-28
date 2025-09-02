@@ -140,7 +140,7 @@ serve(async (req) => {
         
         console.log(`⏱️ [TIMER] Leilão "${auction.title}": ${secondsSinceActivity}s inatividade, time_left: ${newTimeLeft}`);
 
-        // ✅ FINALIZAR SE INATIVIDADE >= 15 SEGUNDOS
+         // ✅ FINALIZAR SE INATIVIDADE >= 15 SEGUNDOS
         if (secondsSinceActivity >= 15) {
           console.log(`🔥 [FORCE-FINALIZE] Finalizando leilão "${auction.title}" com ${secondsSinceActivity}s de inatividade`);
           
@@ -192,27 +192,9 @@ serve(async (req) => {
               }
             }
           }
-        } else {
-          // ✅ APENAS ATUALIZAR TIME_LEFT (visual) - SEM updated_at para não sincronizar timers
-          // Só atualizar se o time_left realmente mudou
-          if (newTimeLeft !== auction.time_left) {
-            const { error: updateError } = await supabase
-              .from('auctions')
-              .update({
-                time_left: newTimeLeft
-                // ❌ NÃO atualizar updated_at para manter timers individuais
-              })
-              .eq('id', auction.id);
-
-            if (updateError) {
-              console.error(`❌ [UPDATE-ERROR] Erro ao atualizar timer do leilão ${auction.id}:`, updateError);
-            } else {
-              console.log(`🔄 [TIMER-UPDATE] Leilão "${auction.title}": time_left ${auction.time_left} → ${newTimeLeft}`);
-            }
-          } else {
-            console.log(`⏸️ [TIMER-UNCHANGED] Leilão "${auction.title}": time_left mantido em ${newTimeLeft}`);
-          }
         }
+        // ❌ REMOVIDO: Não mais atualiza timers visuais para evitar sincronização
+        // Os timers agora são controlados APENAS pelos triggers individuais de bid
 
       } catch (error) {
         console.error(`❌ [PROCESSING-ERROR] Erro ao processar leilão ${auction.id}:`, error);
