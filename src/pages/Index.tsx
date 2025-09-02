@@ -44,6 +44,7 @@ const Index = () => {
     return {
       ...auction,
       image: auction.image_url || '/placeholder.svg',
+      description: auction.description,
       currentPrice: (auction.current_price || 10) / 100,
       originalPrice: auction.market_value || 0, // Already in reais
       totalBids: auction.total_bids || 0,
@@ -366,6 +367,7 @@ const Index = () => {
                     key={auction.id}
                     id={auction.id}
                     title={auction.title}
+                    description={auction.description}
                     image={auction.image}
                     currentPrice={auction.currentPrice}
                     originalPrice={auction.originalPrice}

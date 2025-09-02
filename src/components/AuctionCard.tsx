@@ -13,6 +13,7 @@ import { RealtimeStatus } from '@/components/RealtimeStatus';
 interface AuctionCardProps {
   id: string;
   title: string;
+  description?: string;
   image: string;
   currentPrice: number;
   originalPrice: number;
@@ -33,6 +34,7 @@ interface AuctionCardProps {
 export const AuctionCard = ({
   id,
   title,
+  description,
   image,
   currentPrice,
   originalPrice,
@@ -207,6 +209,12 @@ export const AuctionCard = ({
             <RealtimeStatus isConnected={isConnected} lastSync={lastSync} onForceSync={forceSync} />
           </div>}
         <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">{title}</h3>
+        
+        {description && (
+          <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
+            {description}
+          </p>
+        )}
         
         {displayStatus === 'waiting' && starts_at && <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
