@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
+import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,8 +17,20 @@ const Auth = () => {
     email: '',
     password: '',
     fullName: '',
+    cpf: '',
+    phone: '',
+    birthDate: '',
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: ''
   });
   const [loading, setLoading] = useState(false);
+  const [loadingAddress, setLoadingAddress] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
@@ -29,10 +43,88 @@ const Auth = () => {
   }, [user, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    let formattedValue = value;
+    
+    // Aplicar máscaras
+    if (name === 'cpf') {
+      formattedValue = formatCPF(value);
+    } else if (name === 'phone') {
+      formattedValue = formatPhone(value);
+    } else if (name === 'cep') {
+      formattedValue = formatCEP(value);
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: formattedValue
+    }));
+    
+    // Limpar erro do campo quando o usuário digitar
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ""
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    // Validações básicas
+    if (!formData.email) newErrors.email = "Email é obrigatório";
+    if (!formData.password || formData.password.length < 6) newErrors.password = "Senha deve ter pelo menos 6 caracteres";
+    if (!formData.fullName) newErrors.fullName = "Nome completo é obrigatório";
+    if (!formData.cpf) newErrors.cpf = "CPF é obrigatório";
+    else if (!validateCPF(formData.cpf)) newErrors.cpf = "CPF inválido";
+    if (!formData.phone) newErrors.phone = "Telefone é obrigatório";
+    else if (!validatePhone(formData.phone)) newErrors.phone = "Telefone inválido";
+    if (!formData.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória";
+    if (!formData.cep) newErrors.cep = "CEP é obrigatório";
+    else if (!validateCEP(formData.cep)) newErrors.cep = "CEP inválido";
+    if (!formData.street) newErrors.street = "Logradouro é obrigatório";
+    if (!formData.number) newErrors.number = "Número é obrigatório";
+    if (!formData.neighborhood) newErrors.neighborhood = "Bairro é obrigatório";
+    if (!formData.city) newErrors.city = "Cidade é obrigatória";
+    if (!formData.state) newErrors.state = "Estado é obrigatório";
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleCEPBlur = async () => {
+    if (!validateCEP(formData.cep)) return;
+    
+    setLoadingAddress(true);
+    try {
+      const addressData = await fetchAddressByCEP(formData.cep);
+      
+      if (addressData && !addressData.erro) {
+        setFormData(prev => ({
+          ...prev,
+          street: addressData.logradouro || "",
+          neighborhood: addressData.bairro || "",
+          city: addressData.localidade || "",
+          state: addressData.uf || ""
+        }));
+        
+        toast({
+          title: "Endereço encontrado!",
+          description: "Dados do endereço preenchidos automaticamente.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "CEP não encontrado",
+          description: "Verifique o CEP digitado e tente novamente.",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    } finally {
+      setLoadingAddress(false);
+    }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -68,37 +160,87 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast({
+        variant: "destructive",
+        title: "Erro no formulário",
+        description: "Por favor, corrija os campos destacados em vermelho.",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const { error } = await signUp(formData.email, formData.password, formData.fullName);
-      
+      const userData = {
+        full_name: formData.fullName,
+        cpf: formData.cpf,
+        phone: formData.phone,
+        birth_date: formData.birthDate,
+        cep: formData.cep,
+        street: formData.street,
+        number: formData.number,
+        complement: formData.complement,
+        neighborhood: formData.neighborhood,
+        city: formData.city,
+        state: formData.state,
+      };
+
+      const { error } = await signUp(formData.email, formData.password, userData);
+
       if (error) {
-        toast({
-          title: 'Erro no cadastro',
-          description: error.message,
-          variant: 'destructive',
-        });
+        if (error.message.includes('already registered')) {
+          toast({
+            variant: "destructive",
+            title: "Erro no cadastro",
+            description: "Este email já está cadastrado. Tente fazer login ou use outro email.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Erro no cadastro",
+            description: error.message || "Ocorreu um erro inesperado. Tente novamente.",
+          });
+        }
       } else {
         toast({
-          title: 'Cadastro realizado com sucesso!',
-          description: 'Verifique seu email para confirmar a conta.',
+          title: "Cadastro realizado!",
+          description: "Verifique seu email para confirmar a conta.",
         });
+        // Limpar formulário após sucesso
+        setFormData({
+          email: "",
+          password: "",
+          fullName: "",
+          cpf: "",
+          phone: "",
+          birthDate: "",
+          cep: "",
+          street: "",
+          number: "",
+          complement: "",
+          neighborhood: "",
+          city: "",
+          state: ""
+        });
+        setErrors({});
       }
     } catch (error) {
+      console.error('Erro no cadastro:', error);
       toast({
-        title: 'Erro inesperado',
-        description: 'Ocorreu um erro durante o cadastro',
-        variant: 'destructive',
+        variant: "destructive",
+        title: "Erro no cadastro",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
       });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             LeilãoCentavos
@@ -164,68 +306,255 @@ const Auth = () => {
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nome Completo</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <form onSubmit={handleSignUp} className="space-y-6">
+                {/* Dados Pessoais */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Dados Pessoais</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Nome Completo *</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="fullName"
+                        name="fullName"
+                        type="text"
+                        placeholder="Seu nome completo"
+                        value={formData.fullName}
+                        onChange={handleInputChange}
+                        className={`pl-10 ${errors.fullName ? "border-destructive" : ""}`}
+                        required
+                      />
+                    </div>
+                    {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cpf">CPF *</Label>
+                      <Input
+                        id="cpf"
+                        name="cpf"
+                        type="text"
+                        placeholder="000.000.000-00"
+                        value={formData.cpf}
+                        onChange={handleInputChange}
+                        className={errors.cpf ? "border-destructive" : ""}
+                        maxLength={14}
+                        required
+                      />
+                      {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefone *</Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="text"
+                        placeholder="(11) 99999-9999"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className={errors.phone ? "border-destructive" : ""}
+                        maxLength={15}
+                        required
+                      />
+                      {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="birthDate">Data de Nascimento *</Label>
                     <Input
-                      id="fullName"
-                      name="fullName"
+                      id="birthDate"
+                      name="birthDate"
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={handleInputChange}
+                      className={errors.birthDate ? "border-destructive" : ""}
+                      required
+                    />
+                    {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate}</p>}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Endereço */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    <h3 className="text-lg font-semibold">Endereço para Entrega</h3>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cep">CEP *</Label>
+                    <Input
+                      id="cep"
+                      name="cep"
                       type="text"
-                      placeholder="Seu nome completo"
-                      value={formData.fullName}
+                      placeholder="00000-000"
+                      value={formData.cep}
                       onChange={handleInputChange}
-                      className="pl-10"
+                      onBlur={handleCEPBlur}
+                      className={errors.cep ? "border-destructive" : ""}
+                      maxLength={9}
                       required
+                    />
+                    {errors.cep && <p className="text-sm text-destructive">{errors.cep}</p>}
+                    {loadingAddress && <p className="text-sm text-muted-foreground">Buscando endereço...</p>}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="street">Logradouro *</Label>
+                      <Input
+                        id="street"
+                        name="street"
+                        type="text"
+                        placeholder="Rua, Avenida, etc."
+                        value={formData.street}
+                        onChange={handleInputChange}
+                        className={errors.street ? "border-destructive" : ""}
+                        required
+                      />
+                      {errors.street && <p className="text-sm text-destructive">{errors.street}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="number">Número *</Label>
+                      <Input
+                        id="number"
+                        name="number"
+                        type="text"
+                        placeholder="123"
+                        value={formData.number}
+                        onChange={handleInputChange}
+                        className={errors.number ? "border-destructive" : ""}
+                        required
+                      />
+                      {errors.number && <p className="text-sm text-destructive">{errors.number}</p>}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="complement">Complemento</Label>
+                    <Input
+                      id="complement"
+                      name="complement"
+                      type="text"
+                      placeholder="Apartamento, bloco, etc. (opcional)"
+                      value={formData.complement}
+                      onChange={handleInputChange}
                     />
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="pl-10"
-                      required
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="neighborhood">Bairro *</Label>
+                      <Input
+                        id="neighborhood"
+                        name="neighborhood"
+                        type="text"
+                        placeholder="Bairro"
+                        value={formData.neighborhood}
+                        onChange={handleInputChange}
+                        className={errors.neighborhood ? "border-destructive" : ""}
+                        required
+                      />
+                      {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Cidade *</Label>
+                      <Input
+                        id="city"
+                        name="city"
+                        type="text"
+                        placeholder="Cidade"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        className={errors.city ? "border-destructive" : ""}
+                        required
+                      />
+                      {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="state">Estado *</Label>
+                      <Input
+                        id="state"
+                        name="state"
+                        type="text"
+                        placeholder="UF"
+                        value={formData.state}
+                        onChange={handleInputChange}
+                        className={errors.state ? "border-destructive" : ""}
+                        maxLength={2}
+                        required
+                      />
+                      {errors.state && <p className="text-sm text-destructive">{errors.state}</p>}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="pl-10 pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+
+                <Separator />
+
+                {/* Dados de Acesso */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Dados de Acesso</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email-signup">Email *</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email-signup"
+                        name="email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
+                        required
+                      />
+                    </div>
+                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password-signup">Senha *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password-signup"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Mínimo 6 caracteres"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className={`pl-10 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                   </div>
                 </div>
                 
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Cadastrando...' : 'Cadastrar'}
+                  {loading ? "Cadastrando..." : "Cadastrar"}
                 </Button>
+                
+                <p className="text-sm text-muted-foreground text-center">
+                  * Campos obrigatórios
+                </p>
               </form>
             </TabsContent>
           </Tabs>

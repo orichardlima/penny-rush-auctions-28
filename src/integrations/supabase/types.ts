@@ -247,36 +247,66 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bids_balance: number | null
+          birth_date: string | null
+          cep: string | null
+          city: string | null
+          complement: string | null
+          cpf: string | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
           is_admin: boolean | null
           is_bot: boolean | null
+          neighborhood: string | null
+          number: string | null
+          phone: string | null
+          state: string | null
+          street: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
           bids_balance?: number | null
+          birth_date?: string | null
+          cep?: string | null
+          city?: string | null
+          complement?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
           is_admin?: boolean | null
           is_bot?: boolean | null
+          neighborhood?: string | null
+          number?: string | null
+          phone?: string | null
+          state?: string | null
+          street?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
           bids_balance?: number | null
+          birth_date?: string | null
+          cep?: string | null
+          city?: string | null
+          complement?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
           is_admin?: boolean | null
           is_bot?: boolean | null
+          neighborhood?: string | null
+          number?: string | null
+          phone?: string | null
+          state?: string | null
+          street?: string | null
           updated_at?: string
           user_id?: string
         }

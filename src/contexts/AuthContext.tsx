@@ -1,6 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+
+interface SignUpData {
+  full_name: string;
+  cpf: string;
+  phone: string;
+  birth_date: string;
+  cep: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+}
 
 interface Profile {
   id: string;
@@ -12,6 +26,16 @@ interface Profile {
   is_admin: boolean;
   created_at: string;
   updated_at: string;
+  cpf?: string;
+  phone?: string;
+  birth_date?: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
 }
 
 interface AuthContextType {
@@ -20,7 +44,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error?: any }>;
+  signUp: (email: string, password: string, userData: SignUpData) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -88,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, userData: SignUpData) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -97,7 +121,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          full_name: fullName,
+          full_name: userData.full_name,
+          cpf: userData.cpf,
+          phone: userData.phone,
+          birth_date: userData.birth_date,
+          cep: userData.cep,
+          street: userData.street,
+          number: userData.number,
+          complement: userData.complement,
+          neighborhood: userData.neighborhood,
+          city: userData.city,
+          state: userData.state,
         },
       },
     });
