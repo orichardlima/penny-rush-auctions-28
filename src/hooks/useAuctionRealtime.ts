@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useLocalTimers } from '@/hooks/useLocalTimers';
@@ -35,8 +35,17 @@ export const useAuctionRealtime = () => {
     );
   }, []);
 
-  // 🎯 OPÇÃO A: Hook para timers locais em tempo real
-  useLocalTimers(auctions, updateAuction);
+  // 🎯 Hook para timers locais em tempo real - FIXO sem dependências
+  const auctionsRef = useRef(auctions);
+  const updateAuctionRef = useRef(updateAuction);
+  
+  // Manter refs atualizadas
+  useEffect(() => {
+    auctionsRef.current = auctions;
+    updateAuctionRef.current = updateAuction;
+  }, [auctions, updateAuction]);
+
+  useLocalTimers(auctionsRef.current, updateAuctionRef.current);
 
   // 🎯 Calcular timer local baseado no último bid real
   const calculateInitialTimer = useCallback((auction: any, lastBidTime?: string) => {

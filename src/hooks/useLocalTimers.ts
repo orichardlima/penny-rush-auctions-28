@@ -11,21 +11,25 @@ export const useLocalTimers = (
   useEffect(() => {
     const interval = setInterval(() => {
       auctions.forEach(auction => {
-        if (auction.status === 'active' && auction.local_timer) {
-          // Calcular baseado no timer_start_time (momento em que o timer foi iniciado)
+        if (auction.status === 'active' && auction.local_timer && auction.timer_start_time) {
+          // Calcular baseado no timer_start_time fixo
           const now = new Date();
-          const timerStartTime = new Date(auction.timer_start_time || auction.last_bid_time || auction.starts_at);
+          const timerStartTime = new Date(auction.timer_start_time);
           const secondsSinceStart = Math.floor((now.getTime() - timerStartTime.getTime()) / 1000);
           const newTimer = Math.max(0, 15 - secondsSinceStart);
           
-          // Só atualizar se o timer mudou
+          // Debug detalhado
+          console.log(`⏰ [LOCAL-TIMER] ${auction.title}: ${newTimer}s (${secondsSinceStart}s elapsed)`);
+          
+          // Só atualizar se o timer mudou E é diferente do atual
           if (newTimer !== auction.time_left) {
+            console.log(`📉 [TIMER-UPDATE] ${auction.title}: ${auction.time_left}s → ${newTimer}s`);
             updateAuction(auction.id, { time_left: newTimer });
           }
         }
       });
-    }, 1000); // Atualizar a cada segundo
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [auctions, updateAuction]);
+  }, []); // ✅ Dependências fixas - evita recriação do interval
 };
