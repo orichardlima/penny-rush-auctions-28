@@ -100,8 +100,8 @@ Deno.serve(async (req) => {
         ? Math.round((auction.company_revenue / auction.revenue_target) * 100)
         : 0;
 
-      // 🚨 TIMER CRÍTICO: Checar se timer está baixo
-      const isTimerCritical = auction.time_left <= 5 && auction.time_left > 0;
+      // 🚨 TIMER CRÍTICO: Checar se timer está baixo (≤ 3 segundos para emergência)
+      const isTimerCritical = auction.time_left <= 3 && auction.time_left > 0;
       const needsRevenueProtection = auction.company_revenue < auction.revenue_target;
 
       console.log(`📊 [ULTRA-FAST-CHECK] Leilão "${auction.title}":`, {
@@ -111,14 +111,14 @@ Deno.serve(async (req) => {
         company_revenue: `R$ ${auction.company_revenue.toFixed(2)}`,
         deficit: `R$ ${revenueDeficit.toFixed(2)}`,
         percentage: `${revenuePercentage}%`,
-        needs_protection: needsRevenueProtection
+        needs_protection: needsRevenueProtection && isTimerCritical
       });
 
-      // 4. CONDIÇÕES PARA FORÇAR LANCE BOT:
-      // A) Timer crítico (≤5s) E ainda não atingiu meta de receita, OU
-      // B) Meta de receita não atingida (independente do timer)
-      if ((isTimerCritical && needsRevenueProtection) || needsRevenueProtection) {
-        const reason = isTimerCritical ? 'TIMER CRÍTICO + META NÃO ATINGIDA' : 'META NÃO ATINGIDA';
+      // 4. CONDIÇÃO PARA FORÇAR LANCE BOT:
+      // APENAS quando timer crítico (≤3s) E meta não atingida
+      // Isso permite o timer descer naturalmente até 3s antes de intervir
+      if (isTimerCritical && needsRevenueProtection) {
+        const reason = 'TIMER CRÍTICO (≤3s) + META NÃO ATINGIDA';
         console.log(`🚨 [EMERGENCY-BID] ${reason} no leilão "${auction.title}" - Forçando lance bot IMEDIATO`);
         
         try {
@@ -171,13 +171,17 @@ Deno.serve(async (req) => {
           });
         }
       } else {
-        console.log(`✅ [ALL-OK] Leilão "${auction.title}" - Meta atingida (${revenuePercentage}%) e timer OK (${auction.time_left}s)`);
+        const reason = needsRevenueProtection ? 
+          `Timer OK (${auction.time_left}s > 3s) - Aguardando timer descer` : 
+          `Meta atingida (${revenuePercentage}%)`;
+        console.log(`✅ [WAIT] Leilão "${auction.title}" - ${reason}`);
         protectionResults.push({
           auction_id: auction.id,
           auction_title: auction.title,
-          action: 'no_action_needed',
+          action: 'waiting',
+          reason: reason,
           revenue_percentage: revenuePercentage,
-          surplus: auction.company_revenue - auction.revenue_target,
+          surplus: needsRevenueProtection ? revenueDeficit * -1 : auction.company_revenue - auction.revenue_target,
           time_left: auction.time_left,
           timer_critical: isTimerCritical
         });
