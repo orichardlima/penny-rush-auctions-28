@@ -17,6 +17,7 @@ export interface AuctionData {
   updated_at?: string;
   local_timer?: boolean; // Flag para indicar timer calculado localmente
   last_bid_time?: string; // Timestamp do último bid real
+  timer_start_time?: string; // Momento em que o timer atual foi iniciado
 }
 
 export const useAuctionRealtime = () => {
@@ -94,13 +95,15 @@ export const useAuctionRealtime = () => {
                 .limit(1);
               
               const lastBidTime = lastBid?.[0]?.created_at;
+              const timerStartTime = lastBidTime || auction.starts_at;
               const localTimer = calculateInitialTimer(auction, lastBidTime);
               
               return {
                 ...auction,
                 time_left: localTimer,
-                local_timer: true, // Flag para indicar timer calculado localmente
-                last_bid_time: lastBidTime // Armazenar timestamp do último bid
+                local_timer: true,
+                last_bid_time: lastBidTime,
+                timer_start_time: timerStartTime // Fixar o momento de início do timer
               };
             }
             return auction;
@@ -162,15 +165,28 @@ export const useAuctionRealtime = () => {
                   
                   return current.map(auction => {
                     if (auction.id === auction_id) {
-                      // 🎯 Se for leilão ativo, manter timer e last_bid_time local (não usar do backend)
-                      if (updatedAuction.status === 'active' && auction.local_timer) {
+                      // Verificar se houve um novo bid (mudança no total_bids ou current_price)
+                      const hadNewBid = (updatedAuction.total_bids !== auction.total_bids) || 
+                                       (updatedAuction.current_price !== auction.current_price);
+                      
+                      if (hadNewBid) {
+                        // Novo bid - resetar timer com timestamp atual
+                        console.log(`🎯 [REALTIME] Novo bid detectado para ${auction.title} - resetando timer`);
                         return {
                           ...auction,
                           ...updatedAuction,
-                          // Manter timer local existente e last_bid_time
+                          time_left: 15,
+                          local_timer: true,
+                          timer_start_time: new Date().toISOString() // Novo início do timer
+                        };
+                      } else if (updatedAuction.status === 'active' && auction.local_timer) {
+                        // Atualização sem bid - manter timer local
+                        return {
+                          ...auction,
+                          ...updatedAuction,
                           time_left: auction.time_left,
                           local_timer: true,
-                          last_bid_time: auction.last_bid_time
+                          timer_start_time: auction.timer_start_time
                         };
                       }
                       return { ...auction, ...updatedAuction };
@@ -198,8 +214,8 @@ export const useAuctionRealtime = () => {
             }
           });
 
-        // Polling de backup menos frequente (backend gerencia a lógica principal)
-        pollInterval = setInterval(syncAuctions, 60000); // 1 minuto
+        // Polling de backup bem menos frequente 
+        pollInterval = setInterval(syncAuctions, 300000); // 5 minutos
 
       } catch (error) {
         console.error('❌ [REALTIME] Erro na inicialização:', error);
