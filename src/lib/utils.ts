@@ -14,3 +14,14 @@ export function formatPrice(priceInReais: number) {
     maximumFractionDigits: 2
   }).format(priceInReais || 0);
 }
+
+// FUNÇÃO PARA CALCULAR PARTICIPANTES FICTÍCIOS (÷7) APENAS PARA USUÁRIOS
+export function getDisplayParticipants(totalBids: number, realParticipants: number, isAdmin: boolean = false) {
+  // Se é admin, mostra dados reais
+  if (isAdmin) {
+    return realParticipants;
+  }
+  
+  // Se é usuário regular, mostra proporção fictícia de ~7 lances por participante
+  return Math.max(1, Math.floor(totalBids / 7));
+}

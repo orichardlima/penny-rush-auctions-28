@@ -7,6 +7,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { RecentWinners } from "@/components/RecentWinners";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
+import { getDisplayParticipants } from "@/lib/utils";
 
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -395,7 +396,7 @@ const Index = () => {
                     currentPrice={auction.currentPrice}
                     originalPrice={auction.originalPrice}
                     totalBids={auction.totalBids}
-                    participants={auction.participants}
+                    participants={getDisplayParticipants(auction.totalBids, auction.participants, profile?.is_admin)}
                     userBids={profile?.bids_balance || 0}
                     onBid={handleBid}
                     recentBidders={auction.recentBidders}

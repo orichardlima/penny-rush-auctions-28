@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime } from 'date-fns-tz';
 import { useNavigate } from "react-router-dom";
+import { getDisplayParticipants } from "@/lib/utils";
 
 const Auctions = () => {
   const [auctions, setAuctions] = useState<any[]>([]);
@@ -369,7 +370,7 @@ const Auctions = () => {
                   currentPrice={auction.currentPrice}
                   originalPrice={auction.originalPrice}
                   totalBids={auction.totalBids}
-                  participants={auction.participants}
+                  participants={getDisplayParticipants(auction.totalBids, auction.participants, profile?.is_admin)}
                   userBids={profile?.bids_balance || 0}
                   onBid={handleBid}
                   recentBidders={auction.recentBidders}

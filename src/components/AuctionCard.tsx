@@ -10,6 +10,7 @@ import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
 import { useAuctionDetail } from '@/hooks/useAuctionDetail';
 import { RealtimeStatus } from '@/components/RealtimeStatus';
+import { getDisplayParticipants } from '@/lib/utils';
 interface AuctionCardProps {
   id: string;
   title: string;
@@ -247,7 +248,7 @@ export const AuctionCard = ({
             </div>
             <div className="flex items-center text-muted-foreground">
               <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              {participants} pessoas
+              {getDisplayParticipants(displayTotalBids, participants, profile?.is_admin)} pessoas
             </div>
           </div>
 
