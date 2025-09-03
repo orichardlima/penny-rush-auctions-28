@@ -16,6 +16,7 @@ export interface AuctionData {
   description?: string;
   updated_at?: string;
   local_timer?: boolean; // Flag para indicar timer calculado localmente
+  last_bid_time?: string; // Timestamp do último bid real
 }
 
 export const useAuctionRealtime = () => {
@@ -36,16 +37,27 @@ export const useAuctionRealtime = () => {
   // 🎯 OPÇÃO A: Hook para timers locais em tempo real
   useLocalTimers(auctions, updateAuction);
 
-  // 🎯 OPÇÃO A: Calcular timer local para sincronização inicial
+  // 🎯 Calcular timer local baseado no último bid real
   const calculateInitialTimer = useCallback((auction: any, lastBidTime?: string) => {
     if (auction.status !== 'active') return auction.time_left || 0;
     
-    const now = new Date();
-    const lastActivity = lastBidTime ? new Date(lastBidTime) : new Date(auction.updated_at);
-    const secondsSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / 1000);
-    const localTimer = Math.max(0, 15 - secondsSinceActivity);
+    if (!lastBidTime) {
+      // Se não há bids, usar o starts_at ou updated_at como fallback
+      const fallbackTime = auction.starts_at || auction.updated_at;
+      const now = new Date();
+      const lastActivity = new Date(fallbackTime);
+      const secondsSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / 1000);
+      const localTimer = Math.max(0, 15 - secondsSinceActivity);
+      console.log(`🎯 [${auction.id}] Timer inicial (sem bids): ${localTimer}s`);
+      return localTimer;
+    }
     
-    console.log(`🎯 [${auction.id}] Timer inicial: ${localTimer}s (${secondsSinceActivity}s desde atividade)`);
+    const now = new Date();
+    const lastBid = new Date(lastBidTime);
+    const secondsSinceLastBid = Math.floor((now.getTime() - lastBid.getTime()) / 1000);
+    const localTimer = Math.max(0, 15 - secondsSinceLastBid);
+    
+    console.log(`🎯 [${auction.id}] Timer inicial: ${localTimer}s (${secondsSinceLastBid}s desde último bid)`);
     return localTimer;
   }, []);
 
@@ -70,7 +82,7 @@ export const useAuctionRealtime = () => {
       }
 
       if (auctionsData) {
-        // 🎯 OPÇÃO A: Buscar último bid para cada leilão ativo para calcular timer local
+        // 🎯 Buscar último bid para cada leilão ativo para calcular timer local
         const auctionsWithLocalTimers = await Promise.all(
           auctionsData.map(async (auction) => {
             if (auction.status === 'active') {
@@ -87,7 +99,8 @@ export const useAuctionRealtime = () => {
               return {
                 ...auction,
                 time_left: localTimer,
-                local_timer: true // Flag para indicar timer calculado localmente
+                local_timer: true, // Flag para indicar timer calculado localmente
+                last_bid_time: lastBidTime // Armazenar timestamp do último bid
               };
             }
             return auction;
@@ -149,14 +162,15 @@ export const useAuctionRealtime = () => {
                   
                   return current.map(auction => {
                     if (auction.id === auction_id) {
-                      // 🎯 OPÇÃO A: Se for leilão ativo, manter timer local (não usar do backend)
-                      if (updatedAuction.status === 'active') {
+                      // 🎯 Se for leilão ativo, manter timer e last_bid_time local (não usar do backend)
+                      if (updatedAuction.status === 'active' && auction.local_timer) {
                         return {
                           ...auction,
                           ...updatedAuction,
-                          // Manter timer local existente se houver
-                          time_left: auction.local_timer ? auction.time_left : updatedAuction.time_left,
-                          local_timer: auction.local_timer || false
+                          // Manter timer local existente e last_bid_time
+                          time_left: auction.time_left,
+                          local_timer: true,
+                          last_bid_time: auction.last_bid_time
                         };
                       }
                       return { ...auction, ...updatedAuction };

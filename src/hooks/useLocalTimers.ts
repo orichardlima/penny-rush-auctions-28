@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
 /**
- * 🎯 OPÇÃO A - Hook para atualizar timers locais em tempo real
- * Este hook atualiza os timers a cada segundo no frontend
+ * 🎯 Hook para atualizar timers locais em tempo real
+ * Este hook atualiza os timers a cada segundo baseado no último bid real
  */
 export const useLocalTimers = (
   auctions: any[],
@@ -11,18 +11,18 @@ export const useLocalTimers = (
   useEffect(() => {
     const interval = setInterval(() => {
       auctions.forEach(auction => {
-        if (auction.status === 'active' && auction.local_timer) {
+        if (auction.status === 'active' && auction.local_timer && auction.last_bid_time) {
           const now = new Date();
-          const lastActivity = new Date(auction.updated_at);
-          const secondsSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / 1000);
-          const newTimer = Math.max(0, 15 - secondsSinceActivity);
+          const lastBidTime = new Date(auction.last_bid_time);
+          const secondsSinceLastBid = Math.floor((now.getTime() - lastBidTime.getTime()) / 1000);
+          const newTimer = Math.max(0, 15 - secondsSinceLastBid);
           
           // Só atualizar se o timer mudou
           if (newTimer !== auction.time_left) {
             updateAuction(auction.id, { time_left: newTimer });
             
             // Log apenas quando o timer muda
-            console.log(`⏱️ [LOCAL-TIMER] ${auction.title}: ${newTimer}s`);
+            console.log(`⏱️ [LOCAL-TIMER] ${auction.title}: ${newTimer}s (desde último bid: ${secondsSinceLastBid}s)`);
           }
         }
       });
