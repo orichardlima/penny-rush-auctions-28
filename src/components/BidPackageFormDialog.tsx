@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateBidBreakdown, validatePackageConfig } from '@/utils/bidCalculations';
 
 const bidPackageSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -113,6 +114,27 @@ export const BidPackageFormDialog: React.FC<BidPackageFormDialogProps> = ({
     setIsSubmitting(true);
     
     try {
+      // Validate package configuration
+      const validation = validatePackageConfig(data.price, data.bids_count);
+      if (!validation.isValid) {
+        toast({
+          title: "Configuração inválida",
+          description: validation.error,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Generate features with correct bid calculation
+      const { baseDescription } = calculateBidBreakdown(data.price, data.bids_count);
+      const additionalFeatures = data.features.filter(f => 
+        f.trim() !== '' && 
+        !f.toLowerCase().includes('lance') && 
+        !f.toLowerCase().includes('bônus')
+      );
+      const updatedFeatures = [baseDescription, ...additionalFeatures];
+
       const packageData = {
         name: data.name,
         bids_count: data.bids_count,
@@ -120,7 +142,7 @@ export const BidPackageFormDialog: React.FC<BidPackageFormDialogProps> = ({
         original_price: data.original_price || null,
         icon: data.icon || 'Package',
         is_popular: data.is_popular,
-        features: data.features
+        features: updatedFeatures
       };
 
       if (isEditing && editingPackage) {
@@ -212,6 +234,19 @@ export const BidPackageFormDialog: React.FC<BidPackageFormDialogProps> = ({
               )}
             </div>
           </div>
+
+          {/* Calculation Preview */}
+          {watch("price") > 0 && watch("bids_count") > 0 && (
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Cálculo:</p>
+              <p className="text-sm text-muted-foreground">
+                {(() => {
+                  const calc = calculateBidBreakdown(watch("price"), watch("bids_count"));
+                  return `${calc.baseBids} lances base + ${calc.bonusBids} bônus = ${calc.totalBids} total`;
+                })()}
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

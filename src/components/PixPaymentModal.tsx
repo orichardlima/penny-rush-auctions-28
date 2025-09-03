@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, QrCode, Check, Clock, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateBidBreakdown } from "@/utils/bidCalculations";
 
 interface PixPaymentModalProps {
   open: boolean;
@@ -228,9 +229,21 @@ export const PixPaymentModal = ({
             <div className="text-center space-y-2">
               <h3 className="font-semibold">{packageInfo.name}</h3>
               <p className="text-2xl font-bold text-primary">{formatPrice(packageInfo.price)}</p>
-              <Badge variant="secondary">
-                {packageInfo.bidsCount} lances
-              </Badge>
+              <div className="space-y-1">
+                {(() => {
+                  const calc = calculateBidBreakdown(packageInfo.price, packageInfo.bidsCount);
+                  return (
+                    <>
+                      <Badge variant="secondary" className="text-xs">
+                        {calc.totalBids} lances inclusos
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        {calc.baseBids} base + {calc.bonusBids} bônus
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </Card>
 

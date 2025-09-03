@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Zap, Crown, Diamond, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { calculateBidBreakdown } from "@/utils/bidCalculations";
 
 interface BidPackage {
   id: string;
@@ -149,7 +150,10 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                     )}
                   </div>
                   <Badge variant={pkg.is_popular ? "default" : "secondary"} className="text-xs">
-                    {pkg.bids_count} lances inclusos
+                    {(() => {
+                      const calc = calculateBidBreakdown(pkg.price, pkg.bids_count);
+                      return `${calc.totalBids} lances (${calc.baseBids} base + ${calc.bonusBids} bônus)`;
+                    })()}
                   </Badge>
                 </div>
 
