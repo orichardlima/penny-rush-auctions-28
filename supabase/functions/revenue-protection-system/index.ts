@@ -15,6 +15,7 @@ interface Auction {
   current_price: number;
   bid_increment: number;
   bid_cost: number;
+  time_left: number;
 }
 
 interface BotProfile {
@@ -45,12 +46,12 @@ Deno.serve(async (req) => {
       second: '2-digit'
     });
 
-    console.log(`🛡️ [REVENUE-PROTECTION] Iniciando proteção baseada em receita às ${sao_paulo_time} (BR)`);
+    console.log(`🛡️ [REVENUE-PROTECTION] Iniciando proteção ULTRA-RÁPIDA às ${sao_paulo_time} (BR)`);
 
-    // 1. Buscar leilões ativos
+    // 1. Buscar leilões ativos COM TIMER
     const { data: activeAuctions, error: auctionsError } = await supabase
       .from('auctions')
-      .select('id, title, status, revenue_target, company_revenue, total_bids, current_price, bid_increment, bid_cost')
+      .select('id, title, status, revenue_target, company_revenue, total_bids, current_price, bid_increment, bid_cost, time_left')
       .eq('status', 'active');
 
     if (auctionsError) {
@@ -92,24 +93,33 @@ Deno.serve(async (req) => {
     let protectionActionsCount = 0;
     const protectionResults = [];
 
-    // 3. Analisar cada leilão ativo
+    // 3. Analisar cada leilão ativo COM PRIORIDADE PARA TIMER CRÍTICO
     for (const auction of activeAuctions) {
       const revenueDeficit = auction.revenue_target - auction.company_revenue;
       const revenuePercentage = auction.revenue_target > 0 
         ? Math.round((auction.company_revenue / auction.revenue_target) * 100)
         : 0;
 
-      console.log(`📊 [REVENUE-CHECK] Leilão "${auction.title}":`, {
+      // 🚨 TIMER CRÍTICO: Checar se timer está baixo
+      const isTimerCritical = auction.time_left <= 5 && auction.time_left > 0;
+      const needsRevenueProtection = auction.company_revenue < auction.revenue_target;
+
+      console.log(`📊 [ULTRA-FAST-CHECK] Leilão "${auction.title}":`, {
+        time_left: `${auction.time_left}s`,
+        timer_critical: isTimerCritical ? '🚨 CRÍTICO' : '✅ OK',
         revenue_target: `R$ ${auction.revenue_target.toFixed(2)}`,
         company_revenue: `R$ ${auction.company_revenue.toFixed(2)}`,
         deficit: `R$ ${revenueDeficit.toFixed(2)}`,
         percentage: `${revenuePercentage}%`,
-        total_bids: auction.total_bids
+        needs_protection: needsRevenueProtection
       });
 
-      // 4. SE A RECEITA REAL AINDA NÃO ATINGIU A META -> FORÇAR LANCE BOT
-      if (auction.company_revenue < auction.revenue_target) {
-        console.log(`🚨 [REVENUE-PROTECTION] Meta não atingida no leilão "${auction.title}" - Forçando lance bot`);
+      // 4. CONDIÇÕES PARA FORÇAR LANCE BOT:
+      // A) Timer crítico (≤5s) E ainda não atingiu meta de receita, OU
+      // B) Meta de receita não atingida (independente do timer)
+      if ((isTimerCritical && needsRevenueProtection) || needsRevenueProtection) {
+        const reason = isTimerCritical ? 'TIMER CRÍTICO + META NÃO ATINGIDA' : 'META NÃO ATINGIDA';
+        console.log(`🚨 [EMERGENCY-BID] ${reason} no leilão "${auction.title}" - Forçando lance bot IMEDIATO`);
         
         try {
           // Inserir lance do bot para manter o leilão ativo
@@ -123,44 +133,53 @@ Deno.serve(async (req) => {
             });
 
           if (bidError) {
-            console.error(`❌ [REVENUE-PROTECTION] Erro ao inserir lance bot no leilão ${auction.id}:`, bidError);
+            console.error(`❌ [EMERGENCY-BID] Erro ao inserir lance bot no leilão ${auction.id}:`, bidError);
             protectionResults.push({
               auction_id: auction.id,
               auction_title: auction.title,
               action: 'failed',
               error: bidError.message,
-              deficit: revenueDeficit
+              deficit: revenueDeficit,
+              time_left: auction.time_left,
+              timer_critical: isTimerCritical
             });
           } else {
             protectionActionsCount++;
-            console.log(`✅ [REVENUE-PROTECTION] Lance bot inserido com sucesso no leilão "${auction.title}"`);
+            console.log(`✅ [EMERGENCY-BID] Lance bot inserido com sucesso no leilão "${auction.title}" (${reason})`);
             protectionResults.push({
               auction_id: auction.id,
               auction_title: auction.title,
-              action: 'bot_bid_forced',
+              action: isTimerCritical ? 'emergency_timer_bid' : 'revenue_protection_bid',
+              reason: reason,
               deficit: revenueDeficit,
               new_price: auction.current_price + auction.bid_increment,
-              revenue_percentage: revenuePercentage
+              revenue_percentage: revenuePercentage,
+              time_left: auction.time_left,
+              timer_critical: isTimerCritical
             });
           }
         } catch (error) {
-          console.error(`❌ [REVENUE-PROTECTION] Erro crítico no leilão ${auction.id}:`, error);
+          console.error(`❌ [EMERGENCY-BID] Erro crítico no leilão ${auction.id}:`, error);
           protectionResults.push({
             auction_id: auction.id,
             auction_title: auction.title,
             action: 'critical_error',
             error: error.message,
-            deficit: revenueDeficit
+            deficit: revenueDeficit,
+            time_left: auction.time_left,
+            timer_critical: isTimerCritical
           });
         }
       } else {
-        console.log(`✅ [REVENUE-OK] Leilão "${auction.title}" com meta atingida (${revenuePercentage}%)`);
+        console.log(`✅ [ALL-OK] Leilão "${auction.title}" - Meta atingida (${revenuePercentage}%) e timer OK (${auction.time_left}s)`);
         protectionResults.push({
           auction_id: auction.id,
           auction_title: auction.title,
-          action: 'target_reached',
+          action: 'no_action_needed',
           revenue_percentage: revenuePercentage,
-          surplus: auction.company_revenue - auction.revenue_target
+          surplus: auction.company_revenue - auction.revenue_target,
+          time_left: auction.time_left,
+          timer_critical: isTimerCritical
         });
       }
     }
@@ -175,9 +194,11 @@ Deno.serve(async (req) => {
       results: protectionResults
     };
 
-    console.log(`🏁 [REVENUE-PROTECTION] Proteção concluída:`, {
+    console.log(`🏁 [ULTRA-FAST-PROTECTION] Proteção URGENTE concluída:`, {
       active_auctions: activeAuctions.length,
       protection_actions: protectionActionsCount,
+      emergency_interventions: protectionResults.filter(r => r.action === 'emergency_timer_bid').length,
+      revenue_interventions: protectionResults.filter(r => r.action === 'revenue_protection_bid').length,
       timestamp: sao_paulo_time
     });
 
