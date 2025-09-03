@@ -165,26 +165,27 @@ export const useAuctionRealtime = () => {
                   
                   return current.map(auction => {
                     if (auction.id === auction_id) {
-                      // Verificar se houve um novo bid (mudança no total_bids ou current_price)
-                      const hadNewBid = (updatedAuction.total_bids !== auction.total_bids) || 
-                                       (updatedAuction.current_price !== auction.current_price);
+                      // ✅ NOVA LÓGICA: Apenas resetar timer se o backend mandou time_left = 15
+                      // Isso indica um bid real que resetou o timer no servidor
+                      const isTimerReset = updatedAuction.time_left === 15 && auction.time_left !== 15;
                       
-                      if (hadNewBid) {
-                        // Novo bid - resetar timer com timestamp atual
-                        console.log(`🎯 [REALTIME] Novo bid detectado para ${auction.title} - resetando timer`);
+                      if (isTimerReset) {
+                        // Timer resetado pelo servidor (bid real) - aceitar e resetar timer local
+                        console.log(`🎯 [REALTIME] Timer resetado pelo servidor para ${auction.title} - novo bid confirmado`);
                         return {
                           ...auction,
                           ...updatedAuction,
                           time_left: 15,
                           local_timer: true,
-                          timer_start_time: new Date().toISOString() // Novo início do timer
+                          timer_start_time: new Date().toISOString()
                         };
                       } else if (updatedAuction.status === 'active' && auction.local_timer) {
-                        // Atualização sem bid - manter timer local
+                        // ✅ Atualização normal - MANTER timer local sem resetar
+                        console.log(`🎯 [${auction.id}] Timer: ${auction.time_left}s | Status: ${updatedAuction.status} | Source: REALTIME`);
                         return {
                           ...auction,
                           ...updatedAuction,
-                          time_left: auction.time_left,
+                          time_left: auction.time_left, // Manter timer local
                           local_timer: true,
                           timer_start_time: auction.timer_start_time
                         };
