@@ -7,13 +7,12 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { RecentWinners } from "@/components/RecentWinners";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
-import { getDisplayParticipants } from "@/lib/utils";
-
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
 import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
 import { useAuth } from "@/contexts/AuthContext";
+import { getDisplayParticipants } from "@/lib/utils";
 
 const Index = () => {
   const [auctions, setAuctions] = useState<any[]>([]);
