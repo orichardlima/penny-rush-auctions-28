@@ -111,14 +111,23 @@ serve(async (req) => {
     if (lastBids && lastBids.length > 0) {
       winnerId = lastBids[0].user_id;
       
-      // Buscar nome do ganhador
+      // Buscar nome completo do ganhador com cidade/estado
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, city, state')
         .eq('user_id', winnerId)
         .single();
       
-      winnerName = profile?.full_name || `Usuário ${winnerId.substring(0, 8)}`;
+      if (profile?.full_name) {
+        winnerName = profile.full_name;
+        // Se tem cidade e estado, incluir na exibição
+        if (profile.city && profile.state && 
+            profile.city.trim() !== '' && profile.state.trim() !== '') {
+          winnerName = `${profile.full_name} - ${profile.city}, ${profile.state}`;
+        }
+      } else {
+        winnerName = `Usuário ${winnerId.substring(0, 8)}`;
+      }
     }
 
     // FINALIZAR LEILÃO

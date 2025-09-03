@@ -6,7 +6,7 @@ export const RecentWinners = () => {
   const winners = [
     {
       id: 1,
-      name: "Maria S.",
+      name: "Maria S. - Campinas, SP",
       product: "iPhone 15 Pro Max",
       originalPrice: 8999,
       finalPrice: 23.45,
@@ -16,7 +16,7 @@ export const RecentWinners = () => {
     },
     {
       id: 2,
-      name: "João P.",
+      name: "João P. - Ribeirão Preto, SP",
       product: "MacBook Air M2",
       originalPrice: 12999,
       finalPrice: 156.78,
@@ -26,7 +26,7 @@ export const RecentWinners = () => {
     },
     {
       id: 3,
-      name: "Ana L.",
+      name: "Ana L. - Caxias do Sul, RS",
       product: "Samsung Galaxy S24",
       originalPrice: 5499,
       finalPrice: 89.23,
@@ -36,7 +36,7 @@ export const RecentWinners = () => {
     },
     {
       id: 4,
-      name: "Carlos M.",
+      name: "Carlos M. - Feira de Santana, BA",
       product: "PlayStation 5",
       originalPrice: 4199,
       finalPrice: 67.89,
@@ -46,7 +46,7 @@ export const RecentWinners = () => {
     },
     {
       id: 5,
-      name: "Fernanda R.",
+      name: "Fernanda R. - Londrina, PR",
       product: "Smart TV 55'' 4K",
       originalPrice: 3299,
       finalPrice: 45.67,
@@ -56,7 +56,7 @@ export const RecentWinners = () => {
     },
     {
       id: 6,
-      name: "Ricardo T.",
+      name: "Ricardo T. - Joinville, SC",
       product: "Apple Watch Ultra",
       originalPrice: 7999,
       finalPrice: 123.45,
