@@ -32,7 +32,6 @@ export type Database = {
           starting_price: number | null
           starts_at: string | null
           status: string | null
-          time_left: number | null
           title: string
           total_bids: number | null
           updated_at: string
@@ -56,7 +55,6 @@ export type Database = {
           starting_price?: number | null
           starts_at?: string | null
           status?: string | null
-          time_left?: number | null
           title: string
           total_bids?: number | null
           updated_at?: string
@@ -80,7 +78,6 @@ export type Database = {
           starting_price?: number | null
           starts_at?: string | null
           status?: string | null
-          time_left?: number | null
           title?: string
           total_bids?: number | null
           updated_at?: string
