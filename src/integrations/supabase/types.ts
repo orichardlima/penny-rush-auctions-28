@@ -22,6 +22,7 @@ export type Database = {
           created_at: string
           current_price: number | null
           description: string | null
+          ends_at: string | null
           finished_at: string | null
           id: string
           image_url: string | null
@@ -31,6 +32,7 @@ export type Database = {
           starting_price: number | null
           starts_at: string | null
           status: string | null
+          time_left: number | null
           title: string
           total_bids: number | null
           updated_at: string
@@ -44,6 +46,7 @@ export type Database = {
           created_at?: string
           current_price?: number | null
           description?: string | null
+          ends_at?: string | null
           finished_at?: string | null
           id?: string
           image_url?: string | null
@@ -53,6 +56,7 @@ export type Database = {
           starting_price?: number | null
           starts_at?: string | null
           status?: string | null
+          time_left?: number | null
           title: string
           total_bids?: number | null
           updated_at?: string
@@ -66,6 +70,7 @@ export type Database = {
           created_at?: string
           current_price?: number | null
           description?: string | null
+          ends_at?: string | null
           finished_at?: string | null
           id?: string
           image_url?: string | null
@@ -75,6 +80,7 @@ export type Database = {
           starting_price?: number | null
           starts_at?: string | null
           status?: string | null
+          time_left?: number | null
           title?: string
           total_bids?: number | null
           updated_at?: string
@@ -314,6 +320,10 @@ export type Database = {
       current_server_time: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      decrement_auction_timers: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_admin_audit_log: {
         Args: { limit_count?: number }
