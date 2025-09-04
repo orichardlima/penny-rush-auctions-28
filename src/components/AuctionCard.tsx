@@ -265,17 +265,17 @@ export const AuctionCard = ({
         </div>
 
         {/* Winner Section - Only show for finished auctions */}
-        {displayStatus === 'finished' && displayWinnerName && <div className="mb-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
+        {displayStatus === 'finished' && displayWinnerName && <div className="mb-4 bg-gradient-to-r from-yellow-400/20 to-amber-400/20 border-2 border-yellow-400/30 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center space-x-2 mb-2">
-              <Trophy className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+              <Trophy className="h-6 w-6 text-yellow-600" />
               <span className="font-bold text-lg text-yellow-800 dark:text-yellow-200">
                 Ganhador
               </span>
             </div>
-            <p className="text-lg font-semibold text-yellow-900 dark:text-yellow-100">
+            <p className="text-xl font-bold text-yellow-900 dark:text-yellow-100 mb-2">
               {displayWinnerName}
             </p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
               Parabéns! Produto arrematado por {formatPrice(displayCurrentPrice)}
             </p>
           </div>}
@@ -290,10 +290,12 @@ export const AuctionCard = ({
             AGUARDANDO INÍCIO
           </Button>}
 
-        {displayStatus === 'finished' && <Button disabled variant="secondary" size="lg" className="w-full">
-            <Trophy className="w-4 h-4 mr-2" />
-            LEILÃO FINALIZADO
-          </Button>}
+        {displayStatus === 'finished' && <div className="text-center">
+            <div className="bg-muted/50 text-muted-foreground py-3 px-4 rounded-lg border">
+              <Trophy className="w-5 h-5 mx-auto mb-1" />
+              <span className="text-sm font-medium">LEILÃO FINALIZADO</span>
+            </div>
+          </div>}
 
         {actualUserBids <= 0 && displayStatus === 'active' && <p className="text-center text-destructive text-sm mt-2">
             Você precisa comprar lances para participar!
