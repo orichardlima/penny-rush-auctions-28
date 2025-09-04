@@ -10,6 +10,7 @@ import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
 import { useAuctionDetail } from '@/hooks/useAuctionDetail';
 import { RealtimeStatus } from '@/components/RealtimeStatus';
+import { AuctionTimer } from '@/components/AuctionTimer';
 import { getDisplayParticipants } from '@/lib/utils';
 
 interface AuctionCardProps {
@@ -30,6 +31,8 @@ interface AuctionCardProps {
   starts_at?: string;
   winnerId?: string;
   winnerName?: string;
+  timeLeft?: number;
+  endsAt?: string;
 }
 
 export const AuctionCard = ({
@@ -49,7 +52,9 @@ export const AuctionCard = ({
   auctionStatus = 'active',
   starts_at,
   winnerId,
-  winnerName
+  winnerName,
+  timeLeft,
+  endsAt
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
@@ -82,7 +87,9 @@ export const AuctionCard = ({
   console.log(`🎯 [${id}] Status: ${displayStatus} | Source: ${dataSource}`);
   console.log(`💰 [${id}] Current Price: R$ ${displayCurrentPrice} | Original: R$ ${originalPrice}`);
 
-  // Get auth context for user bids
+  // Timer data - usar dados realtime quando disponíveis
+  const displayTimeLeft = auctionData?.time_left ?? timeLeft ?? 15;
+  const displayEndsAt = auctionData?.ends_at ?? endsAt;
   const {
     profile
   } = useAuth();
@@ -150,6 +157,19 @@ export const AuctionCard = ({
           >
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
           </Badge>
+          
+          {/* Timer - Só exibir para leilões ativos */}
+          {displayStatus === 'active' && (
+            <AuctionTimer 
+              initialTimeLeft={displayTimeLeft}
+              isActive={displayStatus === 'active'}
+              className="self-end"
+              onTimerEnd={() => {
+                console.log(`⏰ [TIMER-END] Leilão ${id} (${title}) finalizado pelo timer`);
+                forceSync(); // Forçar atualização quando timer acabar
+              }}
+            />
+          )}
         </div>
       </div>
       

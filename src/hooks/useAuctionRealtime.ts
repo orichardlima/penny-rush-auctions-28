@@ -8,6 +8,8 @@ export interface AuctionData {
   current_price: number;
   total_bids: number;
   status: string;
+  time_left?: number;
+  ends_at?: string;
   winner_name?: string;
   image_url?: string;
   description?: string;

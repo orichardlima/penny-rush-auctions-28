@@ -56,7 +56,9 @@ const Index = () => {
       ends_at: auction.ends_at,
       starts_at: auction.starts_at,
       winnerId: auction.winner_id,
-      winnerName: auction.winner_name
+      winnerName: auction.winner_name,
+      timeLeft: auction.time_left || 15,
+      endsAt: auction.ends_at
     };
   };
 
@@ -385,27 +387,29 @@ const Index = () => {
                     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                   })
                   .map((auction) => (
-                  <AuctionCard
-                    key={auction.id}
-                    id={auction.id}
-                    title={auction.title}
-                    description={auction.description}
-                    image={auction.image}
-                    currentPrice={auction.currentPrice}
-                    originalPrice={auction.originalPrice}
-                    totalBids={auction.totalBids}
-                    participants={getDisplayParticipants(auction.totalBids, auction.participants, profile?.is_admin)}
-                    userBids={profile?.bids_balance || 0}
-                    onBid={handleBid}
-                    recentBidders={auction.recentBidders}
-                    currentRevenue={auction.currentRevenue}
-                    
-                    isActive={auction.isActive}
-                    auctionStatus={auction.auctionStatus}
-                    starts_at={auction.starts_at}
-                    winnerId={auction.winnerId}
-                    winnerName={auction.winnerName}
-                  />
+                   <AuctionCard
+                     key={auction.id}
+                     id={auction.id}
+                     title={auction.title}
+                     description={auction.description}
+                     image={auction.image}
+                     currentPrice={auction.currentPrice}
+                     originalPrice={auction.originalPrice}
+                     totalBids={auction.totalBids}
+                     participants={getDisplayParticipants(auction.totalBids, auction.participants, profile?.is_admin)}
+                     userBids={profile?.bids_balance || 0}
+                     onBid={handleBid}
+                     recentBidders={auction.recentBidders}
+                     currentRevenue={auction.currentRevenue}
+                     
+                     isActive={auction.isActive}
+                     auctionStatus={auction.auctionStatus}
+                     starts_at={auction.starts_at}
+                     winnerId={auction.winnerId}
+                     winnerName={auction.winnerName}
+                     timeLeft={auction.timeLeft}
+                     endsAt={auction.endsAt}
+                   />
                 ))
               )}
             </div>

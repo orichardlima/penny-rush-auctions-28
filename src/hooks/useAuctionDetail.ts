@@ -6,6 +6,8 @@ interface AuctionDetail {
   current_price: number;
   total_bids: number;
   status: string;
+  time_left?: number;
+  ends_at?: string;
   winner_id?: string;
   winner_name?: string;
 }

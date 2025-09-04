@@ -49,7 +49,9 @@ const Auctions = () => {
       ends_at: auction.ends_at,
       starts_at: auction.starts_at,
       winnerId: auction.winner_id,
-      winnerName: auction.winner_name
+      winnerName: auction.winner_name,
+      timeLeft: auction.time_left || 15,
+      endsAt: auction.ends_at
     };
   };
 
@@ -380,6 +382,8 @@ const Auctions = () => {
                   starts_at={auction.starts_at}
                   winnerId={auction.winnerId}
                   winnerName={auction.winnerName}
+                  timeLeft={auction.timeLeft}
+                  endsAt={auction.endsAt}
                 />
               ))
             )}
