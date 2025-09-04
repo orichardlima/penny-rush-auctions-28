@@ -22,7 +22,6 @@ export type Database = {
           created_at: string
           current_price: number | null
           description: string | null
-          ends_at: string | null
           finished_at: string | null
           id: string
           image_url: string | null
@@ -45,7 +44,6 @@ export type Database = {
           created_at?: string
           current_price?: number | null
           description?: string | null
-          ends_at?: string | null
           finished_at?: string | null
           id?: string
           image_url?: string | null
@@ -68,7 +66,6 @@ export type Database = {
           created_at?: string
           current_price?: number | null
           description?: string | null
-          ends_at?: string | null
           finished_at?: string | null
           id?: string
           image_url?: string | null
@@ -318,10 +315,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      finalize_auctions_by_inactivity: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
@@ -447,10 +440,6 @@ export type Database = {
       is_admin_user: {
         Args: { user_uuid: string }
         Returns: boolean
-      }
-      sync_auction_timers_visual: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
     }
     Enums: {

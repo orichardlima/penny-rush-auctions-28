@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { AuctionCard } from "@/components/AuctionCard";
 import { useToast } from "@/hooks/use-toast";
-import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime } from 'date-fns-tz';
@@ -44,7 +43,7 @@ const Auctions = () => {
       participants: auction.participants_count || 0,
       recentBidders: auction.recentBidders || [],
       currentRevenue: (auction.total_bids || 0) * 1.00,
-      timeLeft: endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0,
+      
       auctionStatus,
       isActive: auctionStatus === 'active',
       ends_at: auction.ends_at,
@@ -135,7 +134,7 @@ const Auctions = () => {
   }, [toast]);
 
   // Hook para verificar e ativar leilões automaticamente
-  useAuctionTimer(fetchAuctions);
+  
 
   useEffect(() => {
     fetchAuctions();
@@ -375,10 +374,9 @@ const Auctions = () => {
                   onBid={handleBid}
                   recentBidders={auction.recentBidders}
                   currentRevenue={auction.currentRevenue}
-                  timeLeft={auction.timeLeft}
+                  
                   isActive={auction.isActive}
                   auctionStatus={auction.auctionStatus}
-                  ends_at={auction.ends_at}
                   starts_at={auction.starts_at}
                   winnerId={auction.winnerId}
                   winnerName={auction.winnerName}
