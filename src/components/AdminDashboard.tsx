@@ -741,7 +741,7 @@ const AdminDashboard = () => {
               <div className="lg:col-span-3">
                 {selectedAuctionForDetails ? (
                   <AuctionDetailView
-                    auction={auctions.find(a => a.id === selectedAuctionForDetails)!}
+                    auction={auctions.find(a => a.id === selectedAuctionForDetails)! as any}
                     financialData={auctionDetails?.find(d => d.auction_id === selectedAuctionForDetails)}
                   />
                 ) : (
