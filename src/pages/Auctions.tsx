@@ -24,14 +24,18 @@ const Auctions = () => {
     const startsAt = auction.starts_at ? toZonedTime(new Date(auction.starts_at), brazilTimezone) : null;
     const endsAt = auction.ends_at ? toZonedTime(new Date(auction.ends_at), brazilTimezone) : null;
     
-    // Determinar o status real do leilão usando o fuso do Brasil
-    let auctionStatus = 'waiting';
-    if (startsAt && startsAt > nowInBrazil) {
-      auctionStatus = 'waiting'; // Ainda não começou
-    } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
-      auctionStatus = 'active'; // Ativo
-    } else {
-      auctionStatus = 'finished'; // Finalizado
+    // RESPEITAR o status do banco - se já está finalizado, manter finalizado
+    let auctionStatus = auction.status;
+    
+    if (auction.status !== 'finished') {
+      // Só recalcular status se não estiver finalizado no banco
+      if (startsAt && startsAt > nowInBrazil) {
+        auctionStatus = 'waiting'; // Ainda não começou
+      } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
+        auctionStatus = 'active'; // Ativo
+      } else {
+        auctionStatus = 'finished'; // Finalizado por tempo
+      }
     }
     
     return {
