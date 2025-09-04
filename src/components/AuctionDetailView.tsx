@@ -29,11 +29,13 @@ interface Auction {
   market_value: number;
   revenue_target: number;
   total_bids: number;
+  time_left: number;
   status: string;
   winner_name?: string;
   winner_id?: string;
   participants_count: number;
   finished_at?: string;
+  ends_at?: string;
   company_revenue: number;
   created_at: string;
   starts_at: string;
@@ -158,7 +160,7 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
                     {auction.status === 'finished' ? 'Finalizado:' : 'Fim:'}
                   </span>
                   <span className="font-medium">
-                    {formatDate(auction.finished_at) || 'Em andamento'}
+                    {formatDate(auction.finished_at || auction.ends_at)}
                   </span>
                 </div>
               </div>

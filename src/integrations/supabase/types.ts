@@ -321,7 +321,7 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      decrement_auction_timers: {
+      finalize_auctions_by_inactivity: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -450,6 +450,10 @@ export type Database = {
       is_admin_user: {
         Args: { user_uuid: string }
         Returns: boolean
+      }
+      sync_auction_timers_visual: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

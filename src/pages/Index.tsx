@@ -6,6 +6,7 @@ import { BidPackages } from "@/components/BidPackages";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RecentWinners } from "@/components/RecentWinners";
 import { useToast } from "@/hooks/use-toast";
+import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
@@ -30,18 +31,14 @@ const Index = () => {
     const startsAt = auction.starts_at ? toZonedTime(new Date(auction.starts_at), brazilTimezone) : null;
     const endsAt = auction.ends_at ? toZonedTime(new Date(auction.ends_at), brazilTimezone) : null;
     
-    // RESPEITAR o status do banco - se já está finalizado, manter finalizado
-    let auctionStatus = auction.status;
-    
-    if (auction.status !== 'finished') {
-      // Só recalcular status se não estiver finalizado no banco
-      if (startsAt && startsAt > nowInBrazil) {
-        auctionStatus = 'waiting'; // Ainda não começou
-      } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
-        auctionStatus = 'active'; // Ativo
-      } else {
-        auctionStatus = 'finished'; // Finalizado por tempo
-      }
+    // Determinar o status real do leilão usando o fuso do Brasil
+    let auctionStatus = 'waiting';
+    if (startsAt && startsAt > nowInBrazil) {
+      auctionStatus = 'waiting'; // Ainda não começou
+    } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
+      auctionStatus = 'active'; // Ativo
+    } else {
+      auctionStatus = 'finished'; // Finalizado
     }
     
     return {
@@ -54,15 +51,13 @@ const Index = () => {
       participants: auction.participants_count || 0,
       recentBidders: auction.recentBidders || [], // Usar dados reais dos lances
       currentRevenue: (auction.total_bids || 0) * 1.00,
-      
+      timeLeft: endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0,
       auctionStatus,
       isActive: auctionStatus === 'active',
       ends_at: auction.ends_at,
       starts_at: auction.starts_at,
       winnerId: auction.winner_id,
-      winnerName: auction.winner_name,
-      timeLeft: auction.time_left || 15,
-      endsAt: auction.ends_at
+      winnerName: auction.winner_name
     };
   };
 
@@ -147,7 +142,7 @@ const Index = () => {
   }, [toast]);
 
   // Hook para verificar e ativar leilões automaticamente
-  
+  useAuctionTimer(fetchAuctions);
 
 
   useEffect(() => {
@@ -391,29 +386,28 @@ const Index = () => {
                     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                   })
                   .map((auction) => (
-                   <AuctionCard
-                     key={auction.id}
-                     id={auction.id}
-                     title={auction.title}
-                     description={auction.description}
-                     image={auction.image}
-                     currentPrice={auction.currentPrice}
-                     originalPrice={auction.originalPrice}
-                     totalBids={auction.totalBids}
-                     participants={getDisplayParticipants(auction.totalBids, auction.participants, profile?.is_admin)}
-                     userBids={profile?.bids_balance || 0}
-                     onBid={handleBid}
-                     recentBidders={auction.recentBidders}
-                     currentRevenue={auction.currentRevenue}
-                     
-                     isActive={auction.isActive}
-                     auctionStatus={auction.auctionStatus}
-                     starts_at={auction.starts_at}
-                     winnerId={auction.winnerId}
-                     winnerName={auction.winnerName}
-                     timeLeft={auction.timeLeft}
-                     endsAt={auction.endsAt}
-                   />
+                  <AuctionCard
+                    key={auction.id}
+                    id={auction.id}
+                    title={auction.title}
+                    description={auction.description}
+                    image={auction.image}
+                    currentPrice={auction.currentPrice}
+                    originalPrice={auction.originalPrice}
+                    totalBids={auction.totalBids}
+                    participants={getDisplayParticipants(auction.totalBids, auction.participants, profile?.is_admin)}
+                    userBids={profile?.bids_balance || 0}
+                    onBid={handleBid}
+                    recentBidders={auction.recentBidders}
+                    currentRevenue={auction.currentRevenue}
+                    timeLeft={auction.timeLeft}
+                    isActive={auction.isActive}
+                    auctionStatus={auction.auctionStatus}
+                    ends_at={auction.ends_at}
+                    starts_at={auction.starts_at}
+                    winnerId={auction.winnerId}
+                    winnerName={auction.winnerName}
+                  />
                 ))
               )}
             </div>

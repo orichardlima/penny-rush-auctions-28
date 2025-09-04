@@ -76,11 +76,13 @@ interface Auction {
   market_value: number;
   revenue_target: number;
   total_bids: number;
+  time_left: number;
   status: string;
   winner_name?: string;
   winner_id?: string;
   participants_count: number;
   finished_at?: string;
+  ends_at?: string;
   company_revenue: number;
   created_at: string;
   starts_at: string;
@@ -741,7 +743,7 @@ const AdminDashboard = () => {
               <div className="lg:col-span-3">
                 {selectedAuctionForDetails ? (
                   <AuctionDetailView
-                    auction={auctions.find(a => a.id === selectedAuctionForDetails)! as any}
+                    auction={auctions.find(a => a.id === selectedAuctionForDetails)!}
                     financialData={auctionDetails?.find(d => d.auction_id === selectedAuctionForDetails)}
                   />
                 ) : (
