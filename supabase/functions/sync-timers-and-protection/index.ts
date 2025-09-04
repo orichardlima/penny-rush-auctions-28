@@ -135,12 +135,9 @@ serve(async (req) => {
         // Calcular segundos desde última atividade (UTC)
         const secondsSinceActivity = Math.floor((now.getTime() - lastActivityDate.getTime()) / 1000);
         
-        // Calcular novo time_left baseado na inatividade
-        const newTimeLeft = Math.max(0, 15 - secondsSinceActivity);
-        
-        console.log(`⏱️ [TIMER] Leilão "${auction.title}": ${secondsSinceActivity}s inatividade, time_left: ${newTimeLeft}`);
+        console.log(`⏱️ [INACTIVITY-CHECK] Leilão "${auction.title}": ${secondsSinceActivity}s inatividade (não modificando timer visual)`);
 
-        // 🎯 OPÇÃO A: APENAS FINALIZAR LEILÕES EXPIRADOS - NÃO MEXER EM TIMERS VISUAIS
+        // 🎯 CORREÇÃO CRÍTICA: APENAS FINALIZAR LEILÕES EXPIRADOS - NÃO INTERFERIR EM TIMERS
         if (secondsSinceActivity >= 15) {
           console.log(`🔥 [FINALIZE-EXPIRED] Finalizando leilão "${auction.title}" com ${secondsSinceActivity}s de inatividade`);
           
@@ -180,11 +177,11 @@ serve(async (req) => {
             console.error(`❌ [FINALIZE-ERROR] Erro ao finalizar leilão ${auction.id}:`, finalizeError);
           }
         } else {
-          console.log(`⏳ [ACTIVE] Leilão "${auction.title}" ativo: ${secondsSinceActivity}s < 15s`);
+          console.log(`⏳ [ACTIVE-OK] Leilão "${auction.title}" ativo: ${secondsSinceActivity}s < 15s (timer controlado localmente)`);
         }
 
-        // 🎯 OPÇÃO A: ZERO INTERFERÊNCIA EM TIMERS VISUAIS
-        // Os timers são calculados localmente pelo frontend baseado no último bid
+        // 🎯 CORREÇÃO APLICADA: ZERO INTERFERÊNCIA EM TIMERS VISUAIS
+        // Os timers são calculados localmente pelo frontend baseado no timer_start_time
 
       } catch (error) {
         console.error(`❌ [PROCESSING-ERROR] Erro ao processar leilão ${auction.id}:`, error);
