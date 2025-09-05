@@ -167,7 +167,7 @@ export const AuctionCard = ({
                   <div className="flex items-center gap-1">
                     <Clock className="w-5 h-5" />
                     <span className="font-medium text-sm">
-                      Verificando proteção...
+                      Verificando se os lances foram válidos
                     </span>
                   </div>
                 </div>
