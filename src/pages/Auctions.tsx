@@ -38,7 +38,7 @@ const Auctions = () => {
     return {
       ...auction,
       image: auction.image_url || '/placeholder.svg',
-      currentPrice: (auction.current_price || 10) / 100,
+      currentPrice: auction.current_price || 1.00,
       originalPrice: auction.market_value || 0,
       totalBids: auction.total_bids || 0,
       participants: auction.participants_count || 0,
