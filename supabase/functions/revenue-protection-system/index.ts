@@ -100,8 +100,8 @@ Deno.serve(async (req) => {
         ? Math.round((auction.company_revenue / auction.revenue_target) * 100)
         : 0;
 
-      // 🚨 TIMER CRÍTICO: Checar se timer está baixo (≤ 3 segundos para emergência)
-      const isTimerCritical = auction.time_left <= 3 && auction.time_left > 0;
+      // 🚨 TIMER CRÍTICO: Checar se timer está baixo (≤ 2 segundos para emergência)
+      const isTimerCritical = auction.time_left <= 2 && auction.time_left > 0;
       const needsRevenueProtection = auction.company_revenue < auction.revenue_target;
 
       console.log(`📊 [ULTRA-FAST-CHECK] Leilão "${auction.title}":`, {
@@ -115,10 +115,10 @@ Deno.serve(async (req) => {
       });
 
       // 4. CONDIÇÃO PARA FORÇAR LANCE BOT:
-      // APENAS quando timer crítico (≤3s) E meta não atingida
-      // Isso permite o timer descer naturalmente até 3s antes de intervir
+      // APENAS quando timer crítico (≤2s) E meta não atingida
+      // Isso permite o timer descer naturalmente até 2s antes de intervir
       if (isTimerCritical && needsRevenueProtection) {
-        const reason = 'TIMER CRÍTICO (≤3s) + META NÃO ATINGIDA';
+        const reason = 'TIMER CRÍTICO (≤2s) + META NÃO ATINGIDA';
         console.log(`🚨 [EMERGENCY-BID] ${reason} no leilão "${auction.title}" - Forçando lance bot IMEDIATO`);
         
         try {
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
         }
       } else {
         const reason = needsRevenueProtection ? 
-          `Timer OK (${auction.time_left}s > 3s) - Aguardando timer descer` : 
+          `Timer OK (${auction.time_left}s > 2s) - Aguardando timer descer` : 
           `Meta atingida (${revenuePercentage}%)`;
         console.log(`✅ [WAIT] Leilão "${auction.title}" - ${reason}`);
         protectionResults.push({
