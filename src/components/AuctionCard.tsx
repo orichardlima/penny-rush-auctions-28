@@ -8,8 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
-import { useAuctionDetail } from '@/hooks/useAuctionDetail';
-import { RealtimeStatus } from '@/components/RealtimeStatus';
+import { useIndependentTimer } from '@/hooks/useIndependentTimer';
 import { getDisplayParticipants } from '@/lib/utils';
 interface AuctionCardProps {
   id: string;
@@ -55,39 +54,18 @@ export const AuctionCard = ({
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
-  // Hook para escutar updates em tempo real do leilão
-  const {
-    auctionData,
-    isConnected,
-    lastSync,
-    forceSync,
-    isWaitingFinalization,
-    finalizationMessage,
-    localTimeLeft
-  } = useAuctionDetail(id);
+  // Timer independente do frontend - não sincroniza com backend
+  const { localTimer, isProtectionActive } = useIndependentTimer({
+    auctionId: id,
+    initialTimeLeft: initialTimeLeft || 15
+  });
 
-  // DADOS PASSIVOS: Frontend sempre respeita o backend
-  // 1ª prioridade: Timer local decremental (UX)
-  // 2ª prioridade: Dados do realtime (banco de dados)
-  // 3ª prioridade: Props iniciais (só para primeiro render)
-  const displayTimeLeft = localTimeLeft ?? auctionData?.time_left ?? initialTimeLeft;
-  const displayIsActive = auctionData?.status === 'active' ? auctionData.time_left > 0 : initialIsActive;
-  const displayStatus = auctionData?.status ?? auctionStatus;
-
-  // LÓGICA DE FINALIZAÇÃO VISUAL
-  const shouldShowFinalizationMessage = displayTimeLeft === 0 && displayStatus === 'active';
-  console.log(`🎯 [${id}] Timer Display: ${displayTimeLeft}s | Status: ${displayStatus} | Local: ${localTimeLeft} | Backend: ${auctionData?.time_left}`);
-
-  // Mostrar mensagem de finalização quando timer local chega a 0
-  useEffect(() => {
-    if (shouldShowFinalizationMessage && !isWaitingFinalization) {
-      console.log(`🏁 [${id}] Iniciando exibição de finalização (timer chegou a 0)`);
-      // A lógica de finalização já está no hook useAuctionDetail
-    }
-  }, [shouldShowFinalizationMessage, isWaitingFinalization, id]);
-  const displayCurrentPrice = auctionData?.current_price ?? currentPrice;
-  const displayTotalBids = auctionData?.total_bids ?? totalBids;
-  const displayWinnerName = auctionData?.winner_name ?? winnerName;
+  // Usar dados das props - não há mais sincronização com backend no timer
+  const displayTimeLeft = localTimer;
+  const displayCurrentPrice = currentPrice;
+  const displayTotalBids = totalBids;
+  const displayWinnerName = winnerName;
+  const displayStatus = auctionStatus;
 
   // Função para formatar preços em reais (agora tudo está em reais)
   const formatPrice = (priceInReais: number) => {
@@ -100,10 +78,7 @@ export const AuctionCard = ({
     }).format(safePriceInReais);
   };
 
-  // Debug: Mostrar fonte dos dados e preço
-  const dataSource = auctionData ? 'REALTIME' : 'PROPS';
-  console.log(`🎯 [${id}] Timer: ${displayTimeLeft}s | Status: ${displayStatus} | Source: ${dataSource}`);
-  console.log(`💰 [${id}] Current Price: R$ ${displayCurrentPrice} | Original: R$ ${originalPrice}`);
+  console.log(`⏰ [${id}] Timer independente: ${displayTimeLeft}s | Proteção ativa: ${isProtectionActive}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -186,13 +161,13 @@ export const AuctionCard = ({
           
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
-            {isWaitingFinalization ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
+            {isProtectionActive ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-5 h-5" />
                     <span className="font-medium text-sm">
-                      {finalizationMessage}
+                      Verificando proteção...
                     </span>
                   </div>
                 </div>
@@ -211,8 +186,6 @@ export const AuctionCard = ({
       </div>
       
       <div className="p-3 sm:p-6">
-        {/* Status da conexão realtime - apenas para leilões ativos */}
-        {displayStatus === 'active'}
         <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">{title}</h3>
         
         {description && <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
