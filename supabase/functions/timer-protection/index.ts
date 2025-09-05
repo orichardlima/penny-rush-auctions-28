@@ -21,12 +21,12 @@ Deno.serve(async (req) => {
     
     const currentTimeBr = new Date().toISOString();
     
-    // Find active auctions where timer has expired (ends_at in the past or time_left <= 0)
+    // Buscar leilões ativos com timer expirado (apenas time_left)
     const { data: expiredAuctions, error: fetchError } = await supabase
       .from('auctions')
-      .select('id, title, time_left, ends_at, current_price, revenue_target, company_revenue')
+      .select('id, title, time_left, current_price, revenue_target, company_revenue')
       .eq('status', 'active')
-      .or(`ends_at.lt.${currentTimeBr},time_left.lte.0`);
+      .lte('time_left', 0);
 
     if (fetchError) {
       console.error('❌ [TIMER-PROTECTION] Error fetching expired auctions:', fetchError);
