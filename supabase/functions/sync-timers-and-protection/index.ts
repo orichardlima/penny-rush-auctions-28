@@ -1,28 +1,37 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 interface Auction {
   id: string;
   status: string;
   starts_at: string;
-  ends_at: string | null;
-  time_left: number;
-  title: string;
-  total_bids: number;
   updated_at: string;
+  total_bids: number;
+  company_revenue: number;
+  revenue_target: number;
+  title: string;
+}
+
+interface AuctionTimer {
+  auction_id: string;
+  timer_started_at: string;
+  last_bid_at: string | null;
+  seconds_remaining: number;
 }
 
 interface Bid {
-  created_at: string;
+  id: string;
+  auction_id: string;
   user_id: string;
+  created_at: string;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,237 +42,280 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // ✅ CORREÇÃO DEFINITIVA TIMEZONE - São Paulo UTC-3 preciso
-    const now = new Date();
-    
-    // Converter para São Paulo usando Intl.DateTimeFormat (mais preciso)
-    const saoPauloFormatter = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-    
-    const saoPauloDateString = saoPauloFormatter.format(now).replace(' ', 'T');
-    const currentTime = now.toISOString(); // UTC para database
-    
-    console.log(`🔍 [SYNC] Iniciando sincronização às ${saoPauloDateString} (BR) | UTC: ${currentTime}`);
+    const currentTimeBr = new Date().toISOString();
+    const currentDate = new Date();
 
-    // 1. Ativar leilões que estão "waiting" e já passaram do starts_at
-    // Buscar todos os leilões waiting e fazer comparação manual com fuso brasileiro
+    console.log(`🔄 [SYNC-PROTECTION] Iniciando verificação de leilões - ${currentTimeBr}`);
+
+    // **FASE 1: Ativar leilões em espera cujo horário chegou**
     const { data: waitingAuctions, error: waitingError } = await supabase
       .from('auctions')
-      .select('id, title, starts_at, status')
-      .eq('status', 'waiting');
+      .select('id, title, starts_at')
+      .eq('status', 'waiting')
+      .lte('starts_at', currentTimeBr);
 
     if (waitingError) {
-      console.error('Erro ao buscar leilões waiting:', waitingError);
-      throw waitingError;
+      console.error('❌ Erro ao buscar leilões em espera:', waitingError);
+      return new Response(JSON.stringify({ error: waitingError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    // ✅ Filtrar leilões que devem ser ativados (timezone corrigido)
-    const auctionsToActivate = (waitingAuctions || []).filter(auction => {
-      if (!auction.starts_at) return false;
-      
-      // starts_at vem em UTC do database, comparar diretamente com UTC
-      const startsAtDate = new Date(auction.starts_at);
-      const shouldActivate = startsAtDate <= now;
-      
-      if (shouldActivate) {
-        console.log(`🎯 [ACTIVATION] Leilão "${auction.title}" deve ser ativado - starts_at: ${startsAtDate.toISOString()}, now: ${now.toISOString()}`);
-      }
-      
-      return shouldActivate;
-    });
 
     let activatedCount = 0;
-    for (const auction of auctionsToActivate) {
-      console.log(`🚀 [ACTIVATE] Ativando leilão ${auction.id} ("${auction.title}") - starts_at: ${auction.starts_at}`);
-      
-      const { error: updateError } = await supabase
-        .from('auctions')
-        .update({
-          status: 'active',
-          time_left: 15,
-          updated_at: currentTime
-        })
-        .eq('id', auction.id);
+    if (waitingAuctions && waitingAuctions.length > 0) {
+      for (const auction of waitingAuctions) {
+        const { error: activateError } = await supabase
+          .from('auctions')
+          .update({ 
+            status: 'active',
+            time_left: 15,
+            updated_at: currentTimeBr
+          })
+          .eq('id', auction.id);
 
-      if (updateError) {
-        console.error(`❌ [ACTIVATION-ERROR] Erro ao ativar leilão ${auction.id}:`, updateError);
-      } else {
-        activatedCount++;
-        console.log(`✅ [ACTIVATED] Leilão "${auction.title}" (${auction.id}) ativado!`);
+        if (activateError) {
+          console.error(`❌ Erro ao ativar leilão ${auction.id}:`, activateError);
+        } else {
+          console.log(`✅ [ACTIVATION] Leilão "${auction.title}" ativado (${auction.id})`);
+          activatedCount++;
+        }
       }
     }
 
-    // 2. ✅ DECREMENTAR TIMERS e FINALIZAR leilões ativos por inatividade
+    // **FASE 2: Gerenciar timers de leilões ativos**
     const { data: activeAuctions, error: activeError } = await supabase
       .from('auctions')
-      .select('id, title, time_left, updated_at, total_bids')
+      .select('id, title, status, updated_at, total_bids, company_revenue, revenue_target, time_left')
       .eq('status', 'active');
 
     if (activeError) {
-      console.error('❌ [ERROR] Erro ao buscar leilões ativos:', activeError);
-      throw activeError;
+      console.error('❌ Erro ao buscar leilões ativos:', activeError);
+      return new Response(JSON.stringify({ error: activeError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
+    let timerUpdates = 0;
     let finalizedCount = 0;
-    for (const auction of activeAuctions || []) {
-      try {
-        // Buscar último lance para determinar última atividade
-        const { data: lastBids, error: bidError } = await supabase
+    let botBidsAdded = 0;
+
+    if (activeAuctions && activeAuctions.length > 0) {
+      // Buscar todos os timers ativos
+      const { data: timers, error: timerError } = await supabase
+        .from('auction_timers')
+        .select('*')
+        .in('auction_id', activeAuctions.map(a => a.id));
+
+      if (timerError) {
+        console.error('❌ Erro ao buscar timers:', timerError);
+      }
+
+      for (const auction of activeAuctions) {
+        const timer = timers?.find(t => t.auction_id === auction.id);
+        
+        if (!timer) {
+          // Criar timer se não existir
+          await supabase
+            .from('auction_timers')
+            .insert({
+              auction_id: auction.id,
+              seconds_remaining: auction.time_left || 15
+            });
+          continue;
+        }
+
+        // Verificar se houve bid recente (último segundo)
+        const { data: recentBids, error: bidError } = await supabase
           .from('bids')
-          .select('created_at, user_id')
+          .select('created_at')
           .eq('auction_id', auction.id)
+          .gte('created_at', new Date(Date.now() - 2000).toISOString())
           .order('created_at', { ascending: false })
           .limit(1);
 
         if (bidError) {
-          console.error(`❌ [BID-ERROR] Erro ao buscar último lance do leilão ${auction.id}:`, bidError);
+          console.error(`❌ Erro ao verificar bids do leilão ${auction.id}:`, bidError);
           continue;
         }
 
-        // ✅ ÚNICA FONTE DE VERDADE: último lance ou updated_at (UTC)
-        const lastBidTime = lastBids && lastBids.length > 0 ? lastBids[0].created_at : null;
-        const lastActivityTime = lastBidTime || auction.updated_at;
-        const lastActivityDate = new Date(lastActivityTime);
+        let shouldResetTimer = false;
         
-        // Calcular segundos desde última atividade (UTC)
-        const secondsSinceActivity = Math.floor((now.getTime() - lastActivityDate.getTime()) / 1000);
-        
-        console.log(`⏱️ [INACTIVITY-CHECK] Leilão "${auction.title}": ${secondsSinceActivity}s inatividade (não modificando timer visual)`);
-
-        // 🎯 CORREÇÃO CRÍTICA: APENAS FINALIZAR LEILÕES EXPIRADOS - NÃO INTERFERIR EM TIMERS
-        if (secondsSinceActivity >= 15) {
-          console.log(`🔥 [FINALIZE-EXPIRED] Finalizando leilão "${auction.title}" com ${secondsSinceActivity}s de inatividade`);
-          
-          // Buscar ganhador (último lance)
-          let winnerId = null;
-          let winnerName = 'Nenhum ganhador';
-          
-          if (lastBids && lastBids.length > 0) {
-            winnerId = lastBids[0].user_id;
+        // Se há bid recente, resetar timer
+        if (recentBids && recentBids.length > 0) {
+          shouldResetTimer = true;
+          await supabase
+            .from('auction_timers')
+            .update({
+              last_bid_at: recentBids[0].created_at,
+              seconds_remaining: 15,
+              updated_at: currentTimeBr
+            })
+            .eq('auction_id', auction.id);
             
-            // Buscar nome do ganhador
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('user_id', winnerId)
-              .single();
-            
-            winnerName = profile?.full_name || `Usuário ${winnerId.substring(0, 8)}`;
-          }
-
-          // FINALIZAR LEILÃO
-          const { error: finalizeError } = await supabase
+          await supabase
             .from('auctions')
             .update({
-              status: 'finished',
-              time_left: 0,
-              winner_id: winnerId,
-              winner_name: winnerName,
-              finished_at: currentTime
+              time_left: 15,
+              updated_at: currentTimeBr
             })
             .eq('id', auction.id);
-
-          if (!finalizeError) {
-            finalizedCount++;
-            console.log(`✅ [FINALIZED] Leilão "${auction.title}" finalizado! Ganhador: "${winnerName}"`);
-          } else {
-            console.error(`❌ [FINALIZE-ERROR] Erro ao finalizar leilão ${auction.id}:`, finalizeError);
-          }
-        } else {
-          console.log(`⏳ [ACTIVE-OK] Leilão "${auction.title}" ativo: ${secondsSinceActivity}s < 15s (timer controlado localmente)`);
+            
+          console.log(`🔄 [TIMER-RESET] Timer resetado para leilão ${auction.title} por bid recente`);
+          timerUpdates++;
+          continue;
         }
 
-        // 🎯 CORREÇÃO APLICADA: ZERO INTERFERÊNCIA EM TIMERS VISUAIS
-        // Os timers são calculados localmente pelo frontend baseado no timer_start_time
+        // Calcular tempo decorrido desde última atividade
+        const lastActivity = timer.last_bid_at || timer.timer_started_at;
+        const timeSinceLastActivity = (currentDate.getTime() - new Date(lastActivity).getTime()) / 1000;
+        const newSecondsRemaining = Math.max(0, 15 - Math.floor(timeSinceLastActivity));
 
-      } catch (error) {
-        console.error(`❌ [PROCESSING-ERROR] Erro ao processar leilão ${auction.id}:`, error);
+        // Atualizar timer no banco
+        await supabase
+          .from('auction_timers')
+          .update({
+            seconds_remaining: newSecondsRemaining,
+            updated_at: currentTimeBr
+          })
+          .eq('auction_id', auction.id);
+
+        await supabase
+          .from('auctions')
+          .update({
+            time_left: newSecondsRemaining,
+            updated_at: currentTimeBr
+          })
+          .eq('id', auction.id);
+
+        timerUpdates++;
+
+        // **FASE 3: Lógica de proteção/finalização**
+        if (newSecondsRemaining <= 0) {
+          console.log(`⏰ [TIMER-EXPIRED] Leilão ${auction.title} com timer expirado - verificando proteção`);
+          
+          // Verificar se deve finalizar ou adicionar bid de proteção
+          if (auction.company_revenue >= auction.revenue_target) {
+            // Finalizar leilão - meta atingida
+            const { data: lastBid } = await supabase
+              .from('bids')
+              .select('user_id, profiles(full_name)')
+              .eq('auction_id', auction.id)
+              .limit(1)
+              .order('created_at', { ascending: false })
+              .single();
+
+            await supabase
+              .from('auctions')
+              .update({
+                status: 'finished',
+                finished_at: currentTimeBr,
+                winner_id: lastBid?.user_id || null,
+                winner_name: lastBid?.profiles?.full_name || null
+              })
+              .eq('id', auction.id);
+
+            // Remover timer
+            await supabase
+              .from('auction_timers')
+              .delete()
+              .eq('auction_id', auction.id);
+
+            console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - meta atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
+            finalizedCount++;
+            
+          } else {
+            // Adicionar bid de bot - meta não atingida
+            const { data: randomBot } = await supabase.rpc('get_random_bot');
+            
+            if (randomBot) {
+              const { error: bidError } = await supabase
+                .from('bids')
+                .insert({
+                  auction_id: auction.id,
+                  user_id: randomBot,
+                  bid_amount: auction.time_left || 0, // Usar current_price + bid_increment seria mais correto
+                  cost_paid: 1.00 // Custo padrão do bid
+                });
+
+              if (bidError) {
+                console.error(`❌ Erro ao inserir bid de bot para leilão ${auction.id}:`, bidError);
+              } else {
+                console.log(`🤖 [BOT-PROTECTION] Bid de proteção adicionado ao leilão "${auction.title}" - meta não atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
+                botBidsAdded++;
+              }
+            }
+          }
+        }
       }
     }
 
-    // 3. ✅ PROTEÇÃO: reverter leilões ativos prematuros (sem lances e starts_at futuro)
-    const { data: allActiveAuctions, error: allActiveError } = await supabase
+    // **FASE 4: Reverter leilões ativos prematuros**
+    const { data: prematureAuctions, error: prematureError } = await supabase
       .from('auctions')
       .select('id, title, starts_at, total_bids')
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .gt('starts_at', currentTimeBr)
+      .eq('total_bids', 0);
 
-    if (allActiveError) {
-      console.error('❌ [ERROR] Erro ao buscar todos os leilões ativos:', allActiveError);
-      throw allActiveError;
+    if (prematureError) {
+      console.error('❌ Erro ao buscar leilões prematuros:', prematureError);
     }
-
-    // Identificar leilões prematuros (ativos mas starts_at no futuro E sem lances)
-    const prematureAuctions = (allActiveAuctions || []).filter(auction => {
-      if (!auction.starts_at) return false;
-      
-      const startsAtDate = new Date(auction.starts_at);
-      const isPremature = startsAtDate > now && auction.total_bids === 0;
-      
-      if (isPremature) {
-        console.log(`⚠️ [PROTECTION] Leilão ${auction.id} é prematuro - starts_at: ${startsAtDate.toISOString()}, now: ${now.toISOString()}, total_bids: ${auction.total_bids}`);
-      }
-      
-      return isPremature;
-    });
 
     let revertedCount = 0;
-    for (const auction of prematureAuctions) {
-      const { error: revertError } = await supabase
-        .from('auctions')
-        .update({
-          status: 'waiting',
-          time_left: 15,
-          updated_at: currentTime
-        })
-        .eq('id', auction.id);
+    if (prematureAuctions && prematureAuctions.length > 0) {
+      for (const auction of prematureAuctions) {
+        const { error: revertError } = await supabase
+          .from('auctions')
+          .update({ 
+            status: 'waiting',
+            time_left: 15,
+            updated_at: currentTimeBr
+          })
+          .eq('id', auction.id);
 
-      if (!revertError) {
-        revertedCount++;
-        console.log(`🔄 [REVERTED] Leilão prematuro "${auction.title}" revertido para 'waiting'`);
-      } else {
-        console.error(`❌ [REVERT-ERROR] Erro ao reverter leilão ${auction.id}:`, revertError);
+        if (revertError) {
+          console.error(`❌ Erro ao reverter leilão ${auction.id}:`, revertError);
+        } else {
+          // Remover timer do leilão revertido
+          await supabase
+            .from('auction_timers')
+            .delete()
+            .eq('auction_id', auction.id);
+            
+          console.log(`⏪ [REVERTED] Leilão "${auction.title}" revertido para waiting - ativado prematuramente`);
+          revertedCount++;
+        }
       }
     }
 
-    // ✅ RESULTADO FINAL
-    const result = {
-      timestamp: currentTime,
-      sao_paulo_time: saoPauloDateString,
-      waiting_auctions: waitingAuctions?.length || 0,
-      activated_count: activatedCount,
-      active_auctions: activeAuctions?.length || 0,
-      finalized_count: finalizedCount,
-      premature_auctions: prematureAuctions.length,
-      reverted_count: revertedCount,
+    const summary = {
+      timestamp: currentTimeBr,
+      activated: activatedCount,
+      timer_updates: timerUpdates,
+      finalized: finalizedCount,
+      bot_bids_added: botBidsAdded,
+      reverted: revertedCount,
       success: true
     };
 
-    console.log(`🏁 [SYNC] Sincronização concluída:`, result);
+    console.log(`✅ [SYNC-COMPLETE] Ativados: ${activatedCount} | Timers: ${timerUpdates} | Finalizados: ${finalizedCount} | Bots: ${botBidsAdded} | Revertidos: ${revertedCount}`);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(summary), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Erro na sincronização de timers:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString()
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
+    console.error('💥 [CRITICAL-ERROR] Erro crítico na sincronização:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Critical sync error', 
+      details: error.message,
+      timestamp: new Date().toISOString()
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

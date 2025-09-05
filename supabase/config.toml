@@ -11,6 +11,3 @@ verify_jwt = false
 
 [functions.mercado-pago-webhook]
 verify_jwt = false
-
-[functions.timer-protection]
-verify_jwt = false
