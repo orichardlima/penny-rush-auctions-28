@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      auction_timers: {
-        Row: {
-          auction_id: string
-          created_at: string
-          id: string
-          last_bid_at: string | null
-          seconds_remaining: number
-          timer_started_at: string
-          updated_at: string
-        }
-        Insert: {
-          auction_id: string
-          created_at?: string
-          id?: string
-          last_bid_at?: string | null
-          seconds_remaining?: number
-          timer_started_at?: string
-          updated_at?: string
-        }
-        Update: {
-          auction_id?: string
-          created_at?: string
-          id?: string
-          last_bid_at?: string | null
-          seconds_remaining?: number
-          timer_started_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       auctions: {
         Row: {
           bid_cost: number | null
