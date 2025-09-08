@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
+import { differenceInHours } from 'date-fns';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
 import { useIndependentTimer } from '@/hooks/useIndependentTimer';
 import { getDisplayParticipants } from '@/lib/utils';
@@ -142,6 +143,17 @@ export const AuctionCard = ({
     const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;
     return Math.round(discount);
   };
+
+  const getActiveHours = () => {
+    if (!starts_at || displayStatus !== 'active') return null;
+    
+    const brazilTimezone = 'America/Sao_Paulo';
+    const startsAtInBrazil = toZonedTime(new Date(starts_at), brazilTimezone);
+    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
+    
+    const hoursActive = differenceInHours(nowInBrazil, startsAtInBrazil);
+    return hoursActive > 0 ? hoursActive : 0;
+  };
   return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
       <div className="relative">
         <img src={image} alt={title} className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300" onError={e => {
@@ -224,6 +236,13 @@ export const AuctionCard = ({
               {getDisplayParticipants(displayTotalBids, participants, profile?.is_admin)} pessoas
             </div>
           </div>
+
+          {displayStatus === 'active' && getActiveHours() !== null && (
+            <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              Ativo há {getActiveHours()} {getActiveHours() === 1 ? 'hora' : 'horas'}
+            </div>
+          )}
 
 
           {recentBidders.length > 0 && <div className="pt-2 border-t border-border">
