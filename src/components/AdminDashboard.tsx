@@ -65,6 +65,8 @@ import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
 import AuditLogTable from '@/components/AuditLogTable';
 import { BidPackageFormDialog } from '@/components/BidPackageFormDialog';
+import { processImageFile, createImagePreview } from '@/utils/imageUtils';
+import { formatPrice } from '@/lib/utils';
 
 interface Auction {
   id: string;
@@ -155,6 +157,8 @@ const AdminDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [editingAuction, setEditingAuction] = useState<Auction | null>(null);
   const [editingImage, setEditingImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -407,6 +411,32 @@ const AdminDashboard = () => {
     }
   };
 
+  // Função para processar seleção de nova imagem
+  const handleImageSelection = async (file: File | null) => {
+    if (!file) {
+      setEditingImage(null);
+      setImagePreview(null);
+      return;
+    }
+
+    setImageProcessing(true);
+    try {
+      // Criar preview da imagem selecionada
+      const preview = await createImagePreview(file);
+      setImagePreview(preview);
+      setEditingImage(file);
+    } catch (error) {
+      console.error('Error creating image preview:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao processar imagem selecionada",
+        variant: "destructive"
+      });
+    } finally {
+      setImageProcessing(false);
+    }
+  };
+
   // Função para atualizar leilão
   const updateAuction = async () => {
     if (!editingAuction) return;
@@ -453,15 +483,17 @@ const AdminDashboard = () => {
         description: "Leilão atualizado com sucesso!"
       });
 
+      // Limpar estados
       setIsEditDialogOpen(false);
       setEditingAuction(null);
       setEditingImage(null);
+      setImagePreview(null);
       fetchAdminData();
     } catch (error) {
       console.error('Error updating auction:', error);
       toast({
         title: "Erro",
-        description: "Erro ao atualizar leilão",
+        description: error instanceof Error ? error.message : "Erro ao atualizar leilão",
         variant: "destructive"
       });
     } finally {
@@ -991,11 +1023,12 @@ const AdminDashboard = () => {
                             <Button 
                               size="sm" 
                               variant="outline"
-                             onClick={() => {
-                               setEditingAuction(auction);
-                               setEditingImage(null);
-                               setIsEditDialogOpen(true);
-                             }}
+                              onClick={() => {
+                                setEditingAuction(auction);
+                                setEditingImage(null);
+                                setImagePreview(null);
+                                setIsEditDialogOpen(true);
+                              }}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -1390,7 +1423,8 @@ const AdminDashboard = () => {
                     setIsEditDialogOpen(false);
                     setEditingAuction(null);
                     setEditingImage(null);
-                  }} disabled={uploading}>
+                    setImagePreview(null);
+                  }} disabled={uploading || imageProcessing}>
                     Cancelar
                   </Button>
                 </div>
