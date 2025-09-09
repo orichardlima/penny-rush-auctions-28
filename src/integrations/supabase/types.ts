@@ -26,6 +26,7 @@ export type Database = {
           finished_at: string | null
           id: string
           image_url: string | null
+          last_bid_at: string | null
           market_value: number | null
           participants_count: number | null
           revenue_target: number | null
@@ -50,6 +51,7 @@ export type Database = {
           finished_at?: string | null
           id?: string
           image_url?: string | null
+          last_bid_at?: string | null
           market_value?: number | null
           participants_count?: number | null
           revenue_target?: number | null
@@ -74,6 +76,7 @@ export type Database = {
           finished_at?: string | null
           id?: string
           image_url?: string | null
+          last_bid_at?: string | null
           market_value?: number | null
           participants_count?: number | null
           revenue_target?: number | null
@@ -372,6 +375,10 @@ export type Database = {
         }[]
       }
       get_auction_revenue: {
+        Args: { auction_uuid: string }
+        Returns: number
+      }
+      get_auction_time_left: {
         Args: { auction_uuid: string }
         Returns: number
       }

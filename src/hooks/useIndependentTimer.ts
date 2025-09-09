@@ -7,14 +7,35 @@ interface UseIndependentTimerProps {
 }
 
 export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseIndependentTimerProps) => {
-  const [localTimer, setLocalTimer] = useState(initialTimeLeft);
+  const [localTimer, setLocalTimer] = useState(0); // Começar em 0, será atualizado pelo backend
   const [lastBidCount, setLastBidCount] = useState<number>(0);
   const [isProtectionActive, setIsProtectionActive] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const timerIntervalRef = useRef<NodeJS.Timeout>();
   const pollingIntervalRef = useRef<NodeJS.Timeout>();
 
-  // Polling para detectar novos lances a cada 1 segundo
+  // Buscar tempo real do backend usando a nova função
+  const fetchRealTimeLeft = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_auction_time_left', { auction_uuid: auctionId });
+
+      if (error) {
+        console.error(`❌ [${auctionId}] Erro ao buscar tempo real:`, error);
+        return initialTimeLeft; // Fallback para valor inicial
+      }
+
+      const realTimeLeft = data || 0;
+      console.log(`🕐 [${auctionId}] Tempo real do backend: ${realTimeLeft}s`);
+      return realTimeLeft;
+    } catch (error) {
+      console.error(`❌ [${auctionId}] Erro na RPC get_auction_time_left:`, error);
+      return initialTimeLeft;
+    }
+  }, [auctionId, initialTimeLeft]);
+
+  // Polling para detectar novos lances e sincronizar timer
   const checkForNewBids = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -25,10 +46,11 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
 
       if (error || !data) return;
 
-      // Se houve novos lances, resetar timer
+      // Se houve novos lances, buscar tempo real do backend
       if (data.total_bids > lastBidCount) {
-        console.log(`🔄 [${auctionId}] Novo lance detectado! Resetando timer para 15s (bids: ${lastBidCount} → ${data.total_bids})`);
-        setLocalTimer(15);
+        console.log(`🔄 [${auctionId}] Novo lance detectado! Sincronizando timer real (bids: ${lastBidCount} → ${data.total_bids})`);
+        const realTimeLeft = await fetchRealTimeLeft();
+        setLocalTimer(realTimeLeft);
         setLastBidCount(data.total_bids);
         setIsProtectionActive(false);
       }
@@ -40,10 +62,21 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
           clearInterval(timerIntervalRef.current);
         }
       }
+
+      // Verificação de consistência: se timer local difere muito do real
+      if (isInitialized && data.status === 'active' && Math.abs(Date.now() % 60000) < 1000) {
+        const realTimeLeft = await fetchRealTimeLeft();
+        const timeDiff = Math.abs(localTimer - realTimeLeft);
+        
+        if (timeDiff > 3) {
+          console.log(`🔧 [${auctionId}] Correção de sincronização: ${localTimer}s → ${realTimeLeft}s (diff: ${timeDiff}s)`);
+          setLocalTimer(realTimeLeft);
+        }
+      }
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro no polling:`, error);
     }
-  }, [auctionId, lastBidCount]);
+  }, [auctionId, lastBidCount, fetchRealTimeLeft, isInitialized, localTimer]);
 
   // Chamar edge function de proteção quando timer chega a zero
   const triggerProtection = useCallback(async () => {
@@ -96,28 +129,41 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
     };
   }, [localTimer, auctionId, triggerProtection]);
 
-  // Polling para detectar novos lances (independente do timer)
+  // Inicialização: buscar tempo real do backend e contagem de lances
   useEffect(() => {
-    // Buscar contagem inicial de lances
-    const initializeBidCount = async () => {
+    const initializeTimer = async () => {
       try {
+        // Buscar dados iniciais do leilão
         const { data, error } = await supabase
           .from('auctions')
-          .select('total_bids')
+          .select('total_bids, status')
           .eq('id', auctionId)
           .single();
 
         if (data && !error) {
           setLastBidCount(data.total_bids);
+          
+          // Se leilão está ativo, buscar tempo real
+          if (data.status === 'active') {
+            const realTimeLeft = await fetchRealTimeLeft();
+            setLocalTimer(realTimeLeft);
+            console.log(`🚀 [${auctionId}] Timer inicializado com tempo real: ${realTimeLeft}s`);
+          } else {
+            setLocalTimer(0);
+            console.log(`⏹️ [${auctionId}] Leilão não está ativo (status: ${data.status})`);
+          }
         }
       } catch (error) {
-        console.error(`❌ [${auctionId}] Erro ao inicializar contagem:`, error);
+        console.error(`❌ [${auctionId}] Erro ao inicializar timer:`, error);
+        setLocalTimer(initialTimeLeft); // Fallback
+      } finally {
+        setIsInitialized(true);
       }
     };
 
-    initializeBidCount();
+    initializeTimer();
 
-    // Polling a cada 1 segundo para detectar novos lances
+    // Polling a cada 1 segundo para detectar novos lances e verificar consistência
     pollingIntervalRef.current = setInterval(checkForNewBids, 1000);
 
     return () => {
@@ -125,10 +171,11 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [auctionId, checkForNewBids]);
+  }, [auctionId, checkForNewBids, fetchRealTimeLeft, initialTimeLeft]);
 
   return {
     localTimer,
-    isProtectionActive
+    isProtectionActive,
+    isInitialized
   };
 };

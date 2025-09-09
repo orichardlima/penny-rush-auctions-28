@@ -55,14 +55,14 @@ export const AuctionCard = ({
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
-  // Timer independente do frontend - não sincroniza com backend
-  const { localTimer, isProtectionActive } = useIndependentTimer({
+  // Timer sincronizado com backend - busca tempo real na inicialização
+  const { localTimer, isProtectionActive, isInitialized } = useIndependentTimer({
     auctionId: id,
     initialTimeLeft: initialTimeLeft || 15
   });
 
-  // Usar dados das props - não há mais sincronização com backend no timer
-  const displayTimeLeft = localTimer;
+  // Usar timer sincronizado com backend para exibição precisa
+  const displayTimeLeft = isInitialized ? localTimer : initialTimeLeft;
   const displayCurrentPrice = currentPrice;
   const displayTotalBids = totalBids;
   const displayWinnerName = winnerName;
@@ -79,7 +79,7 @@ export const AuctionCard = ({
     }).format(safePriceInReais);
   };
 
-  console.log(`⏰ [${id}] Timer independente: ${displayTimeLeft}s | Proteção ativa: ${isProtectionActive}`);
+  console.log(`⏰ [${id}] Timer sincronizado: ${displayTimeLeft}s | Proteção: ${isProtectionActive} | Init: ${isInitialized}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
