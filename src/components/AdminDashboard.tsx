@@ -154,6 +154,7 @@ const AdminDashboard = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [editingAuction, setEditingAuction] = useState<Auction | null>(null);
+  const [editingImage, setEditingImage] = useState<File | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -410,16 +411,39 @@ const AdminDashboard = () => {
   const updateAuction = async () => {
     if (!editingAuction) return;
 
+    setUploading(true);
     try {
+      let updateData: any = {
+        title: editingAuction.title,
+        description: editingAuction.description,
+        starting_price: editingAuction.starting_price,
+        market_value: editingAuction.market_value,
+        revenue_target: editingAuction.revenue_target,
+      };
+
+      // Se uma nova imagem foi selecionada, fazer upload
+      if (editingImage) {
+        const newImageUrl = await uploadImage(editingImage);
+        updateData.image_url = newImageUrl;
+
+        // Opcional: Remover imagem antiga do storage
+        if (editingAuction.image_url) {
+          try {
+            const oldFileName = editingAuction.image_url.split('/').pop();
+            if (oldFileName) {
+              await supabase.storage
+                .from('auction-images')
+                .remove([oldFileName]);
+            }
+          } catch (err) {
+            console.warn('Erro ao remover imagem antiga:', err);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('auctions')
-        .update({
-          title: editingAuction.title,
-          description: editingAuction.description,
-          starting_price: editingAuction.starting_price,
-          market_value: editingAuction.market_value,
-          revenue_target: editingAuction.revenue_target,
-        })
+        .update(updateData)
         .eq('id', editingAuction.id);
 
       if (error) throw error;
@@ -431,6 +455,7 @@ const AdminDashboard = () => {
 
       setIsEditDialogOpen(false);
       setEditingAuction(null);
+      setEditingImage(null);
       fetchAdminData();
     } catch (error) {
       console.error('Error updating auction:', error);
@@ -439,6 +464,8 @@ const AdminDashboard = () => {
         description: "Erro ao atualizar leilão",
         variant: "destructive"
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -964,10 +991,11 @@ const AdminDashboard = () => {
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => {
-                                setEditingAuction(auction);
-                                setIsEditDialogOpen(true);
-                              }}
+                             onClick={() => {
+                               setEditingAuction(auction);
+                               setEditingImage(null);
+                               setIsEditDialogOpen(true);
+                             }}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -1240,6 +1268,72 @@ const AdminDashboard = () => {
                     onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })}
                   />
                 </div>
+                
+                {/* Seção de Imagem */}
+                <div className="space-y-2">
+                  <Label>Imagem do Produto</Label>
+                  
+                  {/* Preview da imagem atual */}
+                  {editingAuction.image_url && !editingImage && (
+                    <div className="relative w-full h-32 border border-border rounded-lg overflow-hidden">
+                      <img
+                        src={editingAuction.image_url}
+                        alt="Imagem atual"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="secondary" className="text-xs">
+                          Atual
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Preview da nova imagem */}
+                  {editingImage && (
+                    <div className="relative w-full h-32 border border-border rounded-lg overflow-hidden">
+                      <img
+                        src={URL.createObjectURL(editingImage)}
+                        alt="Nova imagem"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="default" className="text-xs">
+                          Nova
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Input de arquivo */}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setEditingImage(file);
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    {editingImage && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingImage(null)}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    Deixe em branco para manter a imagem atual
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-starting-price">Preço Inicial (R$)</Label>
@@ -1281,9 +1375,25 @@ const AdminDashboard = () => {
                     })}
                   />
                 </div>
-                <Button onClick={updateAuction} className="w-full">
-                  Atualizar Leilão
-                </Button>
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={updateAuction} className="flex-1" disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar Alterações'
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setEditingAuction(null);
+                    setEditingImage(null);
+                  }} disabled={uploading}>
+                    Cancelar
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
