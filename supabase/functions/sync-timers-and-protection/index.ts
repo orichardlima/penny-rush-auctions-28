@@ -67,9 +67,16 @@ Deno.serve(async (req) => {
       .eq('status', 'active')
       .or(`last_bid_at.lt.${fifteenSecondsAgo},time_left.eq.0`); // Inativo por último lance OU timer zerado
 
-    if (riskError || inactiveError) {
-      console.error('❌ Erro ao buscar leilões:', riskError || inactiveError);
-      return new Response(JSON.stringify({ error: (riskError || inactiveError)?.message }), {
+    // **FASE 2C: Buscar leilões que tiveram último lance de bot há 15+ segundos (para finalizar)**
+    const { data: botLastBidAuctions, error: botBidError } = await supabase
+      .from('auctions')
+      .select('id, title, company_revenue, revenue_target, current_price, market_value, last_bid_at')
+      .eq('status', 'active')
+      .lt('last_bid_at', fifteenSecondsAgo);
+
+    if (riskError || inactiveError || botBidError) {
+      console.error('❌ Erro ao buscar leilões:', riskError || inactiveError || botBidError);
+      return new Response(JSON.stringify({ error: (riskError || inactiveError || botBidError)?.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -189,6 +196,44 @@ Deno.serve(async (req) => {
       }
     }
 
+    // **PROCESSAR LEILÕES COM ÚLTIMO LANCE DE BOT (finalizar após 15s)**
+    console.log(`🤖 [BOT-FINALIZE] Encontrados ${botLastBidAuctions?.length || 0} leilões com último lance de bot há 15+ segundos`);
+    
+    if (botLastBidAuctions && botLastBidAuctions.length > 0) {
+      for (const auction of botLastBidAuctions) {
+        // Verificar se o último lance realmente foi de bot
+        const { data: lastBidData } = await supabase
+          .from('bids')
+          .select('user_id')
+          .eq('auction_id', auction.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, is_bot')
+          .eq('user_id', lastBidData?.user_id)
+          .single();
+
+        if (profileData?.is_bot) {
+          console.log(`🏁 [BOT-FINALIZE] Finalizando leilão "${auction.title}" - último lance foi de bot há 15+ segundos`);
+          
+          await supabase
+            .from('auctions')
+            .update({
+              status: 'finished',
+              finished_at: currentTimeBr,
+              winner_id: lastBidData.user_id,
+              winner_name: profileData.full_name || 'Bot'
+            })
+            .eq('id', auction.id);
+
+          finalizedCount++;
+        }
+      }
+    }
+
     // **PROCESSAR LEILÕES INATIVOS (15+ segundos sem lance)**
     if (inactiveAuctions && inactiveAuctions.length > 0) {
       for (const auction of inactiveAuctions) {
@@ -233,6 +278,20 @@ Deno.serve(async (req) => {
           finalizedCount++;
           
         } else {
+          // Verificar se não houve nenhum lance de bot recente (evitar spam de bots)
+          const { data: recentBotBids } = await supabase
+            .from('bids')
+            .select('id, profiles!inner(is_bot)')
+            .eq('auction_id', auction.id)
+            .eq('profiles.is_bot', true)
+            .gte('created_at', new Date(Date.now() - 30000).toISOString()) // Últimos 30s
+            .limit(1);
+
+          if (recentBotBids && recentBotBids.length > 0) {
+            console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" já teve lance de bot recente - aguardando finalização`);
+            continue;
+          }
+
           // Adicionar bid de bot interno - meta não atingida
           const { data: randomBot } = await supabase.rpc('get_random_bot');
           
@@ -247,8 +306,10 @@ Deno.serve(async (req) => {
               });
 
             if (!bidError) {
-              console.log(`🤖 [INACTIVE-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - meta não atingida`);
+              console.log(`🤖 [INACTIVE-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - meta não atingida (será finalizado em 15s)`);
               botBidsAdded++;
+            } else {
+              console.error(`❌ [INACTIVE-BOT] Erro ao adicionar bot: ${bidError.message}`);
             }
           }
         }
