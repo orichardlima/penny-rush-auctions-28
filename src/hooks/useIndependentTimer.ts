@@ -6,56 +6,54 @@ interface UseBackendTimerProps {
 }
 
 export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
+  const [localTimeLeft, setLocalTimeLeft] = useState<number>(15);
   const [backendTimeLeft, setBackendTimeLeft] = useState<number>(15);
   const [lastBidCount, setLastBidCount] = useState<number>(0);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [auctionStatus, setAuctionStatus] = useState<string>('active');
   const [lastBidAt, setLastBidAt] = useState<string | null>(null);
-  const [backendTimerValue, setBackendTimerValue] = useState<number>(15);
   
-  const pollingIntervalRef = useRef<NodeJS.Timeout>();
+  const localTimerRef = useRef<NodeJS.Timeout>();
+  const syncIntervalRef = useRef<NodeJS.Timeout>();
 
-  // Função para limpar polling
-  const clearPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = undefined;
+  // Limpar timers
+  const clearTimers = useCallback(() => {
+    if (localTimerRef.current) {
+      clearInterval(localTimerRef.current);
+      localTimerRef.current = undefined;
+    }
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+      syncIntervalRef.current = undefined;
     }
   }, []);
 
-  // Lógica híbrida: Priorizar time_left do backend, usar last_bid_at como auxiliar
-  const calculateDisplayTimer = useCallback((dbTimeLeft: number, lastBidAtStr: string | null): { timeLeft: number, showVerifying: boolean } => {
-    // PRIORIDADE 1: Se time_left do backend > 0, usar ele diretamente
-    if (dbTimeLeft > 0) {
-      console.log(`✅ [${auctionId}] Usando time_left do backend: ${dbTimeLeft}s`);
-      return { timeLeft: dbTimeLeft, showVerifying: false };
+  // Iniciar timer local que decrementa a cada 1 segundo
+  const startLocalTimer = useCallback((initialTime: number) => {
+    if (localTimerRef.current) {
+      clearInterval(localTimerRef.current);
     }
-    
-    // PRIORIDADE 2: Se time_left = 0, verificar last_bid_at para lógica de "verificando"
-    if (dbTimeLeft === 0 && lastBidAtStr) {
-      const now = new Date();
-      const lastBidTime = new Date(lastBidAtStr);
-      const secondsSinceLastBid = Math.floor((now.getTime() - lastBidTime.getTime()) / 1000);
-      
-      console.log(`🔍 [${auctionId}] time_left=0, verificando last_bid_at: ${secondsSinceLastBid}s atrás`);
-      
-      // Se menos de 30 segundos desde último lance, mostrar "Verificando lances válidos"
-      if (secondsSinceLastBid < 30) {
-        console.log(`⏳ [${auctionId}] Mostrando "Verificando lances válidos" - ${secondsSinceLastBid}s desde último lance`);
-        return { timeLeft: 0, showVerifying: true };
-      } else {
-        console.log(`💀 [${auctionId}] Leilão realmente morto - ${secondsSinceLastBid}s sem atividade`);
-        return { timeLeft: 0, showVerifying: false };
-      }
-    }
-    
-    // FALLBACK: Se não há last_bid_at ou time_left é 0, mostrar timer zerado
-    console.log(`⚠️ [${auctionId}] Fallback: time_left=${dbTimeLeft}, last_bid_at=${lastBidAtStr ? 'sim' : 'não'}`);
-    return { timeLeft: 0, showVerifying: false };
+
+    setLocalTimeLeft(initialTime);
+    console.log(`⏰ [${auctionId}] Timer local iniciado: ${initialTime}s`);
+
+    localTimerRef.current = setInterval(() => {
+      setLocalTimeLeft(prev => {
+        const newTime = Math.max(0, prev - 1);
+        console.log(`🕒 [${auctionId}] Timer local: ${prev}s → ${newTime}s`);
+        
+        if (newTime === 0) {
+          console.log(`⚠️ [${auctionId}] Timer local chegou a 0 - Verificando lances válidos`);
+          setIsVerifying(true);
+        }
+        
+        return newTime;
+      });
+    }, 1000);
   }, [auctionId]);
 
-  // Sincronização PRIORITÁRIA com time_left do backend
+  // Sincronizar com backend
   const syncWithBackend = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -69,79 +67,89 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
         return;
       }
 
-      console.log(`🔄 [${auctionId}] Sync backend: time_left=${data.time_left}, status=${data.status}, last_bid_at=${data.last_bid_at}`);
+      const currentBackendTime = data.time_left || 0;
+      console.log(`🔄 [${auctionId}] Sync: backend=${currentBackendTime}s, local=${localTimeLeft}s, status=${data.status}`);
 
       // Atualizar status do leilão
       setAuctionStatus(data.status);
+      setBackendTimeLeft(currentBackendTime);
 
       // Se leilão foi finalizado, parar tudo
       if (data.status === 'finished') {
-        console.log(`🏁 [${auctionId}] Leilão finalizado no backend`);
-        setBackendTimeLeft(0);
+        console.log(`🏁 [${auctionId}] Leilão finalizado`);
         setIsVerifying(false);
-        clearPolling();
+        clearTimers();
         return;
       }
 
-      // CRÍTICO: Atualizar time_left do backend (fonte da verdade)
-      setBackendTimerValue(data.time_left || 0);
-
-      // Atualizar last_bid_at se houver mudança (para detectar novos lances)
-      if (data.last_bid_at !== lastBidAt) {
+      // Detectar novos lances
+      const hadNewBid = data.last_bid_at !== lastBidAt || data.total_bids > lastBidCount;
+      
+      if (hadNewBid) {
         setLastBidAt(data.last_bid_at);
-        console.log(`🆕 [${auctionId}] Novo lance detectado! last_bid_at: ${data.last_bid_at}`);
-      }
-
-      // Detectar novos lances pelo count
-      if (data.total_bids > lastBidCount) {
         setLastBidCount(data.total_bids);
-        console.log(`📈 [${auctionId}] Total bids aumentou: ${lastBidCount} → ${data.total_bids}`);
+        console.log(`🆕 [${auctionId}] Novo lance detectado! Resetando timer para ${currentBackendTime}s`);
+        
+        // Reset imediato do timer local quando há novo lance
+        if (currentBackendTime > 0) {
+          setIsVerifying(false);
+          startLocalTimer(currentBackendTime);
+        }
+      } else if (currentBackendTime > 0 && Math.abs(currentBackendTime - localTimeLeft) > 2) {
+        // Sincronizar timer local se diferença > 2 segundos
+        console.log(`🔄 [${auctionId}] Sincronizando timer: local=${localTimeLeft}s → backend=${currentBackendTime}s`);
+        setIsVerifying(false);
+        startLocalTimer(currentBackendTime);
       }
 
-      // Aplicar lógica híbrida para display
-      const { timeLeft, showVerifying } = calculateDisplayTimer(data.time_left || 0, data.last_bid_at);
-      setBackendTimeLeft(timeLeft);
-      setIsVerifying(showVerifying);
+      // Lógica do "Verificando lances válidos"
+      if (currentBackendTime === 0 && data.last_bid_at) {
+        const timeSinceLastBid = Math.floor((new Date().getTime() - new Date(data.last_bid_at).getTime()) / 1000);
+        
+        if (timeSinceLastBid < 30) {
+          console.log(`⏳ [${auctionId}] Verificando lances válidos - ${timeSinceLastBid}s desde último lance`);
+          setIsVerifying(true);
+        } else {
+          console.log(`💀 [${auctionId}] Leilão sem atividade há ${timeSinceLastBid}s`);
+          setIsVerifying(false);
+        }
+      }
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro na sincronização:`, error);
     }
-  }, [auctionId, lastBidCount, lastBidAt, clearPolling, calculateDisplayTimer]);
+  }, [auctionId, lastBidAt, lastBidCount, localTimeLeft, startLocalTimer, clearTimers]);
 
-  // Polling contínuo a cada 1 segundo para sincronização máxima
-  const startContinuousSync = useCallback(() => {
-    clearPolling();
-    
-    pollingIntervalRef.current = setInterval(async () => {
-      if (auctionStatus === 'finished') {
-        clearPolling();
-        return;
+  // Iniciar sincronização a cada 3 segundos
+  const startBackendSync = useCallback(() => {
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+    }
+
+    syncIntervalRef.current = setInterval(() => {
+      if (auctionStatus !== 'finished') {
+        syncWithBackend();
       }
-      
-      await syncWithBackend();
-    }, 1000); // Sincronização a cada 1 segundo para máxima responsividade
+    }, 3000);
     
-    console.log(`⚡ [${auctionId}] Sincronização contínua iniciada (1s)`);
-  }, [auctionStatus, syncWithBackend, clearPolling, auctionId]);
+    console.log(`⚡ [${auctionId}] Sincronização backend iniciada (3s)`);
+  }, [auctionStatus, syncWithBackend, auctionId]);
 
-  // Inicialização e sincronização contínua
+  // Inicialização
   useEffect(() => {
     let isMounted = true;
     
     const initialize = async () => {
-      console.log(`🚀 [${auctionId}] Inicializando timer híbrido (time_left + last_bid_at)...`);
+      console.log(`🚀 [${auctionId}] Inicializando timer híbrido local...`);
       
       try {
-        // Primeira sincronização para obter estado inicial
+        // Primeira sincronização
         await syncWithBackend();
         
         if (isMounted) {
           setIsInitialized(true);
-          
-          // Iniciar sincronização contínua a cada 1 segundo
-          startContinuousSync();
-          
-          console.log(`✅ [${auctionId}] Timer híbrido inicializado com sucesso`);
+          startBackendSync();
+          console.log(`✅ [${auctionId}] Timer híbrido inicializado`);
         }
       } catch (error) {
         console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
@@ -155,23 +163,17 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
 
     return () => {
       isMounted = false;
-      clearPolling();
+      clearTimers();
     };
-  }, [auctionId, syncWithBackend, clearPolling, startContinuousSync]);
+  }, [auctionId, syncWithBackend, startBackendSync, clearTimers]);
 
-  // Monitorar mudanças nos lances para restart imediato da sincronização
-  useEffect(() => {
-    if (isInitialized && auctionStatus === 'active') {
-      // Quando detectar novo lance, forçar sincronização imediata
-      if (lastBidCount > 0) {
-        console.log(`🔄 [${auctionId}] Novo lance detectado, forçando sincronização...`);
-        syncWithBackend();
-      }
-    }
-  }, [lastBidCount, isInitialized, auctionStatus, syncWithBackend, auctionId]);
+  // Retornar o timer local como valor principal
+  const displayTimeLeft = localTimeLeft > 0 ? localTimeLeft : (isVerifying ? 0 : 0);
+
+  console.log(`⏰ [${auctionId}] Display: ${displayTimeLeft}s | Verificando: ${isVerifying} | Status: ${auctionStatus}`);
 
   return {
-    backendTimeLeft,
+    backendTimeLeft: displayTimeLeft,
     isVerifying,
     isInitialized,
     auctionStatus
