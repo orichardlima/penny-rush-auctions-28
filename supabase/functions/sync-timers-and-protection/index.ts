@@ -99,13 +99,28 @@ Deno.serve(async (req) => {
             .limit(1)
             .single();
 
+          // Buscar último lance para winner data
+          const { data: winnerBidData } = await supabase
+            .from('bids')
+            .select('user_id')
+            .eq('auction_id', auction.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          const { data: winnerProfileData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', winnerBidData?.user_id)
+            .single();
+
           await supabase
             .from('auctions')
             .update({
               status: 'finished',
               finished_at: currentTimeBr,
-              winner_id: lastBid?.user_id || null,
-              winner_name: lastBid?.profiles?.full_name || null
+              winner_id: winnerBidData?.user_id || null,
+              winner_name: winnerProfileData?.full_name || null
             })
             .eq('id', auction.id);
 
@@ -157,8 +172,8 @@ Deno.serve(async (req) => {
             .update({
               status: 'finished',
               finished_at: currentTimeBr,
-              winner_id: lastBid.user_id,
-              winner_name: lastBid.profiles.full_name || 'Bot'
+              winner_id: lastBidData.user_id,
+              winner_name: profileData.full_name || 'Bot'
             })
             .eq('id', auction.id);
 
@@ -190,15 +205,18 @@ Deno.serve(async (req) => {
         // Verificar se meta foi atingida
         if (auction.company_revenue >= auction.revenue_target) {
           // Finalizar leilão - meta atingida
-          const { data: lastBid } = await supabase
+          const { data: lastBidData } = await supabase
             .from('bids')
-            .select(`
-              user_id,
-              profiles!inner(full_name)
-            `)
+            .select('user_id')
             .eq('auction_id', auction.id)
             .order('created_at', { ascending: false })
             .limit(1)
+            .single();
+
+          const { data: winnerProfileData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', lastBidData?.user_id)
             .single();
 
           await supabase
@@ -206,8 +224,8 @@ Deno.serve(async (req) => {
             .update({
               status: 'finished',
               finished_at: currentTimeBr,
-              winner_id: lastBid?.user_id || null,
-              winner_name: lastBid?.profiles?.full_name || null
+              winner_id: lastBidData?.user_id || null,
+              winner_name: winnerProfileData?.full_name || null
             })
             .eq('id', auction.id);
 
