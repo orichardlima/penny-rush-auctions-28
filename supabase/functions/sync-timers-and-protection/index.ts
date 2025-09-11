@@ -116,9 +116,11 @@ Deno.serve(async (req) => {
         
         // Meta não atingida - verificar último lance
         console.log(`🔍 [RISK-CHECK] Meta não atingida - verificando último lance...`);
-        const { data: lastBid, error: bidError } = await supabase
+        
+        // Buscar último lance separadamente para evitar problemas de JOIN
+        const { data: lastBidData, error: bidError } = await supabase
           .from('bids')
-          .select(`user_id, profiles!inner(full_name, is_bot)`)
+          .select('user_id, created_at')
           .eq('auction_id', auction.id)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -129,9 +131,21 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        console.log(`👤 [RISK-CHECK] Último lance: ${lastBid?.profiles?.full_name} (Bot: ${lastBid?.profiles?.is_bot})`);
+        // Buscar perfil do usuário do último lance
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, is_bot')
+          .eq('user_id', lastBidData.user_id)
+          .single();
 
-        if (lastBid && lastBid.profiles?.is_bot) {
+        if (profileError) {
+          console.error(`❌ [RISK-CHECK] Erro ao buscar perfil: ${profileError.message}`);
+          continue;
+        }
+
+        console.log(`👤 [RISK-CHECK] Último lance: ${profileData?.full_name} (Bot: ${profileData?.is_bot})`);
+
+        if (profileData && profileData.is_bot) {
           // Último lance foi de bot - FINALIZAR IMEDIATAMENTE
           console.log(`🛑 [RISK-CHECK] CONDIÇÕES ATENDIDAS - Finalizando IMEDIATAMENTE:`);
           console.log(`   • Preço ${auction.current_price} > Valor loja ${auction.market_value} ✅`);
