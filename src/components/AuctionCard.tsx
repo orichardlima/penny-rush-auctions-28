@@ -56,7 +56,7 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
 
   // Timer sincronizado com backend
-  const { localTimer, isProtectionActive, isInitialized, isVerifying, isStuck, isExpired, resetTimer } = useIndependentTimer({
+  const { localTimer, isProtectionActive, isInitialized, resetTimer } = useIndependentTimer({
     auctionId: id,
     initialTimeLeft: initialTimeLeft || 15
   });
@@ -79,7 +79,7 @@ export const AuctionCard = ({
     }).format(safePriceInReais);
   };
 
-  console.log(`⏰ [${id}] Timer: ${displayTimeLeft}s | Proteção: ${isProtectionActive} | Verificando: ${isVerifying} | Init: ${isInitialized}`);
+  console.log(`⏰ [${id}] Timer: ${displayTimeLeft}s | Proteção: ${isProtectionActive} | Init: ${isInitialized}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -174,40 +174,20 @@ export const AuctionCard = ({
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
             <div className="flex flex-col gap-2">
-              {isExpired ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-muted text-muted-foreground shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse"></div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-5 h-5" />
-                      <span className="font-medium text-sm">
-                        Finalizando...
-                      </span>
-                    </div>
-                  </div>
-                </div> : isVerifying ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-5 h-5" />
-                      <span className="font-medium text-sm">
-                        {isStuck ? "Reconectando..." : "Verificando leilão..."}
-                      </span>
-                    </div>
-                  </div>
-                </div> : <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-5 h-5" />
-                      <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
-                        {displayTimeLeft}s
-                      </span>
-                    </div>
-                  </div>
-                </div>}
+          <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
+              <div className="flex items-center gap-1">
+                <Clock className="w-5 h-5" />
+                <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
+                  {displayTimeLeft}s
+                </span>
+              </div>
+            </div>
+          </div>
               
-              {/* Botão de reset manual quando timer está travado - não mostrar se expirado */}
-              {(displayTimeLeft <= 0 && !isVerifying && !isExpired && isInitialized) && <button onClick={resetTimer} className="rounded-lg px-3 py-2 bg-background border-2 border-warning text-warning shadow-lg hover:bg-warning/10 transition-colors">
+              {/* Botão de reset manual quando timer está travado */}
+              {(displayTimeLeft <= 0 && !isProtectionActive && isInitialized) && <button onClick={resetTimer} className="rounded-lg px-3 py-2 bg-background border-2 border-warning text-warning shadow-lg hover:bg-warning/10 transition-colors">
                   <div className="flex items-center gap-1 text-xs font-medium">
                     🔄 Atualizar
                   </div>
@@ -291,9 +271,9 @@ export const AuctionCard = ({
             </p>
           </div>}
 
-        {displayStatus === 'active' && <Button onClick={handleBid} disabled={actualUserBids <= 0 || isBidding || isExpired} variant={isBidding ? "success" : "bid"} size="lg" className="w-full">
+        {displayStatus === 'active' && <Button onClick={handleBid} disabled={actualUserBids <= 0 || isBidding} variant={isBidding ? "success" : "bid"} size="lg" className="w-full">
             <TrendingUp className="w-4 h-4 mr-2" />
-            {isExpired ? "FINALIZANDO..." : isBidding ? "PROCESSANDO..." : "DAR LANCE (R$ 1,00)"}
+            {isBidding ? "PROCESSANDO..." : "DAR LANCE (R$ 1,00)"}
           </Button>}
 
         {displayStatus === 'waiting' && <Button disabled variant="outline" size="lg" className="w-full">
