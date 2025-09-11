@@ -6,8 +6,7 @@ interface UseBackendTimerProps {
 }
 
 export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
-  const [localTimeLeft, setLocalTimeLeft] = useState<number>(15);
-  const [backendTimeLeft, setBackendTimeLeft] = useState<number>(15);
+  const [localTimeLeft, setLocalTimeLeft] = useState<number>(0);
   const [lastBidCount, setLastBidCount] = useState<number>(0);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -15,7 +14,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
   const [lastBidAt, setLastBidAt] = useState<string | null>(null);
   
   const localTimerRef = useRef<NodeJS.Timeout>();
-  const syncIntervalRef = useRef<NodeJS.Timeout>();
+  const bidCheckIntervalRef = useRef<NodeJS.Timeout>();
 
   // Limpar timers
   const clearTimers = useCallback(() => {
@@ -23,28 +22,30 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       clearInterval(localTimerRef.current);
       localTimerRef.current = undefined;
     }
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-      syncIntervalRef.current = undefined;
+    if (bidCheckIntervalRef.current) {
+      clearInterval(bidCheckIntervalRef.current);
+      bidCheckIntervalRef.current = undefined;
     }
   }, []);
 
-  // Iniciar timer local que decrementa a cada 1 segundo
+  // Iniciar timer local autônomo que decrementa a cada 1 segundo
   const startLocalTimer = useCallback((initialTime: number) => {
+    console.log(`🚀 [${auctionId}] Iniciando timer autônomo: ${initialTime}s`);
+    
     if (localTimerRef.current) {
       clearInterval(localTimerRef.current);
     }
 
     setLocalTimeLeft(initialTime);
-    console.log(`⏰ [${auctionId}] Timer local iniciado: ${initialTime}s`);
+    setIsVerifying(false);
 
     localTimerRef.current = setInterval(() => {
       setLocalTimeLeft(prev => {
         const newTime = Math.max(0, prev - 1);
-        console.log(`🕒 [${auctionId}] Timer local: ${prev}s → ${newTime}s`);
+        console.log(`⏰ [${auctionId}] Timer: ${prev}s → ${newTime}s`);
         
         if (newTime === 0) {
-          console.log(`⚠️ [${auctionId}] Timer local chegou a 0 - Verificando lances válidos`);
+          console.log(`🔚 [${auctionId}] Timer chegou a 0 - Verificando lances válidos`);
           setIsVerifying(true);
         }
         
@@ -53,30 +54,21 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     }, 1000);
   }, [auctionId]);
 
-  // Sincronizar com backend
-  const syncWithBackend = useCallback(async () => {
+  // Verificar novos lances a cada 1 segundo
+  const checkForNewBids = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('auctions')
-        .select('time_left, last_bid_at, total_bids, status')
+        .select('last_bid_at, total_bids, status, time_left')
         .eq('id', auctionId)
         .single();
 
-      if (error || !data) {
-        console.error(`❌ [${auctionId}] Erro ao buscar dados:`, error);
-        return;
-      }
+      if (error || !data) return;
 
-      const currentBackendTime = data.time_left || 0;
-      console.log(`🔄 [${auctionId}] Sync: backend=${currentBackendTime}s, local=${localTimeLeft}s, status=${data.status}`);
-
-      // Atualizar status do leilão
-      setAuctionStatus(data.status);
-      setBackendTimeLeft(currentBackendTime);
-
-      // Se leilão foi finalizado, parar tudo
+      // Se leilão foi finalizado, parar todos os timers
       if (data.status === 'finished') {
         console.log(`🏁 [${auctionId}] Leilão finalizado`);
+        setAuctionStatus('finished');
         setIsVerifying(false);
         clearTimers();
         return;
@@ -88,92 +80,81 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       if (hadNewBid) {
         setLastBidAt(data.last_bid_at);
         setLastBidCount(data.total_bids);
-        console.log(`🆕 [${auctionId}] Novo lance detectado! Resetando timer para ${currentBackendTime}s`);
+        console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s`);
         
-        // Reset imediato do timer local quando há novo lance
-        if (currentBackendTime > 0) {
-          setIsVerifying(false);
-          startLocalTimer(currentBackendTime);
-        }
-      } else if (currentBackendTime > 0 && Math.abs(currentBackendTime - localTimeLeft) > 2) {
-        // Sincronizar timer local se diferença > 2 segundos
-        console.log(`🔄 [${auctionId}] Sincronizando timer: local=${localTimeLeft}s → backend=${currentBackendTime}s`);
-        setIsVerifying(false);
-        startLocalTimer(currentBackendTime);
-      }
-
-      // Lógica do "Verificando lances válidos"
-      if (currentBackendTime === 0 && data.last_bid_at) {
-        const timeSinceLastBid = Math.floor((new Date().getTime() - new Date(data.last_bid_at).getTime()) / 1000);
-        
-        if (timeSinceLastBid < 30) {
-          console.log(`⏳ [${auctionId}] Verificando lances válidos - ${timeSinceLastBid}s desde último lance`);
-          setIsVerifying(true);
-        } else {
-          console.log(`💀 [${auctionId}] Leilão sem atividade há ${timeSinceLastBid}s`);
-          setIsVerifying(false);
-        }
+        // Reset do timer para 15 segundos em caso de novo lance
+        startLocalTimer(15);
       }
 
     } catch (error) {
-      console.error(`❌ [${auctionId}] Erro na sincronização:`, error);
+      console.error(`❌ [${auctionId}] Erro ao verificar novos lances:`, error);
     }
-  }, [auctionId, lastBidAt, lastBidCount, localTimeLeft, startLocalTimer, clearTimers]);
+  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers]);
 
-  // Iniciar sincronização a cada 3 segundos
-  const startBackendSync = useCallback(() => {
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-    }
+  // Inicialização do sistema
+  const initialize = useCallback(async () => {
+    try {
+      console.log(`🔄 [${auctionId}] Inicializando sistema de timer...`);
+      
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('time_left, last_bid_at, total_bids, status')
+        .eq('id', auctionId)
+        .single();
 
-    syncIntervalRef.current = setInterval(() => {
-      if (auctionStatus !== 'finished') {
-        syncWithBackend();
+      if (error || !data) {
+        console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
+        return;
       }
-    }, 3000);
-    
-    console.log(`⚡ [${auctionId}] Sincronização backend iniciada (3s)`);
-  }, [auctionStatus, syncWithBackend, auctionId]);
 
-  // Inicialização
+      // Definir estado inicial
+      setLastBidAt(data.last_bid_at);
+      setLastBidCount(data.total_bids);
+      setAuctionStatus(data.status);
+
+      if (data.status === 'finished') {
+        console.log(`🏁 [${auctionId}] Leilão já finalizado`);
+        setIsVerifying(false);
+        return;
+      }
+
+      // Iniciar timer local com time_left do backend
+      const initialTime = data.time_left || 15;
+      console.log(`⚡ [${auctionId}] Iniciando com ${initialTime}s do backend`);
+      startLocalTimer(initialTime);
+
+      // Iniciar verificação de novos lances a cada 1 segundo
+      bidCheckIntervalRef.current = setInterval(checkForNewBids, 1000);
+      console.log(`👀 [${auctionId}] Verificação de lances iniciada (1s)`);
+
+    } catch (error) {
+      console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
+    }
+  }, [auctionId, startLocalTimer, checkForNewBids]);
+
+  // Effect de inicialização
   useEffect(() => {
     let isMounted = true;
     
-    const initialize = async () => {
-      console.log(`🚀 [${auctionId}] Inicializando timer híbrido local...`);
-      
-      try {
-        // Primeira sincronização
-        await syncWithBackend();
-        
-        if (isMounted) {
-          setIsInitialized(true);
-          startBackendSync();
-          console.log(`✅ [${auctionId}] Timer híbrido inicializado`);
-        }
-      } catch (error) {
-        console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
-        if (isMounted) {
-          setIsInitialized(true);
-        }
+    const init = async () => {
+      await initialize();
+      if (isMounted) {
+        setIsInitialized(true);
       }
     };
 
-    initialize();
+    init();
 
     return () => {
       isMounted = false;
       clearTimers();
     };
-  }, [auctionId, syncWithBackend, startBackendSync, clearTimers]);
+  }, [auctionId, initialize, clearTimers]);
 
-  // Retornar o timer local como valor principal
-  const displayTimeLeft = localTimeLeft > 0 ? localTimeLeft : (isVerifying ? 0 : 0);
-
-  console.log(`⏰ [${auctionId}] Display: ${displayTimeLeft}s | Verificando: ${isVerifying} | Status: ${auctionStatus}`);
+  console.log(`📊 [${auctionId}] Estado: timer=${localTimeLeft}s | verificando=${isVerifying} | status=${auctionStatus}`);
 
   return {
-    backendTimeLeft: displayTimeLeft,
+    backendTimeLeft: localTimeLeft,
     isVerifying,
     isInitialized,
     auctionStatus
