@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
 import { differenceInHours } from 'date-fns';
 import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
-import { useIndependentTimer } from '@/hooks/useIndependentTimer';
+import { useBackendTimer } from '@/hooks/useIndependentTimer';
 import { getDisplayParticipants } from '@/lib/utils';
 interface AuctionCardProps {
   id: string;
@@ -55,18 +55,17 @@ export const AuctionCard = ({
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
-  // Timer sincronizado com backend
-  const { localTimer, isProtectionActive, isInitialized, resetTimer } = useIndependentTimer({
-    auctionId: id,
-    initialTimeLeft: initialTimeLeft || 15
+  // Timer 100% controlado pelo backend
+  const { backendTimeLeft, isVerifying, isInitialized, auctionStatus: backendStatus } = useBackendTimer({
+    auctionId: id
   });
 
-  // Usar timer sincronizado com backend para exibição precisa
-  const displayTimeLeft = isInitialized ? localTimer : initialTimeLeft;
+  // Usar apenas dados do backend (sincronizados)
+  const displayTimeLeft = isInitialized ? backendTimeLeft : initialTimeLeft;
   const displayCurrentPrice = currentPrice;
   const displayTotalBids = totalBids;
   const displayWinnerName = winnerName;
-  const displayStatus = auctionStatus;
+  const displayStatus = isInitialized ? backendStatus : auctionStatus;
 
   // Função para formatar preços em reais (agora tudo está em reais)
   const formatPrice = (priceInReais: number) => {
@@ -79,7 +78,7 @@ export const AuctionCard = ({
     }).format(safePriceInReais);
   };
 
-  console.log(`⏰ [${id}] Timer: ${displayTimeLeft}s | Proteção: ${isProtectionActive} | Init: ${isInitialized}`);
+  console.log(`⏰ [${id}] Backend Timer: ${displayTimeLeft}s | Verificando: ${isVerifying} | Status: ${displayStatus}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -174,24 +173,31 @@ export const AuctionCard = ({
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
             <div className="flex flex-col gap-2">
-          <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
-              <div className="flex items-center gap-1">
-                <Clock className="w-5 h-5" />
-                <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
-                  {displayTimeLeft}s
-                </span>
-              </div>
-            </div>
-          </div>
-              
-              {/* Botão de reset manual quando timer está travado */}
-              {(displayTimeLeft <= 0 && !isProtectionActive && isInitialized) && <button onClick={resetTimer} className="rounded-lg px-3 py-2 bg-background border-2 border-warning text-warning shadow-lg hover:bg-warning/10 transition-colors">
-                  <div className="flex items-center gap-1 text-xs font-medium">
-                    🔄 Atualizar
+              {!isVerifying ? (
+                <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-5 h-5" />
+                      <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
+                        {displayTimeLeft}s
+                      </span>
+                    </div>
                   </div>
-                </button>}
+                </div>
+              ) : (
+                <div className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-5 h-5" />
+                      <span className="font-medium text-sm">
+                        Verificando lances válidos
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>}
       </div>
