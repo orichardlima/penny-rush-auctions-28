@@ -79,12 +79,16 @@ Deno.serve(async (req) => {
     let botBidsAdded = 0;
 
     // **PROCESSAR LEILÕES COM RISCO DE PREJUÍZO PRIMEIRO (imediato)**
+    console.log(`🔍 [RISK-ANALYSIS] Encontrados ${riskAuctions.length} leilões com risco de prejuízo`);
+    
     if (riskAuctions && riskAuctions.length > 0) {
       for (const auction of riskAuctions) {
-        console.log(`⚠️ [RISK-CHECK] Leilão "${auction.title}" com preço > loja: R$${auction.current_price} > R$${auction.market_value}`);
+        console.log(`⚠️ [RISK-CHECK] Leilão "${auction.title}" (${auction.id})`);
+        console.log(`💰 [RISK-CHECK] Preço: R$${auction.current_price} > Loja: R$${auction.market_value}`);
+        console.log(`🎯 [RISK-CHECK] Receita: R$${auction.company_revenue} / Meta: R$${auction.revenue_target}`);
         
         // Verificar se meta foi atingida
-        if (auction.company_revenue >= auction.revenue_target) {
+        if (Number(auction.company_revenue) >= Number(auction.revenue_target)) {
           console.log(`✅ [RISK-CHECK] Meta atingida - finalizando`);
           
           const { data: lastBid } = await supabase
@@ -111,7 +115,8 @@ Deno.serve(async (req) => {
         }
         
         // Meta não atingida - verificar último lance
-        const { data: lastBid } = await supabase
+        console.log(`🔍 [RISK-CHECK] Meta não atingida - verificando último lance...`);
+        const { data: lastBid, error: bidError } = await supabase
           .from('bids')
           .select(`user_id, profiles!inner(full_name, is_bot)`)
           .eq('auction_id', auction.id)
@@ -119,11 +124,21 @@ Deno.serve(async (req) => {
           .limit(1)
           .single();
 
+        if (bidError) {
+          console.error(`❌ [RISK-CHECK] Erro ao buscar último lance: ${bidError.message}`);
+          continue;
+        }
+
+        console.log(`👤 [RISK-CHECK] Último lance: ${lastBid?.profiles?.full_name} (Bot: ${lastBid?.profiles?.is_bot})`);
+
         if (lastBid && lastBid.profiles?.is_bot) {
           // Último lance foi de bot - FINALIZAR IMEDIATAMENTE
-          console.log(`🛑 [RISK-CHECK] Último lance foi de bot - finalizando IMEDIATAMENTE para evitar prejuízo`);
+          console.log(`🛑 [RISK-CHECK] CONDIÇÕES ATENDIDAS - Finalizando IMEDIATAMENTE:`);
+          console.log(`   • Preço ${auction.current_price} > Valor loja ${auction.market_value} ✅`);
+          console.log(`   • Último lance foi de bot ✅`);
+          console.log(`   • Meta não atingida ✅`);
           
-          await supabase
+          const { error: finalizeError } = await supabase
             .from('auctions')
             .update({
               status: 'finished',
@@ -133,8 +148,12 @@ Deno.serve(async (req) => {
             })
             .eq('id', auction.id);
 
-          console.log(`🏁 [RISK-FINALIZED] Leilão "${auction.title}" finalizado - proteção contra prejuízo`);
-          finalizedCount++;
+          if (finalizeError) {
+            console.error(`❌ [RISK-CHECK] Erro ao finalizar: ${finalizeError.message}`);
+          } else {
+            console.log(`🏁 [RISK-FINALIZED] Leilão "${auction.title}" finalizado - proteção contra prejuízo`);
+            finalizedCount++;
+          }
         } else {
           console.log(`👤 [RISK-CHECK] Último lance foi de usuário - aguardando inatividade para proteção`);
         }
