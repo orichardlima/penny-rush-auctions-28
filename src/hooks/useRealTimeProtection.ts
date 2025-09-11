@@ -21,9 +21,9 @@ export const useRealTimeProtection = () => {
       }
     };
 
-    // Chamar sistema de proteção a cada 1 segundo
-    intervalRef.current = setInterval(callProtectionSystem, 1000);
-    console.log('🚀 [REAL-TIME-PROTECTION] Sistema iniciado (1s)');
+// Chamadas a cada 15 segundos (não muito frequente)
+    intervalRef.current = setInterval(callProtectionSystem, 15000);
+    console.log('🛡️ [PROTECTION-SYSTEM] Sistema iniciado (15s)');
 
     // Chamada inicial
     callProtectionSystem();
@@ -31,7 +31,7 @@ export const useRealTimeProtection = () => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-        console.log('🛑 [REAL-TIME-PROTECTION] Sistema parado');
+        console.log('🛑 [PROTECTION-SYSTEM] Sistema parado');
       }
     };
   }, []);
