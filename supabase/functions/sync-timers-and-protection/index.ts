@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     // **FASE 2: Verificar leilões inativos há 15+ segundos (backup independente)**
     const { data: inactiveAuctions, error: inactiveError } = await supabase
       .from('auctions')
-      .select('id, title, company_revenue, revenue_target, current_price, bid_increment, updated_at')
+      .select('id, title, company_revenue, revenue_target, current_price, market_value, bid_increment, updated_at')
       .eq('status', 'active')
       .lt('updated_at', fifteenSecondsAgo);
 
@@ -69,8 +69,9 @@ Deno.serve(async (req) => {
     if (inactiveAuctions && inactiveAuctions.length > 0) {
       for (const auction of inactiveAuctions) {
         console.log(`⏰ [BACKUP-CHECK] Leilão "${auction.title}" inativo há 15+ segundos`);
+        console.log(`🏪 [BACKUP-CHECK] Preço: R$${auction.current_price} | Loja: R$${auction.market_value} | Meta: R$${auction.company_revenue}/${auction.revenue_target}`);
         
-        // Verificar se deve finalizar ou adicionar bid de proteção
+        // Verificar se meta foi atingida
         if (auction.company_revenue >= auction.revenue_target) {
           // Finalizar leilão - meta atingida
           const { data: lastBid } = await supabase
@@ -96,6 +97,62 @@ Deno.serve(async (req) => {
 
           console.log(`🏁 [BACKUP-FINALIZED] Leilão "${auction.title}" finalizado - meta atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
           finalizedCount++;
+          
+        } else if (auction.current_price > auction.market_value) {
+          // NOVA REGRA: Preço ultrapassou valor da loja - verificar último lance
+          console.log(`⚠️ [BACKUP-CHECK] Preço ultrapassou valor da loja! Verificando último lance...`);
+          
+          const { data: lastBid } = await supabase
+            .from('bids')
+            .select(`
+              user_id,
+              cost_paid,
+              profiles!inner(full_name, is_bot)
+            `)
+            .eq('auction_id', auction.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (lastBid && lastBid.profiles?.is_bot) {
+            // Último lance foi de bot - FINALIZAR para evitar prejuízo
+            console.log(`🛑 [BACKUP-CHECK] Último lance foi de bot - finalizando para evitar prejuízo`);
+            
+            await supabase
+              .from('auctions')
+              .update({
+                status: 'finished',
+                finished_at: currentTimeBr,
+                winner_id: lastBid.user_id,
+                winner_name: lastBid.profiles.full_name || 'Bot'
+              })
+              .eq('id', auction.id);
+
+            console.log(`🏁 [BACKUP-FINALIZED] Leilão "${auction.title}" finalizado - proteção contra prejuízo`);
+            finalizedCount++;
+            
+          } else {
+            // Último lance foi de usuário ou não há lances - adicionar bid de bot
+            console.log(`👤 [BACKUP-CHECK] Último lance foi de usuário - adicionando bid de proteção`);
+            
+            const { data: randomBot } = await supabase.rpc('get_random_bot');
+            
+            if (randomBot) {
+              const { error: bidError } = await supabase
+                .from('bids')
+                .insert({
+                  auction_id: auction.id,
+                  user_id: randomBot,
+                  bid_amount: auction.current_price + auction.bid_increment,
+                  cost_paid: 0 // Bot interno não paga
+                });
+
+              if (!bidError) {
+                console.log(`🤖 [BACKUP-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - preço > loja + usuário`);
+                botBidsAdded++;
+              }
+            }
+          }
           
         } else {
           // Adicionar bid de bot interno - meta não atingida

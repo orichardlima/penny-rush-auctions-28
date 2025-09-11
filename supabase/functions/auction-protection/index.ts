@@ -51,9 +51,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { company_revenue, revenue_target, title } = auction;
+    const { company_revenue, revenue_target, title, current_price, market_value } = auction;
 
     console.log(`💰 [PROTECTION] Receita atual: R$${company_revenue} | Meta: R$${revenue_target}`);
+    console.log(`🏪 [PROTECTION] Preço atual: R$${current_price} | Valor loja: R$${market_value}`);
 
     // Verificar se meta foi atingida
     if (company_revenue >= revenue_target) {
@@ -96,6 +97,63 @@ Deno.serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // NOVA REGRA: Verificar se preço atual > valor da loja
+    if (current_price > market_value && company_revenue < revenue_target) {
+      console.log(`⚠️ [PROTECTION] Preço ultrapassou valor da loja! Verificando último lance...`);
+      
+      // Buscar último lance para verificar se foi de bot
+      const { data: lastBid } = await supabase
+        .from('bids')
+        .select(`
+          user_id,
+          cost_paid,
+          bid_amount,
+          profiles!inner(full_name, is_bot)
+        `)
+        .eq('auction_id', auction_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastBid && lastBid.profiles?.is_bot) {
+        // Último lance foi de bot - FINALIZAR leilão para evitar prejuízo
+        console.log(`🛑 [PROTECTION] Último lance foi de bot - finalizando para evitar prejuízo`);
+        
+        const { error: finalizeError } = await supabase
+          .from('auctions')
+          .update({
+            status: 'finished',
+            finished_at: new Date().toISOString(),
+            winner_id: lastBid.user_id,
+            winner_name: lastBid.profiles.full_name || 'Bot'
+          })
+          .eq('id', auction_id);
+
+        if (finalizeError) {
+          console.error(`❌ [PROTECTION] Erro ao finalizar leilão:`, finalizeError);
+          throw finalizeError;
+        }
+
+        console.log(`✅ [PROTECTION] Leilão "${title}" finalizado - proteção contra prejuízo`);
+        return new Response(
+          JSON.stringify({ 
+            message: 'Leilão finalizado - proteção contra prejuízo', 
+            action: 'finalized_loss_protection',
+            auction_title: title,
+            reason: 'Preço > valor loja + último lance de bot',
+            winner: lastBid.profiles.full_name || 'Bot'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else if (lastBid && !lastBid.profiles?.is_bot) {
+        console.log(`👤 [PROTECTION] Último lance foi de usuário - adicionando bid de proteção`);
+        // Continuar para lógica normal de proteção (adicionar bid de bot)
+      } else {
+        console.log(`❓ [PROTECTION] Nenhum lance encontrado - continuando proteção normal`);
+        // Continuar para lógica normal de proteção
+      }
     }
 
     // Meta não atingida - adicionar bid de proteção
