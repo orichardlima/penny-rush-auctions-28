@@ -50,11 +50,15 @@ Deno.serve(async (req) => {
     }
 
     // **FASE 2A: Verificar leilões com PREJUÍZO imediatamente (sem esperar inatividade)**
-    const { data: riskAuctions, error: riskError } = await supabase
+    const { data: allActiveAuctions, error: riskError } = await supabase
       .from('auctions')
       .select('id, title, company_revenue, revenue_target, current_price, market_value, bid_increment, last_bid_at')
-      .eq('status', 'active')
-      .gt('current_price', 'market_value'); // Preço > valor da loja
+      .eq('status', 'active');
+    
+    // Filtrar leilões com risco no JavaScript (current_price > market_value)
+    const riskAuctions = allActiveAuctions?.filter(auction => 
+      Number(auction.current_price) > Number(auction.market_value)
+    ) || [];
       
     // **FASE 2B: Verificar leilões inativos por último lance há 15+ segundos**
     const { data: inactiveAuctions, error: inactiveError } = await supabase
