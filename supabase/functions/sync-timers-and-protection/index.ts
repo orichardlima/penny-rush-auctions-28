@@ -18,11 +18,12 @@ Deno.serve(async (req) => {
     );
 
     const currentTimeBr = new Date().toISOString();
-    const fifteenSecondsAgo = new Date(Date.now() - 15000).toISOString();
+    const threeSecondsAgo = new Date(Date.now() - 3000).toISOString(); // Tempo real - 3 segundos
 
-    console.log(`🔄 [BACKUP-PROTECTION] Verificação independente de leilões - ${currentTimeBr}`);
+  console.log(`🚀 [REAL-TIME-PROTECTION] Verificação ultra-rápida - ${currentTimeBr}`);
+  const startTime = Date.now();
 
-    // **FASE 1: Ativar leilões em espera cujo horário chegou**
+  // **FASE 1: Ativar leilões em espera cujo horário chegou**
     const { data: waitingAuctions, error: waitingError } = await supabase
       .from('auctions')
       .select('id, title, starts_at')
@@ -48,12 +49,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // **FASE 2: Verificar leilões inativos há 15+ segundos (backup independente)**
+    // **FASE 2: Verificar leilões inativos há 3+ segundos (proteção em tempo real)**
     const { data: inactiveAuctions, error: inactiveError } = await supabase
       .from('auctions')
       .select('id, title, company_revenue, revenue_target, current_price, market_value, bid_increment, updated_at')
       .eq('status', 'active')
-      .lt('updated_at', fifteenSecondsAgo);
+      .lt('updated_at', threeSecondsAgo);
 
     if (inactiveError) {
       console.error('❌ Erro ao buscar leilões inativos:', inactiveError);
@@ -68,8 +69,8 @@ Deno.serve(async (req) => {
 
     if (inactiveAuctions && inactiveAuctions.length > 0) {
       for (const auction of inactiveAuctions) {
-        console.log(`⏰ [BACKUP-CHECK] Leilão "${auction.title}" inativo há 15+ segundos`);
-        console.log(`🏪 [BACKUP-CHECK] Preço: R$${auction.current_price} | Loja: R$${auction.market_value} | Meta: R$${auction.company_revenue}/${auction.revenue_target}`);
+        console.log(`⚡ [REAL-TIME-CHECK] Leilão "${auction.title}" inativo há 3+ segundos`);
+        console.log(`🏪 [REAL-TIME-CHECK] Preço: R$${auction.current_price} | Loja: R$${auction.market_value} | Meta: R$${auction.company_revenue}/${auction.revenue_target}`);
         
         // Verificar se meta foi atingida
         if (auction.company_revenue >= auction.revenue_target) {
@@ -95,12 +96,12 @@ Deno.serve(async (req) => {
             })
             .eq('id', auction.id);
 
-          console.log(`🏁 [BACKUP-FINALIZED] Leilão "${auction.title}" finalizado - meta atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
+          console.log(`🏁 [REAL-TIME-FINALIZED] Leilão "${auction.title}" finalizado - meta atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
           finalizedCount++;
           
         } else if (auction.current_price > auction.market_value) {
           // NOVA REGRA: Preço ultrapassou valor da loja - verificar último lance
-          console.log(`⚠️ [BACKUP-CHECK] Preço ultrapassou valor da loja! Verificando último lance...`);
+          console.log(`⚠️ [REAL-TIME-CHECK] Preço ultrapassou valor da loja! Verificando último lance...`);
           
           const { data: lastBid } = await supabase
             .from('bids')
@@ -116,7 +117,7 @@ Deno.serve(async (req) => {
 
           if (lastBid && lastBid.profiles?.is_bot) {
             // Último lance foi de bot - FINALIZAR para evitar prejuízo
-            console.log(`🛑 [BACKUP-CHECK] Último lance foi de bot - finalizando para evitar prejuízo`);
+            console.log(`🛑 [REAL-TIME-CHECK] Último lance foi de bot - finalizando para evitar prejuízo`);
             
             await supabase
               .from('auctions')
@@ -128,12 +129,12 @@ Deno.serve(async (req) => {
               })
               .eq('id', auction.id);
 
-            console.log(`🏁 [BACKUP-FINALIZED] Leilão "${auction.title}" finalizado - proteção contra prejuízo`);
+            console.log(`🏁 [REAL-TIME-FINALIZED] Leilão "${auction.title}" finalizado - proteção contra prejuízo`);
             finalizedCount++;
             
           } else {
             // Último lance foi de usuário ou não há lances - adicionar bid de bot
-            console.log(`👤 [BACKUP-CHECK] Último lance foi de usuário - adicionando bid de proteção`);
+            console.log(`👤 [REAL-TIME-CHECK] Último lance foi de usuário - adicionando bid de proteção`);
             
             const { data: randomBot } = await supabase.rpc('get_random_bot');
             
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
                 });
 
               if (!bidError) {
-                console.log(`🤖 [BACKUP-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - preço > loja + usuário`);
+                console.log(`🤖 [REAL-TIME-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - preço > loja + usuário`);
                 botBidsAdded++;
               }
             }
@@ -169,7 +170,7 @@ Deno.serve(async (req) => {
               });
 
             if (!bidError) {
-              console.log(`🤖 [BACKUP-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - meta não atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
+              console.log(`🤖 [REAL-TIME-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - meta não atingida (R$${auction.company_revenue}/${auction.revenue_target})`);
               botBidsAdded++;
             }
           }
@@ -177,16 +178,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    const executionTime = Date.now() - startTime;
     const summary = {
       timestamp: currentTimeBr,
       activated: activatedCount,
       finalized: finalizedCount,
       bot_bids_added: botBidsAdded,
-      type: 'backup_independent',
+      execution_time_ms: executionTime,
+      type: 'real_time_protection',
       success: true
     };
 
-    console.log(`✅ [BACKUP-COMPLETE] Ativados: ${activatedCount} | Finalizados: ${finalizedCount} | Bots: ${botBidsAdded}`);
+    console.log(`⚡ [REAL-TIME-COMPLETE] Ativados: ${activatedCount} | Finalizados: ${finalizedCount} | Bots: ${botBidsAdded} | Tempo: ${executionTime}ms`);
 
     return new Response(JSON.stringify(summary), {
       status: 200,

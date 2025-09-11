@@ -15,6 +15,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
   
   const localTimerRef = useRef<NodeJS.Timeout>();
   const bidCheckIntervalRef = useRef<NodeJS.Timeout>();
+  const lastVerifyingStart = useRef<number>();
 
   // Limpar timers
   const clearTimers = useCallback(() => {
@@ -47,6 +48,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
         if (newTime === 0) {
           console.log(`🔚 [${auctionId}] Timer chegou a 0 - Verificando lances válidos`);
           setIsVerifying(true);
+          lastVerifyingStart.current = Date.now();
         }
         
         return newTime;
@@ -72,6 +74,16 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
         setIsVerifying(false);
         clearTimers();
         return;
+      }
+
+      // Se está verificando há muito tempo, forçar refresh do status
+      if (isVerifying && localTimeLeft === 0) {
+        const timeSinceVerifying = Date.now() - (lastVerifyingStart.current || Date.now());
+        if (timeSinceVerifying > 5000) { // 5 segundos
+          console.log(`⏰ [${auctionId}] Timeout na verificação, forçando refresh...`);
+          setIsVerifying(false);
+          startLocalTimer(15); // Resetar timer
+        }
       }
 
       // Detectar novos lances
@@ -123,9 +135,9 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       console.log(`⚡ [${auctionId}] Iniciando com ${initialTime}s do backend`);
       startLocalTimer(initialTime);
 
-      // Iniciar verificação de novos lances a cada 1 segundo
-      bidCheckIntervalRef.current = setInterval(checkForNewBids, 1000);
-      console.log(`👀 [${auctionId}] Verificação de lances iniciada (1s)`);
+      // Iniciar verificação de novos lances a cada 500ms (tempo real)
+      bidCheckIntervalRef.current = setInterval(checkForNewBids, 500);
+      console.log(`👀 [${auctionId}] Verificação de lances iniciada (500ms)`);
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro na inicialização:`, error);

@@ -7,6 +7,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { RecentWinners } from "@/components/RecentWinners";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
+import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
@@ -143,6 +144,9 @@ const Index = () => {
 
   // Hook para verificar e ativar leilões automaticamente
   useAuctionTimer(fetchAuctions);
+
+  // Sistema de proteção em tempo real (1 segundo)
+  useRealTimeProtection();
 
 
   useEffect(() => {
