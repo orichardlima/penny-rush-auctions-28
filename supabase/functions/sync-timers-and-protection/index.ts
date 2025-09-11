@@ -67,12 +67,11 @@ Deno.serve(async (req) => {
       .eq('status', 'active')
       .or(`last_bid_at.lt.${fifteenSecondsAgo},time_left.eq.0`); // Inativo por último lance OU timer zerado
 
-    // **FASE 2C: Buscar leilões que tiveram último lance de bot há 15+ segundos (para finalizar)**
+    // **FASE 2C: Buscar leilões ativos para verificar se devem ser finalizados**
     const { data: botLastBidAuctions, error: botBidError } = await supabase
       .from('auctions')
       .select('id, title, company_revenue, revenue_target, current_price, market_value, last_bid_at')
-      .eq('status', 'active')
-      .lt('last_bid_at', fifteenSecondsAgo);
+      .eq('status', 'active');
 
     if (riskError || inactiveError || botBidError) {
       console.error('❌ Erro ao buscar leilões:', riskError || inactiveError || botBidError);
@@ -220,15 +219,30 @@ Deno.serve(async (req) => {
       }
     }
 
-    // **PROCESSAR LEILÕES COM ÚLTIMO LANCE DE BOT (finalizar após 15s)**
-    console.log(`🤖 [BOT-FINALIZE] Encontrados ${botLastBidAuctions?.length || 0} leilões com último lance de bot há 15+ segundos`);
+    // **PROCESSAR LEILÕES COM ÚLTIMO LANCE DE BOT (finalizar após 15s de inatividade)**
+    console.log(`🤖 [BOT-FINALIZE] Verificando ${botLastBidAuctions?.length || 0} leilões ativos para possível finalização`);
     
     if (botLastBidAuctions && botLastBidAuctions.length > 0) {
       for (const auction of botLastBidAuctions) {
+        // Calcular tempo exato desde último lance
+        const lastBidTime = new Date(auction.last_bid_at).getTime();
+        const currentTime = Date.now();
+        const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
+        
+        console.log(`🕐 [BOT-CHECK] Leilão "${auction.title}": ${secondsSinceLastBid}s desde último lance`);
+        console.log(`   📅 Último lance: ${auction.last_bid_at}`);
+        console.log(`   📅 Agora: ${new Date(currentTime).toISOString()}`);
+        
+        // CRÍTICO: Só prosseguir se realmente passaram 15+ segundos
+        if (secondsSinceLastBid < 15) {
+          console.log(`⏭️ [BOT-SKIP] Leilão "${auction.title}" ainda ativo (apenas ${secondsSinceLastBid}s)`);
+          continue;
+        }
+        
         // Verificar se o último lance realmente foi de bot
         const { data: lastBidData } = await supabase
           .from('bids')
-          .select('user_id')
+          .select('user_id, created_at')
           .eq('auction_id', auction.id)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -241,7 +255,19 @@ Deno.serve(async (req) => {
           .single();
 
         if (profileData?.is_bot) {
-          console.log(`🏁 [BOT-FINALIZE] Finalizando leilão "${auction.title}" - último lance foi de bot há 15+ segundos`);
+          // ANTES DE FINALIZAR: Verificar se há prejuízo
+          const currentPrice = Number(auction.current_price);
+          const marketValue = Number(auction.market_value);
+          
+          console.log(`💰 [BOT-CHECK] Preço: R$${currentPrice} | Loja: R$${marketValue}`);
+          
+          if (currentPrice > marketValue) {
+            console.log(`⚠️ [BOT-SKIP] Não finalizando - haveria prejuízo (R$${currentPrice} > R$${marketValue})`);
+            continue;
+          }
+          
+          console.log(`🏁 [BOT-FINALIZE] Finalizando leilão "${auction.title}" - último lance foi de bot há ${secondsSinceLastBid}s`);
+          console.log(`   ✅ Sem prejuízo: R$${currentPrice} ≤ R$${marketValue}`);
           
           await supabase
             .from('auctions')
@@ -253,7 +279,10 @@ Deno.serve(async (req) => {
             })
             .eq('id', auction.id);
 
+          console.log(`✅ [BOT-FINALIZED] Leilão "${auction.title}" finalizado com segurança`);
           finalizedCount++;
+        } else {
+          console.log(`👤 [BOT-SKIP] Último lance não foi de bot - continuando ativo`);
         }
       }
     }
