@@ -7,16 +7,18 @@ interface UseIndependentTimerProps {
 }
 
 export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseIndependentTimerProps) => {
-  const [localTimer, setLocalTimer] = useState(0); // Começar em 0, será atualizado pelo backend
+  const [localTimer, setLocalTimer] = useState(initialTimeLeft); // Começar com valor inicial para evitar zero imediato
   const [lastBidCount, setLastBidCount] = useState<number>(0);
   const [isProtectionActive, setIsProtectionActive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isStuck, setIsStuck] = useState(false);
   
   const timerIntervalRef = useRef<NodeJS.Timeout>();
   const pollingIntervalRef = useRef<NodeJS.Timeout>();
   const protectionTimeoutRef = useRef<NodeJS.Timeout>();
   const stuckTimerRef = useRef<NodeJS.Timeout>();
+  const resetTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Buscar tempo real do backend usando a nova função
   const fetchRealTimeLeft = useCallback(async () => {
@@ -38,6 +40,38 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
     }
   }, [auctionId, initialTimeLeft]);
 
+  // Função para resetar timer manualmente
+  const resetTimer = useCallback(async () => {
+    console.log(`🔄 [${auctionId}] Reset manual do timer solicitado`);
+    setIsVerifying(true);
+    setIsStuck(false);
+    
+    try {
+      // Buscar dados atuais do leilão
+      const { data: auction } = await supabase
+        .from('auctions')
+        .select('total_bids, status')
+        .eq('id', auctionId)
+        .single();
+      
+      if (auction) {
+        setLastBidCount(auction.total_bids);
+        
+        if (auction.status === 'active') {
+          const realTimeLeft = await fetchRealTimeLeft();
+          setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
+          console.log(`✅ [${auctionId}] Timer resetado para ${realTimeLeft}s`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ [${auctionId}] Erro no reset manual:`, error);
+      setLocalTimer(15); // Fallback
+    } finally {
+      setIsProtectionActive(false);
+      setIsVerifying(false);
+    }
+  }, [auctionId, fetchRealTimeLeft]);
+
   // Polling para detectar novos lances e sincronizar timer
   const checkForNewBids = useCallback(async () => {
     try {
@@ -49,64 +83,50 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
 
       if (error || !data) return;
 
-      // CRÍTICO: Sempre verificar se houve novos lances, especialmente quando timer está em zero
+      // CRÍTICO: Sempre verificar se houve novos lances
       if (data.total_bids > lastBidCount) {
-        console.log(`🔄 [${auctionId}] Novo lance detectado! Sincronizando timer real (bids: ${lastBidCount} → ${data.total_bids})`);
+        console.log(`🔄 [${auctionId}] Novo lance detectado! Sincronizando timer (bids: ${lastBidCount} → ${data.total_bids})`);
         const realTimeLeft = await fetchRealTimeLeft();
-        setLocalTimer(realTimeLeft);
+        setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
         setLastBidCount(data.total_bids);
         setIsProtectionActive(false);
         setIsVerifying(false);
+        setIsStuck(false);
         
-        // Limpar timeout de proteção se existir
-        if (protectionTimeoutRef.current) {
-          clearTimeout(protectionTimeoutRef.current);
-        }
-        
-        // Limpar timeout de timer travado
-        if (stuckTimerRef.current) {
-          clearTimeout(stuckTimerRef.current);
-        }
+        // Limpar todos os timeouts
+        [protectionTimeoutRef, stuckTimerRef, resetTimeoutRef].forEach(ref => {
+          if (ref.current) {
+            clearTimeout(ref.current);
+          }
+        });
         return;
       }
 
-      // Se leilão foi finalizado, parar timer
+      // Se leilão foi finalizado
       if (data.status === 'finished') {
         setLocalTimer(0);
         setIsProtectionActive(false);
         setIsVerifying(false);
-        if (timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current);
-        }
+        setIsStuck(false);
         return;
       }
 
-      // NOVA LÓGICA: Verificação especial quando timer está em zero
+      // Verificação especial quando timer está em zero
       if (localTimer <= 0 && data.status === 'active' && !isProtectionActive) {
-        console.log(`🔍 [${auctionId}] Timer em zero - verificando tempo real do backend`);
+        console.log(`🔍 [${auctionId}] Timer em zero - verificando tempo real`);
         const realTimeLeft = await fetchRealTimeLeft();
         
         if (realTimeLeft > 0) {
-          console.log(`🔧 [${auctionId}] Timer estava travado - resetando de 0 para ${realTimeLeft}s`);
+          console.log(`🔧 [${auctionId}] Timer travado detectado - resetando para ${realTimeLeft}s`);
           setLocalTimer(realTimeLeft);
           setIsVerifying(false);
-        }
-      }
-
-      // Verificação de consistência: se timer local difere muito do real
-      if (isInitialized && data.status === 'active' && localTimer > 0 && Math.abs(Date.now() % 60000) < 1000) {
-        const realTimeLeft = await fetchRealTimeLeft();
-        const timeDiff = Math.abs(localTimer - realTimeLeft);
-        
-        if (timeDiff > 3) {
-          console.log(`🔧 [${auctionId}] Correção de sincronização: ${localTimer}s → ${realTimeLeft}s (diff: ${timeDiff}s)`);
-          setLocalTimer(realTimeLeft);
+          setIsStuck(false);
         }
       }
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro no polling:`, error);
     }
-  }, [auctionId, lastBidCount, fetchRealTimeLeft, isInitialized, localTimer, isProtectionActive]);
+  }, [auctionId, lastBidCount, fetchRealTimeLeft, localTimer, isProtectionActive]);
 
   // Chamar edge function de proteção quando timer chega a zero
   const triggerProtection = useCallback(async () => {
@@ -179,19 +199,14 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
           console.log(`⏰ [${auctionId}] Timer local: ${newValue}s${newValue === 0 ? ' (ZERO!)' : ''}`);
           
           if (newValue === 0 && prev > 0) {
-            // Timer chegou a zero pela primeira vez - acionar proteção
+            // Timer chegou a zero - acionar proteção
             triggerProtection();
             
-            // Configurar fallback de segurança para timer travado
-            stuckTimerRef.current = setTimeout(() => {
-              console.log(`🚨 [${auctionId}] FALLBACK: Timer travado há 5 segundos - forçando sincronização`);
-              fetchRealTimeLeft().then(realTime => {
-                if (realTime > 0) {
-                  setLocalTimer(realTime);
-                  setIsProtectionActive(false);
-                  setIsVerifying(false);
-                }
-              });
+            // Configurar reset automático se ficar travado
+            resetTimeoutRef.current = setTimeout(() => {
+              console.log(`🚨 [${auctionId}] Timer travado por 5s - reset automático`);
+              setIsStuck(true);
+              resetTimer();
             }, 5000);
           }
           
@@ -207,60 +222,83 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
     };
   }, [isInitialized, auctionId, triggerProtection, fetchRealTimeLeft]);
 
-  // Inicialização: buscar tempo real do backend e contagem de lances
+  // Inicialização imediata do timer
   useEffect(() => {
+    let isMounted = true;
+    
     const initializeTimer = async () => {
+      console.log(`🚀 [${auctionId}] Inicializando timer...`);
+      
       try {
-        // Buscar dados iniciais do leilão
+        // Buscar dados do leilão imediatamente
         const { data, error } = await supabase
           .from('auctions')
           .select('total_bids, status')
           .eq('id', auctionId)
           .single();
 
+        if (!isMounted) return;
+
         if (data && !error) {
           setLastBidCount(data.total_bids);
           
-          // Se leilão está ativo, buscar tempo real
           if (data.status === 'active') {
+            // Buscar tempo real imediatamente
             const realTimeLeft = await fetchRealTimeLeft();
-            setLocalTimer(realTimeLeft);
-            console.log(`🚀 [${auctionId}] Timer inicializado com tempo real: ${realTimeLeft}s`);
+            if (!isMounted) return;
+            
+            setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
+            console.log(`✅ [${auctionId}] Timer inicializado: ${realTimeLeft}s`);
           } else {
             setLocalTimer(0);
-            console.log(`⏹️ [${auctionId}] Leilão não está ativo (status: ${data.status})`);
+            console.log(`⏹️ [${auctionId}] Leilão inativo: ${data.status}`);
           }
         }
       } catch (error) {
-        console.error(`❌ [${auctionId}] Erro ao inicializar timer:`, error);
-        setLocalTimer(initialTimeLeft); // Fallback
+        console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
+        if (isMounted) {
+          setLocalTimer(initialTimeLeft);
+        }
       } finally {
-        setIsInitialized(true);
+        if (isMounted) {
+          setIsInitialized(true);
+        }
       }
     };
 
+    // Inicializar imediatamente
     initializeTimer();
 
-    // Polling a cada 1 segundo para detectar novos lances e verificar consistência
-    pollingIntervalRef.current = setInterval(checkForNewBids, 1000);
-
-    return () => {
+    // Polling mais frequente para timer em zero
+    const startPolling = () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
-      if (protectionTimeoutRef.current) {
-        clearTimeout(protectionTimeoutRef.current);
-      }
-      if (stuckTimerRef.current) {
-        clearTimeout(stuckTimerRef.current);
-      }
+      
+      // Polling a cada 500ms quando timer está em zero, senão 1s
+      const interval = localTimer <= 0 ? 500 : 1000;
+      pollingIntervalRef.current = setInterval(checkForNewBids, interval);
     };
-  }, [auctionId, checkForNewBids, fetchRealTimeLeft, initialTimeLeft]);
+
+    startPolling();
+
+    return () => {
+      isMounted = false;
+      [pollingIntervalRef, protectionTimeoutRef, stuckTimerRef, resetTimeoutRef].forEach(ref => {
+        if (ref.current) {
+          clearInterval(ref.current);
+          clearTimeout(ref.current);
+        }
+      });
+    };
+  }, [auctionId, checkForNewBids, fetchRealTimeLeft, initialTimeLeft, localTimer]);
 
   return {
     localTimer,
     isProtectionActive,
     isInitialized,
-    isVerifying
+    isVerifying,
+    isStuck,
+    resetTimer
   };
 };

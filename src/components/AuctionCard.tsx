@@ -55,8 +55,8 @@ export const AuctionCard = ({
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
-  // Timer sincronizado com backend - busca tempo real na inicialização
-  const { localTimer, isProtectionActive, isInitialized, isVerifying } = useIndependentTimer({
+  // Timer sincronizado com backend
+  const { localTimer, isProtectionActive, isInitialized, isVerifying, isStuck, resetTimer } = useIndependentTimer({
     auctionId: id,
     initialTimeLeft: initialTimeLeft || 15
   });
@@ -173,27 +173,36 @@ export const AuctionCard = ({
           
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
-            {isVerifying ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-5 h-5" />
-                    <span className="font-medium text-sm">
-                      Verificando leilão...
-                    </span>
+            <div className="flex flex-col gap-2">
+              {isVerifying ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-5 h-5" />
+                      <span className="font-medium text-sm">
+                        {isStuck ? "Reconectando..." : "Verificando leilão..."}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div> : <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-5 h-5" />
-                    <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
-                      {displayTimeLeft}s
-                    </span>
+                </div> : <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-5 h-5" />
+                      <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
+                        {displayTimeLeft}s
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>}
+                </div>}
+              
+              {/* Botão de reset manual quando timer está travado */}
+              {(displayTimeLeft <= 0 && !isVerifying && isInitialized) && <button onClick={resetTimer} className="rounded-lg px-3 py-2 bg-background border-2 border-warning text-warning shadow-lg hover:bg-warning/10 transition-colors">
+                  <div className="flex items-center gap-1 text-xs font-medium">
+                    🔄 Atualizar
+                  </div>
+                </button>}
+            </div>
           </div>}
       </div>
       

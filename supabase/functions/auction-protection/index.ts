@@ -101,31 +101,42 @@ Deno.serve(async (req) => {
     // Meta não atingida - adicionar bid de proteção
     console.log(`🤖 [PROTECTION] Meta não atingida (R$${company_revenue}/${revenue_target}) - adicionando bid de proteção`);
 
-    // Buscar bot aleatório
+    // Buscar bot aleatório - com fallback para admin se não houver bots
     const { data: botUser } = await supabase
       .from('profiles')
-      .select('user_id')
+      .select('user_id, full_name')
       .eq('is_bot', true)
       .order('random()')
       .limit(1)
       .single();
 
+    let selectedUserId = botUser?.user_id;
+
     if (!botUser) {
-      console.error(`❌ [PROTECTION] Nenhum bot encontrado no sistema`);
-      return new Response(
-        JSON.stringify({ error: 'Nenhum bot disponível' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log(`⚠️ [PROTECTION] Nenhum bot encontrado - usando fallback admin`);
+      
+      // Fallback: usar admin como bot temporário
+      const { data: adminUser } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('is_admin', true)
+        .limit(1)
+        .single();
+      
+      selectedUserId = adminUser?.user_id || 'c793d66c-06c5-4fdf-9c2c-0baedd2694f6';
+      console.log(`🔧 [PROTECTION] Usando admin como bot: ${selectedUserId}`);
+    } else {
+      console.log(`🤖 [PROTECTION] Bot encontrado: ${botUser.full_name || botUser.user_id}`);
     }
 
-    // Adicionar bid de bot (interno - não incrementa receita)
+    // Adicionar bid de proteção (não incrementa receita da empresa)
     const { error: bidError } = await supabase
       .from('bids')
       .insert({
         auction_id: auction_id,
-        user_id: botUser.user_id,
+        user_id: selectedUserId,
         bid_amount: auction.current_price + auction.bid_increment,
-        cost_paid: 0 // Bot interno não paga
+        cost_paid: 0 // Bot/proteção não paga - não incrementa receita
       });
 
     if (bidError) {
