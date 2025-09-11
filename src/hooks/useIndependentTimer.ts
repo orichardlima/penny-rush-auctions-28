@@ -33,6 +33,13 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
 
       const realTimeLeft = data || 0;
       console.log(`🕐 [${auctionId}] Tempo real do backend: ${realTimeLeft}s`);
+      
+      // Se retornar -1, leilão deve ser finalizado
+      if (realTimeLeft === -1) {
+        console.log(`🏁 [${auctionId}] Backend indica que leilão deve ser finalizado`);
+        return -1;
+      }
+      
       return realTimeLeft;
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro na RPC get_auction_time_left:`, error);
@@ -59,8 +66,18 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
         
         if (auction.status === 'active') {
           const realTimeLeft = await fetchRealTimeLeft();
+          
+          if (realTimeLeft === -1) {
+            console.log(`🏁 [${auctionId}] Leilão deve ser finalizado - parando timer`);
+            setLocalTimer(0);
+            setIsProtectionActive(false);
+            return;
+          }
+          
           setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
           console.log(`✅ [${auctionId}] Timer resetado para ${realTimeLeft}s`);
+        } else {
+          setLocalTimer(0);
         }
       }
     } catch (error) {
@@ -87,6 +104,16 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
       if (data.total_bids > lastBidCount) {
         console.log(`🔄 [${auctionId}] Novo lance detectado! Sincronizando timer (bids: ${lastBidCount} → ${data.total_bids})`);
         const realTimeLeft = await fetchRealTimeLeft();
+        
+        if (realTimeLeft === -1) {
+          console.log(`🏁 [${auctionId}] Leilão deve ser finalizado após novo lance`);
+          setLocalTimer(0);
+          setIsProtectionActive(false);
+          setIsVerifying(false);
+          setIsStuck(false);
+          return;
+        }
+        
         setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
         setLastBidCount(data.total_bids);
         setIsProtectionActive(false);
@@ -115,6 +142,14 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
       if (localTimer <= 0 && data.status === 'active' && !isProtectionActive) {
         console.log(`🔍 [${auctionId}] Timer em zero - verificando tempo real`);
         const realTimeLeft = await fetchRealTimeLeft();
+        
+        if (realTimeLeft === -1) {
+          console.log(`🏁 [${auctionId}] Leilão expirado - deve ser finalizado`);
+          setLocalTimer(0);
+          setIsVerifying(false);
+          setIsStuck(false);
+          return;
+        }
         
         if (realTimeLeft > 0) {
           console.log(`🔧 [${auctionId}] Timer travado detectado - resetando para ${realTimeLeft}s`);
@@ -247,8 +282,13 @@ export const useIndependentTimer = ({ auctionId, initialTimeLeft = 15 }: UseInde
             const realTimeLeft = await fetchRealTimeLeft();
             if (!isMounted) return;
             
-            setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
-            console.log(`✅ [${auctionId}] Timer inicializado: ${realTimeLeft}s`);
+            if (realTimeLeft === -1) {
+              console.log(`🏁 [${auctionId}] Leilão deve ser finalizado na inicialização`);
+              setLocalTimer(0);
+            } else {
+              setLocalTimer(realTimeLeft > 0 ? realTimeLeft : 15);
+              console.log(`✅ [${auctionId}] Timer inicializado: ${realTimeLeft}s`);
+            }
           } else {
             setLocalTimer(0);
             console.log(`⏹️ [${auctionId}] Leilão inativo: ${data.status}`);

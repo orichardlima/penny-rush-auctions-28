@@ -123,7 +123,50 @@ Deno.serve(async (req) => {
         .limit(1)
         .single();
       
-      selectedUserId = adminUser?.user_id || 'c793d66c-06c5-4fdf-9c2c-0baedd2694f6';
+      if (!adminUser) {
+        console.log(`❌ [PROTECTION] Nenhum admin encontrado - finalizando leilão sem proteção`);
+        
+        // Buscar último bidder para definir como vencedor
+        const { data: lastBid } = await supabase
+          .from('bids')
+          .select(`
+            user_id,
+            profiles!inner(full_name)
+          `)
+          .eq('auction_id', auction_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Finalizar leilão mesmo sem atingir meta
+        const { error: finalizeError } = await supabase
+          .from('auctions')
+          .update({
+            status: 'finished',
+            finished_at: new Date().toISOString(),
+            winner_id: lastBid?.user_id || null,
+            winner_name: lastBid?.profiles?.full_name || null
+          })
+          .eq('id', auction_id);
+
+        if (finalizeError) {
+          console.error(`❌ [PROTECTION] Erro ao finalizar leilão:`, finalizeError);
+          throw finalizeError;
+        }
+
+        console.log(`🏁 [PROTECTION] Leilão "${title}" finalizado sem proteção (sem usuários disponíveis)`);
+        return new Response(
+          JSON.stringify({ 
+            message: 'Leilão finalizado sem proteção', 
+            action: 'finalized_without_protection',
+            auction_title: title,
+            winner: lastBid?.profiles?.full_name || 'Desconhecido'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      selectedUserId = adminUser.user_id;
       console.log(`🔧 [PROTECTION] Usando admin como bot: ${selectedUserId}`);
     } else {
       console.log(`🤖 [PROTECTION] Bot encontrado: ${botUser.full_name || botUser.user_id}`);
