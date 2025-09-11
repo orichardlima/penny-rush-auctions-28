@@ -191,7 +191,31 @@ Deno.serve(async (req) => {
             finalizedCount++;
           }
         } else {
-          console.log(`👤 [RISK-CHECK] Último lance foi de usuário - aguardando inatividade para proteção`);
+          // CENÁRIO 2: Último lance foi de humano - ADICIONAR BOT DE PROTEÇÃO IMEDIATAMENTE
+          console.log(`🛑 [RISK-PROTECTION] Último lance foi de usuário - adicionando bot de proteção IMEDIATAMENTE`);
+          
+          // Buscar bot aleatório
+          const { data: randomBot } = await supabase.rpc('get_random_bot');
+          
+          if (randomBot) {
+            const { error: bidError } = await supabase
+              .from('bids')
+              .insert({
+                auction_id: auction.id,
+                user_id: randomBot,
+                bid_amount: auction.current_price + auction.bid_increment,
+                cost_paid: 0 // Bot interno não paga
+              });
+
+            if (!bidError) {
+              console.log(`🤖 [RISK-BOT] Bot de proteção adicionado ao leilão "${auction.title}" - proteção contra prejuízo`);
+              botBidsAdded++;
+            } else {
+              console.error(`❌ [RISK-BOT] Erro ao adicionar bot de proteção: ${bidError.message}`);
+            }
+          } else {
+            console.error(`❌ [RISK-BOT] Nenhum bot disponível para proteção`);
+          }
         }
       }
     }
