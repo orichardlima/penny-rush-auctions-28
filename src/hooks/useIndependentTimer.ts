@@ -38,10 +38,16 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     const now = new Date();
     const lastBidTime = new Date(lastBidAtStr);
     const secondsSinceLastBid = Math.floor((now.getTime() - lastBidTime.getTime()) / 1000);
-    const timeLeft = Math.max(15 - secondsSinceLastBid, 0);
     
+    // Se mais de 60 segundos sem atividade, considerar leilão finalizado
+    if (secondsSinceLastBid > 60) {
+      console.log(`💀 [${auctionId}] Leilão morto - sem atividade há ${secondsSinceLastBid}s`);
+      return -1; // Sinalizar que deve ser finalizado
+    }
+    
+    const timeLeft = Math.max(15 - secondsSinceLastBid, 0);
     return timeLeft;
-  }, []);
+  }, [auctionId]);
 
   // Polling para sincronizar com backend (menos frequente)
   const syncWithBackend = useCallback(async () => {
@@ -91,9 +97,20 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       if (auctionStatus !== 'active') return;
       
       const currentTimeLeft = calculateTimeLeft(lastBidAt);
+      
+      // Se leilão está "morto" (>60s sem atividade), parar processamento
+      if (currentTimeLeft === -1) {
+        console.log(`💀 [${auctionId}] Leilão considerado finalizado - parando timer`);
+        setAuctionStatus('finished');
+        setBackendTimeLeft(0);
+        setIsVerifying(false);
+        clearTimer();
+        return;
+      }
+      
       setBackendTimeLeft(currentTimeLeft);
       
-      // Se chegou a 0, mostrar "Verificando lances válidos"
+      // Se chegou a 0, mostrar "Verificando lances válidos" por no máximo 30 segundos
       if (currentTimeLeft === 0) {
         setIsVerifying(true);
         console.log(`🔍 [${auctionId}] Timer chegou a 0 - verificando lances válidos...`);
