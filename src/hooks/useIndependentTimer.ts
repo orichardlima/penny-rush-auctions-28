@@ -33,11 +33,16 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
 
   // Calcular tempo restante baseado em last_bid_at
   const calculateTimeLeft = useCallback((lastBidAtStr: string | null): number => {
-    if (!lastBidAtStr) return 15; // Se não há lances, timer completo
+    if (!lastBidAtStr) {
+      console.log(`⚠️ [${auctionId}] last_bid_at está vazio - assumindo timer em 15s`);
+      return 15; // Se não há lances, timer completo
+    }
     
     const now = new Date();
     const lastBidTime = new Date(lastBidAtStr);
     const secondsSinceLastBid = Math.floor((now.getTime() - lastBidTime.getTime()) / 1000);
+    
+    console.log(`🕐 [${auctionId}] CALC: now=${now.toISOString()}, lastBid=${lastBidTime.toISOString()}, diff=${secondsSinceLastBid}s`);
     
     // Se mais de 60 segundos sem atividade, considerar leilão finalizado
     if (secondsSinceLastBid > 60) {
@@ -46,6 +51,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     }
     
     const timeLeft = Math.max(15 - secondsSinceLastBid, 0);
+    console.log(`⏰ [${auctionId}] Timer calculado: ${timeLeft}s (${secondsSinceLastBid}s desde último lance)`);
     return timeLeft;
   }, [auctionId]);
 
