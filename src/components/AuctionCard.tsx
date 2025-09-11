@@ -56,7 +56,7 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
 
   // Timer sincronizado com backend - busca tempo real na inicialização
-  const { localTimer, isProtectionActive, isInitialized } = useIndependentTimer({
+  const { localTimer, isProtectionActive, isInitialized, isVerifying } = useIndependentTimer({
     auctionId: id,
     initialTimeLeft: initialTimeLeft || 15
   });
@@ -79,7 +79,7 @@ export const AuctionCard = ({
     }).format(safePriceInReais);
   };
 
-  console.log(`⏰ [${id}] Timer sincronizado: ${displayTimeLeft}s | Proteção: ${isProtectionActive} | Init: ${isInitialized}`);
+  console.log(`⏰ [${id}] Timer: ${displayTimeLeft}s | Proteção: ${isProtectionActive} | Verificando: ${isVerifying} | Init: ${isInitialized}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
@@ -173,13 +173,13 @@ export const AuctionCard = ({
           
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
-            {isProtectionActive ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
+            {isVerifying ? <div className="rounded-xl px-4 py-3 bg-background border-2 border-primary text-primary shadow-lg">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-5 h-5" />
                     <span className="font-medium text-sm">
-                      Verificando se os lances foram válidos
+                      Verificando leilão...
                     </span>
                   </div>
                 </div>
