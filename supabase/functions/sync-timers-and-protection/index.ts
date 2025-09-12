@@ -255,19 +255,20 @@ Deno.serve(async (req) => {
           .single();
 
         if (profileData?.is_bot) {
-          // ANTES DE FINALIZAR: Verificar se há prejuízo
+          // VERIFICAR SE HÁ PREJUÍZO REAL - só finalizar se houver
           const currentPrice = Number(auction.current_price);
           const marketValue = Number(auction.market_value);
           
           console.log(`💰 [BOT-CHECK] Preço: R$${currentPrice} | Loja: R$${marketValue}`);
           
-          if (currentPrice > marketValue) {
-            console.log(`⚠️ [BOT-SKIP] Não finalizando - haveria prejuízo (R$${currentPrice} > R$${marketValue})`);
+          // CRÍTICO: Só finalizar se há PREJUÍZO (preço > valor da loja)
+          if (currentPrice <= marketValue) {
+            console.log(`⏭️ [BOT-SKIP] Não finalizando - SEM prejuízo (R$${currentPrice} ≤ R$${marketValue})`);
             continue;
           }
           
-          console.log(`🏁 [BOT-FINALIZE] Finalizando leilão "${auction.title}" - último lance foi de bot há ${secondsSinceLastBid}s`);
-          console.log(`   ✅ Sem prejuízo: R$${currentPrice} ≤ R$${marketValue}`);
+          console.log(`🏁 [BOT-FINALIZE] Finalizando leilão "${auction.title}" - PREJUÍZO DETECTADO`);
+          console.log(`   ⚠️ Prejuízo: R$${currentPrice} > R$${marketValue} (diferença: R$${(currentPrice - marketValue).toFixed(2)})`);
           
           await supabase
             .from('auctions')
@@ -279,7 +280,7 @@ Deno.serve(async (req) => {
             })
             .eq('id', auction.id);
 
-          console.log(`✅ [BOT-FINALIZED] Leilão "${auction.title}" finalizado com segurança`);
+          console.log(`✅ [BOT-FINALIZED] Leilão "${auction.title}" finalizado por prejuízo`);
           finalizedCount++;
         } else {
           console.log(`👤 [BOT-SKIP] Último lance não foi de bot - continuando ativo`);
