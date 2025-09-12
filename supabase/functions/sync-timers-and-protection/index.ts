@@ -145,6 +145,34 @@ Deno.serve(async (req) => {
             if (!bidError) {
               console.log(`🤖 [PROTEÇÃO] Bot adicionado ao leilão "${auction.title}" - prejuízo evitado`);
               botBidsAdded++;
+              
+              // **REGRA 5: Finalizar leilão imediatamente após bot em cenário de prejuízo**
+              const { data: lastBidData } = await supabase
+                .from('bids')
+                .select('user_id')
+                .eq('auction_id', auction.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+              const { data: winnerProfile } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('user_id', lastBidData?.user_id)
+                .single();
+
+              await supabase
+                .from('auctions')
+                .update({
+                  status: 'finished',
+                  finished_at: currentTimeBr,
+                  winner_id: lastBidData?.user_id || null,
+                  winner_name: winnerProfile?.full_name || null
+                })
+                .eq('id', auction.id);
+
+              console.log(`🏁 [REGRA-5] Leilão "${auction.title}" finalizado - bot + prejuízo evitado`);
+              finalizedCount++;
             } else {
               console.error(`❌ [ERRO] Falha ao adicionar bot: ${bidError.message}`);
             }
