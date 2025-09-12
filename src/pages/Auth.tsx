@@ -268,8 +268,8 @@ const Auth = () => {
         // Toast adicional sobre bônus após um pequeno delay
         setTimeout(() => {
           toast({
-            title: "🎉 Bônus de Boas-vindas!",
-            description: "Você receberá lances gratuitos após confirmar seu email. Participe dos leilões e ganhe produtos incríveis!",
+            title: "🎉 Bônus Creditado!",
+            description: "Você já recebeu lances gratuitos e pode começar a participar dos leilões imediatamente!",
             duration: 6000,
           });
         }, 2000);
