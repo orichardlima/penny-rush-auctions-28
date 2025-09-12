@@ -62,8 +62,10 @@ const UserDashboard = () => {
   }, []);
 
   const fetchUserData = async () => {
+    if (!profile?.user_id) return;
+    
     try {
-      // Fetch user bids
+      // Fetch user bids - ONLY for the current user
       const { data: bidsData } = await supabase
         .from('bids')
         .select(`
@@ -73,10 +75,11 @@ const UserDashboard = () => {
             status
           )
         `)
+        .eq('user_id', profile.user_id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Fetch user purchases
+      // Fetch user purchases - ONLY for the current user
       const { data: purchasesData } = await supabase
         .from('bid_purchases')
         .select(`
@@ -85,6 +88,7 @@ const UserDashboard = () => {
             name
           )
         `)
+        .eq('user_id', profile.user_id)
         .order('created_at', { ascending: false })
         .limit(10);
 
