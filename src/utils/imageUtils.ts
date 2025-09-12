@@ -12,11 +12,27 @@ export interface ImageOptimizationOptions {
   format: 'webp' | 'jpeg';
 }
 
-// Configurações padrão
+// Configurações padrão otimizadas para cards de leilão
 export const DEFAULT_IMAGE_OPTIONS: ImageOptimizationOptions = {
   maxWidth: 1200,
-  maxHeight: 900,
+  maxHeight: 800, // Proporção 3:2 ideal para cards
   quality: 0.85,
+  format: 'webp'
+};
+
+// Configurações específicas para cards de leilão
+export const AUCTION_CARD_OPTIONS: ImageOptimizationOptions = {
+  maxWidth: 800,
+  maxHeight: 600, // Proporção 4:3 para melhor exibição em cards
+  quality: 0.80,
+  format: 'webp'
+};
+
+// Configurações para thumbnails
+export const THUMBNAIL_OPTIONS: ImageOptimizationOptions = {
+  maxWidth: 400,
+  maxHeight: 300,
+  quality: 0.70,
   format: 'webp'
 };
 
@@ -200,6 +216,81 @@ export const processImageFile = async (
   const optimizedFile = await optimizeImage(file, options);
   
   return optimizedFile;
+};
+
+// Processamento específico para cards de leilão
+export const processAuctionCardImage = async (file: File): Promise<File> => {
+  return processImageFile(file, AUCTION_CARD_OPTIONS);
+};
+
+// Processamento para thumbnails
+export const processThumbnailImage = async (file: File): Promise<File> => {
+  return processImageFile(file, THUMBNAIL_OPTIONS);
+};
+
+// Análise de qualidade da imagem
+export const analyzeImageQuality = async (file: File): Promise<{
+  score: number;
+  issues: string[];
+  suggestions: string[];
+}> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const issues: string[] = [];
+      const suggestions: string[] = [];
+      let score = 100;
+
+      // Analisar dimensões
+      const aspectRatio = img.width / img.height;
+      const idealRatios = [4/3, 3/2, 16/9];
+      const closestRatio = idealRatios.reduce((prev, curr) => 
+        Math.abs(curr - aspectRatio) < Math.abs(prev - aspectRatio) ? curr : prev
+      );
+      
+      if (Math.abs(aspectRatio - closestRatio) > 0.2) {
+        suggestions.push(`Proporção atual: ${aspectRatio.toFixed(2)}:1. Recomendado: ${closestRatio.toFixed(2)}:1`);
+        score -= 10;
+      }
+
+      // Analisar tamanho do arquivo
+      const fileSizeKB = file.size / 1024;
+      if (fileSizeKB < 200) {
+        suggestions.push('Imagem pequena - qualidade pode ser baixa');
+        score -= 15;
+      } else if (fileSizeKB > 2000) {
+        suggestions.push('Imagem grande - será comprimida automaticamente');
+        score -= 5;
+      }
+
+      // Analisar resolução
+      if (img.width < 800 || img.height < 600) {
+        issues.push('Resolução baixa - pode ficar pixelizada');
+        score -= 20;
+      }
+
+      if (img.width > 4000 || img.height > 4000) {
+        suggestions.push('Resolução muito alta - será reduzida');
+        score -= 5;
+      }
+
+      resolve({
+        score: Math.max(0, score),
+        issues,
+        suggestions
+      });
+    };
+    
+    img.onerror = () => {
+      resolve({
+        score: 0,
+        issues: ['Erro ao carregar imagem'],
+        suggestions: ['Tente uma imagem diferente']
+      });
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
 };
 
 // Utilitário para preview de imagem

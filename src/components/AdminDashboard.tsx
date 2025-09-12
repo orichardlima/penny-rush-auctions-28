@@ -65,7 +65,8 @@ import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
 import AuditLogTable from '@/components/AuditLogTable';
 import { BidPackageFormDialog } from '@/components/BidPackageFormDialog';
-import { processImageFile, createImagePreview } from '@/utils/imageUtils';
+import { processImageFile, createImagePreview, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
+import { ImageUploadPreview } from '@/components/ImageUploadPreview';
 import { SystemSettings } from '@/components/SystemSettings';
 
 interface Auction {
@@ -278,18 +279,38 @@ const AdminDashboard = () => {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileName = `${Date.now()}-${file.name}`;
-    const { data, error } = await supabase.storage
-      .from('auction-images')
-      .upload(fileName, file);
+    try {
+      // Processar imagem especificamente para cards de leilão
+      const optimizedFile = await processImageFile(file, AUCTION_CARD_OPTIONS);
+      
+      const fileName = `${Date.now()}-${optimizedFile.name}`;
+      const { data, error } = await supabase.storage
+        .from('auction-images')
+        .upload(fileName, optimizedFile);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('auction-images')
-      .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage
+        .from('auction-images')
+        .getPublicUrl(fileName);
 
-    return publicUrl;
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading optimized image:', error);
+      // Fallback para upload da imagem original se a otimização falhar
+      const fileName = `${Date.now()}-${file.name}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('auction-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('auction-images')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    }
   };
 
   // Helper function para formatar preços em reais
@@ -867,12 +888,13 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="image">Imagem</Label>
-                      <Input
-                        id="image"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
+                      <Label htmlFor="image">Imagem do Produto</Label>
+                      <ImageUploadPreview
+                        onImageSelect={setSelectedImage}
+                        maxWidth={1200}
+                        maxHeight={800}
+                        showCardPreview={true}
+                        disabled={uploading}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1315,66 +1337,32 @@ const AdminDashboard = () => {
                 <div className="space-y-2">
                   <Label>Imagem do Produto</Label>
                   
-                  {/* Preview da imagem atual */}
+                  <ImageUploadPreview
+                    onImageSelect={handleImageSelection}
+                    maxWidth={1200}
+                    maxHeight={800}
+                    showCardPreview={true}
+                    disabled={uploading || imageProcessing}
+                  />
+                  
+                  {/* Mostrar imagem atual se nenhuma nova for selecionada */}
                   {editingAuction.image_url && !editingImage && (
-                    <div className="relative w-full h-32 border border-border rounded-lg overflow-hidden">
-                      <img
-                        src={editingAuction.image_url}
-                        alt="Imagem atual"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="text-xs">
-                          Atual
-                        </Badge>
+                    <div className="mt-4">
+                      <p className="text-sm text-muted-foreground mb-2">Imagem atual do leilão:</p>
+                      <div className="relative w-full h-32 border border-border rounded-lg overflow-hidden">
+                        <img
+                          src={editingAuction.image_url}
+                          alt="Imagem atual"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-2 right-2">
+                          <Badge variant="secondary" className="text-xs">
+                            Atual
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   )}
-                  
-                  {/* Preview da nova imagem */}
-                  {editingImage && (
-                    <div className="relative w-full h-32 border border-border rounded-lg overflow-hidden">
-                      <img
-                        src={URL.createObjectURL(editingImage)}
-                        alt="Nova imagem"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="default" className="text-xs">
-                          Nova
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Input de arquivo */}
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setEditingImage(file);
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    {editingImage && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingImage(null)}
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <p className="text-sm text-muted-foreground">
-                    Deixe em branco para manter a imagem atual
-                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
