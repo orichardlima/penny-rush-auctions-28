@@ -24,6 +24,7 @@ interface ImageUploadPreviewProps {
   maxWidth?: number;
   maxHeight?: number;
   showCardPreview?: boolean;
+  compact?: boolean;
 }
 
 interface ValidationStatus {
@@ -40,7 +41,8 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
   disabled = false,
   maxWidth = 1200,
   maxHeight = 800,
-  showCardPreview = true
+  showCardPreview = true,
+  compact = false
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -50,6 +52,7 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
   const [processing, setProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [validation, setValidation] = useState<ValidationStatus | null>(null);
+  const [showDetails, setShowDetails] = useState(!compact);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateImage = useCallback(async (file: File, imageElement: HTMLImageElement): Promise<ValidationStatus> => {
@@ -328,36 +331,48 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
       {/* Validação e Score */}
       {validation && (
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
+          <CardContent className={compact ? "p-3" : "p-4"}>
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {getValidationIcon()}
-                <span className="font-medium">
-                  Qualidade da Imagem: {validation.score}/100
+                <span className={compact ? "text-sm font-medium" : "font-medium"}>
+                  Qualidade: {validation.score}/100
                 </span>
               </div>
-              <Badge variant="outline">
-                {validation.score >= 80 ? 'Excelente' : 
-                 validation.score >= 60 ? 'Boa' : 'Melhorar'}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={compact ? "text-xs" : ""}>
+                  {validation.score >= 80 ? 'Excelente' : 
+                   validation.score >= 60 ? 'Boa' : 'Melhorar'}
+                </Badge>
+                {compact && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    {showDetails ? 'Ocultar' : 'Ver'}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <Progress value={validation.score} className={cn("h-2 mb-3", getValidationColor())} />
+            {!compact && <Progress value={validation.score} className={cn("h-2 mb-3", getValidationColor())} />}
 
-            {validation.issues.length > 0 && (
-              <div className="space-y-1 mb-3">
-                <p className="text-sm font-medium text-red-600">Problemas encontrados:</p>
-                {validation.issues.map((issue, index) => (
-                  <p key={index} className="text-xs text-red-600 ml-4">• {issue}</p>
+            {showDetails && validation.issues.length > 0 && (
+              <div className="space-y-1 mb-2">
+                <p className={`font-medium text-red-600 ${compact ? "text-xs" : "text-sm"}`}>Problemas:</p>
+                {(compact ? validation.issues.slice(0, 2) : validation.issues).map((issue, index) => (
+                  <p key={index} className={`text-red-600 ml-3 ${compact ? "text-xs" : "text-xs"}`}>• {issue}</p>
                 ))}
               </div>
             )}
 
-            {validation.suggestions.length > 0 && (
+            {showDetails && validation.suggestions.length > 0 && (
               <div className="space-y-1">
-                <p className="text-sm font-medium text-blue-600">Sugestões:</p>
-                {validation.suggestions.map((suggestion, index) => (
-                  <p key={index} className="text-xs text-blue-600 ml-4">• {suggestion}</p>
+                <p className={`font-medium text-blue-600 ${compact ? "text-xs" : "text-sm"}`}>Sugestões:</p>
+                {(compact ? validation.suggestions.slice(0, 2) : validation.suggestions).map((suggestion, index) => (
+                  <p key={index} className={`text-blue-600 ml-3 ${compact ? "text-xs" : "text-xs"}`}>• {suggestion}</p>
                 ))}
               </div>
             )}
@@ -367,38 +382,42 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
 
       {/* Preview das Imagens */}
       {preview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={compact ? "space-y-3" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
           {/* Preview Original */}
           <Card>
-            <CardContent className="p-4">
-              <div className="space-y-3">
+            <CardContent className={compact ? "p-3" : "p-4"}>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Imagem Original</h4>
+                  <h4 className={compact ? "text-sm font-medium" : "font-medium"}>
+                    {compact ? "Preview" : "Imagem Original"}
+                  </h4>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={clearSelection}
-                    className="text-red-500 hover:text-red-700"
+                    className={`text-red-500 hover:text-red-700 ${compact ? "h-6 w-6 p-1" : ""}`}
                   >
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
-                <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+                <div className={`bg-muted rounded-lg overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-[4/3]"}`}>
                   <img
                     src={preview}
                     alt="Preview original"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Como você enviou
-                </p>
+                {!compact && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Como você enviou
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
 
           {/* Preview do Card (se disponível) */}
-          {showCardPreview && cardPreview && (
+          {!compact && showCardPreview && cardPreview && (
             <Card>
               <CardContent className="p-4">
                 <div className="space-y-3">
@@ -422,23 +441,35 @@ export const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
       {/* Informações Técnicas */}
       {processedFile && (
         <Card className="bg-muted/50">
-          <CardContent className="p-4">
-            <h4 className="font-medium mb-2">Otimização Aplicada</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Tamanho original:</p>
-                <p className="font-medium">{(selectedFile!.size / 1024).toFixed(0)}KB</p>
+          <CardContent className={compact ? "p-3" : "p-4"}>
+            {compact ? (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Otimizada:</span>
+                <span className="font-medium text-green-600">
+                  -{(100 - (processedFile.size / selectedFile!.size) * 100).toFixed(0)}% 
+                  ({(processedFile.size / 1024).toFixed(0)}KB)
+                </span>
               </div>
-              <div>
-                <p className="text-muted-foreground">Tamanho otimizado:</p>
-                <p className="font-medium text-green-600">
-                  {(processedFile.size / 1024).toFixed(0)}KB
-                  <span className="text-xs ml-1">
-                    (-{(100 - (processedFile.size / selectedFile!.size) * 100).toFixed(0)}%)
-                  </span>
-                </p>
-              </div>
-            </div>
+            ) : (
+              <>
+                <h4 className="font-medium mb-2">Otimização Aplicada</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Tamanho original:</p>
+                    <p className="font-medium">{(selectedFile!.size / 1024).toFixed(0)}KB</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Tamanho otimizado:</p>
+                    <p className="font-medium text-green-600">
+                      {(processedFile.size / 1024).toFixed(0)}KB
+                      <span className="text-xs ml-1">
+                        (-{(100 - (processedFile.size / selectedFile!.size) * 100).toFixed(0)}%)
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

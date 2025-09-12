@@ -895,6 +895,7 @@ const AdminDashboard = () => {
                         maxHeight={800}
                         showCardPreview={true}
                         disabled={uploading}
+                        compact={true}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1343,6 +1344,7 @@ const AdminDashboard = () => {
                     maxHeight={800}
                     showCardPreview={true}
                     disabled={uploading || imageProcessing}
+                    compact={true}
                   />
                   
                   {/* Mostrar imagem atual se nenhuma nova for selecionada */}
