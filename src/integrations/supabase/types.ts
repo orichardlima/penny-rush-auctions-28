@@ -264,6 +264,9 @@ export type Database = {
           neighborhood: string | null
           number: string | null
           phone: string | null
+          signup_bonus_amount: number | null
+          signup_bonus_date: string | null
+          signup_bonus_received: boolean | null
           state: string | null
           street: string | null
           updated_at: string
@@ -286,6 +289,9 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          signup_bonus_amount?: number | null
+          signup_bonus_date?: string | null
+          signup_bonus_received?: boolean | null
           state?: string | null
           street?: string | null
           updated_at?: string
@@ -308,6 +314,9 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          signup_bonus_amount?: number | null
+          signup_bonus_date?: string | null
+          signup_bonus_received?: boolean | null
           state?: string | null
           street?: string | null
           updated_at?: string
