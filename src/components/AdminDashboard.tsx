@@ -66,7 +66,7 @@ import ActivityHeatmap from '@/components/ActivityHeatmap';
 import AuditLogTable from '@/components/AuditLogTable';
 import { BidPackageFormDialog } from '@/components/BidPackageFormDialog';
 import { processImageFile, createImagePreview } from '@/utils/imageUtils';
-import { formatPrice } from '@/lib/utils';
+import { SystemSettings } from '@/components/SystemSettings';
 
 interface Auction {
   id: string;
@@ -729,7 +729,7 @@ const AdminDashboard = () => {
 
         {/* Nova estrutura de tabs melhorada */}
         <Tabs defaultValue="auction-details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:grid-cols-7">
             <TabsTrigger value="auction-details" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
@@ -757,6 +757,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="audit" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Auditoria</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Config</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1271,6 +1275,11 @@ const AdminDashboard = () => {
             </div>
 
             <AuditLogTable />
+          </TabsContent>
+
+          {/* Nova aba: Configurações do Sistema */}
+          <TabsContent value="settings" className="space-y-6">
+            <SystemSettings />
           </TabsContent>
         </Tabs>
 

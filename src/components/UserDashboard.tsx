@@ -24,6 +24,7 @@ import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { AuctionHistory } from '@/components/AuctionHistory';
+import { SignupBonusWelcome } from '@/components/SignupBonusWelcome';
 
 interface Bid {
   id: string;
@@ -140,6 +141,9 @@ const UserDashboard = () => {
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       
       <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Welcome bonus notification */}
+        <SignupBonusWelcome />
+
         {/* Header do Dashboard */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
