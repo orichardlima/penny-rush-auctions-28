@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Gift, X, Sparkles } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 export const SignupBonusWelcome: React.FC = () => {
   const { profile, user } = useAuth();
@@ -14,31 +13,26 @@ export const SignupBonusWelcome: React.FC = () => {
     const checkSignupBonus = async () => {
       if (!user || !profile) return;
 
-      // Check if user just signed up (profile created today) and has bid balance
-      const profileCreatedToday = new Date(profile.created_at).toDateString() === new Date().toDateString();
-      const hasBonus = profile.bids_balance > 0;
+      // Melhor detecção: verificar se recebeu bônus e se foi nos últimos 3 dias
+      const bonusReceived = profile.signup_bonus_received || false;
+      const bonusDate = profile.signup_bonus_date ? new Date(profile.signup_bonus_date) : null;
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       
       // Check if user already dismissed the welcome message
       const dismissed = localStorage.getItem(`signup-bonus-dismissed-${user.id}`);
 
-      if (profileCreatedToday && hasBonus && !dismissed) {
-        // Get current signup bonus setting
-        try {
-          const { data: settings } = await supabase
-            .from('system_settings')
-            .select('setting_value')
-            .eq('setting_key', 'signup_bonus_bids')
-            .single();
+      // Mostrar se: recebeu bônus + foi nos últimos 3 dias + não foi dispensado
+      const shouldShow = bonusReceived && 
+                        bonusDate && 
+                        bonusDate > threeDaysAgo && 
+                        !dismissed;
 
-          const configuredBonus = parseInt(settings?.setting_value || '0');
-          
-          // Only show if user's balance matches configured bonus (indicating they got the signup bonus)
-          if (profile.bids_balance === configuredBonus && configuredBonus > 0) {
-            setBonusAmount(configuredBonus);
-            setShowWelcome(true);
-          }
-        } catch (error) {
-          console.error('Error checking signup bonus:', error);
+      if (shouldShow) {
+        const amount = profile.signup_bonus_amount || 0;
+        if (amount > 0) {
+          setBonusAmount(amount);
+          setShowWelcome(true);
         }
       }
     };
@@ -93,7 +87,7 @@ export const SignupBonusWelcome: React.FC = () => {
                 🎉 {bonusAmount} lances gratuitos!
               </p>
               <p className="text-sm text-muted-foreground">
-                Use seus lances gratuitos para participar dos leilões e ter a chance de ganhar produtos incríveis com descontos de até 95%!
+                Você recebeu <strong>{bonusAmount} lances gratuitos</strong> como bônus de boas-vindas! Use-os para participar dos leilões e ganhar produtos incríveis com descontos de até 95%.
               </p>
             </div>
             <div className="text-right">

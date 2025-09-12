@@ -259,10 +259,21 @@ const Auth = () => {
           });
         }
       } else {
+        // Primeiro toast de confirmação de cadastro
         toast({
           title: "Cadastro realizado!",
           description: "Verifique seu email para confirmar a conta.",
         });
+
+        // Toast adicional sobre bônus após um pequeno delay
+        setTimeout(() => {
+          toast({
+            title: "🎉 Bônus de Boas-vindas!",
+            description: "Você receberá lances gratuitos após confirmar seu email. Participe dos leilões e ganhe produtos incríveis!",
+            duration: 6000,
+          });
+        }, 2000);
+
         // Limpar formulário após sucesso
         setFormData({
           email: "",

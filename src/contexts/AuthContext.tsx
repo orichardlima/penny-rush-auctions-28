@@ -36,6 +36,9 @@ interface Profile {
   neighborhood?: string;
   city?: string;
   state?: string;
+  signup_bonus_received?: boolean;
+  signup_bonus_amount?: number;
+  signup_bonus_date?: string;
 }
 
 interface AuthContextType {
