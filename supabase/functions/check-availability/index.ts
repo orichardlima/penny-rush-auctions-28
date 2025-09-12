@@ -57,20 +57,24 @@ serve(async (req) => {
     if (cpf) {
       try {
         const cleanCPF = cpf.replace(/\D/g, '')
-        console.log('Checking CPF:', cleanCPF)
+        console.log('Checking CPF (clean):', cleanCPF)
+        console.log('Checking CPF (original):', cpf)
         
-        const { data: profile, error: cpfError } = await supabaseClient
+        // Buscar tanto CPF formatado quanto não formatado
+        const { data: profiles, error: cpfError } = await supabaseClient
           .from('profiles')
           .select('id, cpf')
-          .eq('cpf', cleanCPF)
-          .maybeSingle()
+          .or(`cpf.eq.${cleanCPF},cpf.eq.${cpf}`)
         
         if (cpfError) {
           console.error('CPF query error:', cpfError)
         }
         
-        cpfExists = !!profile
-        console.log('CPF exists:', cpfExists, 'Profile found:', !!profile)
+        cpfExists = !!(profiles && profiles.length > 0)
+        console.log('CPF exists:', cpfExists, 'Profiles found:', profiles?.length || 0)
+        if (profiles && profiles.length > 0) {
+          console.log('Found CPFs:', profiles.map(p => p.cpf))
+        }
       } catch (error) {
         console.error('Error checking CPF:', error)
         cpfExists = false
