@@ -6,6 +6,7 @@ interface ValidationResult {
   available: boolean;
   exists: boolean;
   value: string;
+  error?: string;
 }
 
 interface FieldValidation {
@@ -22,7 +23,6 @@ export const useFieldValidation = () => {
     email: false,
     cpf: false,
   });
-  const { toast } = useToast();
 
   const checkAvailability = useCallback(async (email?: string, cpf?: string) => {
     if (!email && !cpf) return;
@@ -37,11 +37,16 @@ export const useFieldValidation = () => {
 
       if (error) {
         console.error('Error checking availability:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro na validação",
-          description: "Não foi possível verificar a disponibilidade. Tente novamente.",
-        });
+        // Set error state instead of showing toast
+        setValidationState(prev => ({
+          ...prev,
+          [fieldToValidate]: {
+            available: false,
+            exists: false,
+            value: email || cpf || '',
+            error: 'Erro na verificação'
+          }
+        }));
         return;
       }
 
@@ -53,15 +58,20 @@ export const useFieldValidation = () => {
 
     } catch (error) {
       console.error('Error checking availability:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro na validação", 
-        description: "Não foi possível verificar a disponibilidade. Tente novamente.",
-      });
+      // Set error state instead of showing toast
+      setValidationState(prev => ({
+        ...prev,
+        [fieldToValidate]: {
+          available: false,
+          exists: false,
+          value: email || cpf || '',
+          error: 'Erro na conexão'
+        }
+      }));
     } finally {
       setIsValidating(prev => ({ ...prev, [fieldToValidate]: false }));
     }
-  }, [toast]);
+  }, []);
 
   const validateEmail = useCallback((email: string) => {
     if (!email || !email.includes('@')) return;

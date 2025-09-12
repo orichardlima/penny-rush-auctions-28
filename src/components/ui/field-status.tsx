@@ -1,11 +1,12 @@
 import React from 'react';
-import { Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FieldStatusProps {
   isValidating: boolean;
   isValid?: boolean;
   isAvailable?: boolean;
+  hasError?: boolean;
   message?: string;
   className?: string;
 }
@@ -14,6 +15,7 @@ export const FieldStatus: React.FC<FieldStatusProps> = ({
   isValidating,
   isValid,
   isAvailable,
+  hasError,
   message,
   className
 }) => {
@@ -21,7 +23,16 @@ export const FieldStatus: React.FC<FieldStatusProps> = ({
     return (
       <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>Verificando...</span>
+        <span>Verificando disponibilidade...</span>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className={cn("flex items-center gap-2 text-sm text-orange-600", className)}>
+        <AlertTriangle className="h-4 w-4" />
+        <span>{message || "Erro na verificação. Tente novamente."}</span>
       </div>
     );
   }

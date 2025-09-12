@@ -394,11 +394,14 @@ const Auth = () => {
                         isValidating={isValidating.cpf}
                         isValid={formData.cpf.length > 0 ? validateCPF(formData.cpf) : undefined}
                         isAvailable={validationState.cpf?.available}
+                        hasError={!!validationState.cpf?.error}
                         message={
-                          validationState.cpf?.exists 
-                            ? "CPF já cadastrado" 
+                          validationState.cpf?.error 
+                            ? validationState.cpf.error
+                            : validationState.cpf?.exists 
+                            ? "Este CPF já possui cadastro. Use outro CPF ou faça login." 
                             : validationState.cpf?.available 
-                            ? "CPF disponível" 
+                            ? "CPF disponível para cadastro" 
                             : undefined
                         }
                       />
@@ -583,11 +586,14 @@ const Auth = () => {
                        isValidating={isValidating.email}
                        isValid={formData.email.length > 0 ? formData.email.includes('@') : undefined}
                        isAvailable={validationState.email?.available}
+                       hasError={!!validationState.email?.error}
                        message={
-                         validationState.email?.exists 
-                           ? "Email já cadastrado" 
+                         validationState.email?.error 
+                           ? validationState.email.error
+                           : validationState.email?.exists 
+                           ? "Este email já possui cadastro. Use outro email ou faça login." 
                            : validationState.email?.available 
-                           ? "Email disponível" 
+                           ? "Email disponível para cadastro" 
                            : undefined
                        }
                      />
