@@ -224,6 +224,19 @@ Deno.serve(async (req) => {
     
     if (botLastBidAuctions && botLastBidAuctions.length > 0) {
       for (const auction of botLastBidAuctions) {
+        // Pular se já foi processado na lista de risco OU inativo
+        const wasProcessedInRisk = riskAuctions?.some(r => r.id === auction.id) || false;
+        const wasProcessedInInactive = inactiveAuctions?.some(i => i.id === auction.id) || false;
+        
+        if (wasProcessedInRisk) {
+          console.log(`⏭️ [BOT-SKIP] Leilão "${auction.title}" já processado na verificação de risco`);
+          continue;
+        }
+        
+        if (wasProcessedInInactive) {
+          console.log(`⏭️ [BOT-SKIP] Leilão "${auction.title}" já processado na verificação de inativos`);
+          continue;
+        }
         // Calcular tempo exato desde último lance
         const lastBidTime = new Date(auction.last_bid_at).getTime();
         const currentTime = Date.now();
@@ -332,19 +345,28 @@ Deno.serve(async (req) => {
           finalizedCount++;
           
         } else {
-          // Verificar se não houve nenhum lance de bot recente (evitar spam de bots)
-          const { data: recentBotBids } = await supabase
+          // Verificar se não houve nenhum lance (N8N ou interno) recente - REDUZIDO PARA 12s
+          const { data: recentBids } = await supabase
             .from('bids')
-            .select('id, profiles!inner(is_bot)')
+            .select('id, cost_paid, profiles!inner(full_name)')
             .eq('auction_id', auction.id)
-            .eq('profiles.is_bot', true)
-            .gte('created_at', new Date(Date.now() - 30000).toISOString()) // Últimos 30s
+            .gte('created_at', new Date(Date.now() - 12000).toISOString()) // Últimos 12s (detectar falha N8N)
             .limit(1);
 
-          if (recentBotBids && recentBotBids.length > 0) {
-            console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" já teve lance de bot recente - aguardando finalização`);
+          if (recentBids && recentBids.length > 0) {
+            const recentBid = recentBids[0];
+            const isN8nBid = recentBid.cost_paid > 0; // N8N bids têm cost_paid > 0
+            const isInternalBot = recentBid.cost_paid === 0; // Bots internos têm cost_paid = 0
+            
+            if (isN8nBid) {
+              console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" - N8N ativo (último lance há <12s)`);
+            } else if (isInternalBot) {
+              console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" - bot interno recente (aguardando finalização)`);
+            }
             continue;
           }
+
+          console.log(`🚨 [N8N-FAILED] Leilão "${auction.title}" - N8N falhou (12+s sem lances) - ativando proteção interna`);
 
           // Adicionar bid de bot interno - meta não atingida
           const { data: randomBot } = await supabase.rpc('get_random_bot');
@@ -360,10 +382,10 @@ Deno.serve(async (req) => {
               });
 
             if (!bidError) {
-              console.log(`🤖 [INACTIVE-BOT] Bid de proteção adicionado ao leilão "${auction.title}" - meta não atingida (será finalizado em 15s)`);
+              console.log(`🤖 [PROTECTION-INTERNAL] Bot de proteção ativado em "${auction.title}" - N8N falhou (meta não atingida)`);
               botBidsAdded++;
             } else {
-              console.error(`❌ [INACTIVE-BOT] Erro ao adicionar bot: ${bidError.message}`);
+              console.error(`❌ [PROTECTION-ERROR] Erro ao ativar proteção: ${bidError.message}`);
             }
           }
         }
