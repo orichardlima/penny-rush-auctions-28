@@ -1,70 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, User, Calendar } from "lucide-react";
+import { useRecentWinners } from "@/hooks/useRecentWinners";
 
 export const RecentWinners = () => {
-  const winners = [
-    {
-      id: 1,
-      name: "Maria S. - Campinas, SP",
-      product: "iPhone 15 Pro Max",
-      originalPrice: 8999,
-      finalPrice: 23.45,
-      savings: 8975.55,
-      date: "Há 2 horas",
-      avatar: "MS"
-    },
-    {
-      id: 2,
-      name: "João P. - Ribeirão Preto, SP",
-      product: "MacBook Air M2",
-      originalPrice: 12999,
-      finalPrice: 156.78,
-      savings: 12842.22,
-      date: "Há 5 horas",
-      avatar: "JP"
-    },
-    {
-      id: 3,
-      name: "Ana L. - Caxias do Sul, RS",
-      product: "Samsung Galaxy S24",
-      originalPrice: 5499,
-      finalPrice: 89.23,
-      savings: 5409.77,
-      date: "Há 8 horas",
-      avatar: "AL"
-    },
-    {
-      id: 4,
-      name: "Carlos M. - Feira de Santana, BA",
-      product: "PlayStation 5",
-      originalPrice: 4199,
-      finalPrice: 67.89,
-      savings: 4131.11,
-      date: "Há 12 horas",
-      avatar: "CM"
-    },
-    {
-      id: 5,
-      name: "Fernanda R. - Londrina, PR",
-      product: "Smart TV 55'' 4K",
-      originalPrice: 3299,
-      finalPrice: 45.67,
-      savings: 3253.33,
-      date: "Há 1 dia",
-      avatar: "FR"
-    },
-    {
-      id: 6,
-      name: "Ricardo T. - Joinville, SC",
-      product: "Apple Watch Ultra",
-      originalPrice: 7999,
-      finalPrice: 123.45,
-      savings: 7875.55,
-      date: "Há 1 dia",
-      avatar: "RT"
-    }
-  ];
+  const { winners, loading, error } = useRecentWinners();
 
   const formatPrice = (priceInReais: number) => {
     return new Intl.NumberFormat('pt-BR', {
