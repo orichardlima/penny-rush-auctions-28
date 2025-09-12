@@ -127,6 +127,16 @@ const Auth = () => {
     if (validationState.cpf?.exists) {
       newErrors.cpf = "Este CPF já está cadastrado";
     }
+
+    // Bloquear submissão se ainda estiver validando
+    if (isValidating.email || isValidating.cpf) {
+      toast({
+        variant: "destructive",
+        title: "Aguarde a validação",
+        description: "Aguarde a verificação de disponibilidade antes de continuar.",
+      });
+      return false;
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -625,7 +635,7 @@ const Auth = () => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading || isValidating.email || isValidating.cpf || validationState.email?.exists || validationState.cpf?.exists}>
                   {loading ? "Cadastrando..." : "Cadastrar"}
                 </Button>
                 

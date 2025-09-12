@@ -19,41 +19,73 @@ serve(async (req) => {
     )
 
     const { email, cpf } = await req.json()
+    console.log('Checking availability for:', { email: !!email, cpf: !!cpf })
 
     let emailExists = false
     let cpfExists = false
 
-    // Check email availability (check auth.users)
+    // Check email availability (check profiles table first, then try auth)
     if (email) {
-      const { data: authUser } = await supabaseClient.auth.admin.getUserByEmail(email)
-      emailExists = !!authUser.user
+      try {
+        // First check profiles table for email
+        const { data: profileByEmail } = await supabaseClient
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single()
+        
+        emailExists = !!profileByEmail
+        console.log('Email exists in profiles:', emailExists)
+        
+        // If not found in profiles, check if email is taken by checking auth users
+        if (!emailExists) {
+          const { data: authData } = await supabaseClient.auth.admin.listUsers()
+          emailExists = authData.users.some(user => user.email === email)
+          console.log('Email exists in auth:', emailExists)
+        }
+      } catch (error) {
+        console.error('Error checking email:', error)
+        emailExists = false
+      }
     }
 
     // Check CPF availability (check profiles table)
     if (cpf) {
-      const cleanCPF = cpf.replace(/\D/g, '')
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('id')
-        .eq('cpf', cleanCPF)
-        .single()
-      
-      cpfExists = !!profile
+      try {
+        const cleanCPF = cpf.replace(/\D/g, '')
+        console.log('Checking CPF:', cleanCPF)
+        
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('id, cpf')
+          .eq('cpf', cleanCPF)
+          .single()
+        
+        cpfExists = !!profile
+        console.log('CPF exists:', cpfExists, 'Profile found:', !!profile)
+      } catch (error) {
+        console.error('Error checking CPF:', error)
+        cpfExists = false
+      }
     }
 
+    const result = {
+      email: {
+        value: email,
+        available: !emailExists,
+        exists: emailExists
+      },
+      cpf: {
+        value: cpf,
+        available: !cpfExists,
+        exists: cpfExists
+      }
+    }
+
+    console.log('Result:', result)
+
     return new Response(
-      JSON.stringify({
-        email: {
-          value: email,
-          available: !emailExists,
-          exists: emailExists
-        },
-        cpf: {
-          value: cpf,
-          available: !cpfExists,
-          exists: cpfExists
-        }
-      }),
+      JSON.stringify(result),
       { 
         headers: { 
           ...corsHeaders,
@@ -65,7 +97,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error checking availability:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
         status: 500,
         headers: { 
