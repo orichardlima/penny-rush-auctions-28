@@ -253,26 +253,11 @@ export const AuctionCard = ({
           {recentBidders.length > 0 && <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Últimos lances:</p>
               <div className="flex flex-wrap gap-1">
-                {(() => {
-                  // Para admins: mostra até 3 nomes reais
-                  if (profile?.is_admin) {
-                    return recentBidders.slice(0, 3).map((bidder, index) => (
-                      <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
-                        {bidder}
-                      </span>
-                    ));
-                  }
-                  
-                  // Para usuários: mostra apenas a quantidade que corresponde aos "participantes" calculados
-                  const displayParticipants = getDisplayParticipants(displayTotalBids, participants, false);
-                  const maxNamesToShow = Math.min(displayParticipants, recentBidders.length);
-                  
-                  return recentBidders.slice(0, maxNamesToShow).map((bidder, index) => (
-                    <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
-                      {bidder}
-                    </span>
-                  ));
-                })()}
+                {recentBidders.slice(0, 3).map((bidder, index) => (
+                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
+                    {bidder}
+                  </span>
+                ))}
               </div>
             </div>}
         </div>
