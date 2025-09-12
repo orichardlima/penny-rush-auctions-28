@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.mercado-pago-webhook]
 verify_jwt = false
+
+[functions.check-availability]
+verify_jwt = false

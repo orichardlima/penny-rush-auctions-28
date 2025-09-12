@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { FieldStatus } from '@/components/ui/field-status';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 
@@ -35,12 +37,36 @@ const Auth = () => {
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { validationState, isValidating, validateEmail, validateCPF: validateCPFAvailability, clearValidation } = useFieldValidation();
 
   useEffect(() => {
     if (user) {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Debounced validation
+  const debounceTimeout = React.useRef<NodeJS.Timeout>();
+  
+  const debouncedEmailValidation = useCallback((email: string) => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+    debounceTimeout.current = setTimeout(() => {
+      validateEmail(email);
+    }, 800);
+  }, [validateEmail]);
+
+  const debouncedCPFValidation = useCallback((cpf: string) => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+    debounceTimeout.current = setTimeout(() => {
+      if (validateCPF(cpf)) {
+        validateCPFAvailability(cpf);
+      }
+    }, 800);
+  }, [validateCPFAvailability]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -67,6 +93,11 @@ const Auth = () => {
         [name]: ""
       }));
     }
+
+    // Clear validation when user starts typing
+    if (name === 'email' || name === 'cpf') {
+      clearValidation(name as 'email' | 'cpf');
+    }
   };
 
   const validateForm = () => {
@@ -88,6 +119,14 @@ const Auth = () => {
     if (!formData.neighborhood) newErrors.neighborhood = "Bairro é obrigatório";
     if (!formData.city) newErrors.city = "Cidade é obrigatória";
     if (!formData.state) newErrors.state = "Estado é obrigatório";
+    
+    // Verificar disponibilidade
+    if (validationState.email?.exists) {
+      newErrors.email = "Este email já está cadastrado";
+    }
+    if (validationState.cpf?.exists) {
+      newErrors.cpf = "Este CPF já está cadastrado";
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -195,6 +234,12 @@ const Auth = () => {
             variant: "destructive",
             title: "Erro no cadastro",
             description: "Este email já está cadastrado. Tente fazer login ou use outro email.",
+          });
+        } else if (error.message.includes('duplicate key') || error.message.includes('idx_profiles_cpf')) {
+          toast({
+            variant: "destructive",
+            title: "Erro no cadastro",
+            description: "Este CPF já está cadastrado. Verifique os dados ou entre em contato conosco.",
           });
         } else {
           toast({
@@ -339,11 +384,24 @@ const Auth = () => {
                         placeholder="000.000.000-00"
                         value={formData.cpf}
                         onChange={handleInputChange}
+                        onBlur={() => debouncedCPFValidation(formData.cpf)}
                         className={errors.cpf ? "border-destructive" : ""}
                         maxLength={14}
                         required
                       />
                       {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
+                      <FieldStatus
+                        isValidating={isValidating.cpf}
+                        isValid={formData.cpf.length > 0 ? validateCPF(formData.cpf) : undefined}
+                        isAvailable={validationState.cpf?.available}
+                        message={
+                          validationState.cpf?.exists 
+                            ? "CPF já cadastrado" 
+                            : validationState.cpf?.available 
+                            ? "CPF disponível" 
+                            : undefined
+                        }
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -504,23 +562,36 @@ const Auth = () => {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Dados de Acesso</h3>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="email-signup">Email *</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email-signup"
-                        name="email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
-                        required
-                      />
-                    </div>
-                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="email-signup">Email *</Label>
+                     <div className="relative">
+                       <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                       <Input
+                         id="email-signup"
+                         name="email"
+                         type="email"
+                         placeholder="seu@email.com"
+                         value={formData.email}
+                         onChange={handleInputChange}
+                         onBlur={() => debouncedEmailValidation(formData.email)}
+                         className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
+                         required
+                       />
+                     </div>
+                     {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                     <FieldStatus
+                       isValidating={isValidating.email}
+                       isValid={formData.email.length > 0 ? formData.email.includes('@') : undefined}
+                       isAvailable={validationState.email?.available}
+                       message={
+                         validationState.email?.exists 
+                           ? "Email já cadastrado" 
+                           : validationState.email?.available 
+                           ? "Email disponível" 
+                           : undefined
+                       }
+                     />
+                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="password-signup">Senha *</Label>
