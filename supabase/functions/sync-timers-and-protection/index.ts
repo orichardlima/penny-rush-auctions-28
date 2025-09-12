@@ -190,30 +190,27 @@ Deno.serve(async (req) => {
             finalizedCount++;
           }
         } else {
-          // CENÁRIO 2: Último lance foi de humano - ADICIONAR BOT DE PROTEÇÃO IMEDIATAMENTE
-          console.log(`🛑 [RISK-PROTECTION] Último lance foi de usuário - adicionando bot de proteção IMEDIATAMENTE`);
+          // CENÁRIO 2: Último lance foi de humano - FINALIZAR IMEDIATAMENTE (sem adicionar bot)
+          console.log(`🛑 [RISK-FINALIZE] Último lance foi de usuário com prejuízo - finalizando IMEDIATAMENTE`);
+          console.log(`   • Preço ${auction.current_price} > Valor loja ${auction.market_value} ✅`);
+          console.log(`   • Último lance foi de usuário ✅`);
+          console.log(`   • Meta não atingida ✅`);
           
-          // Buscar bot aleatório
-          const { data: randomBot } = await supabase.rpc('get_random_bot');
-          
-          if (randomBot) {
-            const { error: bidError } = await supabase
-              .from('bids')
-              .insert({
-                auction_id: auction.id,
-                user_id: randomBot,
-                bid_amount: auction.current_price + auction.bid_increment,
-                cost_paid: 0 // Bot interno não paga
-              });
+          const { error: finalizeError } = await supabase
+            .from('auctions')
+            .update({
+              status: 'finished',
+              finished_at: currentTimeBr,
+              winner_id: lastBidData.user_id,
+              winner_name: profileData.full_name || 'Usuário'
+            })
+            .eq('id', auction.id);
 
-            if (!bidError) {
-              console.log(`🤖 [RISK-BOT] Bot de proteção adicionado ao leilão "${auction.title}" - proteção contra prejuízo`);
-              botBidsAdded++;
-            } else {
-              console.error(`❌ [RISK-BOT] Erro ao adicionar bot de proteção: ${bidError.message}`);
-            }
+          if (finalizeError) {
+            console.error(`❌ [RISK-FINALIZE] Erro ao finalizar: ${finalizeError.message}`);
           } else {
-            console.error(`❌ [RISK-BOT] Nenhum bot disponível para proteção`);
+            console.log(`🏁 [RISK-FINALIZED] Leilão "${auction.title}" finalizado - usuário ganhou com prejuízo`);
+            finalizedCount++;
           }
         }
       }
@@ -345,12 +342,12 @@ Deno.serve(async (req) => {
           finalizedCount++;
           
         } else {
-          // Verificar se não houve nenhum lance (N8N ou interno) recente - REDUZIDO PARA 12s
+          // Verificar se não houve nenhum lance (N8N ou interno) recente - EXATOS 15s
           const { data: recentBids } = await supabase
             .from('bids')
             .select('id, cost_paid, profiles!inner(full_name)')
             .eq('auction_id', auction.id)
-            .gte('created_at', new Date(Date.now() - 12000).toISOString()) // Últimos 12s (detectar falha N8N)
+            .gte('created_at', new Date(Date.now() - 15000).toISOString()) // Últimos 15s (detectar falha N8N)
             .limit(1);
 
           if (recentBids && recentBids.length > 0) {
@@ -359,14 +356,28 @@ Deno.serve(async (req) => {
             const isInternalBot = recentBid.cost_paid === 0; // Bots internos têm cost_paid = 0
             
             if (isN8nBid) {
-              console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" - N8N ativo (último lance há <12s)`);
+              console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" - N8N ativo (último lance há <15s)`);
             } else if (isInternalBot) {
               console.log(`⏭️ [INACTIVE-SKIP] Leilão "${auction.title}" - bot interno recente (aguardando finalização)`);
             }
             continue;
           }
 
-          console.log(`🚨 [N8N-FAILED] Leilão "${auction.title}" - N8N falhou (12+s sem lances) - ativando proteção interna`);
+          // CONTROLE ANTI-SPAM: Verificar se já foi adicionado bot interno nos últimos 10s
+          const { data: recentInternalBot } = await supabase
+            .from('bids')
+            .select('id, created_at')
+            .eq('auction_id', auction.id)
+            .eq('cost_paid', 0) // Bots internos têm cost_paid = 0
+            .gte('created_at', new Date(Date.now() - 10000).toISOString()) // Últimos 10s
+            .limit(1);
+
+          if (recentInternalBot && recentInternalBot.length > 0) {
+            console.log(`🚫 [ANTI-SPAM] Leilão "${auction.title}" - bot interno já adicionado nos últimos 10s - pulando`);
+            continue;
+          }
+
+          console.log(`🚨 [N8N-FAILED] Leilão "${auction.title}" - N8N falhou (15+s sem lances) - ativando proteção interna`);
 
           // Adicionar bid de bot interno - meta não atingida
           const { data: randomBot } = await supabase.rpc('get_random_bot');
