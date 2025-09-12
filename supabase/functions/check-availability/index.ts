@@ -28,11 +28,15 @@ serve(async (req) => {
     if (email) {
       try {
         // First check profiles table for email
-        const { data: profileByEmail } = await supabaseClient
+        const { data: profileByEmail, error: emailError } = await supabaseClient
           .from('profiles')
           .select('id')
           .eq('email', email)
-          .single()
+          .maybeSingle()
+        
+        if (emailError) {
+          console.error('Email query error:', emailError)
+        }
         
         emailExists = !!profileByEmail
         console.log('Email exists in profiles:', emailExists)
@@ -55,11 +59,15 @@ serve(async (req) => {
         const cleanCPF = cpf.replace(/\D/g, '')
         console.log('Checking CPF:', cleanCPF)
         
-        const { data: profile } = await supabaseClient
+        const { data: profile, error: cpfError } = await supabaseClient
           .from('profiles')
           .select('id, cpf')
           .eq('cpf', cleanCPF)
-          .single()
+          .maybeSingle()
+        
+        if (cpfError) {
+          console.error('CPF query error:', cpfError)
+        }
         
         cpfExists = !!profile
         console.log('CPF exists:', cpfExists, 'Profile found:', !!profile)

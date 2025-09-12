@@ -224,7 +224,7 @@ const Auth = () => {
     try {
       const userData = {
         full_name: formData.fullName,
-        cpf: formData.cpf,
+        cpf: formData.cpf.replace(/\D/g, ''), // Sempre salvar CPF sem formatação
         phone: formData.phone,
         birth_date: formData.birthDate,
         cep: formData.cep,
