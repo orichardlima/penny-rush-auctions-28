@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFinishAuction } from '@/hooks/useFinishAuction';
 import AuctionParticipantsTable from './AuctionParticipantsTable';
 import { 
   TrendingUp, 
@@ -16,7 +20,9 @@ import {
   Trophy,
   BarChart3,
   Eye,
-  Activity
+  Activity,
+  Flag,
+  Loader2
 } from 'lucide-react';
 
 interface Auction {
@@ -68,6 +74,12 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
   auction,
   financialData
 }) => {
+  const { profile } = useAuth();
+  const { finishAuction, isFinishing } = useFinishAuction();
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
+
+  const isAdmin = profile?.is_admin;
+  const canFinish = isAdmin && auction.status === 'active';
   // Removida formatCurrency com divisão por 100 - agora só usamos formatCurrencyFromReais
 
   const formatCurrencyFromReais = (valueInReais: number) => {
@@ -139,12 +151,58 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
                   <h1 className="text-3xl font-bold mb-2">{auction.title}</h1>
                   <p className="text-muted-foreground text-lg">{auction.description}</p>
                 </div>
-                <Badge 
-                  className={`${getStatusColor(auction.status)} text-white px-3 py-1`}
-                  variant="secondary"
-                >
-                  {getStatusLabel(auction.status)}
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge 
+                    className={`${getStatusColor(auction.status)} text-white px-3 py-1`}
+                    variant="secondary"
+                  >
+                    {getStatusLabel(auction.status)}
+                  </Badge>
+                  
+                  {canFinish && (
+                    <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          className="gap-2"
+                          disabled={isFinishing}
+                        >
+                          {isFinishing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Flag className="h-4 w-4" />
+                          )}
+                          Encerrar Leilão
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Encerrar Leilão</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja encerrar este leilão agora? 
+                            O último usuário que deu lance será declarado vencedor.
+                            Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              const success = await finishAuction(auction.id);
+                              if (success) {
+                                setShowFinishDialog(false);
+                              }
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Sim, Encerrar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
               </div>
 
               {/* Informações temporais */}
