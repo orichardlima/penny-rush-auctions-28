@@ -69,6 +69,7 @@ import { processImageFile, createImagePreview, AUCTION_CARD_OPTIONS } from '@/ut
 import { ImageUploadPreview } from '@/components/ImageUploadPreview';
 import { SystemSettings } from '@/components/SystemSettings';
 import { AdminOrdersManagement } from '@/components/AdminOrdersManagement';
+import { AuctionHistory } from '@/components/AuctionHistory';
 
 interface Auction {
   id: string;
@@ -751,7 +752,7 @@ const AdminDashboard = () => {
 
         {/* Nova estrutura de tabs melhorada */}
         <Tabs defaultValue="auction-details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:grid-cols-9">
             <TabsTrigger value="auction-details" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
@@ -787,6 +788,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Config</span>
+            </TabsTrigger>
+            <TabsTrigger value="my-history" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">Meu Histórico</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1313,6 +1318,17 @@ const AdminDashboard = () => {
           {/* Nova aba: Configurações do Sistema */}
           <TabsContent value="settings" className="space-y-6">
             <SystemSettings />
+          </TabsContent>
+
+          {/* Nova aba: Histórico de Leilões do Admin */}
+          <TabsContent value="my-history" className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Meu Histórico de Leilões</h2>
+                <p className="text-muted-foreground">Seus lances e participações pessoais</p>
+              </div>
+            </div>
+            <AuctionHistory />
           </TabsContent>
         </Tabs>
 
