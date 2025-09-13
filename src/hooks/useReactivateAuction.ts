@@ -10,8 +10,26 @@ export const useReactivateAuction = () => {
     setIsReactivating(true);
     
     try {
+      // Primeiro verificar se o usuário é admin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        toast({
+          title: "Erro",
+          description: "Apenas administradores podem reativar leilões.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log('Tentando reativar leilão:', auctionId);
+      
       // Reativar o leilão removendo dados de finalização
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('auctions')
         .update({
           status: 'active',
@@ -21,22 +39,39 @@ export const useReactivateAuction = () => {
           time_left: 15 // Reiniciar timer com 15 segundos
         })
         .eq('id', auctionId)
-        .eq('status', 'finished'); // Só reativa se estiver finalizado
+        .eq('status', 'finished') // Só reativa se estiver finalizado
+        .select();
 
       if (updateError) {
         console.error('Erro ao reativar leilão:', updateError);
         toast({
           title: "Erro",
-          description: "Não foi possível reativar o leilão. Verifique se você tem permissões de administrador.",
+          description: `Não foi possível reativar o leilão: ${updateError.message}`,
           variant: "destructive"
         });
         return false;
       }
 
+      if (!data || data.length === 0) {
+        toast({
+          title: "Erro",
+          description: "Leilão não encontrado ou já está ativo.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log('Leilão reativado com sucesso:', data);
+
       toast({
         title: "Sucesso",
         description: "Leilão reativado com sucesso! O timer foi reiniciado.",
       });
+
+      // Recarregar a página para atualizar os dados
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
 
       return true;
     } catch (error) {
