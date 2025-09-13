@@ -232,6 +232,26 @@ const AdminDashboard = () => {
     fetchAdminData();
   }, []);
 
+  // Sincronizar selectedUserForProfile com dados atualizados
+  useEffect(() => {
+    if (selectedUserForProfile && (realUsers.length > 0 || botUsers.length > 0)) {
+      // Buscar o usuário atualizado nos dados mais recentes
+      const updatedUser = [...realUsers, ...botUsers].find(
+        user => user.user_id === selectedUserForProfile.user_id
+      );
+      
+      // Só atualizar se realmente encontrou o usuário e os dados são diferentes
+      if (updatedUser && (
+        updatedUser.bids_balance !== selectedUserForProfile.bids_balance ||
+        updatedUser.is_blocked !== selectedUserForProfile.is_blocked ||
+        updatedUser.block_reason !== selectedUserForProfile.block_reason
+      )) {
+        console.log(`🔄 Sincronizando dados do usuário: ${updatedUser.full_name} - Saldo: R$ ${updatedUser.bids_balance}`);
+        setSelectedUserForProfile(updatedUser);
+      }
+    }
+  }, [realUsers, botUsers]); // Removida a dependência selectedUserForProfile?.user_id
+
   const fetchAdminData = async () => {
     setLoading(true);
     try {
@@ -640,26 +660,6 @@ const AdminDashboard = () => {
       </div>
     );
   }
-
-  // Sincronizar selectedUserForProfile com dados atualizados
-  useEffect(() => {
-    if (selectedUserForProfile && (realUsers.length > 0 || botUsers.length > 0)) {
-      // Buscar o usuário atualizado nos dados mais recentes
-      const updatedUser = [...realUsers, ...botUsers].find(
-        user => user.user_id === selectedUserForProfile.user_id
-      );
-      
-      // Só atualizar se realmente encontrou o usuário e os dados são diferentes
-      if (updatedUser && (
-        updatedUser.bids_balance !== selectedUserForProfile.bids_balance ||
-        updatedUser.is_blocked !== selectedUserForProfile.is_blocked ||
-        updatedUser.block_reason !== selectedUserForProfile.block_reason
-      )) {
-        console.log(`🔄 Sincronizando dados do usuário: ${updatedUser.full_name} - Saldo: R$ ${updatedUser.bids_balance}`);
-        setSelectedUserForProfile(updatedUser);
-      }
-    }
-  }, [realUsers, botUsers]); // Removida a dependência selectedUserForProfile?.user_id
 
   // Combinar todos os usuários (reais + bots)
   const allUsers = [...realUsers, ...botUsers];
