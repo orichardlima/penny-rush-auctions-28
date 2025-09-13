@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { calculateBidBreakdown, validatePackageConfig } from '@/utils/bidCalculations';
+import { calculateBidBreakdown, validatePackageConfig, filterBidFeatures } from '@/utils/bidCalculations';
 
 const bidPackageSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -99,8 +99,22 @@ export const BidPackageFormDialog: React.FC<BidPackageFormDialogProps> = ({
 
   const addFeature = () => {
     if (newFeature.trim()) {
+      const feature = newFeature.trim();
+      
+      // Prevent adding bid-related features manually
+      if (feature.toLowerCase().includes('lance') || 
+          feature.toLowerCase().includes('bônus') || 
+          feature.toLowerCase().includes('bonus')) {
+        toast({
+          title: "Feature não permitida",
+          description: "Features relacionadas a lances são calculadas automaticamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const currentFeatures = watchedFeatures || [];
-      setValue('features', [...currentFeatures, newFeature.trim()]);
+      setValue('features', [...currentFeatures, feature]);
       setNewFeature('');
     }
   };
@@ -128,11 +142,7 @@ export const BidPackageFormDialog: React.FC<BidPackageFormDialogProps> = ({
 
       // Generate features with correct bid calculation
       const { baseDescription } = calculateBidBreakdown(data.price, data.bids_count);
-      const additionalFeatures = data.features.filter(f => 
-        f.trim() !== '' && 
-        !f.toLowerCase().includes('lance') && 
-        !f.toLowerCase().includes('bônus')
-      );
+      const additionalFeatures = filterBidFeatures(data.features).filter(f => f.trim() !== '');
       const updatedFeatures = [baseDescription, ...additionalFeatures];
 
       const packageData = {

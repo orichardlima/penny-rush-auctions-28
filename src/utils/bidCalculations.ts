@@ -40,6 +40,28 @@ export function generatePackageFeatures(price: number, totalBids: number, additi
 }
 
 /**
+ * Filter out features that mention bids/lances to avoid duplicates
+ * This prevents manual bid features from overriding automatic calculations
+ */
+export function filterBidFeatures(features: string[]): string[] {
+  return features.filter(feature => {
+    const lowerFeature = feature.toLowerCase();
+    return !lowerFeature.includes('lance') && 
+           !lowerFeature.includes('bônus') && 
+           !lowerFeature.includes('bonus');
+  });
+}
+
+/**
+ * Generate complete features array with calculated bid info first
+ */
+export function generateCompleteFeatures(price: number, totalBids: number, additionalFeatures: string[] = []): string[] {
+  const { baseDescription } = calculateBidBreakdown(price, totalBids);
+  const filteredAdditional = filterBidFeatures(additionalFeatures);
+  return [baseDescription, ...filteredAdditional];
+}
+
+/**
  * Validate that package configuration makes sense
  */
 export function validatePackageConfig(price: number, totalBids: number): { isValid: boolean; error?: string } {
