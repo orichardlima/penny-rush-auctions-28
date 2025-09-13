@@ -122,6 +122,16 @@ interface BidPackage {
 const AdminDashboard = () => {
   const { signOut } = useAuth();
   
+  // Financial analytics hook - moved to top to fix hooks order
+  const { 
+    summary, 
+    auctionDetails, 
+    revenueTrends, 
+    loading: analyticsLoading, 
+    error: analyticsError,
+    refreshData: refreshAnalytics 
+  } = useFinancialAnalytics();
+  
   // Estados para novas funcionalidades
   const [selectedAuctionForDetails, setSelectedAuctionForDetails] = useState<string | null>(null);
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<User | null>(null);
@@ -135,16 +145,6 @@ const AdminDashboard = () => {
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Financial analytics
-  const { 
-    summary, 
-    auctionDetails, 
-    revenueTrends, 
-    loading: analyticsLoading, 
-    error: analyticsError,
-    refreshData: refreshAnalytics 
-  } = useFinancialAnalytics();
-
   // Helper function para criar timestamp inicial (local)
   const getInitialStartTime = () => {
     const now = new Date();
