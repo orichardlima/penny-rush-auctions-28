@@ -68,6 +68,7 @@ import { BidPackageFormDialog } from '@/components/BidPackageFormDialog';
 import { processImageFile, createImagePreview, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
 import { ImageUploadPreview } from '@/components/ImageUploadPreview';
 import { SystemSettings } from '@/components/SystemSettings';
+import { AdminOrdersManagement } from '@/components/AdminOrdersManagement';
 
 interface Auction {
   id: string;
@@ -750,7 +751,7 @@ const AdminDashboard = () => {
 
         {/* Nova estrutura de tabs melhorada */}
         <Tabs defaultValue="auction-details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:grid-cols-8">
             <TabsTrigger value="auction-details" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
@@ -758,6 +759,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="financial" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Financeiro</span>
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              <span className="hidden sm:inline">Pedidos</span>
             </TabsTrigger>
             <TabsTrigger value="auctions" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -848,6 +853,11 @@ const AdminDashboard = () => {
           {/* Aba Financeira Administrativa */}
           <TabsContent value="financial" className="space-y-6">
             <AdminFinancialOverview auctions={auctions} users={[...realUsers, ...botUsers]} />
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-6">
+            <AdminOrdersManagement />
           </TabsContent>
 
           {/* Auctions Tab */}

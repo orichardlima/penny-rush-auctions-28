@@ -246,6 +246,60 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          auction_id: string
+          created_at: string
+          delivery_address: Json | null
+          estimated_delivery: string | null
+          final_price: number
+          id: string
+          market_value: number
+          notes: string | null
+          payment_method: string | null
+          payment_proof_url: string | null
+          product_name: string
+          status: string
+          tracking_code: string | null
+          updated_at: string
+          winner_id: string
+        }
+        Insert: {
+          auction_id: string
+          created_at?: string
+          delivery_address?: Json | null
+          estimated_delivery?: string | null
+          final_price?: number
+          id?: string
+          market_value?: number
+          notes?: string | null
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          product_name: string
+          status?: string
+          tracking_code?: string | null
+          updated_at?: string
+          winner_id: string
+        }
+        Update: {
+          auction_id?: string
+          created_at?: string
+          delivery_address?: Json | null
+          estimated_delivery?: string | null
+          final_price?: number
+          id?: string
+          market_value?: number
+          notes?: string | null
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          product_name?: string
+          status?: string
+          tracking_code?: string | null
+          updated_at?: string
+          winner_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -518,6 +572,23 @@ export type Database = {
           total_spent: number
           user_classification: string
           user_id: string
+        }[]
+      }
+      get_user_orders: {
+        Args: { user_uuid: string }
+        Returns: {
+          auction_id: string
+          created_at: string
+          estimated_delivery: string
+          final_price: number
+          id: string
+          market_value: number
+          payment_method: string
+          product_name: string
+          savings: number
+          status: string
+          tracking_code: string
+          updated_at: string
         }[]
       }
       is_admin_user: {

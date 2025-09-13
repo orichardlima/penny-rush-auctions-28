@@ -18,13 +18,15 @@ import {
   ShoppingCart,
   LogOut,
   PieChart,
-  Target
+  Target,
+  Package
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { AuctionHistory } from '@/components/AuctionHistory';
 import { SignupBonusWelcome } from '@/components/SignupBonusWelcome';
+import { UserOrders } from '@/components/UserOrders';
 
 interface Bid {
   id: string;
@@ -211,8 +213,9 @@ const UserDashboard = () => {
 
         {/* Tabs do Dashboard */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="orders">Meus Pedidos</TabsTrigger>
             <TabsTrigger value="bids">Meus Lances</TabsTrigger>
             <TabsTrigger value="auctions">Meus Leilões</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
@@ -283,6 +286,10 @@ const UserDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4">
+            <UserOrders />
           </TabsContent>
 
           <TabsContent value="bids" className="space-y-4">
