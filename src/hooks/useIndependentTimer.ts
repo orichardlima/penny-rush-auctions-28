@@ -13,6 +13,14 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
   const [auctionStatus, setAuctionStatus] = useState<string>('active');
   const [lastBidAt, setLastBidAt] = useState<string | null>(null);
   
+  // Estados para dados do leilão sincronizados com o timer
+  const [auctionData, setAuctionData] = useState({
+    currentPrice: 0,
+    totalBids: 0,
+    recentBidders: [] as string[],
+    winnerName: null as string | null
+  });
+  
   const localTimerRef = useRef<NodeJS.Timeout>();
   const bidCheckIntervalRef = useRef<NodeJS.Timeout>();
   const lastVerifyingStart = useRef<number>();
@@ -56,16 +64,63 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     }, 1000);
   }, [auctionId]);
 
-  // Verificar novos lances a cada 1 segundo
-  const checkForNewBids = useCallback(async () => {
+  // Buscar dados completos do leilão
+  const fetchCompleteAuctionData = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('auctions')
-        .select('last_bid_at, total_bids, status, time_left, current_price')
+        .select('last_bid_at, total_bids, status, time_left, current_price, winner_name')
         .eq('id', auctionId)
         .single();
 
-      if (error || !data) return;
+      if (error || !data) return data;
+
+      // Buscar lances recentes para nomes dos últimos lances
+      const { data: bids } = await supabase
+        .from('bids')
+        .select('user_id, created_at')
+        .eq('auction_id', auctionId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      let recentBidderNames: string[] = [];
+      if (bids && bids.length > 0) {
+        const userIds = bids.map(bid => bid.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        const userNameMap = new Map();
+        profiles?.forEach(profile => {
+          userNameMap.set(profile.user_id, profile.full_name || 'Usuário');
+        });
+
+        recentBidderNames = bids.map(bid => 
+          userNameMap.get(bid.user_id) || 'Usuário'
+        );
+      }
+
+      const updatedData = {
+        currentPrice: data.current_price || 0,
+        totalBids: data.total_bids || 0,
+        recentBidders: recentBidderNames,
+        winnerName: data.winner_name
+      };
+
+      setAuctionData(updatedData);
+      return data;
+    } catch (error) {
+      console.error(`❌ [${auctionId}] Erro ao buscar dados completos:`, error);
+      return null;
+    }
+  }, [auctionId]);
+
+  // Verificar novos lances a cada 1 segundo
+  const checkForNewBids = useCallback(async () => {
+    try {
+      const data = await fetchCompleteAuctionData();
+      if (!data) return;
 
       // Se leilão foi finalizado, parar todos os timers
       if (data.status === 'finished') {
@@ -92,27 +147,17 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       if (hadNewBid) {
         setLastBidAt(data.last_bid_at);
         setLastBidCount(data.total_bids);
-        console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s`);
-        
-        // Emitir evento customizado para notificar o AuctionCard
-        const resetEvent = new CustomEvent('auction-timer-reset', {
-          detail: {
-            auctionId,
-            newPrice: data.current_price,
-            newBidCount: data.total_bids,
-            lastBidAt: data.last_bid_at
-          }
-        });
-        window.dispatchEvent(resetEvent);
+        console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s - Dados atualizados automaticamente`);
         
         // Reset do timer para 15 segundos em caso de novo lance
+        // Os dados já foram atualizados pelo fetchCompleteAuctionData
         startLocalTimer(15);
       }
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro ao verificar novos lances:`, error);
     }
-  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers, isVerifying, localTimeLeft]);
+  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers, isVerifying, localTimeLeft, fetchCompleteAuctionData]);
 
   // Inicialização do sistema
   const initialize = useCallback(async () => {
@@ -135,6 +180,9 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       setLastBidCount(data.total_bids);
       setAuctionStatus(data.status);
 
+      // Buscar dados completos iniciais
+      await fetchCompleteAuctionData();
+
       if (data.status === 'finished') {
         console.log(`🏁 [${auctionId}] Leilão já finalizado`);
         setIsVerifying(false);
@@ -153,13 +201,14 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
     }
-  }, [auctionId, startLocalTimer, checkForNewBids]);
+  }, [auctionId, startLocalTimer, checkForNewBids, fetchCompleteAuctionData]);
 
   // Integração com Page Visibility API para forçar sync após inatividade
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && isInitialized) {
-        console.log(`👀 [${auctionId}] Usuário voltou à aba, forçando verificação...`);
+        console.log(`👀 [${auctionId}] Usuário voltou à aba, forçando sincronização completa...`);
+        fetchCompleteAuctionData();
         checkForNewBids();
       }
     };
@@ -193,6 +242,11 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     backendTimeLeft: localTimeLeft,
     isVerifying,
     isInitialized,
-    auctionStatus
+    auctionStatus,
+    // Retornar dados sincronizados do leilão
+    currentPrice: auctionData.currentPrice,
+    totalBids: auctionData.totalBids,
+    recentBidders: auctionData.recentBidders,
+    winnerName: auctionData.winnerName
   };
 };
