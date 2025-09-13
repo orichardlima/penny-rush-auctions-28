@@ -65,6 +65,8 @@ import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
 import AuditLogTable from '@/components/AuditLogTable';
 import { BidPackageFormDialog } from '@/components/BidPackageFormDialog';
+import { AdminUserActions } from '@/components/AdminUserManagement';
+import { AdminAuditLog } from '@/components/AdminAuditLog';
 import { processImageFile, createImagePreview, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
 import { ImageUploadPreview } from '@/components/ImageUploadPreview';
 import { SystemSettings } from '@/components/SystemSettings';
@@ -99,6 +101,9 @@ interface User {
   email: string;
   is_admin: boolean;
   is_bot: boolean;
+  is_blocked?: boolean;
+  block_reason?: string;
+  bids_balance: number;
   created_at: string;
 }
 
@@ -242,7 +247,7 @@ const AdminDashboard = () => {
       // Fetch real users
       const { data: realUsersData, error: realUsersError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('user_id, full_name, email, is_admin, is_bot, is_blocked, block_reason, bids_balance, created_at')
         .eq('is_bot', false)
         .order('created_at', { ascending: false });
 
@@ -252,7 +257,7 @@ const AdminDashboard = () => {
       // Fetch bot users
       const { data: botUsersData, error: botUsersError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('user_id, full_name, email, is_admin, is_bot, is_blocked, block_reason, bids_balance, created_at')
         .eq('is_bot', true)
         .order('created_at', { ascending: false });
 
@@ -1185,6 +1190,7 @@ const AdminDashboard = () => {
                     userId={selectedUserForProfile.user_id}
                     userName={selectedUserForProfile.full_name || 'Usuário'}
                     userEmail={selectedUserForProfile.email}
+                    onUserUpdated={fetchAdminData}
                   />
                 ) : (
                   <Card>
@@ -1312,7 +1318,11 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <AuditLogTable />
+            <AdminAuditLog />
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-6">
+            <AdminOrdersManagement />
           </TabsContent>
 
           {/* Nova aba: Configurações do Sistema */}

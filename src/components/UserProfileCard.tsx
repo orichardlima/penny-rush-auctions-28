@@ -2,21 +2,27 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Trophy, Clock, Target, TrendingUp, Calendar, User } from 'lucide-react';
+import { Trophy, Clock, Target, TrendingUp, Calendar, User, Settings } from 'lucide-react';
 import { useUserAnalytics } from '@/hooks/useUserAnalytics';
+import { useAuth } from '@/contexts/AuthContext';
+import { AdminUserActions } from '@/components/AdminUserManagement';
 
 interface UserProfileCardProps {
   userId: string;
   userName: string;
   userEmail?: string;
+  onUserUpdated?: () => void;
 }
 
 const UserProfileCard: React.FC<UserProfileCardProps> = ({
   userId,
   userName,
-  userEmail
+  userEmail,
+  onUserUpdated
 }) => {
   const { analytics, loading, error } = useUserAnalytics(userId);
+  const { profile } = useAuth();
+  const isAdmin = profile?.is_admin;
 
   if (loading) {
     return (
@@ -68,9 +74,24 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {userName}
+            <CardTitle className="flex items-center gap-2 justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                {userName}
+              </div>
+              {isAdmin && onUserUpdated && analytics && (
+                <AdminUserActions 
+                  user={{
+                    user_id: userId,
+                    full_name: userName,
+                    email: userEmail || '',
+                    bids_balance: analytics.total_bids, // Use actual bids count from analytics
+                    is_blocked: false, // This would need to come from a separate query
+                    block_reason: undefined
+                  }}
+                  onUserUpdated={onUserUpdated}
+                />
+              )}
             </CardTitle>
             <CardDescription>{userEmail}</CardDescription>
             <div className="flex gap-2 mt-2">

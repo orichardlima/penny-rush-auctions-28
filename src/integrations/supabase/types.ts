@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_type: string
+          admin_name: string
+          admin_user_id: string
+          created_at: string
+          description: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action_type: string
+          admin_name: string
+          admin_user_id: string
+          created_at?: string
+          description: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action_type?: string
+          admin_name?: string
+          admin_user_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
       auctions: {
         Row: {
           bid_cost: number | null
@@ -344,6 +383,9 @@ export type Database = {
           avatar_url: string | null
           bids_balance: number | null
           birth_date: string | null
+          block_reason: string | null
+          blocked_at: string | null
+          blocked_by: string | null
           cep: string | null
           city: string | null
           complement: string | null
@@ -353,6 +395,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_admin: boolean | null
+          is_blocked: boolean | null
           is_bot: boolean | null
           neighborhood: string | null
           number: string | null
@@ -369,6 +412,9 @@ export type Database = {
           avatar_url?: string | null
           bids_balance?: number | null
           birth_date?: string | null
+          block_reason?: string | null
+          blocked_at?: string | null
+          blocked_by?: string | null
           cep?: string | null
           city?: string | null
           complement?: string | null
@@ -378,6 +424,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_admin?: boolean | null
+          is_blocked?: boolean | null
           is_bot?: boolean | null
           neighborhood?: string | null
           number?: string | null
@@ -394,6 +441,9 @@ export type Database = {
           avatar_url?: string | null
           bids_balance?: number | null
           birth_date?: string | null
+          block_reason?: string | null
+          blocked_at?: string | null
+          blocked_by?: string | null
           cep?: string | null
           city?: string | null
           complement?: string | null
@@ -403,6 +453,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_admin?: boolean | null
+          is_blocked?: boolean | null
           is_bot?: boolean | null
           neighborhood?: string | null
           number?: string | null
@@ -633,6 +684,17 @@ export type Database = {
       is_admin_user: {
         Args: { user_uuid: string }
         Returns: boolean
+      }
+      log_admin_action: {
+        Args: {
+          p_action_type: string
+          p_description?: string
+          p_new_values?: Json
+          p_old_values?: Json
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
