@@ -50,9 +50,15 @@ export const AuctionHistory = () => {
   }, []);
 
   const fetchAuctionHistory = async () => {
+    if (!profile?.user_id) {
+      console.error('User not authenticated');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Buscar todos os lances do usuário com informações dos leilões
-      const { data: bidsData } = await supabase
+      // Buscar apenas os lances do usuário logado com informações dos leilões
+      const { data: bidsData, error } = await supabase
         .from('bids')
         .select(`
           auction_id,
@@ -66,7 +72,13 @@ export const AuctionHistory = () => {
             winner_id
           )
         `)
+        .eq('user_id', profile.user_id)
         .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching auction history:', error);
+        return;
+      }
 
       if (bidsData) {
         processAuctionData(bidsData);
