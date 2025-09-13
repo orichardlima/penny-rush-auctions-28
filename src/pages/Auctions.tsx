@@ -20,8 +20,8 @@ const Auctions = () => {
   const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
-  // Inicializar sistema de notificações
-  useNotifications();
+  // Sistema de notificações desabilitado para evitar spam
+  // useNotifications();
   
   // Sistema de filtros
   const { filters, setFilters, filteredAuctions, totalResults } = useAuctionFilters(auctions);
