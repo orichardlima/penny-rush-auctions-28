@@ -146,13 +146,21 @@ export const AuctionCard = ({
     const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;
     return Math.round(discount);
   };
-  const getActiveHours = () => {
+  const getActiveTime = () => {
     if (!starts_at || displayStatus !== 'active') return null;
     const brazilTimezone = 'America/Sao_Paulo';
     const startsAtInBrazil = toZonedTime(new Date(starts_at), brazilTimezone);
     const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
-    const hoursActive = differenceInHours(nowInBrazil, startsAtInBrazil);
-    return hoursActive > 0 ? hoursActive : 0;
+    
+    const totalMinutes = Math.floor((nowInBrazil.getTime() - startsAtInBrazil.getTime()) / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`;
+    } else {
+      return `${minutes}min`;
+    }
   };
   return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
       <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/10 to-muted/30">
@@ -236,9 +244,9 @@ export const AuctionCard = ({
             
           </div>
 
-          {displayStatus === 'active' && getActiveHours() !== null && <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+          {displayStatus === 'active' && getActiveTime() !== null && <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
               <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              Ativo há {getActiveHours()} {getActiveHours() === 1 ? 'hora' : 'horas'}
+              Ativo há {getActiveTime()}
             </div>}
 
 
