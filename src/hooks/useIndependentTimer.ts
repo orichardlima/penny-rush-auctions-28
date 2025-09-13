@@ -116,11 +116,22 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     }
   }, [auctionId]);
 
-  // Verificar novos lances a cada 1 segundo
+  // Verificar novos lances - versão otimizada (apenas query simples)
   const checkForNewBids = useCallback(async () => {
+    if (!auctionId || auctionStatus !== 'active') return;
+
     try {
-      const data = await fetchCompleteAuctionData();
-      if (!data) return;
+      // Query simples para verificar apenas as informações essenciais
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('id, total_bids, last_bid_at, status')
+        .eq('id', auctionId)
+        .single();
+
+      if (error || !data) {
+        console.error(`❌ [${auctionId}] Erro na verificação de lances:`, error);
+        return;
+      }
 
       // Se leilão foi finalizado, parar todos os timers
       if (data.status === 'finished') {
@@ -141,23 +152,31 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
         }
       }
 
-      // Detectar novos lances
-      const hadNewBid = data.last_bid_at !== lastBidAt || data.total_bids > lastBidCount;
-      
-      if (hadNewBid) {
-        setLastBidAt(data.last_bid_at);
-        setLastBidCount(data.total_bids);
-        console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s - Dados atualizados automaticamente`);
+      const currentBidCount = data.total_bids || 0;
+      const newLastBidAt = data.last_bid_at;
+
+      // Detectar novo lance
+      if (currentBidCount > lastBidCount || (newLastBidAt && newLastBidAt !== lastBidAt)) {
+        console.log(`🎯 [${auctionId}] Novo lance detectado! Atualizando dados completos...`);
+        setLastBidAt(newLastBidAt);
+        setLastBidCount(currentBidCount);
         
-        // Reset do timer para 15 segundos em caso de novo lance
-        // Os dados já foram atualizados pelo fetchCompleteAuctionData
+        // Só buscar dados completos quando detectar novo lance
+        try {
+          await fetchCompleteAuctionData();
+        } catch (fetchError) {
+          console.error(`❌ [${auctionId}] Erro ao buscar dados completos:`, fetchError);
+        }
+        
+        // Resetar timer para 15 segundos
+        console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s`);
         startLocalTimer(15);
       }
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro ao verificar novos lances:`, error);
     }
-  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers, isVerifying, localTimeLeft, fetchCompleteAuctionData]);
+  }, [auctionId, auctionStatus, lastBidCount, lastBidAt, isVerifying, localTimeLeft, startLocalTimer, clearTimers, fetchCompleteAuctionData]);
 
   // Inicialização do sistema
   const initialize = useCallback(async () => {
