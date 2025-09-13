@@ -26,7 +26,31 @@ const Auctions = () => {
   // Sistema de filtros
   const { filters, setFilters, filteredAuctions, totalResults } = useAuctionFilters(auctions);
 
-  const transformAuctionData = (auction: any) => {
+  // Função para buscar dados completos do ganhador
+  const fetchWinnerProfile = async (winnerId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, city, state')
+        .eq('user_id', winnerId)
+        .single();
+      
+      if (profile && profile.full_name) {
+        const region = profile.city && profile.state 
+          ? `${profile.city}, ${profile.state}`
+          : '';
+        return region 
+          ? `${profile.full_name} - ${region}`
+          : profile.full_name;
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar perfil do ganhador:', error);
+      return null;
+    }
+  };
+
+  const transformAuctionData = async (auction: any) => {
     const brazilTimezone = 'America/Sao_Paulo';
     const now = new Date();
     const nowInBrazil = toZonedTime(now, brazilTimezone);
@@ -43,15 +67,25 @@ const Auctions = () => {
     } else {
       auctionStatus = 'finished'; // Finalizado
     }
+
+    // Buscar nome completo do ganhador com região se finalizado
+    let winnerNameWithRegion = auction.winner_name;
+    if (auctionStatus === 'finished' && auction.winner_id) {
+      const fullWinnerName = await fetchWinnerProfile(auction.winner_id);
+      if (fullWinnerName) {
+        winnerNameWithRegion = fullWinnerName;
+      }
+    }
     
     return {
       ...auction,
       image: auction.image_url || '/placeholder.svg',
+      description: auction.description,
       currentPrice: auction.current_price || 1.00,
-      originalPrice: auction.market_value || 0,
+      originalPrice: auction.market_value || 0, // Already in reais
       totalBids: auction.total_bids || 0,
       participants: auction.participants_count || 0,
-      recentBidders: auction.recentBidders || [],
+      recentBidders: auction.recentBidders || [], // Usar dados reais dos lances
       currentRevenue: (auction.total_bids || 0) * 1.00,
       timeLeft: endsAt ? Math.max(0, Math.floor((endsAt.getTime() - nowInBrazil.getTime()) / 1000)) : 0,
       auctionStatus,
@@ -59,7 +93,7 @@ const Auctions = () => {
       ends_at: auction.ends_at,
       starts_at: auction.starts_at,
       winnerId: auction.winner_id,
-      winnerName: auction.winner_name
+      winnerName: winnerNameWithRegion
     };
   };
 
@@ -124,11 +158,11 @@ const Auctions = () => {
         return;
       }
 
-      // Para cada leilão, buscar os lances recentes
+      // Para cada leilão, buscar os lances recentes e dados do ganhador
       const auctionsWithBidders = await Promise.all(
         (data || []).map(async (auction) => {
           const recentBidders = await fetchRecentBidders(auction.id);
-          return transformAuctionData({
+          return await transformAuctionData({
             ...auction,
             recentBidders
           });
@@ -158,7 +192,7 @@ const Auctions = () => {
           console.log('🔄 Atualização de leilão recebida:', payload);
           // Buscar lances recentes atualizados
           const recentBidders = await fetchRecentBidders(payload.new.id);
-          const updatedAuction = transformAuctionData({
+          const updatedAuction = await transformAuctionData({
             ...payload.new,
             recentBidders
           });
@@ -176,7 +210,7 @@ const Auctions = () => {
           console.log('✨ Novo leilão criado:', payload);
           // Buscar lances recentes para o novo leilão
           const recentBidders = await fetchRecentBidders(payload.new.id);
-          const newAuction = transformAuctionData({
+          const newAuction = await transformAuctionData({
             ...payload.new,
             recentBidders
           });

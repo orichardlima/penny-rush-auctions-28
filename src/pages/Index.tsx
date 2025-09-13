@@ -24,7 +24,31 @@ const Index = () => {
   const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
-  const transformAuctionData = (auction: any) => {
+  // Função para buscar dados completos do ganhador
+  const fetchWinnerProfile = async (winnerId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, city, state')
+        .eq('user_id', winnerId)
+        .single();
+      
+      if (profile && profile.full_name) {
+        const region = profile.city && profile.state 
+          ? `${profile.city}, ${profile.state}`
+          : '';
+        return region 
+          ? `${profile.full_name} - ${region}`
+          : profile.full_name;
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar perfil do ganhador:', error);
+      return null;
+    }
+  };
+
+  const transformAuctionData = async (auction: any) => {
     const brazilTimezone = 'America/Sao_Paulo';
     const now = new Date();
     const nowInBrazil = toZonedTime(now, brazilTimezone);
@@ -40,6 +64,15 @@ const Index = () => {
       auctionStatus = 'active'; // Ativo
     } else {
       auctionStatus = 'finished'; // Finalizado
+    }
+
+    // Buscar nome completo do ganhador com região se finalizado
+    let winnerNameWithRegion = auction.winner_name;
+    if (auctionStatus === 'finished' && auction.winner_id) {
+      const fullWinnerName = await fetchWinnerProfile(auction.winner_id);
+      if (fullWinnerName) {
+        winnerNameWithRegion = fullWinnerName;
+      }
     }
     
     return {
@@ -58,7 +91,7 @@ const Index = () => {
       ends_at: auction.ends_at,
       starts_at: auction.starts_at,
       winnerId: auction.winner_id,
-      winnerName: auction.winner_name
+      winnerName: winnerNameWithRegion
     };
   };
 
@@ -123,11 +156,11 @@ const Index = () => {
         return;
       }
 
-      // Para cada leilão, buscar os lances recentes
+      // Para cada leilão, buscar os lances recentes e dados do ganhador
       const auctionsWithBidders = await Promise.all(
         (data || []).map(async (auction) => {
           const recentBidders = await fetchRecentBidders(auction.id);
-          return transformAuctionData({
+          return await transformAuctionData({
             ...auction,
             recentBidders
           });
@@ -161,7 +194,7 @@ const Index = () => {
           console.log('🔄 Atualização de leilão recebida:', payload);
           // Buscar lances recentes atualizados
           const recentBidders = await fetchRecentBidders(payload.new.id);
-          const updatedAuction = transformAuctionData({
+          const updatedAuction = await transformAuctionData({
             ...payload.new,
             recentBidders
           });
@@ -179,7 +212,7 @@ const Index = () => {
           console.log('✨ Novo leilão criado:', payload);
           // Buscar lances recentes para o novo leilão
           const recentBidders = await fetchRecentBidders(payload.new.id);
-          const newAuction = transformAuctionData({
+          const newAuction = await transformAuctionData({
             ...payload.new,
             recentBidders
           });
