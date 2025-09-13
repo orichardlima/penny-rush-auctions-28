@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFinishAuction } from '@/hooks/useFinishAuction';
+import { useReactivateAuction } from '@/hooks/useReactivateAuction';
 import AuctionParticipantsTable from './AuctionParticipantsTable';
 import { 
   TrendingUp, 
@@ -22,7 +23,8 @@ import {
   Eye,
   Activity,
   Flag,
-  Loader2
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
 
 interface Auction {
@@ -76,10 +78,13 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
 }) => {
   const { profile } = useAuth();
   const { finishAuction, isFinishing } = useFinishAuction();
+  const { reactivateAuction, isReactivating } = useReactivateAuction();
   const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
 
   const isAdmin = profile?.is_admin;
   const canFinish = isAdmin && auction.status === 'active';
+  const canReactivate = isAdmin && auction.status === 'finished';
   // Removida formatCurrency com divisão por 100 - agora só usamos formatCurrencyFromReais
 
   const formatCurrencyFromReais = (valueInReais: number) => {
@@ -182,7 +187,7 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
                           <AlertDialogDescription>
                             Tem certeza que deseja encerrar este leilão agora? 
                             O último usuário que deu lance será declarado vencedor.
-                            Esta ação não pode ser desfeita.
+                            Esta ação pode ser desfeita reativando o leilão.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -197,6 +202,59 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
                             className="bg-red-600 hover:bg-red-700"
                           >
                             Sim, Encerrar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  
+                  {canReactivate && (
+                    <AlertDialog open={showReactivateDialog} onOpenChange={setShowReactivateDialog}>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="gap-2 bg-orange-100 hover:bg-orange-200 text-orange-700 border-orange-300"
+                          disabled={isReactivating}
+                        >
+                          {isReactivating ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-4 w-4" />
+                          )}
+                          Reativar Leilão
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Reativar Leilão</AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-2">
+                            <p>Tem certeza que deseja reativar este leilão?</p>
+                            <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
+                              <p className="text-sm text-amber-800">
+                                <strong>Atenção:</strong> Esta ação irá:
+                              </p>
+                              <ul className="text-sm text-amber-700 mt-1 ml-4 list-disc">
+                                <li>Remover o vencedor atual</li>
+                                <li>Resetar o timer para 15 segundos</li>
+                                <li>Permitir novos lances</li>
+                                <li>Manter o histórico de lances anterior</li>
+                              </ul>
+                            </div>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              const success = await reactivateAuction(auction.id);
+                              if (success) {
+                                setShowReactivateDialog(false);
+                              }
+                            }}
+                            className="bg-orange-600 hover:bg-orange-700"
+                          >
+                            Sim, Reativar
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
