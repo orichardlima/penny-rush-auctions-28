@@ -46,9 +46,16 @@ export const AuctionHistory = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'won' | 'finished'>('all');
 
   useEffect(() => {
-    console.log('🎯 [AUCTION-HISTORY] Componente montado, profile:', profile);
-    console.log('🎯 [AUCTION-HISTORY] Profile user_id:', profile?.user_id);
-    fetchAuctionHistory();
+    console.log('🎯 [AUCTION-HISTORY] useEffect executado');
+    console.log('🎯 [AUCTION-HISTORY] profile state:', profile);
+    console.log('🎯 [AUCTION-HISTORY] profile?.user_id:', profile?.user_id);
+    
+    if (profile?.user_id) {
+      console.log('🎯 [AUCTION-HISTORY] Profile disponível, iniciando fetch...');
+      fetchAuctionHistory();
+    } else {
+      console.log('🎯 [AUCTION-HISTORY] Profile não disponível ainda');
+    }
   }, [profile?.user_id]);
 
   const fetchAuctionHistory = async () => {
