@@ -121,8 +121,8 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                       {profile?.full_name?.split(' ')[0] || 'Usuário'}
                     </span>
                     <div className="flex items-center space-x-1 bg-secondary/80 border border-border/50 rounded-md px-2 py-1">
-                      <Coins className="w-3 h-3 text-accent" />
-                      <span className="text-xs font-semibold text-accent">{displayBids}</span>
+                      <Coins className="w-3 h-3 text-foreground" />
+                      <span className="text-xs font-semibold text-foreground">{displayBids}</span>
                     </div>
                   </div>
                 </div>
