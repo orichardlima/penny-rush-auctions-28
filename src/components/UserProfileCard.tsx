@@ -11,6 +11,7 @@ interface UserProfileCardProps {
   userId: string;
   userName: string;
   userEmail?: string;
+  userBalance?: number;
   onUserUpdated?: () => void;
 }
 
@@ -18,6 +19,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   userId,
   userName,
   userEmail,
+  userBalance,
   onUserUpdated
 }) => {
   const { analytics, loading, error } = useUserAnalytics(userId);
@@ -85,7 +87,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                     user_id: userId,
                     full_name: userName,
                     email: userEmail || '',
-                    bids_balance: analytics.total_bids, // Use actual bids count from analytics
+                    bids_balance: userBalance || 0, // Use actual balance from props
                     is_blocked: false, // This would need to come from a separate query
                     block_reason: undefined
                   }}
@@ -106,6 +108,23 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Saldo Atual - Destaque especial */}
+        {userBalance !== undefined && (
+          <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 rounded-full">
+                  <Settings className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-emerald-900">Saldo Atual de Lances</p>
+                  <p className="text-2xl font-bold text-emerald-700">R$ {userBalance.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Métricas principais */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-3 bg-primary/5 rounded-lg">

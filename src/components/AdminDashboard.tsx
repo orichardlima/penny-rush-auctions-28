@@ -1190,6 +1190,7 @@ const AdminDashboard = () => {
                     userId={selectedUserForProfile.user_id}
                     userName={selectedUserForProfile.full_name || 'Usuário'}
                     userEmail={selectedUserForProfile.email}
+                    userBalance={selectedUserForProfile.bids_balance}
                     onUserUpdated={fetchAdminData}
                   />
                 ) : (
