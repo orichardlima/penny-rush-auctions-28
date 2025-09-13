@@ -649,11 +649,17 @@ const AdminDashboard = () => {
         user => user.user_id === selectedUserForProfile.user_id
       );
       
-      if (updatedUser) {
+      // Só atualizar se realmente encontrou o usuário e os dados são diferentes
+      if (updatedUser && (
+        updatedUser.bids_balance !== selectedUserForProfile.bids_balance ||
+        updatedUser.is_blocked !== selectedUserForProfile.is_blocked ||
+        updatedUser.block_reason !== selectedUserForProfile.block_reason
+      )) {
+        console.log(`🔄 Sincronizando dados do usuário: ${updatedUser.full_name} - Saldo: R$ ${updatedUser.bids_balance}`);
         setSelectedUserForProfile(updatedUser);
       }
     }
-  }, [realUsers, botUsers, selectedUserForProfile?.user_id]);
+  }, [realUsers, botUsers]); // Removida a dependência selectedUserForProfile?.user_id
 
   // Combinar todos os usuários (reais + bots)
   const allUsers = [...realUsers, ...botUsers];
