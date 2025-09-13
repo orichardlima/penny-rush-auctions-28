@@ -56,6 +56,8 @@ export const AuctionHistory = () => {
       return;
     }
 
+    console.log('🔍 [AUCTION-HISTORY] Buscando lances para user_id:', profile.user_id);
+
     try {
       // Buscar apenas os lances do usuário logado com informações dos leilões
       const { data: bidsData, error } = await supabase
@@ -80,6 +82,9 @@ export const AuctionHistory = () => {
         return;
       }
 
+      console.log('📊 [AUCTION-HISTORY] Dados recebidos:', bidsData?.length, 'lances');
+      console.log('📊 [AUCTION-HISTORY] Dados completos:', bidsData);
+
       if (bidsData) {
         processAuctionData(bidsData);
       }
@@ -91,6 +96,8 @@ export const AuctionHistory = () => {
   };
 
   const processAuctionData = (bidsData: any[]) => {
+    console.log('🔄 [AUCTION-HISTORY] Processando dados dos lances...');
+    
     // Agrupar lances por leilão
     const auctionGroups = bidsData.reduce((acc, bid) => {
       const auctionId = bid.auction_id;
@@ -113,6 +120,9 @@ export const AuctionHistory = () => {
       const totalInvested = group.bids.reduce((sum: number, bid: any) => sum + bid.cost_paid, 0);
       const isWinner = group.auction_winner_id === profile?.user_id;
       const lastBidDate = group.bids[0]?.created_at; // Já ordenado por data desc
+
+      console.log(`📈 [AUCTION-HISTORY] Leilão: ${group.auction_title} - ${group.bids.length} lances - R$ ${totalInvested.toFixed(2)}`);
+
 
       let roi: number | undefined;
       if (isWinner && group.auction_status === 'finished') {
