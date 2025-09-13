@@ -2,27 +2,23 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { AuctionCard } from "@/components/AuctionCard";
 import { AuctionFilters } from "@/components/AuctionFilters";
-import { RealtimeStatus } from "@/components/RealtimeStatus";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useAuctionFilters } from "@/hooks/useAuctionFilters";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuctionContext } from "@/contexts/AuctionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime } from 'date-fns-tz';
 import { useNavigate } from "react-router-dom";
 import { getDisplayParticipants } from "@/lib/utils";
 
 const Auctions = () => {
+  const [auctions, setAuctions] = useState<any[]>([]);
   const [bidding, setBidding] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  
-  // Use global auction context
-  const { auctions, isConnected, lastSync, forceSync } = useAuctionContext();
   
   // Inicializar sistema de notificações
   useNotifications();
@@ -145,37 +141,123 @@ const Auctions = () => {
     }
   };
 
-  // Hook para verificar e ativar leilões automaticamente
-  useAuctionTimer(() => forceSync());
+  const fetchAuctions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('*')
+        .or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()})`)
+        .order('created_at', { ascending: false });
 
-  // Initialize loading state
-  useEffect(() => {
-    if (auctions.length > 0) {
+      if (error) {
+        console.error('Error fetching auctions:', error);
+        toast({
+          title: "Erro ao carregar leilões",
+          description: "Não foi possível carregar os leilões ativos.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Para cada leilão, buscar os lances recentes e dados do ganhador
+      const auctionsWithBidders = await Promise.all(
+        (data || []).map(async (auction) => {
+          const recentBidders = await fetchRecentBidders(auction.id);
+          return await transformAuctionData({
+            ...auction,
+            recentBidders
+          });
+        })
+      );
+
+      setAuctions(auctionsWithBidders);
+    } catch (error) {
+      console.error('Error fetching auctions:', error);
+    } finally {
       setLoading(false);
     }
-  }, [auctions]);
+  }, [toast]);
 
-  // Page Visibility API - detect when user returns
+  // Hook para verificar e ativar leilões automaticamente
+  useAuctionTimer(fetchAuctions);
+
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('👀 [AUCTIONS] User returned, checking for updates...');
-        // Small delay to allow context to handle the sync
-        setTimeout(() => {
-          if (!isConnected) {
-            console.log('🔄 [AUCTIONS] Forcing sync due to disconnection');
-            forceSync();
-          }
-        }, 500);
-      }
-    };
+    fetchAuctions();
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+    // Configurar realtime updates para leilões e lances
+    const channel = supabase
+      .channel('auctions-updates')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'auctions' },
+        async (payload) => {
+          console.log('🔄 Atualização de leilão recebida:', payload);
+          // Buscar lances recentes atualizados
+          const recentBidders = await fetchRecentBidders(payload.new.id);
+          const updatedAuction = await transformAuctionData({
+            ...payload.new,
+            recentBidders
+          });
+          
+          setAuctions(prev => 
+            prev.map(auction => 
+              auction.id === updatedAuction.id ? updatedAuction : auction
+            )
+          );
+        }
+      )
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'auctions' },
+        async (payload) => {
+          console.log('✨ Novo leilão criado:', payload);
+          // Buscar lances recentes para o novo leilão
+          const recentBidders = await fetchRecentBidders(payload.new.id);
+          const newAuction = await transformAuctionData({
+            ...payload.new,
+            recentBidders
+          });
+          
+          // Adicionar o novo leilão à lista se estiver ativo ou aguardando
+          if (newAuction.status === 'active' || newAuction.status === 'waiting') {
+            setAuctions(prev => [newAuction, ...prev]);
+            
+            toast({
+              title: "Novo leilão disponível!",
+              description: `${newAuction.title} foi adicionado aos leilões ativos.`,
+            });
+          }
+        }
+      )
+      // NOVO: Listener para lances em tempo real
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bids' },
+        async (payload) => {
+          console.log('🎯 Novo lance recebido:', payload);
+          const auctionId = payload.new.auction_id;
+          
+          // Buscar lances recentes atualizados para este leilão
+          const recentBidders = await fetchRecentBidders(auctionId);
+          
+          // Atualizar apenas o leilão específico com os novos lances recentes
+          setAuctions(prev => 
+            prev.map(auction => 
+              auction.id === auctionId 
+                ? { ...auction, recentBidders }
+                : auction
+            )
+          );
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Status da conexão realtime:', status);
+        if (status === 'CLOSED') {
+          console.warn('⚠️ Conexão realtime perdida, tentando reconectar...');
+        }
+      });
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      supabase.removeChannel(channel);
     };
-  }, [isConnected, forceSync]);
+  }, [toast]);
 
   const handleBid = async (auctionId: string) => {
     console.log('🎯 [LANCE] Iniciando lance para leilão:', auctionId);
