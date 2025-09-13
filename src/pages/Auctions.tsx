@@ -92,6 +92,7 @@ const Auctions = () => {
       isActive: auctionStatus === 'active',
       ends_at: auction.ends_at,
       starts_at: auction.starts_at,
+      finished_at: auction.finished_at,
       winnerId: auction.winner_id,
       winnerName: winnerNameWithRegion
     };
@@ -415,6 +416,7 @@ const Auctions = () => {
                   auctionStatus={auction.auctionStatus as 'waiting' | 'active' | 'finished'}
                   ends_at={auction.ends_at}
                   starts_at={auction.starts_at}
+                  finished_at={(auction as any).finished_at}
                   winnerId={auction.winnerId}
                   winnerName={auction.winnerName}
                 />
