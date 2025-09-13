@@ -61,7 +61,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     try {
       const { data, error } = await supabase
         .from('auctions')
-        .select('last_bid_at, total_bids, status, time_left')
+        .select('last_bid_at, total_bids, status, time_left, current_price')
         .eq('id', auctionId)
         .single();
 
@@ -79,10 +79,10 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       // Se está verificando há muito tempo, forçar refresh do status
       if (isVerifying && localTimeLeft === 0) {
         const timeSinceVerifying = Date.now() - (lastVerifyingStart.current || Date.now());
-        if (timeSinceVerifying > 5000) { // 5 segundos
+        if (timeSinceVerifying > 3000) { // Reduced to 3 seconds
           console.log(`⏰ [${auctionId}] Timeout na verificação, forçando refresh...`);
           setIsVerifying(false);
-          startLocalTimer(15); // Resetar timer
+          startLocalTimer(data.time_left || 15); // Use backend time_left
         }
       }
 
@@ -92,16 +92,24 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       if (hadNewBid) {
         setLastBidAt(data.last_bid_at);
         setLastBidCount(data.total_bids);
-        console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s`);
+        console.log(`🆕 [${auctionId}] NOVO LANCE! Backend timer: ${data.time_left}s`);
         
-        // Reset do timer para 15 segundos em caso de novo lance
-        startLocalTimer(15);
+        // Use backend time_left for more accurate sync
+        const backendTime = Math.max(data.time_left || 15, 1);
+        startLocalTimer(backendTime);
+        
+        // Trigger global refresh for price/bidder updates
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('auction-bid-update', { 
+            detail: { auctionId, currentPrice: data.current_price, totalBids: data.total_bids }
+          }));
+        }
       }
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro ao verificar novos lances:`, error);
     }
-  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers]);
+  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers, isVerifying, localTimeLeft]);
 
   // Inicialização do sistema
   const initialize = useCallback(async () => {
@@ -135,9 +143,9 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       console.log(`⚡ [${auctionId}] Iniciando com ${initialTime}s do backend`);
       startLocalTimer(initialTime);
 
-      // Iniciar verificação de novos lances a cada 500ms (tempo real)
-      bidCheckIntervalRef.current = setInterval(checkForNewBids, 500);
-      console.log(`👀 [${auctionId}] Verificação de lances iniciada (500ms)`);
+      // Iniciar verificação de novos lances a cada 1000ms (more stable)
+      bidCheckIntervalRef.current = setInterval(checkForNewBids, 1000);
+      console.log(`👀 [${auctionId}] Verificação de lances iniciada (1000ms)`);
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro na inicialização:`, error);

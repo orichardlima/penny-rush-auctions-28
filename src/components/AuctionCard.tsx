@@ -56,6 +56,8 @@ export const AuctionCard = ({
   winnerName
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
+  const [liveCurrentPrice, setLiveCurrentPrice] = useState(currentPrice);
+  const [liveTotalBids, setLiveTotalBids] = useState(totalBids);
 
   // Timer 100% controlado pelo backend
   const {
@@ -67,10 +69,33 @@ export const AuctionCard = ({
     auctionId: id
   });
 
+  // Listen for auction updates from useIndependentTimer
+  useEffect(() => {
+    const handleAuctionUpdate = (event: CustomEvent) => {
+      if (event.detail.auctionId === id) {
+        console.log(`💰 [${id}] Price update: ${event.detail.currentPrice}`);
+        setLiveCurrentPrice(event.detail.currentPrice);
+        setLiveTotalBids(event.detail.totalBids);
+      }
+    };
+
+    window.addEventListener('auction-bid-update', handleAuctionUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('auction-bid-update', handleAuctionUpdate as EventListener);
+    };
+  }, [id]);
+
+  // Update live data when props change
+  useEffect(() => {
+    setLiveCurrentPrice(currentPrice);
+    setLiveTotalBids(totalBids);
+  }, [currentPrice, totalBids]);
+
   // Usar apenas dados do backend (sincronizados)
   const displayTimeLeft = isInitialized ? backendTimeLeft : initialTimeLeft;
-  const displayCurrentPrice = currentPrice;
-  const displayTotalBids = totalBids;
+  const displayCurrentPrice = liveCurrentPrice;
+  const displayTotalBids = liveTotalBids;
   const displayWinnerName = winnerName;
   const displayStatus = isInitialized ? backendStatus : auctionStatus;
 
