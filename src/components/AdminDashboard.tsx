@@ -641,6 +641,20 @@ const AdminDashboard = () => {
     );
   }
 
+  // Sincronizar selectedUserForProfile com dados atualizados
+  useEffect(() => {
+    if (selectedUserForProfile && (realUsers.length > 0 || botUsers.length > 0)) {
+      // Buscar o usuário atualizado nos dados mais recentes
+      const updatedUser = [...realUsers, ...botUsers].find(
+        user => user.user_id === selectedUserForProfile.user_id
+      );
+      
+      if (updatedUser) {
+        setSelectedUserForProfile(updatedUser);
+      }
+    }
+  }, [realUsers, botUsers, selectedUserForProfile?.user_id]);
+
   // Combinar todos os usuários (reais + bots)
   const allUsers = [...realUsers, ...botUsers];
   
