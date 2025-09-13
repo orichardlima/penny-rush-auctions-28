@@ -46,8 +46,10 @@ export const AuctionHistory = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'won' | 'finished'>('all');
 
   useEffect(() => {
+    console.log('🎯 [AUCTION-HISTORY] Componente montado, profile:', profile);
+    console.log('🎯 [AUCTION-HISTORY] Profile user_id:', profile?.user_id);
     fetchAuctionHistory();
-  }, []);
+  }, [profile?.user_id]);
 
   const fetchAuctionHistory = async () => {
     if (!profile?.user_id) {
