@@ -184,7 +184,7 @@ const Auctions = () => {
   useEffect(() => {
     fetchAuctions();
 
-    // Configurar realtime updates para leilões
+    // Configurar realtime updates para leilões e lances
     const channel = supabase
       .channel('auctions-updates')
       .on('postgres_changes', 
@@ -227,7 +227,32 @@ const Auctions = () => {
           }
         }
       )
-      .subscribe();
+      // NOVO: Listener para lances em tempo real
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bids' },
+        async (payload) => {
+          console.log('🎯 Novo lance recebido:', payload);
+          const auctionId = payload.new.auction_id;
+          
+          // Buscar lances recentes atualizados para este leilão
+          const recentBidders = await fetchRecentBidders(auctionId);
+          
+          // Atualizar apenas o leilão específico com os novos lances recentes
+          setAuctions(prev => 
+            prev.map(auction => 
+              auction.id === auctionId 
+                ? { ...auction, recentBidders }
+                : auction
+            )
+          );
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Status da conexão realtime:', status);
+        if (status === 'CLOSED') {
+          console.warn('⚠️ Conexão realtime perdida, tentando reconectar...');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

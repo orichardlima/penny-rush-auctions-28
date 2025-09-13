@@ -94,13 +94,13 @@ export const useAuctionRealtime = () => {
             }
           });
 
-        // Fallback polling when disconnected
+        // Fallback polling when disconnected - reduced to 5 seconds for faster recovery
         pollInterval = setInterval(() => {
           if (!isConnected) {
             console.log('📊 Polling de emergência (realtime desconectado)');
             syncAuctions();
           }
-        }, 30000);
+        }, 5000);
 
       } catch (error) {
         console.error('❌ [REALTIME] Erro:', error);
