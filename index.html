@@ -1,8 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6366f1" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Leilões Online" />
+    
     <title>LeilãoCentavos - Ganhe Produtos Incríveis por Centavos!</title>
     <meta name="description" content="Participe dos leilões mais emocionantes do Brasil. Cada lance custa R$ 1 e pode te dar produtos de até R$ 10.000!" />
     <meta name="author" content="LeilãoCentavos" />
@@ -21,5 +30,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => console.log('✅ Service Worker registrado'))
+            .catch(error => console.log('❌ SW error:', error));
+        });
+      }
+    </script>
   </body>
 </html>

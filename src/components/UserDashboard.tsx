@@ -19,7 +19,9 @@ import {
   LogOut,
   PieChart,
   Target,
-  Package
+  Package,
+  Bell,
+  BarChart3
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
@@ -27,6 +29,8 @@ import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { AuctionHistory } from '@/components/AuctionHistory';
 import { SignupBonusWelcome } from '@/components/SignupBonusWelcome';
 import { UserOrders } from '@/components/UserOrders';
+import { PersonalAnalytics } from '@/components/PersonalAnalytics';
+import { NotificationSettings } from '@/components/NotificationSettings';
 
 interface Bid {
   id: string;
@@ -213,13 +217,15 @@ const UserDashboard = () => {
 
         {/* Tabs do Dashboard */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="orders">Meus Pedidos</TabsTrigger>
-            <TabsTrigger value="bids">Meus Lances</TabsTrigger>
-            <TabsTrigger value="auctions">Meus Leilões</TabsTrigger>
+            <TabsTrigger value="orders">Pedidos</TabsTrigger>
+            <TabsTrigger value="bids">Lances</TabsTrigger>
+            <TabsTrigger value="auctions">Leilões</TabsTrigger>
             <TabsTrigger value="financial">Financeiro</TabsTrigger>
-            <TabsTrigger value="packages">Comprar Lances</TabsTrigger>
+            <TabsTrigger value="packages">Pacotes</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="notifications">Notificações</TabsTrigger>
             <TabsTrigger value="profile">Perfil</TabsTrigger>
           </TabsList>
 
@@ -404,6 +410,26 @@ const UserDashboard = () => {
                   </Card>
                 </div>
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-6">
+                <BarChart3 className="w-6 h-6 text-primary" />
+                <h2 className="text-2xl font-bold">Suas Estatísticas Pessoais</h2>
+              </div>
+              <PersonalAnalytics />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Bell className="w-6 h-6 text-primary" />
+                <h2 className="text-2xl font-bold">Configurações de Notificação</h2>
+              </div>
+              <NotificationSettings />
             </div>
           </TabsContent>
 

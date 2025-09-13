@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { AuctionCard } from "@/components/AuctionCard";
+import { AuctionFilters } from "@/components/AuctionFilters";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
+import { useAuctionFilters } from "@/hooks/useAuctionFilters";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime } from 'date-fns-tz';
@@ -16,6 +19,12 @@ const Auctions = () => {
   const { toast } = useToast();
   const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  
+  // Inicializar sistema de notificações
+  useNotifications();
+  
+  // Sistema de filtros
+  const { filters, setFilters, filteredAuctions, totalResults } = useAuctionFilters(auctions);
 
   const transformAuctionData = (auction: any) => {
     const brazilTimezone = 'America/Sao_Paulo';
@@ -325,7 +334,13 @@ const Auctions = () => {
     <div className="min-h-screen bg-background">
       <Header onBuyBids={handleBuyBids} />
       
-      <main className="py-16">
+      <AuctionFilters 
+        filters={filters}
+        onFiltersChange={setFilters}
+        totalResults={totalResults}
+      />
+      
+      <main className="py-8">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
@@ -347,16 +362,7 @@ const Auctions = () => {
                 <p className="text-muted-foreground">Nenhum leilão disponível no momento.</p>
               </div>
             ) : (
-              auctions
-                .sort((a, b) => {
-                  // Ordenar: ativos, em espera, finalizados
-                  const statusOrder = { active: 1, waiting: 2, finished: 3 };
-                  if (statusOrder[a.auctionStatus] !== statusOrder[b.auctionStatus]) {
-                    return statusOrder[a.auctionStatus] - statusOrder[b.auctionStatus];
-                  }
-                  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                })
-                .map((auction) => (
+              filteredAuctions.map((auction) => (
                 <AuctionCard
                   key={auction.id}
                   id={auction.id}
@@ -372,7 +378,7 @@ const Auctions = () => {
                   currentRevenue={auction.currentRevenue}
                   timeLeft={auction.timeLeft}
                   isActive={auction.isActive}
-                  auctionStatus={auction.auctionStatus}
+                  auctionStatus={auction.auctionStatus as 'waiting' | 'active' | 'finished'}
                   ends_at={auction.ends_at}
                   starts_at={auction.starts_at}
                   winnerId={auction.winnerId}
