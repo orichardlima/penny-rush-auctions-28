@@ -24,6 +24,34 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
   const localTimerRef = useRef<NodeJS.Timeout>();
   const bidCheckIntervalRef = useRef<NodeJS.Timeout>();
   const lastVerifyingStart = useRef<number>();
+  
+  // Usar refs para evitar recriações desnecessárias do checkForNewBids
+  const lastBidCountRef = useRef(lastBidCount);
+  const lastBidAtRef = useRef(lastBidAt);
+  const auctionStatusRef = useRef(auctionStatus);
+  const isVerifyingRef = useRef(isVerifying);
+  const localTimeLeftRef = useRef(localTimeLeft);
+  
+  // Atualizar refs quando valores mudarem
+  useEffect(() => {
+    lastBidCountRef.current = lastBidCount;
+  }, [lastBidCount]);
+  
+  useEffect(() => {
+    lastBidAtRef.current = lastBidAt;
+  }, [lastBidAt]);
+  
+  useEffect(() => {
+    auctionStatusRef.current = auctionStatus;
+  }, [auctionStatus]);
+  
+  useEffect(() => {
+    isVerifyingRef.current = isVerifying;
+  }, [isVerifying]);
+  
+  useEffect(() => {
+    localTimeLeftRef.current = localTimeLeft;
+  }, [localTimeLeft]);
 
   // Limpar timers
   const clearTimers = useCallback(() => {
@@ -116,9 +144,9 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     }
   }, [auctionId]);
 
-  // Verificar novos lances - versão otimizada (apenas query simples)
+  // Verificar novos lances - versão otimizada com refs estáveis
   const checkForNewBids = useCallback(async () => {
-    if (!auctionId || auctionStatus !== 'active') return;
+    if (!auctionId || auctionStatusRef.current !== 'active') return;
 
     try {
       // Query simples para verificar apenas as informações essenciais
@@ -143,7 +171,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       }
 
       // Se está verificando há muito tempo, forçar refresh do status
-      if (isVerifying && localTimeLeft === 0) {
+      if (isVerifyingRef.current && localTimeLeftRef.current === 0) {
         const timeSinceVerifying = Date.now() - (lastVerifyingStart.current || Date.now());
         if (timeSinceVerifying > 5000) { // 5 segundos
           console.log(`⏰ [${auctionId}] Timeout na verificação, forçando refresh...`);
@@ -155,11 +183,15 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       const currentBidCount = data.total_bids || 0;
       const newLastBidAt = data.last_bid_at;
 
-      // Detectar novo lance
-      if (currentBidCount > lastBidCount || (newLastBidAt && newLastBidAt !== lastBidAt)) {
+      // Detectar novo lance usando refs para evitar recriações
+      if (currentBidCount > lastBidCountRef.current || (newLastBidAt && newLastBidAt !== lastBidAtRef.current)) {
         console.log(`🎯 [${auctionId}] Novo lance detectado! Atualizando dados completos...`);
+        
+        // Atualizar estados e refs
         setLastBidAt(newLastBidAt);
         setLastBidCount(currentBidCount);
+        lastBidAtRef.current = newLastBidAt;
+        lastBidCountRef.current = currentBidCount;
         
         // Só buscar dados completos quando detectar novo lance
         try {
@@ -176,9 +208,9 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro ao verificar novos lances:`, error);
     }
-  }, [auctionId, auctionStatus, lastBidCount, lastBidAt, isVerifying, localTimeLeft, startLocalTimer, clearTimers, fetchCompleteAuctionData]);
+  }, [auctionId, startLocalTimer, clearTimers, fetchCompleteAuctionData]);
 
-  // Inicialização do sistema
+  // Inicialização do sistema - sem dependência circular
   const initialize = useCallback(async () => {
     try {
       console.log(`🔄 [${auctionId}] Inicializando sistema de timer...`);
@@ -198,6 +230,11 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       setLastBidAt(data.last_bid_at);
       setLastBidCount(data.total_bids);
       setAuctionStatus(data.status);
+      
+      // Atualizar refs também
+      lastBidAtRef.current = data.last_bid_at;
+      lastBidCountRef.current = data.total_bids;
+      auctionStatusRef.current = data.status;
 
       // Buscar dados completos iniciais
       await fetchCompleteAuctionData();
@@ -213,14 +250,19 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       console.log(`⚡ [${auctionId}] Iniciando com ${initialTime}s do backend`);
       startLocalTimer(initialTime);
 
-      // Iniciar verificação de novos lances a cada 500ms (tempo real)
-      bidCheckIntervalRef.current = setInterval(checkForNewBids, 500);
+      // Iniciar verificação de novos lances a cada 500ms (direto, sem dependência)
+      if (bidCheckIntervalRef.current) {
+        clearInterval(bidCheckIntervalRef.current);
+      }
+      bidCheckIntervalRef.current = setInterval(() => {
+        checkForNewBids();
+      }, 500);
       console.log(`👀 [${auctionId}] Verificação de lances iniciada (500ms)`);
 
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
     }
-  }, [auctionId, startLocalTimer, checkForNewBids, fetchCompleteAuctionData]);
+  }, [auctionId, startLocalTimer, fetchCompleteAuctionData, checkForNewBids]);
 
   // Integração com Page Visibility API para forçar sync após inatividade
   useEffect(() => {
