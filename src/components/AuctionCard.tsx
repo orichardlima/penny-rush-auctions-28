@@ -56,7 +56,12 @@ export const AuctionCard = ({
   const [isBidding, setIsBidding] = useState(false);
 
   // Timer 100% controlado pelo backend
-  const { backendTimeLeft, isVerifying, isInitialized, auctionStatus: backendStatus } = useBackendTimer({
+  const {
+    backendTimeLeft,
+    isVerifying,
+    isInitialized,
+    auctionStatus: backendStatus
+  } = useBackendTimer({
     auctionId: id
   });
 
@@ -77,7 +82,6 @@ export const AuctionCard = ({
       maximumFractionDigits: 2
     }).format(safePriceInReais);
   };
-
   console.log(`⏰ [${id}] Backend Timer: ${displayTimeLeft}s | Verificando: ${isVerifying} | Status: ${displayStatus}`);
 
   // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
@@ -142,14 +146,11 @@ export const AuctionCard = ({
     const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;
     return Math.round(discount);
   };
-
   const getActiveHours = () => {
     if (!starts_at || displayStatus !== 'active') return null;
-    
     const brazilTimezone = 'America/Sao_Paulo';
     const startsAtInBrazil = toZonedTime(new Date(starts_at), brazilTimezone);
     const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
-    
     const hoursActive = differenceInHours(nowInBrazil, startsAtInBrazil);
     return hoursActive > 0 ? hoursActive : 0;
   };
@@ -173,8 +174,7 @@ export const AuctionCard = ({
         </div>
         {displayStatus === 'active' && <div className="absolute top-3 left-3">
             <div className="flex flex-col gap-2">
-              {!isVerifying ? (
-                <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+              {!isVerifying ? <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
                     <div className="flex items-center gap-1">
@@ -184,9 +184,7 @@ export const AuctionCard = ({
                       </span>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg">
+                </div> : <div className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
                     <div className="flex items-center gap-1">
@@ -196,8 +194,7 @@ export const AuctionCard = ({
                       </span>
                     </div>
                   </div>
-                </div>
-              )}
+                </div>}
             </div>
           </div>}
       </div>
@@ -236,28 +233,21 @@ export const AuctionCard = ({
               <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               {displayTotalBids} lances
             </div>
-            <div className="flex items-center text-muted-foreground">
-              <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              {getDisplayParticipants(displayTotalBids, participants, profile?.is_admin)} pessoas
-            </div>
+            
           </div>
 
-          {displayStatus === 'active' && getActiveHours() !== null && (
-            <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+          {displayStatus === 'active' && getActiveHours() !== null && <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
               <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               Ativo há {getActiveHours()} {getActiveHours() === 1 ? 'hora' : 'horas'}
-            </div>
-          )}
+            </div>}
 
 
           {recentBidders.length > 0 && <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Últimos lances:</p>
               <div className="flex flex-wrap gap-1">
-                {recentBidders.slice(0, 3).map((bidder, index) => (
-                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
+                {recentBidders.slice(0, 3).map((bidder, index) => <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
                     {bidder}
-                  </span>
-                ))}
+                  </span>)}
               </div>
             </div>}
         </div>
