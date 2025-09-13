@@ -56,6 +56,12 @@ export const AuctionCard = ({
   winnerName
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
+  
+  // Estados locais que serão atualizados quando o timer resetar
+  const [localCurrentPrice, setLocalCurrentPrice] = useState(currentPrice);
+  const [localTotalBids, setLocalTotalBids] = useState(totalBids);
+  const [localRecentBidders, setLocalRecentBidders] = useState(recentBidders);
+  const [localWinnerName, setLocalWinnerName] = useState(winnerName);
 
   // Timer 100% controlado pelo backend
   const {
@@ -67,11 +73,89 @@ export const AuctionCard = ({
     auctionId: id
   });
 
-  // Usar apenas dados do backend (sincronizados)
+  // Função para buscar dados atualizados do leilão
+  const fetchUpdatedAuctionData = async () => {
+    try {
+      console.log(`🔄 [${id}] Buscando dados atualizados após reset do timer...`);
+      
+      const { data: auction, error } = await supabase
+        .from('auctions')
+        .select('current_price, total_bids, winner_name')
+        .eq('id', id)
+        .single();
+
+      if (error || !auction) {
+        console.error(`❌ [${id}] Erro ao buscar dados atualizados:`, error);
+        return;
+      }
+
+      // Buscar lances recentes
+      const { data: bids } = await supabase
+        .from('bids')
+        .select('user_id, created_at')
+        .eq('auction_id', id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      let recentBidderNames: string[] = [];
+      if (bids && bids.length > 0) {
+        const userIds = bids.map(bid => bid.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        const userNameMap = new Map();
+        profiles?.forEach(profile => {
+          userNameMap.set(profile.user_id, profile.full_name || 'Usuário');
+        });
+
+        recentBidderNames = bids.map(bid => 
+          userNameMap.get(bid.user_id) || 'Usuário'
+        );
+      }
+
+      // Atualizar estados locais
+      setLocalCurrentPrice(auction.current_price || currentPrice);
+      setLocalTotalBids(auction.total_bids || totalBids);
+      setLocalRecentBidders(recentBidderNames);
+      setLocalWinnerName(auction.winner_name || winnerName);
+
+      console.log(`✅ [${id}] Dados atualizados: preço=${auction.current_price}, lances=${auction.total_bids}`);
+    } catch (error) {
+      console.error(`❌ [${id}] Erro ao atualizar dados:`, error);
+    }
+  };
+
+  // Escutar eventos de reset do timer para atualizar dados
+  useEffect(() => {
+    const handleTimerReset = (event: CustomEvent) => {
+      if (event.detail.auctionId === id) {
+        console.log(`🔥 [${id}] Timer resetado, atualizando dados do leilão...`);
+        fetchUpdatedAuctionData();
+      }
+    };
+
+    window.addEventListener('auction-timer-reset', handleTimerReset as EventListener);
+    
+    return () => {
+      window.removeEventListener('auction-timer-reset', handleTimerReset as EventListener);
+    };
+  }, [id]);
+
+  // Atualizar estados locais quando props mudarem (fallback)
+  useEffect(() => {
+    setLocalCurrentPrice(currentPrice);
+    setLocalTotalBids(totalBids);
+    setLocalRecentBidders(recentBidders);
+    setLocalWinnerName(winnerName);
+  }, [currentPrice, totalBids, recentBidders, winnerName]);
+
+  // Usar dados locais sincronizados
   const displayTimeLeft = isInitialized ? backendTimeLeft : initialTimeLeft;
-  const displayCurrentPrice = currentPrice;
-  const displayTotalBids = totalBids;
-  const displayWinnerName = winnerName;
+  const displayCurrentPrice = localCurrentPrice;
+  const displayTotalBids = localTotalBids;
+  const displayWinnerName = localWinnerName;
   const displayStatus = isInitialized ? backendStatus : auctionStatus;
 
   // Função para formatar preços em reais (agora tudo está em reais)
@@ -175,7 +259,8 @@ export const AuctionCard = ({
       return `${minutes}min`;
     }
   };
-  return <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
+  return (
+    <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
       <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/10 to-muted/30">
         <img src={image} alt={title} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" onError={e => {
         console.warn('❌ Erro ao carregar imagem:', image);
@@ -263,10 +348,10 @@ export const AuctionCard = ({
             </div>}
 
 
-          {recentBidders.length > 0 && <div className="pt-2 border-t border-border">
+          {localRecentBidders.length > 0 && <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Últimos lances:</p>
               <div className="flex flex-wrap gap-1">
-                {recentBidders.slice(0, 3).map((bidder, index) => <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
+                {localRecentBidders.slice(0, 3).map((bidder, index) => <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
                     {bidder}
                   </span>)}
               </div>
@@ -310,5 +395,6 @@ export const AuctionCard = ({
             Você precisa comprar lances para participar!
           </p>}
       </div>
-    </Card>;
+    </Card>
+  );
 };

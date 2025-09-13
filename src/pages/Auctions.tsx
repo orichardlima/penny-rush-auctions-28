@@ -27,8 +27,21 @@ const Auctions = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('👀 Usuário voltou à aba, forçando sincronização...');
-        fetchAuctions();
+        console.log('👀 Usuário voltou à aba, forçando sincronização completa...');
+        
+        // Forçar reconnect do realtime se necessário
+        const channel = supabase.channel('reconnect-test');
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('📡 Realtime reconectado com sucesso');
+            supabase.removeChannel(channel);
+          }
+        });
+        
+        // Fetch atualizado dos leilões
+        setTimeout(() => {
+          fetchAuctions();
+        }, 500);
       }
     };
 

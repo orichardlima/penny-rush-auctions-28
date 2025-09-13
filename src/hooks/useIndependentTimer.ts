@@ -61,7 +61,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     try {
       const { data, error } = await supabase
         .from('auctions')
-        .select('last_bid_at, total_bids, status, time_left')
+        .select('last_bid_at, total_bids, status, time_left, current_price')
         .eq('id', auctionId)
         .single();
 
@@ -94,6 +94,17 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
         setLastBidCount(data.total_bids);
         console.log(`🆕 [${auctionId}] NOVO LANCE! Resetando timer para 15s`);
         
+        // Emitir evento customizado para notificar o AuctionCard
+        const resetEvent = new CustomEvent('auction-timer-reset', {
+          detail: {
+            auctionId,
+            newPrice: data.current_price,
+            newBidCount: data.total_bids,
+            lastBidAt: data.last_bid_at
+          }
+        });
+        window.dispatchEvent(resetEvent);
+        
         // Reset do timer para 15 segundos em caso de novo lance
         startLocalTimer(15);
       }
@@ -101,7 +112,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
     } catch (error) {
       console.error(`❌ [${auctionId}] Erro ao verificar novos lances:`, error);
     }
-  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers]);
+  }, [auctionId, lastBidAt, lastBidCount, startLocalTimer, clearTimers, isVerifying, localTimeLeft]);
 
   // Inicialização do sistema
   const initialize = useCallback(async () => {
@@ -143,6 +154,19 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
       console.error(`❌ [${auctionId}] Erro na inicialização:`, error);
     }
   }, [auctionId, startLocalTimer, checkForNewBids]);
+
+  // Integração com Page Visibility API para forçar sync após inatividade
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isInitialized) {
+        console.log(`👀 [${auctionId}] Usuário voltou à aba, forçando verificação...`);
+        checkForNewBids();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [auctionId, isInitialized, checkForNewBids]);
 
   // Effect de inicialização
   useEffect(() => {
