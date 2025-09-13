@@ -29,6 +29,7 @@ interface AuctionCardProps {
   auctionStatus?: 'waiting' | 'active' | 'finished';
   ends_at?: string;
   starts_at?: string;
+  finished_at?: string;
   winnerId?: string;
   winnerName?: string;
 }
@@ -50,6 +51,7 @@ export const AuctionCard = ({
   auctionStatus = 'active',
   ends_at,
   starts_at,
+  finished_at,
   winnerId,
   winnerName
 }: AuctionCardProps) => {
@@ -147,12 +149,23 @@ export const AuctionCard = ({
     return Math.round(discount);
   };
   const getActiveTime = () => {
-    if (!starts_at || displayStatus !== 'active') return null;
+    if (!starts_at) return null;
+    
     const brazilTimezone = 'America/Sao_Paulo';
     const startsAtInBrazil = toZonedTime(new Date(starts_at), brazilTimezone);
-    const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
     
-    const totalMinutes = Math.floor((nowInBrazil.getTime() - startsAtInBrazil.getTime()) / (1000 * 60));
+    let endTime;
+    if (displayStatus === 'finished' && finished_at) {
+      // For finished auctions, use finished_at
+      endTime = toZonedTime(new Date(finished_at), brazilTimezone);
+    } else if (displayStatus === 'active') {
+      // For active auctions, use current time
+      endTime = toZonedTime(new Date(), brazilTimezone);
+    } else {
+      return null;
+    }
+    
+    const totalMinutes = Math.floor((endTime.getTime() - startsAtInBrazil.getTime()) / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     
@@ -244,9 +257,9 @@ export const AuctionCard = ({
             
           </div>
 
-          {displayStatus === 'active' && getActiveTime() !== null && <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+          {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
               <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              Ativo há {getActiveTime()}
+              {displayStatus === 'active' ? `Ativo há ${getActiveTime()}` : `Duração total: ${getActiveTime()}`}
             </div>}
 
 
