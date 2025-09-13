@@ -22,6 +22,19 @@ const Auctions = () => {
   
   // Sistema de notificações desabilitado para evitar spam
   // useNotifications();
+
+  // Detectar quando usuário volta à aba para forçar sincronização
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('👀 Usuário voltou à aba, forçando sincronização...');
+        fetchAuctions();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
   
   // Sistema de filtros
   const { filters, setFilters, filteredAuctions, totalResults } = useAuctionFilters(auctions);
@@ -308,6 +321,8 @@ const Auctions = () => {
     
     try {
       console.log('🎯 [LANCE] Iniciando transação para leilão:', auctionId);
+      console.log('🌐 [LANCE] Service Worker ativo:', navigator.serviceWorker?.controller ? 'SIM' : 'NÃO');
+      console.log('📶 [LANCE] Status de conectividade:', navigator.onLine ? 'ONLINE' : 'OFFLINE');
 
       // 1. Descontar R$ 1,00 do saldo do usuário
       const newBalance = currentBalance - 1;
@@ -351,6 +366,14 @@ const Auctions = () => {
           .update({ bids_balance: currentBalance })
           .eq('user_id', user.id);
 
+        // Se o erro pode ser relacionado ao Service Worker, forçar reconexão
+        if (bidError.message?.includes('fetch') || bidError.message?.includes('network')) {
+          console.log('🌐 [LANCE] Possível interferência do Service Worker, forçando sincronização...');
+          setTimeout(() => {
+            fetchAuctions();
+          }, 1000);
+        }
+
         toast({
           title: "Erro ao dar lance",
           description: `Erro no banco: ${bidError.message}`,
@@ -368,11 +391,32 @@ const Auctions = () => {
       console.log('🎉 [LANCE] Processo completo com sucesso!');
     } catch (error) {
       console.error('❌ [LANCE] Erro geral:', error);
-      toast({
-        title: "Erro ao dar lance",
-        description: `Erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
-        variant: "destructive"
-      });
+      
+      // Detectar se pode ser interferência do Service Worker
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      const isServiceWorkerIssue = errorMessage.includes('Failed to execute') || 
+                                   errorMessage.includes('Cache') || 
+                                   errorMessage.includes('fetch');
+      
+      if (isServiceWorkerIssue) {
+        console.log('🚨 [LANCE] Possível interferência do Service Worker detectada:', errorMessage);
+        toast({
+          title: "Erro temporário",
+          description: "Problema de conectividade detectado. Tentando reconectar...",
+          variant: "destructive"
+        });
+        
+        // Forçar reconexão após um breve delay
+        setTimeout(() => {
+          fetchAuctions();
+        }, 1000);
+      } else {
+        toast({
+          title: "Erro ao dar lance",
+          description: `Erro inesperado: ${errorMessage}`,
+          variant: "destructive"
+        });
+      }
     } finally {
       // Remover da lista de processamento após 2 segundos para evitar problemas
       setTimeout(() => {

@@ -49,25 +49,44 @@ self.addEventListener('activate', event => {
 
 // Interceptar requisições
 self.addEventListener('fetch', event => {
+  console.log('🌐 SW: Interceptando requisição', event.request.method, event.request.url);
+  
   // Estratégia: Network First para API calls, Cache First para assets estáticos
   if (event.request.url.includes('/api/') || event.request.url.includes('supabase.co')) {
     // Network first para dados dinâmicos
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          // Se a resposta é válida, cache ela
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseClone);
-              });
+          // CRÍTICO: Só cachear requisições GET com sucesso
+          if (response.status === 200 && event.request.method === 'GET') {
+            try {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  cache.put(event.request, responseClone)
+                    .catch(cacheError => {
+                      console.log('⚠️ SW: Erro ao cachear (ignorado):', cacheError.message);
+                    });
+                })
+                .catch(openError => {
+                  console.log('⚠️ SW: Erro ao abrir cache (ignorado):', openError.message);
+                });
+            } catch (cloneError) {
+              console.log('⚠️ SW: Erro ao clonar resposta (ignorado):', cloneError.message);
+            }
+          } else if (event.request.method !== 'GET') {
+            console.log('📝 SW: Requisição', event.request.method, 'não cacheada (método não GET)');
           }
           return response;
         })
-        .catch(() => {
-          // Se a rede falha, tenta o cache
-          return caches.match(event.request);
+        .catch(networkError => {
+          console.log('❌ SW: Erro de rede para', event.request.url, networkError.message);
+          // Se a rede falha, tenta o cache (apenas para GET)
+          if (event.request.method === 'GET') {
+            return caches.match(event.request);
+          }
+          // Para métodos não GET, falha imediatamente
+          throw networkError;
         })
     );
   } else {
@@ -76,8 +95,10 @@ self.addEventListener('fetch', event => {
       caches.match(event.request)
         .then(response => {
           if (response) {
+            console.log('📦 SW: Servindo do cache:', event.request.url);
             return response;
           }
+          console.log('🌐 SW: Buscando na rede:', event.request.url);
           return fetch(event.request);
         })
     );
