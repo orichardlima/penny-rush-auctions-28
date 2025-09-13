@@ -297,11 +297,6 @@ const Auctions = () => {
       await refreshProfile();
       
       console.log('🎉 [LANCE] Processo completo com sucesso!');
-      toast({
-        title: "Lance realizado!",
-        description: "Seu lance foi registrado com sucesso. Boa sorte!",
-        variant: "default"
-      });
     } catch (error) {
       console.error('❌ [LANCE] Erro geral:', error);
       toast({
