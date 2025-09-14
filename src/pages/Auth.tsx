@@ -309,7 +309,7 @@ const Auth = () => {
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            LeilãoCentavos
+            Show de Lances
           </CardTitle>
           <p className="text-muted-foreground">
             Entre ou cadastre-se para participar dos leilões

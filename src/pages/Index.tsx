@@ -483,7 +483,7 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-semibold mb-4">LeilãoCentavos</h3>
+              <h3 className="text-lg font-semibold mb-4">Show de Lances</h3>
               <p className="text-sm opacity-90">
                 A plataforma mais emocionante de leilões do Brasil. 
                 Ganhe produtos incríveis por centavos!
@@ -518,7 +518,7 @@ const Index = () => {
             </div>
           </div>
           <div className="border-t border-primary-foreground/20 mt-8 pt-8 text-center text-sm opacity-75">
-            © 2024 LeilãoCentavos. Todos os direitos reservados.
+            © 2024 Show de Lances. Todos os direitos reservados.
           </div>
         </div>
       </footer>

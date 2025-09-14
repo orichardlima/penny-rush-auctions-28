@@ -46,7 +46,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
       case '/dashboard':
         return { title: 'Dashboard', icon: Settings };
       default:
-        return { title: 'LeilãoCentavos', icon: Gavel };
+        return { title: 'Show de Lances', icon: Gavel };
     }
   };
 
@@ -75,7 +75,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
               </div>
               <div className="hidden xs:block">
                 <h1 className="text-lg sm:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                  LeilãoCentavos
+                  Show de Lances
                 </h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">Leilões que valem ouro!</p>
               </div>

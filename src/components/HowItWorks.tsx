@@ -81,7 +81,7 @@ export const HowItWorks = () => {
 
         {/* Tips */}
         <div className="bg-muted/50 rounded-lg p-8">
-          <h3 className="text-xl font-semibold text-center mb-6">Por que escolher o LeilãoCentavos?</h3>
+          <h3 className="text-xl font-semibold text-center mb-6">Por que escolher o Show de Lances?</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {tips.map((tip, index) => (
               <div key={index} className="flex items-start space-x-3">
