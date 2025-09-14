@@ -860,7 +860,7 @@ const AdminDashboard = () => {
 
               {/* View completa do leilão selecionado */}
               <div className="lg:col-span-3">
-                {selectedAuctionForDetails ? (
+                {selectedAuctionForDetails && auctions.find(a => a.id === selectedAuctionForDetails) ? (
                   <AuctionDetailView
                     auction={auctions.find(a => a.id === selectedAuctionForDetails)!}
                     financialData={auctionDetails?.find(d => d.auction_id === selectedAuctionForDetails)}
