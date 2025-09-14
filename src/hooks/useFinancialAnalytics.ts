@@ -4,9 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 export interface FinancialFilters {
   startDate: Date | null;
   endDate: Date | null;
-  realDataOnly: boolean;
+  realOnly: boolean;
   revenueType: 'all' | 'auctions' | 'packages';
-  period: 'custom' | 'today' | '7days' | '30days' | '90days' | 'year';
+  period: 'custom' | 'today' | '7d' | '30d' | '90d' | 'year';
 }
 
 interface FinancialSummary {
@@ -59,22 +59,17 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchFinancialSummary = async (currentFilters?: FinancialFilters) => {
+  const fetchFinancialSummary = async () => {
     try {
-      const appliedFilters = currentFilters || filters;
-      let data, error;
+      const startDate = filters?.startDate ? filters.startDate.toISOString().split('T')[0] : null;
+      const endDate = filters?.endDate ? filters.endDate.toISOString().split('T')[0] : null;
+      const realOnly = filters?.realOnly || false;
 
-      if (appliedFilters?.startDate || appliedFilters?.endDate || appliedFilters?.realDataOnly) {
-        // Use filtered function
-        ({ data, error } = await supabase.rpc('get_financial_summary_filtered', {
-          start_date: appliedFilters.startDate ? appliedFilters.startDate.toISOString().split('T')[0] : null,
-          end_date: appliedFilters.endDate ? appliedFilters.endDate.toISOString().split('T')[0] : null,
-          real_only: appliedFilters.realDataOnly || false
-        }));
-      } else {
-        // Use original function
-        ({ data, error } = await supabase.rpc('get_financial_summary'));
-      }
+      const { data, error } = await supabase.rpc('get_financial_summary_filtered', {
+        start_date: startDate,
+        end_date: endDate,
+        real_only: realOnly
+      });
       
       if (error) throw error;
       
@@ -123,22 +118,17 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     }
   };
 
-  const fetchRevenueTrends = async (currentFilters?: FinancialFilters) => {
+  const fetchRevenueTrends = async () => {
     try {
-      const appliedFilters = currentFilters || filters;
-      let data, error;
+      const startDate = filters?.startDate ? filters.startDate.toISOString().split('T')[0] : null;
+      const endDate = filters?.endDate ? filters.endDate.toISOString().split('T')[0] : null;
+      const realOnly = filters?.realOnly || false;
 
-      if (appliedFilters?.startDate || appliedFilters?.endDate || appliedFilters?.realDataOnly) {
-        // Use filtered function
-        ({ data, error } = await supabase.rpc('get_revenue_trends_filtered', {
-          start_date: appliedFilters.startDate ? appliedFilters.startDate.toISOString().split('T')[0] : null,
-          end_date: appliedFilters.endDate ? appliedFilters.endDate.toISOString().split('T')[0] : null,
-          real_only: appliedFilters.realDataOnly || false
-        }));
-      } else {
-        // Use original function
-        ({ data, error } = await supabase.rpc('get_revenue_trends'));
-      }
+      const { data, error } = await supabase.rpc('get_revenue_trends_filtered', {
+        start_date: startDate,
+        end_date: endDate,
+        real_only: realOnly
+      });
       
       if (error) throw error;
       
@@ -151,7 +141,7 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     }
   };
 
-  const refreshData = async (currentFilters?: FinancialFilters) => {
+  const refreshData = async () => {
     // Evitar múltiplas chamadas simultâneas
     if (isRefreshing) {
       console.log('[useFinancialAnalytics] Refresh já em andamento, ignorando');
@@ -164,9 +154,9 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     
     try {
       await Promise.all([
-        fetchFinancialSummary(currentFilters),
+        fetchFinancialSummary(),
         fetchAuctionDetails(),
-        fetchRevenueTrends(currentFilters)
+        fetchRevenueTrends()
       ]);
     } catch (err) {
       console.error('Error refreshing financial data:', err);

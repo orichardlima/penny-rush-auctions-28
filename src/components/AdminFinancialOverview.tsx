@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
@@ -7,8 +7,8 @@ import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
 import { TopPerformingAuctions } from '@/components/AdminFinancial/TopPerformingAuctions';
 import { UserSpendingAnalytics } from '@/components/AdminFinancial/UserSpendingAnalytics';
 import { ConversionFunnelChart } from '@/components/AdminFinancial/ConversionFunnelChart';
-import { useFinancialAnalytics, FinancialFilters } from '@/hooks/useFinancialAnalytics';
 import { FinancialFiltersComponent } from '@/components/FinancialAnalytics/FinancialFilters';
+import { useFinancialAnalytics, FinancialFilters } from '@/hooks/useFinancialAnalytics';
 import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart } from 'lucide-react';
 
 interface AdminFinancialOverviewProps {
@@ -20,12 +20,12 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
   auctions,
   users
 }) => {
-  const [filters, setFilters] = React.useState<FinancialFilters>({
+  const [filters, setFilters] = useState<FinancialFilters>({
     startDate: null,
     endDate: null,
-    realDataOnly: false,
+    realOnly: false,
     revenueType: 'all',
-    period: '30days'
+    period: '30d'
   });
 
   const { summary, revenueTrends, loading, error } = useFinancialAnalytics(filters);
@@ -72,18 +72,17 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
       <FinancialFiltersComponent
         filters={filters}
         onFiltersChange={setFilters}
-        loading={loading}
       />
 
       {/* Executive Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-success">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-success">
               R$ {summary?.total_revenue?.toFixed(2) || '0.00'}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -92,13 +91,13 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-primary">
               {summary?.conversion_rate?.toFixed(1) || '0.0'}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -107,13 +106,13 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-accent">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Usuários Pagantes</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+            <div className="text-2xl font-bold text-accent">
               {summary?.paying_users || 0}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -122,13 +121,13 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500">
+        <Card className="border-l-4 border-l-warning">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Média/Leilão</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-2xl font-bold text-warning">
               R$ {summary?.average_auction_revenue?.toFixed(2) || '0.00'}
             </div>
             <p className="text-xs text-muted-foreground">
