@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface FinancialFilters {
+  startDate: Date | null;
+  endDate: Date | null;
+  realDataOnly: boolean;
+  revenueType: 'all' | 'auctions' | 'packages';
+  period: 'custom' | 'today' | '7days' | '30days' | '90days' | 'year';
+}
+
 interface FinancialSummary {
   total_revenue: number;
   auction_revenue: number;
@@ -43,7 +51,7 @@ interface RevenueData {
   bids_count: number;
 }
 
-export const useFinancialAnalytics = () => {
+export const useFinancialAnalytics = (filters?: FinancialFilters) => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [auctionDetails, setAuctionDetails] = useState<AuctionFinancialData[]>([]);
   const [revenueTrends, setRevenueTrends] = useState<RevenueData[]>([]);
@@ -51,9 +59,22 @@ export const useFinancialAnalytics = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchFinancialSummary = async () => {
+  const fetchFinancialSummary = async (currentFilters?: FinancialFilters) => {
     try {
-      const { data, error } = await supabase.rpc('get_financial_summary');
+      const appliedFilters = currentFilters || filters;
+      let data, error;
+
+      if (appliedFilters?.startDate || appliedFilters?.endDate || appliedFilters?.realDataOnly) {
+        // Use filtered function
+        ({ data, error } = await supabase.rpc('get_financial_summary_filtered', {
+          start_date: appliedFilters.startDate ? appliedFilters.startDate.toISOString().split('T')[0] : null,
+          end_date: appliedFilters.endDate ? appliedFilters.endDate.toISOString().split('T')[0] : null,
+          real_only: appliedFilters.realDataOnly || false
+        }));
+      } else {
+        // Use original function
+        ({ data, error } = await supabase.rpc('get_financial_summary'));
+      }
       
       if (error) throw error;
       
@@ -102,9 +123,22 @@ export const useFinancialAnalytics = () => {
     }
   };
 
-  const fetchRevenueTrends = async () => {
+  const fetchRevenueTrends = async (currentFilters?: FinancialFilters) => {
     try {
-      const { data, error } = await supabase.rpc('get_revenue_trends');
+      const appliedFilters = currentFilters || filters;
+      let data, error;
+
+      if (appliedFilters?.startDate || appliedFilters?.endDate || appliedFilters?.realDataOnly) {
+        // Use filtered function
+        ({ data, error } = await supabase.rpc('get_revenue_trends_filtered', {
+          start_date: appliedFilters.startDate ? appliedFilters.startDate.toISOString().split('T')[0] : null,
+          end_date: appliedFilters.endDate ? appliedFilters.endDate.toISOString().split('T')[0] : null,
+          real_only: appliedFilters.realDataOnly || false
+        }));
+      } else {
+        // Use original function
+        ({ data, error } = await supabase.rpc('get_revenue_trends'));
+      }
       
       if (error) throw error;
       
@@ -117,7 +151,7 @@ export const useFinancialAnalytics = () => {
     }
   };
 
-  const refreshData = async () => {
+  const refreshData = async (currentFilters?: FinancialFilters) => {
     // Evitar múltiplas chamadas simultâneas
     if (isRefreshing) {
       console.log('[useFinancialAnalytics] Refresh já em andamento, ignorando');
@@ -130,9 +164,9 @@ export const useFinancialAnalytics = () => {
     
     try {
       await Promise.all([
-        fetchFinancialSummary(),
+        fetchFinancialSummary(currentFilters),
         fetchAuctionDetails(),
-        fetchRevenueTrends()
+        fetchRevenueTrends(currentFilters)
       ]);
     } catch (err) {
       console.error('Error refreshing financial data:', err);
@@ -145,7 +179,7 @@ export const useFinancialAnalytics = () => {
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [filters]);
 
   // Realtime auto-refresh with debounce
   const refreshTimerRef = useRef<number | null>(null);

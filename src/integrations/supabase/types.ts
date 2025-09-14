@@ -622,6 +622,24 @@ export type Database = {
           user_bids: number
         }[]
       }
+      get_financial_summary_filtered: {
+        Args: { end_date?: string; real_only?: boolean; start_date?: string }
+        Returns: {
+          active_auctions: number
+          auction_revenue: number
+          average_auction_revenue: number
+          bot_bids: number
+          conversion_rate: number
+          finished_auctions: number
+          package_revenue: number
+          paying_users: number
+          total_auctions: number
+          total_bids: number
+          total_revenue: number
+          total_users: number
+          user_bids: number
+        }[]
+      }
       get_hourly_activity: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -638,6 +656,16 @@ export type Database = {
       }
       get_revenue_trends: {
         Args: Record<PropertyKey, never>
+        Returns: {
+          auction_revenue: number
+          bids_count: number
+          date_period: string
+          package_revenue: number
+          total_revenue: number
+        }[]
+      }
+      get_revenue_trends_filtered: {
+        Args: { end_date?: string; real_only?: boolean; start_date?: string }
         Returns: {
           auction_revenue: number
           bids_count: number

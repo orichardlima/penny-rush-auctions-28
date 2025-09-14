@@ -7,7 +7,8 @@ import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
 import { TopPerformingAuctions } from '@/components/AdminFinancial/TopPerformingAuctions';
 import { UserSpendingAnalytics } from '@/components/AdminFinancial/UserSpendingAnalytics';
 import { ConversionFunnelChart } from '@/components/AdminFinancial/ConversionFunnelChart';
-import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
+import { useFinancialAnalytics, FinancialFilters } from '@/hooks/useFinancialAnalytics';
+import { FinancialFiltersComponent } from '@/components/FinancialAnalytics/FinancialFilters';
 import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart } from 'lucide-react';
 
 interface AdminFinancialOverviewProps {
@@ -19,7 +20,15 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
   auctions,
   users
 }) => {
-  const { summary, revenueTrends, loading, error } = useFinancialAnalytics();
+  const [filters, setFilters] = React.useState<FinancialFilters>({
+    startDate: null,
+    endDate: null,
+    realDataOnly: false,
+    revenueType: 'all',
+    period: '30days'
+  });
+
+  const { summary, revenueTrends, loading, error } = useFinancialAnalytics(filters);
 
   if (loading) {
     return (
@@ -59,6 +68,13 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Financial Filters */}
+      <FinancialFiltersComponent
+        filters={filters}
+        onFiltersChange={setFilters}
+        loading={loading}
+      />
+
       {/* Executive Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-green-500">
