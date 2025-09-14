@@ -66,8 +66,8 @@ const Auctions = () => {
           ? `${profile.city}, ${profile.state}`
           : '';
         return region 
-          ? `${profile.full_name} - ${region}`
-          : profile.full_name;
+          ? `${formatUserNameForDisplay(profile.full_name)} - ${region}`
+          : formatUserNameForDisplay(profile.full_name);
       }
       return null;
     } catch (error) {

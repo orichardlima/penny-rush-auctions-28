@@ -38,7 +38,7 @@ const Index = () => {
       } = await supabase.from('profiles').select('full_name, city, state').eq('user_id', winnerId).single();
       if (profile && profile.full_name) {
         const region = profile.city && profile.state ? `${profile.city}, ${profile.state}` : '';
-        return region ? `${profile.full_name} - ${region}` : profile.full_name;
+        return region ? `${formatUserNameForDisplay(profile.full_name)} - ${region}` : formatUserNameForDisplay(profile.full_name);
       }
       return null;
     } catch (error) {

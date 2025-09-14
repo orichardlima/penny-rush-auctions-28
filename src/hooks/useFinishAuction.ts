@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatUserNameForDisplay } from '@/lib/utils';
 
 export const useFinishAuction = () => {
   const [isFinishing, setIsFinishing] = useState(false);
@@ -46,8 +47,8 @@ export const useFinishAuction = () => {
 
       // 3. Formatar nome do vencedor com região
       const winnerName = profile.city && profile.state 
-        ? `${profile.full_name} - ${profile.city}, ${profile.state}`
-        : profile.full_name;
+        ? `${formatUserNameForDisplay(profile.full_name)} - ${profile.city}, ${profile.state}`
+        : formatUserNameForDisplay(profile.full_name);
 
       // 4. Finalizar o leilão
       const { error: updateError } = await supabase
