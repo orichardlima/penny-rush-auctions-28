@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
 import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
 import { useAuth } from "@/contexts/AuthContext";
-import { getDisplayParticipants } from "@/lib/utils";
+import { getDisplayParticipants, formatUserNameForDisplay } from "@/lib/utils";
 const Index = () => {
   const [auctions, setAuctions] = useState<any[]>([]);
   const [bidding, setBidding] = useState<Set<string>>(new Set());
@@ -121,7 +121,7 @@ const Index = () => {
       // Criar um mapa de user_id para nome
       const userNameMap = new Map();
       profiles?.forEach(profile => {
-        userNameMap.set(profile.user_id, profile.full_name || 'Usuário');
+        userNameMap.set(profile.user_id, formatUserNameForDisplay(profile.full_name || ''));
       });
 
       // Retornar os nomes dos lances recentes

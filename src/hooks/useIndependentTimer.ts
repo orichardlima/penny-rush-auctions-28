@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { formatUserNameForDisplay } from '@/lib/utils';
 
 interface UseBackendTimerProps {
   auctionId: string;
@@ -121,7 +122,7 @@ export const useBackendTimer = ({ auctionId }: UseBackendTimerProps) => {
 
         const userNameMap = new Map();
         profiles?.forEach(profile => {
-          userNameMap.set(profile.user_id, profile.full_name || 'Usuário');
+          userNameMap.set(profile.user_id, formatUserNameForDisplay(profile.full_name || ''));
         });
 
         recentBidderNames = bids.map(bid => 
