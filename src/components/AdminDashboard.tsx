@@ -156,7 +156,7 @@ const AdminDashboard = () => {
     title: '',
     description: '',
     image_url: '',
-    starting_price: 1.00, // Agora em reais
+    starting_price: 0.01, // Valor padrão em centavos
     market_value: 0.00,   // Agora em reais
     revenue_target: 0.00, // Agora em reais
     starts_at: getInitialStartTime(),
@@ -413,7 +413,7 @@ const AdminDashboard = () => {
         title: '',
         description: '',
         image_url: '',
-        starting_price: 1.00,
+        starting_price: 0.01,
         market_value: 0.00,
         revenue_target: 0.00,
         starts_at: getInitialStartTime(),
@@ -948,7 +948,7 @@ const AdminDashboard = () => {
                           min="0.01"
                           value={newAuction.starting_price}
                           onChange={(e) => setNewAuction({ ...newAuction, starting_price: Number(e.target.value) })}
-                          placeholder="1.00"
+                          placeholder="0.01"
                         />
                       </div>
                       <div className="space-y-2">
