@@ -263,10 +263,27 @@ export const AuctionCard = ({
             
           </div>
 
-          {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-              <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              {displayStatus === 'active' ? `Ativo há ${getActiveTime()}` : `Duração total: ${getActiveTime()}`}
-            </div>}
+          {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
+            displayStatus === 'active' ? (
+              <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                Ativo há {getActiveTime()}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                  Duração total: {getActiveTime()}
+                </div>
+                {finished_at && (
+                  <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                    Encerrado às {formatDateTime(finished_at)}
+                  </div>
+                )}
+              </div>
+            )
+          )}
 
 
           {displayRecentBidders.length > 0 && <div className="pt-2 border-t border-border">
