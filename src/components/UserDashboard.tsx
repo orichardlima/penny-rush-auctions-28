@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePurchaseProcessor } from '@/hooks/usePurchaseProcessor';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   User, 
   CreditCard, 
@@ -59,6 +60,7 @@ const UserDashboard = () => {
   const { profile, signOut } = useAuth();
   const { toast } = useToast();
   const { processPurchase, processing } = usePurchaseProcessor();
+  const isMobile = useIsMobile();
   const [bids, setBids] = useState<Bid[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,16 +219,19 @@ const UserDashboard = () => {
 
         {/* Tabs do Dashboard */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-9">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="orders">Pedidos</TabsTrigger>
-            <TabsTrigger value="bids">Lances</TabsTrigger>
-            <TabsTrigger value="auctions">Leilões</TabsTrigger>
-            <TabsTrigger value="financial">Financeiro</TabsTrigger>
-            <TabsTrigger value="packages">Pacotes</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="notifications">Notificações</TabsTrigger>
-            <TabsTrigger value="profile">Perfil</TabsTrigger>
+          <TabsList className={isMobile 
+            ? "flex w-full overflow-x-auto overflow-y-hidden scrollbar-hide" 
+            : "grid w-full grid-cols-9"
+          }>
+            <TabsTrigger value="overview" className={isMobile ? "flex-shrink-0" : ""}>Visão Geral</TabsTrigger>
+            <TabsTrigger value="orders" className={isMobile ? "flex-shrink-0" : ""}>Pedidos</TabsTrigger>
+            <TabsTrigger value="bids" className={isMobile ? "flex-shrink-0" : ""}>Lances</TabsTrigger>
+            <TabsTrigger value="auctions" className={isMobile ? "flex-shrink-0" : ""}>Leilões</TabsTrigger>
+            <TabsTrigger value="financial" className={isMobile ? "flex-shrink-0" : ""}>Financeiro</TabsTrigger>
+            <TabsTrigger value="packages" className={isMobile ? "flex-shrink-0" : ""}>Pacotes</TabsTrigger>
+            <TabsTrigger value="analytics" className={isMobile ? "flex-shrink-0" : ""}>Analytics</TabsTrigger>
+            <TabsTrigger value="notifications" className={isMobile ? "flex-shrink-0" : ""}>Notificações</TabsTrigger>
+            <TabsTrigger value="profile" className={isMobile ? "flex-shrink-0" : ""}>Perfil</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
