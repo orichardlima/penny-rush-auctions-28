@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock } from 'lucide-react';
 
 interface AdminUserActionsProps {
   user: {
@@ -24,8 +24,11 @@ interface AdminUserActionsProps {
 export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUserUpdated }) => {
   const [isBalanceDialogOpen, setIsBalanceDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
   const [newBalance, setNewBalance] = useState(user.bids_balance.toString());
   const [blockReason, setBlockReason] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const logAdminAction = async (actionType: string, oldValues: any = null, newValues: any = null, description: string) => {
@@ -211,6 +214,66 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     }
   };
 
+  const changeUserPassword = async () => {
+    // Validation
+    if (!newPassword || newPassword.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter no mínimo 6 caracteres",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Erro",
+        description: "As senhas não coincidem",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Call edge function to update password
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('admin-update-user-password', {
+        body: {
+          userId: user.user_id,
+          newPassword: newPassword
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao alterar senha');
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Senha alterada com sucesso"
+      });
+
+      setIsChangePasswordDialogOpen(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      onUserUpdated();
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao alterar senha do usuário",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex gap-2">
       {/* Edit Balance */}
@@ -305,10 +368,65 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         </DialogContent>
       </Dialog>
 
-      {/* Reset Password */}
+      {/* Change Password Directly */}
+      <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" title="Alterar senha diretamente">
+            <Lock className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Senha do Usuário</DialogTitle>
+            <DialogDescription>
+              Usuário: {user.full_name} ({user.email})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-password">Nova Senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                minLength={6}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirmar Senha</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Digite a senha novamente"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              ⚠️ A senha será alterada imediatamente e o usuário poderá fazer login com a nova senha.
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => {
+                setIsChangePasswordDialogOpen(false);
+                setNewPassword('');
+                setConfirmPassword('');
+              }}>
+                Cancelar
+              </Button>
+              <Button onClick={changeUserPassword} disabled={loading}>
+                {loading ? 'Alterando...' : 'Alterar Senha'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password via Email */}
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" title="Enviar email de recuperação">
             <KeyRound className="h-4 w-4" />
           </Button>
         </AlertDialogTrigger>
