@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound } from 'lucide-react';
 
 interface AdminUserActionsProps {
   user: {
@@ -177,6 +177,40 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     }
   };
 
+  const resetUserPassword = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      await logAdminAction(
+        'password_reset_requested',
+        null,
+        { email: user.email },
+        `Solicitação de reset de senha enviada para ${user.email}`
+      );
+
+      toast({
+        title: "Sucesso",
+        description: `Email de recuperação enviado para ${user.email}`
+      });
+
+      onUserUpdated();
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao enviar email de recuperação",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex gap-2">
       {/* Edit Balance */}
@@ -270,6 +304,30 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reset Password */}
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <KeyRound className="h-4 w-4" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resetar Senha do Usuário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enviar email de recuperação de senha para <strong>{user.email}</strong>?
+              O usuário receberá um link para redefinir a senha que expira em 24 horas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={resetUserPassword}>
+              Enviar Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete User */}
       <AlertDialog>
