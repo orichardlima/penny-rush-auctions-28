@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { getReferralCode } from '@/hooks/useReferralTracking';
 
 interface PurchaseResult {
   success: boolean;
@@ -47,13 +48,17 @@ export const usePurchaseProcessor = () => {
         throw new Error('Dados do pacote não conferem. Recarregue a página e tente novamente.');
       }
 
-      // 2. Criar pagamento via Mercado Pago
+      // 2. Capturar código de referral se existir
+      const referralCode = getReferralCode();
+
+      // 3. Criar pagamento via Mercado Pago
       const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('mercado-pago-payment', {
         body: {
           packageId,
           userId: profile.user_id,
           userEmail: profile.email,
-          userName: profile.full_name
+          userName: profile.full_name,
+          referralCode: referralCode || undefined
         }
       });
 

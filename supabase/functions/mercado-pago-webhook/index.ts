@@ -111,6 +111,48 @@ serve(async (req) => {
       }
 
       console.log('✅ Purchase completed successfully')
+
+      // Aprovar comissões de afiliado relacionadas a esta compra
+      const { data: commissions } = await supabase
+        .from('affiliate_commissions')
+        .select('id, affiliate_id')
+        .eq('purchase_id', purchase.id)
+        .eq('status', 'pending')
+
+      if (commissions && commissions.length > 0) {
+        await supabase
+          .from('affiliate_commissions')
+          .update({ 
+            status: 'approved',
+            approved_at: new Date().toISOString()
+          })
+          .eq('purchase_id', purchase.id)
+          .eq('status', 'pending')
+
+        // Incrementar conversões do afiliado
+        for (const comm of commissions) {
+          await supabase.rpc('sql', {
+            query: `UPDATE affiliates SET total_conversions = total_conversions + 1 WHERE id = '${comm.affiliate_id}'`
+          }).catch(() => {
+            // Fallback: fazer update simples
+            supabase
+              .from('affiliates')
+              .select('total_conversions')
+              .eq('id', comm.affiliate_id)
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  supabase
+                    .from('affiliates')
+                    .update({ total_conversions: (data.total_conversions || 0) + 1 })
+                    .eq('id', comm.affiliate_id)
+                }
+              })
+          })
+        }
+
+        console.log('✅ Affiliate commissions approved')
+      }
       
     } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
       console.log('❌ Payment cancelled/rejected, updating status')
@@ -119,6 +161,15 @@ serve(async (req) => {
         .from('bid_purchases')
         .update({ payment_status: 'failed' })
         .eq('id', purchase.id)
+
+      // Cancelar comissões de afiliado
+      await supabase
+        .from('affiliate_commissions')
+        .update({ status: 'cancelled' })
+        .eq('purchase_id', purchase.id)
+        .in('status', ['pending', 'approved'])
+
+      console.log('✅ Purchase marked as failed and commissions cancelled')
     }
 
     return new Response('OK', { status: 200, headers: corsHeaders })
