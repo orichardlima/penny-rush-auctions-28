@@ -11,6 +11,7 @@ interface PaymentRequest {
   userId: string
   userEmail: string
   userName: string
+  referralCode?: string
 }
 
 serve(async (req) => {
@@ -40,9 +41,9 @@ serve(async (req) => {
     console.log('✅ Environment variables OK')
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { packageId, userId, userEmail, userName }: PaymentRequest = await req.json()
+    const { packageId, userId, userEmail, userName, referralCode }: PaymentRequest = await req.json()
 
-    console.log('📦 Request data:', { packageId, userId, userEmail, userName })
+    console.log('📦 Request data:', { packageId, userId, userEmail, userName, referralCode })
 
     // 1. Buscar dados do pacote
     const { data: packageData, error: packageError } = await supabase
@@ -164,6 +165,34 @@ serve(async (req) => {
     }
 
     console.log('✅ Payment response ready:', response)
+
+    // 5. Se tem código de referral, criar comissão
+    if (referralCode) {
+      console.log('🤝 Processing affiliate referral:', referralCode)
+      
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id, commission_rate')
+        .eq('affiliate_code', referralCode)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      if (affiliate) {
+        const commissionAmount = (packageData.price * affiliate.commission_rate) / 100
+        
+        await supabase.from('affiliate_commissions').insert({
+          affiliate_id: affiliate.id,
+          purchase_id: purchaseData.id,
+          referred_user_id: userId,
+          purchase_amount: packageData.price,
+          commission_rate: affiliate.commission_rate,
+          commission_amount: commissionAmount,
+          status: 'pending'
+        })
+
+        console.log('✅ Affiliate commission created:', commissionAmount)
+      }
+    }
 
     return new Response(
       JSON.stringify(response),

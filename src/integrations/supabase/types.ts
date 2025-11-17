@@ -53,6 +53,205 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_commissions: {
+        Row: {
+          affiliate_id: string
+          approved_at: string | null
+          commission_amount: number
+          commission_rate: number
+          created_at: string
+          id: string
+          paid_at: string | null
+          purchase_amount: number
+          purchase_id: string
+          referred_user_id: string
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          approved_at?: string | null
+          commission_amount: number
+          commission_rate: number
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          purchase_amount: number
+          purchase_id: string
+          referred_user_id: string
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          approved_at?: string | null
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          purchase_amount?: number
+          purchase_id?: string
+          referred_user_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "bid_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_referrals: {
+        Row: {
+          affiliate_id: string
+          click_source: string | null
+          converted: boolean
+          created_at: string
+          id: string
+          ip_address: string | null
+          referred_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          affiliate_id: string
+          click_source?: string | null
+          converted?: boolean
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          referred_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          affiliate_id?: string
+          click_source?: string | null
+          converted?: boolean
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          referred_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_referrals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_withdrawals: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          created_at: string
+          id: string
+          payment_details: Json
+          payment_method: string
+          processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          payment_details: Json
+          payment_method?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_details?: Json
+          payment_method?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_withdrawals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          affiliate_code: string
+          approved_at: string | null
+          approved_by: string | null
+          bank_details: Json | null
+          commission_balance: number
+          commission_rate: number
+          created_at: string
+          id: string
+          pix_key: string | null
+          status: string
+          total_commission_earned: number
+          total_commission_paid: number
+          total_conversions: number
+          total_referrals: number
+          user_id: string
+        }
+        Insert: {
+          affiliate_code: string
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_details?: Json | null
+          commission_balance?: number
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          pix_key?: string | null
+          status?: string
+          total_commission_earned?: number
+          total_commission_paid?: number
+          total_conversions?: number
+          total_referrals?: number
+          user_id: string
+        }
+        Update: {
+          affiliate_code?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_details?: Json | null
+          commission_balance?: number
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          pix_key?: string | null
+          status?: string
+          total_commission_earned?: number
+          total_commission_paid?: number
+          total_conversions?: number
+          total_referrals?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       auctions: {
         Row: {
           bid_cost: number | null
