@@ -530,14 +530,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      current_server_time: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      decrement_auction_timers: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      current_server_time: { Args: never; Returns: string }
+      decrement_auction_timers: { Args: never; Returns: undefined }
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
@@ -584,16 +578,10 @@ export type Database = {
           user_name: string
         }[]
       }
-      get_auction_revenue: {
-        Args: { auction_uuid: string }
-        Returns: number
-      }
-      get_auction_time_left: {
-        Args: { auction_uuid: string }
-        Returns: number
-      }
+      get_auction_revenue: { Args: { auction_uuid: string }; Returns: number }
+      get_auction_time_left: { Args: { auction_uuid: string }; Returns: number }
       get_conversion_funnel: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           bid_conversion_rate: number
           purchase_conversion_rate: number
@@ -605,7 +593,7 @@ export type Database = {
         }[]
       }
       get_financial_summary: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_auctions: number
           auction_revenue: number
@@ -641,7 +629,7 @@ export type Database = {
         }[]
       }
       get_hourly_activity: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           bid_count: number
           day_of_week: number
@@ -650,12 +638,9 @@ export type Database = {
           user_count: number
         }[]
       }
-      get_random_bot: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_random_bot: { Args: never; Returns: string }
       get_revenue_trends: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           auction_revenue: number
           bids_count: number
@@ -709,10 +694,7 @@ export type Database = {
           updated_at: string
         }[]
       }
-      is_admin_user: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
+      is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
       log_admin_action: {
         Args: {
           p_action_type: string
