@@ -99,6 +99,9 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
             <Link to="/como-funciona" className="text-foreground hover:text-primary transition-colors">
               Como Funciona
             </Link>
+            <Link to="/afiliado" className="text-foreground hover:text-primary transition-colors">
+              Afiliados
+            </Link>
             <Link to="/vencedores" className="text-foreground hover:text-primary transition-colors">
               Vencedores
             </Link>
@@ -256,13 +259,17 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <Gavel className="w-5 h-5" />
                         <span>Leilões Ativos</span>
                       </Link>
-                      <Link to="/vencedores" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/vencedores' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
-                        <Trophy className="w-5 h-5" />
-                        <span>Vencedores</span>
-                      </Link>
                       <Link to="/como-funciona" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/como-funciona' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
                         <HelpCircle className="w-5 h-5" />
                         <span>Como Funciona</span>
+                      </Link>
+                      <Link to="/afiliado" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/afiliado' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
+                        <User className="w-5 h-5" />
+                        <span>Afiliados</span>
+                      </Link>
+                      <Link to="/vencedores" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/vencedores' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
+                        <Trophy className="w-5 h-5" />
+                        <span>Vencedores</span>
                       </Link>
                     </div>
                   </div>
