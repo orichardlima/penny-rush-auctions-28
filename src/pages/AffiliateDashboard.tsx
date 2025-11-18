@@ -6,9 +6,16 @@ import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { PeriodFilter, PeriodType } from '@/components/Affiliate/PeriodFilter';
+import { AdvancedMetrics } from '@/components/Affiliate/AdvancedMetrics';
+import { AffiliateLevels } from '@/components/Affiliate/AffiliateLevels';
+import { PerformanceChart } from '@/components/Affiliate/PerformanceChart';
+import { ConversionPieChart } from '@/components/Affiliate/ConversionPieChart';
+import { QRCodeModal } from '@/components/Affiliate/QRCodeModal';
 
 interface AffiliateData {
   id: string;
@@ -28,6 +35,7 @@ export default function AffiliateDashboard() {
   const { toast } = useToast();
   const [affiliateData, setAffiliateData] = useState<AffiliateData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodType>('30d');
 
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -289,146 +297,319 @@ export default function AffiliateDashboard() {
     ? ((affiliateData.total_conversions / affiliateData.total_referrals) * 100).toFixed(1)
     : '0.0';
 
+  const affiliateLink = `${window.location.origin}/?ref=${affiliateData.affiliate_code}`;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-12">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Dashboard de Afiliado</h1>
-          <p className="text-muted-foreground">
-            Acompanhe suas estatísticas e ganhos como afiliado
-          </p>
+      <div className="container mx-auto px-4 py-8">
+        {/* Header com Nível */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+              Dashboard de Afiliado
+              <span className="text-2xl">🎯</span>
+            </h1>
+            <p className="text-muted-foreground">
+              Código: <span className="font-mono font-semibold">{affiliateData.affiliate_code}</span>
+            </p>
+          </div>
+          <PeriodFilter value={period} onChange={setPeriod} />
         </div>
 
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
-              <DollarSign className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatPrice(affiliateData.commission_balance)}</div>
-              <p className="text-xs text-muted-foreground">
-                Disponível para saque
-              </p>
-            </CardContent>
-          </Card>
+        {/* Tabs Principal */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="overview" className="gap-2">
+              <DollarSign className="h-4 w-4" />
+              Visão Geral
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="gap-2">
+              <Share2 className="h-4 w-4" />
+              Ferramentas
+            </TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Ganho</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatPrice(affiliateData.total_commission_earned)}</div>
-              <p className="text-xs text-muted-foreground">
-                Comissões totais
-              </p>
-            </CardContent>
-          </Card>
+          {/* Tab: Visão Geral */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Cards Principais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-primary">{formatPrice(affiliateData.commission_balance)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Disponível para saque
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversões</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{affiliateData.total_conversions}</div>
-              <p className="text-xs text-muted-foreground">
-                {conversionRate}% de taxa de conversão
-              </p>
-            </CardContent>
-          </Card>
+              <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20 hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Ganho</CardTitle>
+                  <TrendingUp className="h-5 w-5 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">{formatPrice(affiliateData.total_commission_earned)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Comissões totais
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Referrals</CardTitle>
-              <Users className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{affiliateData.total_referrals}</div>
-              <p className="text-xs text-muted-foreground">
-                Cliques no seu link
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20 hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Conversões</CardTitle>
+                  <CheckCircle className="h-5 w-5 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-600">{affiliateData.total_conversions}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {conversionRate}% taxa de conversão
+                  </p>
+                </CardContent>
+              </Card>
 
-        {/* Link de Afiliado */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Seu Link de Afiliado</CardTitle>
-            <CardDescription>
-              Compartilhe este link para ganhar {affiliateData.commission_rate}% de comissão em cada compra
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                value={`${window.location.origin}/?ref=${affiliateData.affiliate_code}`}
-                readOnly
-                className="font-mono text-sm"
+              <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Referrals</CardTitle>
+                  <Users className="h-5 w-5 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-purple-600">{affiliateData.total_referrals}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cliques no seu link
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Métricas Avançadas */}
+            <AdvancedMetrics 
+              totalConversions={affiliateData.total_conversions}
+              totalCommissionEarned={affiliateData.total_commission_earned}
+              commissionBalance={affiliateData.commission_balance}
+            />
+
+            {/* Sistema de Níveis */}
+            <AffiliateLevels 
+              totalConversions={affiliateData.total_conversions}
+              currentCommissionRate={affiliateData.commission_rate}
+            />
+
+            {/* Como Funciona */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Como Funciona o Programa de Afiliados</CardTitle>
+                <CardDescription>
+                  Siga estes passos para maximizar seus ganhos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
+                    1
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Compartilhe seu link</h3>
+                    <p className="text-muted-foreground">
+                      Divulgue seu link único nas redes sociais, WhatsApp ou qualquer outro canal
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
+                    2
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Pessoas clicam e compram</h3>
+                    <p className="text-muted-foreground">
+                      Quando alguém usa seu link e compra pacotes de lances, a venda é rastreada automaticamente
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
+                    3
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Receba sua comissão</h3>
+                    <p className="text-muted-foreground">
+                      Você recebe {affiliateData.commission_rate}% de comissão sobre cada compra realizada através do seu link
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold">
+                    4
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Solicite o saque</h3>
+                    <p className="text-muted-foreground">
+                      Quando atingir o valor mínimo, solicite o pagamento via PIX e receba em até 48h
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab: Analytics */}
+          <TabsContent value="analytics" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PerformanceChart totalCommissionEarned={affiliateData.total_commission_earned} />
+              <ConversionPieChart 
+                totalReferrals={affiliateData.total_referrals}
+                totalConversions={affiliateData.total_conversions}
               />
-              <Button onClick={copyAffiliateLink} variant="outline" size="icon">
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button onClick={shareAffiliateLink} variant="outline" size="icon">
-                <Share2 className="h-4 w-4" />
-              </Button>
             </div>
 
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm font-medium mb-2">Seu código de afiliado:</p>
-              <p className="text-2xl font-bold text-primary">{affiliateData.affiliate_code}</p>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Estatísticas Detalhadas */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Estatísticas Detalhadas</CardTitle>
+                <CardDescription>
+                  Análise completa do seu desempenho como afiliado
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <div className="text-sm text-muted-foreground mb-1">Taxa de Conversão</div>
+                    <div className="text-2xl font-bold">{conversionRate}%</div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <div className="text-sm text-muted-foreground mb-1">Comissão Média</div>
+                    <div className="text-2xl font-bold">
+                      {formatPrice(affiliateData.total_conversions > 0 
+                        ? affiliateData.total_commission_earned / affiliateData.total_conversions 
+                        : 0
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <div className="text-sm text-muted-foreground mb-1">Comissões Pagas</div>
+                    <div className="text-2xl font-bold">{formatPrice(affiliateData.total_commission_paid)}</div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <div className="text-sm text-muted-foreground mb-1">Taxa de Comissão</div>
+                    <div className="text-2xl font-bold">{affiliateData.commission_rate}%</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Informações Adicionais */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Como Funciona</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-primary font-bold">1</span>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-1">Compartilhe seu link</h4>
-                <p className="text-sm text-muted-foreground">
-                  Envie seu link de afiliado para amigos, familiares e redes sociais
-                </p>
-              </div>
-            </div>
+          {/* Tab: Ferramentas */}
+          <TabsContent value="tools" className="space-y-6">
+            {/* Link de Afiliado com QR Code */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Seu Link de Afiliado</CardTitle>
+                <CardDescription>
+                  Compartilhe este link para ganhar {affiliateData.commission_rate}% de comissão em cada compra
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={affiliateLink}
+                    readOnly
+                    className="font-mono text-sm"
+                  />
+                  <Button onClick={copyAffiliateLink} variant="outline" size="icon">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button onClick={shareAffiliateLink} variant="outline" size="icon">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <QRCodeModal 
+                    affiliateLink={affiliateLink}
+                    affiliateCode={affiliateData.affiliate_code}
+                  />
+                </div>
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <p className="text-sm">
+                    <strong className="text-primary">Seu código:</strong>{' '}
+                    <span className="font-mono font-semibold">{affiliateData.affiliate_code}</span>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-primary font-bold">2</span>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-1">Pessoas clicam e compram</h4>
-                <p className="text-sm text-muted-foreground">
-                  Quando alguém usa seu link e compra pacotes de lances, você ganha comissão
-                </p>
-              </div>
-            </div>
+            {/* Dicas de Promoção */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Dicas para Promover Melhor</CardTitle>
+                <CardDescription>
+                  Estratégias para aumentar suas conversões
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                      1
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Use Stories e Reels</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Crie conteúdo visual mostrando produtos e leilões ativos. Use o QR Code!
+                      </p>
+                    </div>
+                  </div>
 
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-primary font-bold">3</span>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-1">Receba suas comissões</h4>
-                <p className="text-sm text-muted-foreground">
-                  Suas comissões são aprovadas automaticamente e você pode solicitar o saque a qualquer momento
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                      2
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Grupos do WhatsApp</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Compartilhe em grupos de compras e promoções. Mostre os descontos!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                      3
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Conte sua história</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Se você já ganhou, compartilhe! Histórias reais geram mais confiança.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                      4
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Seja consistente</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Publique regularmente sobre leilões ativos e produtos disponíveis.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
