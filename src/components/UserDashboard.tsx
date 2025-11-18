@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePurchaseProcessor } from '@/hooks/usePurchaseProcessor';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Link } from 'react-router-dom';
 import { 
   User, 
   CreditCard, 
@@ -22,7 +23,8 @@ import {
   Target,
   Package,
   Bell,
-  BarChart3
+  BarChart3,
+  Users
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
@@ -216,6 +218,31 @@ const UserDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* CTA Afiliados */}
+        <Card className="bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/20 rounded-full">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">💰 Ganhe Comissões Compartilhando!</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Torne-se um afiliado e ganhe 10% de comissão em cada compra dos seus indicados
+                  </p>
+                </div>
+              </div>
+              <Link to="/afiliado">
+                <Button size="lg" className="whitespace-nowrap">
+                  Seja um Afiliado
+                  <TrendingUp className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tabs do Dashboard */}
         <Tabs defaultValue="overview" className="w-full">
