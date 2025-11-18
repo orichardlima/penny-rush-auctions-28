@@ -893,6 +893,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      increment_affiliate_conversions: {
+        Args: { affiliate_uuid: string }
+        Returns: undefined
+      }
       is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
       log_admin_action: {
         Args: {

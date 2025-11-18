@@ -131,23 +131,8 @@ serve(async (req) => {
 
         // Incrementar conversões do afiliado
         for (const comm of commissions) {
-          await supabase.rpc('sql', {
-            query: `UPDATE affiliates SET total_conversions = total_conversions + 1 WHERE id = '${comm.affiliate_id}'`
-          }).catch(() => {
-            // Fallback: fazer update simples
-            supabase
-              .from('affiliates')
-              .select('total_conversions')
-              .eq('id', comm.affiliate_id)
-              .single()
-              .then(({ data }) => {
-                if (data) {
-                  supabase
-                    .from('affiliates')
-                    .update({ total_conversions: (data.total_conversions || 0) + 1 })
-                    .eq('id', comm.affiliate_id)
-                }
-              })
+          await supabase.rpc('increment_affiliate_conversions', {
+            affiliate_uuid: comm.affiliate_id
           })
         }
 
