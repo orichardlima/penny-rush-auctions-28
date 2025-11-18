@@ -25,9 +25,11 @@ export const checkCodeAvailability = async (code: string): Promise<boolean> => {
     .from('affiliates')
     .select('id')
     .eq('affiliate_code', code)
-    .single();
+    .maybeSingle();
   
-  return !data && !error; // Retorna true se o código está disponível
+  // Se encontrou dados (data existe), o código já está em uso (não disponível)
+  // Se não encontrou dados (data é null), o código está disponível
+  return data === null && !error;
 };
 
 /**
@@ -38,21 +40,27 @@ export const createAffiliateAccount = async (
   fullName: string | null
 ): Promise<{ success: boolean; code?: string; error?: string }> => {
   try {
+    console.log('Creating affiliate account for:', { userId, fullName });
+    
     // Gerar código inicial
     let affiliateCode = generateAffiliateCode(userId, fullName);
+    console.log('Generated initial code:', affiliateCode);
     
     // Verificar se código está disponível
     let isAvailable = await checkCodeAvailability(affiliateCode);
+    console.log('Code availability:', { code: affiliateCode, isAvailable });
     
     // Se não estiver disponível, adicionar sufixo numérico
     let attempt = 1;
     while (!isAvailable && attempt < 10) {
       affiliateCode = `${generateAffiliateCode(userId, fullName)}${attempt}`;
       isAvailable = await checkCodeAvailability(affiliateCode);
+      console.log(`Attempt ${attempt}:`, { code: affiliateCode, isAvailable });
       attempt++;
     }
     
     if (!isAvailable) {
+      console.error('Failed to generate unique code after 10 attempts');
       return {
         success: false,
         error: 'Não foi possível gerar um código único. Tente novamente.'
@@ -78,12 +86,22 @@ export const createAffiliateAccount = async (
     
     if (error) {
       console.error('Error creating affiliate account:', error);
+      
+      // Erro específico para código duplicado
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'Este código de afiliado já existe. Tente novamente.'
+        };
+      }
+      
       return {
         success: false,
         error: 'Erro ao criar conta de afiliado. Tente novamente.'
       };
     }
     
+    console.log('Affiliate account created successfully:', data);
     return {
       success: true,
       code: affiliateCode
