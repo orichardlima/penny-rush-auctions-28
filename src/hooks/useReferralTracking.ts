@@ -30,28 +30,25 @@ export const useReferralTracking = () => {
         // Buscar ID do afiliado
         const { data: affiliate } = await supabase
           .from('affiliates')
-          .select('id, total_referrals')
+          .select('id')
           .eq('affiliate_code', refCode)
           .eq('status', 'active')
           .single();
 
         if (affiliate) {
-          // Registrar clique/referral
+          // Registrar clique - o trigger increment_affiliate_clicks vai incrementar total_referrals automaticamente
           try {
             await supabase.from('affiliate_referrals').insert({
               affiliate_id: affiliate.id,
               click_source: window.location.href,
               ip_address: null,
               user_agent: navigator.userAgent
+              // referred_user_id = null indica que é um CLIQUE (não um cadastro ainda)
             });
-
-            // Incrementar contador de referrals
-            await supabase
-              .from('affiliates')
-              .update({ total_referrals: affiliate.total_referrals + 1 })
-              .eq('id', affiliate.id);
+            // O trigger on_affiliate_click incrementa total_referrals automaticamente
+            // Não precisamos fazer UPDATE aqui (que falharia por RLS de qualquer forma)
           } catch (error) {
-            console.error('Error tracking referral:', error);
+            console.error('Error tracking click:', error);
           }
         }
       }
