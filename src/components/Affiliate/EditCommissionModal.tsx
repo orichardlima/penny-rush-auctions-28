@@ -39,11 +39,13 @@ export function EditCommissionModal({
   currentGoal,
   onSave 
 }: EditCommissionModalProps) {
-  const [commissionType, setCommissionType] = useState(affiliate.commission_type);
-  const [percentageRate, setPercentageRate] = useState(affiliate.commission_rate.toString());
-  const [cpaValue, setCpaValue] = useState(affiliate.cpa_value_per_conversion.toString());
-  const [cpaTarget, setCpaTarget] = useState(affiliate.cpa_conversions_target.toString());
+  const [commissionType, setCommissionType] = useState(affiliate?.commission_type || 'percentage');
+  const [percentageRate, setPercentageRate] = useState(affiliate?.commission_rate?.toString() || '10');
+  const [cpaValue, setCpaValue] = useState(affiliate?.cpa_value_per_conversion?.toString() || '5');
+  const [cpaTarget, setCpaTarget] = useState(affiliate?.cpa_conversions_target?.toString() || '50');
   const [saving, setSaving] = useState(false);
+
+  if (!affiliate) return null;
 
   const handleSave = async () => {
     setSaving(true);
