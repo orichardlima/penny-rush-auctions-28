@@ -23,6 +23,8 @@ import { AffiliateTopRanking } from "./Affiliate/AffiliateTopRanking";
 import { AffiliateDetailModal } from "./Affiliate/AffiliateDetailModal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EditCommissionModal } from "./Affiliate/EditCommissionModal";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export function AdminAffiliateManagement() {
   const {
@@ -41,6 +43,8 @@ export function AdminAffiliateManagement() {
     deleteAffiliate,
     getAffiliateDetails,
     exportToCSV,
+    updateAffiliateCommissionType,
+    fetchCPAGoals,
   } = useAdminAffiliates();
 
   const { updateSetting, getSettingValue } = useSystemSettings();
@@ -56,6 +60,9 @@ export function AdminAffiliateManagement() {
   const [selectedAffiliates, setSelectedAffiliates] = useState<string[]>([]);
   const [newCommissionRate, setNewCommissionRate] = useState<string>("");
   const [editingAffiliateId, setEditingAffiliateId] = useState<string | null>(null);
+  const [editCommissionModalOpen, setEditCommissionModalOpen] = useState(false);
+  const [editingCommissionAffiliate, setEditingCommissionAffiliate] = useState<any>(null);
+  const [currentGoal, setCurrentGoal] = useState<any>(null);
 
   const metrics = useMemo(() => {
     const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
@@ -312,7 +319,8 @@ export function AdminAffiliateManagement() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Código</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Taxa</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Taxa/Meta</TableHead>
                     <TableHead>Conversões</TableHead>
                     <TableHead>Total Ganho</TableHead>
                     <TableHead>Saldo</TableHead>
@@ -345,36 +353,18 @@ export function AdminAffiliateManagement() {
                       </TableCell>
                       <TableCell>{getStatusBadge(affiliate.status)}</TableCell>
                       <TableCell>
-                        {editingAffiliateId === affiliate.id ? (
-                          <div className="flex gap-1">
-                            <Input
-                              type="number"
-                              value={newCommissionRate}
-                              onChange={(e) => setNewCommissionRate(e.target.value)}
-                              className="w-20 h-8"
-                              placeholder="%"
-                            />
-                            <Button size="sm" onClick={() => handleEditRate(affiliate.id)}>
-                              <CheckCircle className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditingAffiliateId(null)}>
-                              <XCircle className="h-3 w-3" />
-                            </Button>
+                        <Badge variant={affiliate.commission_type === 'cpa' ? 'default' : 'secondary'}>
+                          {affiliate.commission_type === 'cpa' ? 'CPA' : '%'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {affiliate.commission_type === 'cpa' ? (
+                          <div className="text-xs">
+                            <div className="font-medium">{formatPrice(affiliate.cpa_value_per_conversion)} × {affiliate.cpa_conversions_target}</div>
+                            <div className="text-muted-foreground">= {formatPrice(affiliate.cpa_value_per_conversion * affiliate.cpa_conversions_target)}</div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span>{affiliate.commission_rate}%</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingAffiliateId(affiliate.id);
-                                setNewCommissionRate(affiliate.commission_rate.toString());
-                              }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          <span>{affiliate.commission_rate}%</span>
                         )}
                       </TableCell>
                       <TableCell>{affiliate.total_conversions}</TableCell>
@@ -387,6 +377,20 @@ export function AdminAffiliateManagement() {
                       <TableCell>{formatDate(affiliate.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={async () => {
+                              setEditingCommissionAffiliate(affiliate);
+                              const goals = await fetchCPAGoals(affiliate.id);
+                              const activeGoal = goals.find((g: any) => g.status === 'in_progress');
+                              setCurrentGoal(activeGoal || null);
+                              setEditCommissionModalOpen(true);
+                            }}
+                            title="Editar Comissão"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -658,6 +662,97 @@ export function AdminAffiliateManagement() {
               </div>
 
               <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Modelo de Comissão</h3>
+                <div className="grid gap-4">
+                  <div className="space-y-3">
+                    <Label>Tipo de comissão padrão para novos afiliados</Label>
+                    <RadioGroup 
+                      value={getSettingValue("affiliate_commission_type", "percentage")}
+                      onValueChange={(value) => updateSetting("affiliate_commission_type", value)}
+                    >
+                      <div className="flex items-start space-x-3 border rounded-lg p-4">
+                        <RadioGroupItem value="percentage" id="settings-percentage" />
+                        <div className="flex-1">
+                          <Label htmlFor="settings-percentage" className="text-base font-medium cursor-pointer">
+                            Porcentagem sobre compras
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            O afiliado ganha uma porcentagem do valor de cada compra realizada por seus indicados
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3 border rounded-lg p-4">
+                        <RadioGroupItem value="cpa" id="settings-cpa" />
+                        <div className="flex-1">
+                          <Label htmlFor="settings-cpa" className="text-base font-medium cursor-pointer">
+                            CPA - Meta de Depositantes
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            O afiliado ganha um valor fixo ao atingir uma meta de depositantes
+                          </p>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  
+                  {getSettingValue("affiliate_commission_type", "percentage") === "cpa" && (
+                    <div className="bg-muted/30 rounded-lg p-4 space-y-4 border">
+                      <h4 className="font-medium">Configurações CPA</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Valor por Depositante (R$)</Label>
+                          <Input
+                            type="number"
+                            value={getSettingValue("affiliate_cpa_value_per_conversion", "5")}
+                            onChange={(e) => updateSetting("affiliate_cpa_value_per_conversion", e.target.value)}
+                            placeholder="5.00"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Valor pago por cada depositante
+                          </p>
+                        </div>
+                        <div>
+                          <Label>Meta de Depositantes</Label>
+                          <Input
+                            type="number"
+                            value={getSettingValue("affiliate_cpa_conversions_target", "50")}
+                            onChange={(e) => updateSetting("affiliate_cpa_conversions_target", e.target.value)}
+                            placeholder="50"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Número de depositantes para completar meta
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
+                        <p className="text-sm font-medium">Recompensa por meta:</p>
+                        <p className="text-xl font-bold text-primary">
+                          {formatPrice(
+                            parseFloat(getSettingValue("affiliate_cpa_value_per_conversion", "5")) *
+                            parseInt(getSettingValue("affiliate_cpa_conversions_target", "50"))
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Renovar meta automaticamente</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Criar novo ciclo de meta quando afiliado bater a atual
+                          </p>
+                        </div>
+                        <Switch
+                          checked={getSettingValue("affiliate_cpa_auto_renew_goal", true)}
+                          onCheckedChange={(checked) =>
+                            updateSetting("affiliate_cpa_auto_renew_goal", String(checked))
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Comissões</h3>
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
@@ -747,6 +842,18 @@ export function AdminAffiliateManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditCommissionModal
+        open={editCommissionModalOpen}
+        onOpenChange={setEditCommissionModalOpen}
+        affiliate={editingCommissionAffiliate}
+        currentGoal={currentGoal}
+        onSave={async (data) => {
+          if (editingCommissionAffiliate) {
+            await updateAffiliateCommissionType(editingCommissionAffiliate.id, data);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -17,11 +17,16 @@ import { PerformanceChart } from '@/components/Affiliate/PerformanceChart';
 import { ConversionPieChart } from '@/components/Affiliate/ConversionPieChart';
 import { QRCodeModal } from '@/components/Affiliate/QRCodeModal';
 
+import { CPAGoalProgress } from '@/components/Affiliate/CPAGoalProgress';
+
 interface AffiliateData {
   id: string;
   affiliate_code: string;
   status: string;
   commission_rate: number;
+  commission_type: string;
+  cpa_value_per_conversion: number;
+  cpa_conversions_target: number;
   total_referrals: number;
   total_conversions: number;
   commission_balance: number;
@@ -29,11 +34,24 @@ interface AffiliateData {
   total_commission_paid: number;
 }
 
+interface CPAGoal {
+  id: string;
+  current_conversions: number;
+  conversions_target: number;
+  value_per_conversion: number;
+  total_reward: number;
+  status: string;
+  cycle_number: number;
+  started_at: string;
+  completed_at?: string;
+}
+
 export default function AffiliateDashboard() {
   const { profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [affiliateData, setAffiliateData] = useState<AffiliateData | null>(null);
+  const [cpaGoals, setCpaGoals] = useState<CPAGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('30d');
 
@@ -65,6 +83,19 @@ export default function AffiliateDashboard() {
         }
       } else {
         setAffiliateData(data);
+        
+        // Se é CPA, buscar metas
+        if (data.commission_type === 'cpa') {
+          const { data: goalsData, error: goalsError } = await supabase
+            .from('affiliate_cpa_goals')
+            .select('*')
+            .eq('affiliate_id', data.id)
+            .order('created_at', { ascending: false });
+          
+          if (!goalsError && goalsData) {
+            setCpaGoals(goalsData);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching affiliate data:', error);
@@ -337,6 +368,17 @@ export default function AffiliateDashboard() {
 
           {/* Tab: Visão Geral */}
           <TabsContent value="overview" className="space-y-6">
+            {/* CPA Goal Progress - Se for tipo CPA */}
+            {affiliateData.commission_type === 'cpa' && cpaGoals.length > 0 && (
+              <CPAGoalProgress
+                currentConversions={cpaGoals[0].current_conversions}
+                targetConversions={cpaGoals[0].conversions_target}
+                valuePerConversion={cpaGoals[0].value_per_conversion}
+                cycleNumber={cpaGoals[0].cycle_number}
+                status={cpaGoals[0].status}
+              />
+            )}
+            
             {/* Cards Principais */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all">
@@ -445,7 +487,10 @@ export default function AffiliateDashboard() {
                   <div>
                     <h3 className="font-semibold text-lg mb-1">Receba sua comissão</h3>
                     <p className="text-muted-foreground">
-                      Você recebe {affiliateData.commission_rate}% de comissão sobre cada compra realizada através do seu link
+                      {affiliateData.commission_type === 'cpa' 
+                        ? `Você ganha ${formatPrice(affiliateData.cpa_value_per_conversion)} por cada depositante (primeira compra). Ao atingir ${affiliateData.cpa_conversions_target} depositantes, recebe ${formatPrice(affiliateData.cpa_value_per_conversion * affiliateData.cpa_conversions_target)}!`
+                        : `Você recebe ${affiliateData.commission_rate}% de comissão sobre cada compra realizada através do seu link`
+                      }
                     </p>
                   </div>
                 </div>

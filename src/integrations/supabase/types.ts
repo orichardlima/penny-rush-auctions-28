@@ -110,6 +110,65 @@ export type Database = {
           },
         ]
       }
+      affiliate_cpa_goals: {
+        Row: {
+          affiliate_id: string
+          completed_at: string | null
+          conversions_target: number
+          created_at: string
+          current_conversions: number
+          cycle_number: number
+          expires_at: string | null
+          goal_type: string
+          id: string
+          started_at: string
+          status: string
+          total_reward: number | null
+          updated_at: string
+          value_per_conversion: number
+        }
+        Insert: {
+          affiliate_id: string
+          completed_at?: string | null
+          conversions_target: number
+          created_at?: string
+          current_conversions?: number
+          cycle_number?: number
+          expires_at?: string | null
+          goal_type?: string
+          id?: string
+          started_at?: string
+          status?: string
+          total_reward?: number | null
+          updated_at?: string
+          value_per_conversion: number
+        }
+        Update: {
+          affiliate_id?: string
+          completed_at?: string | null
+          conversions_target?: number
+          created_at?: string
+          current_conversions?: number
+          cycle_number?: number
+          expires_at?: string | null
+          goal_type?: string
+          id?: string
+          started_at?: string
+          status?: string
+          total_reward?: number | null
+          updated_at?: string
+          value_per_conversion?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_cpa_goals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_referrals: {
         Row: {
           affiliate_id: string
@@ -206,6 +265,9 @@ export type Database = {
           bank_details: Json | null
           commission_balance: number
           commission_rate: number
+          commission_type: string
+          cpa_conversions_target: number | null
+          cpa_value_per_conversion: number | null
           created_at: string
           id: string
           pix_key: string | null
@@ -223,6 +285,9 @@ export type Database = {
           bank_details?: Json | null
           commission_balance?: number
           commission_rate?: number
+          commission_type?: string
+          cpa_conversions_target?: number | null
+          cpa_value_per_conversion?: number | null
           created_at?: string
           id?: string
           pix_key?: string | null
@@ -240,6 +305,9 @@ export type Database = {
           bank_details?: Json | null
           commission_balance?: number
           commission_rate?: number
+          commission_type?: string
+          cpa_conversions_target?: number | null
+          cpa_value_per_conversion?: number | null
           created_at?: string
           id?: string
           pix_key?: string | null

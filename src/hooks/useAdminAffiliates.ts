@@ -8,6 +8,9 @@ interface Affiliate {
   affiliate_code: string;
   status: string;
   commission_rate: number;
+  commission_type: string;
+  cpa_value_per_conversion: number;
+  cpa_conversions_target: number;
   total_referrals: number;
   total_conversions: number;
   commission_balance: number;
@@ -559,6 +562,57 @@ export const useAdminAffiliates = () => {
     toast({ title: 'Sucesso', description: 'Relatório exportado!' });
   };
 
+  // Atualizar tipo de comissão do afiliado
+  const updateAffiliateCommissionType = async (
+    affiliateId: string, 
+    data: {
+      commission_type: string;
+      commission_rate?: number;
+      cpa_value_per_conversion?: number;
+      cpa_conversions_target?: number;
+    }
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update(data)
+        .eq('id', affiliateId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Tipo de comissão atualizado com sucesso"
+      });
+
+      fetchAllData();
+    } catch (error) {
+      console.error('Error updating commission type:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao atualizar tipo de comissão"
+      });
+    }
+  };
+
+  // Buscar metas CPA de um afiliado
+  const fetchCPAGoals = async (affiliateId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('affiliate_cpa_goals')
+        .select('*')
+        .eq('affiliate_id', affiliateId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching CPA goals:', error);
+      return [];
+    }
+  };
+
   return {
     affiliates,
     commissions,
@@ -575,6 +629,8 @@ export const useAdminAffiliates = () => {
     reactivateAffiliate,
     deleteAffiliate,
     getAffiliateDetails,
+    updateAffiliateCommissionType,
+    fetchCPAGoals,
     exportToCSV,
   };
 };
