@@ -19,6 +19,7 @@ import { QRCodeModal } from '@/components/Affiliate/QRCodeModal';
 
 import { CPAGoalProgress } from '@/components/Affiliate/CPAGoalProgress';
 import { ConversionFunnel } from '@/components/Affiliate/ConversionFunnel';
+import { AffiliateReferralsList } from '@/components/Affiliate/AffiliateReferralsList';
 
 interface AffiliateData {
   id: string;
@@ -353,10 +354,14 @@ export default function AffiliateDashboard() {
 
         {/* Tabs Principal */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="gap-2">
               <DollarSign className="h-4 w-4" />
               Visão Geral
+            </TabsTrigger>
+            <TabsTrigger value="referrals" className="gap-2">
+              <Users className="h-4 w-4" />
+              Indicados
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -527,6 +532,11 @@ export default function AffiliateDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Tab: Indicados */}
+          <TabsContent value="referrals" className="space-y-6">
+            <AffiliateReferralsList affiliateId={affiliateData.id} />
           </TabsContent>
 
           {/* Tab: Analytics */}
