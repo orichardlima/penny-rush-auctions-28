@@ -580,6 +580,35 @@ export const useAdminAffiliates = () => {
 
       if (error) throw error;
 
+      // Se mudou para CPA, criar meta inicial automaticamente
+      if (data.commission_type === 'cpa' && data.cpa_value_per_conversion && data.cpa_conversions_target) {
+        // Verificar se já existe uma meta ativa
+        const { data: existingGoals } = await supabase
+          .from('affiliate_cpa_goals')
+          .select('id')
+          .eq('affiliate_id', affiliateId)
+          .eq('status', 'in_progress')
+          .limit(1);
+
+        // Se não existe meta ativa, criar uma nova
+        if (!existingGoals || existingGoals.length === 0) {
+          const { error: goalError } = await supabase
+            .from('affiliate_cpa_goals')
+            .insert({
+              affiliate_id: affiliateId,
+              value_per_conversion: data.cpa_value_per_conversion,
+              conversions_target: data.cpa_conversions_target,
+              status: 'in_progress',
+              cycle_number: 1,
+              current_conversions: 0
+            });
+
+          if (goalError) {
+            console.error('Error creating CPA goal:', goalError);
+          }
+        }
+      }
+
       toast({
         title: "Sucesso",
         description: "Tipo de comissão atualizado com sucesso"

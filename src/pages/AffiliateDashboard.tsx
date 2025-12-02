@@ -369,13 +369,13 @@ export default function AffiliateDashboard() {
           {/* Tab: Visão Geral */}
           <TabsContent value="overview" className="space-y-6">
             {/* CPA Goal Progress - Se for tipo CPA */}
-            {affiliateData.commission_type === 'cpa' && cpaGoals.length > 0 && (
+            {affiliateData.commission_type === 'cpa' && (
               <CPAGoalProgress
-                currentConversions={cpaGoals[0].current_conversions}
-                targetConversions={cpaGoals[0].conversions_target}
-                valuePerConversion={cpaGoals[0].value_per_conversion}
-                cycleNumber={cpaGoals[0].cycle_number}
-                status={cpaGoals[0].status}
+                currentConversions={cpaGoals[0]?.current_conversions ?? 0}
+                targetConversions={cpaGoals[0]?.conversions_target ?? affiliateData.cpa_conversions_target}
+                valuePerConversion={cpaGoals[0]?.value_per_conversion ?? affiliateData.cpa_value_per_conversion}
+                cycleNumber={cpaGoals[0]?.cycle_number ?? 1}
+                status={cpaGoals[0]?.status ?? 'in_progress'}
               />
             )}
             
@@ -441,11 +441,13 @@ export default function AffiliateDashboard() {
               commissionBalance={affiliateData.commission_balance}
             />
 
-            {/* Sistema de Níveis */}
-            <AffiliateLevels 
-              totalConversions={affiliateData.total_conversions}
-              currentCommissionRate={affiliateData.commission_rate}
-            />
+            {/* Sistema de Níveis - Apenas para afiliados com comissão percentual */}
+            {affiliateData.commission_type === 'percentage' && (
+              <AffiliateLevels 
+                totalConversions={affiliateData.total_conversions}
+                currentCommissionRate={affiliateData.commission_rate}
+              />
+            )}
 
             {/* Como Funciona */}
             <Card>
