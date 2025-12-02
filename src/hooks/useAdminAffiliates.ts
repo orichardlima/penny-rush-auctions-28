@@ -424,6 +424,141 @@ export const useAdminAffiliates = () => {
     }
   };
 
+  const reactivateAffiliate = async (affiliateId: string) => {
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .update({ status: 'active' })
+        .eq('id', affiliateId);
+
+      if (error) throw error;
+      toast({ title: 'Sucesso', description: 'Afiliado reativado com sucesso!' });
+      await fetchAllData();
+    } catch (error) {
+      console.error('Error reactivating affiliate:', error);
+      toast({ title: 'Erro', description: 'Erro ao reativar afiliado', variant: 'destructive' });
+    }
+  };
+
+  const deleteAffiliate = async (affiliateId: string) => {
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .delete()
+        .eq('id', affiliateId);
+
+      if (error) throw error;
+      toast({ title: 'Sucesso', description: 'Afiliado deletado com sucesso!' });
+      await fetchAllData();
+    } catch (error) {
+      console.error('Error deleting affiliate:', error);
+      toast({ title: 'Erro', description: 'Erro ao deletar afiliado', variant: 'destructive' });
+    }
+  };
+
+  const getAffiliateDetails = async (affiliateId: string) => {
+    try {
+      const { data: affiliate, error: affiliateError } = await supabase
+        .from('affiliates')
+        .select('*')
+        .eq('id', affiliateId)
+        .single();
+
+      if (affiliateError) throw affiliateError;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', affiliate.user_id)
+        .single();
+
+      const { data: referrals } = await supabase
+        .from('affiliate_referrals')
+        .select('id, referred_user_id, converted, created_at')
+        .eq('affiliate_id', affiliateId);
+
+      const referralUserIds = referrals?.filter(r => r.referred_user_id).map(r => r.referred_user_id) || [];
+      const { data: referredUsers } = referralUserIds.length > 0
+        ? await supabase.from('profiles').select('user_id, full_name').in('user_id', referralUserIds)
+        : { data: [] };
+
+      const { data: commissions } = await supabase
+        .from('affiliate_commissions')
+        .select('id, commission_amount, status, created_at, referred_user_id')
+        .eq('affiliate_id', affiliateId);
+
+      const commissionUserIds = commissions?.filter(c => c.referred_user_id).map(c => c.referred_user_id) || [];
+      const { data: commissionUsers } = commissionUserIds.length > 0
+        ? await supabase.from('profiles').select('user_id, full_name').in('user_id', commissionUserIds)
+        : { data: [] };
+
+      const { data: withdrawals } = await supabase
+        .from('affiliate_withdrawals')
+        .select('id, amount, status, created_at, processed_at')
+        .eq('affiliate_id', affiliateId);
+
+      const totalReferrals = referrals?.length || 0;
+      const totalConversions = referrals?.filter(r => r.converted).length || 0;
+      const conversionRate = totalReferrals > 0 ? (totalConversions / totalReferrals) * 100 : 0;
+
+      return {
+        id: affiliate.id,
+        name: profile?.full_name || 'Sem nome',
+        email: profile?.email || '',
+        code: affiliate.affiliate_code,
+        status: affiliate.status,
+        commissionRate: affiliate.commission_rate,
+        pixKey: affiliate.pix_key || '',
+        createdAt: affiliate.created_at,
+        approvedAt: affiliate.approved_at,
+        totalReferrals,
+        totalConversions,
+        totalEarned: affiliate.total_commission_earned,
+        totalPaid: affiliate.total_commission_paid,
+        balance: affiliate.commission_balance,
+        conversionRate,
+        referrals: referrals?.map(r => ({
+          id: r.id,
+          name: referredUsers?.find(u => u.user_id === r.referred_user_id)?.full_name || 'Usuário',
+          converted: r.converted,
+          createdAt: r.created_at,
+        })) || [],
+        commissions: commissions?.map(c => ({
+          id: c.id,
+          amount: c.commission_amount,
+          status: c.status,
+          createdAt: c.created_at,
+          referredUser: commissionUsers?.find(u => u.user_id === c.referred_user_id)?.full_name || 'Usuário',
+        })) || [],
+        withdrawals: withdrawals || [],
+      };
+    } catch (error) {
+      console.error('Error fetching affiliate details:', error);
+      toast({ title: 'Erro', description: 'Erro ao buscar detalhes', variant: 'destructive' });
+      return null;
+    }
+  };
+
+  const exportToCSV = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      toast({ title: 'Erro', description: 'Nenhum dado para exportar', variant: 'destructive' });
+      return;
+    }
+
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => Object.values(row).join(','));
+    const csv = [headers, ...rows].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast({ title: 'Sucesso', description: 'Relatório exportado!' });
+  };
+
   return {
     affiliates,
     commissions,
@@ -437,5 +572,9 @@ export const useAdminAffiliates = () => {
     cancelCommission,
     processWithdrawal,
     rejectWithdrawal,
+    reactivateAffiliate,
+    deleteAffiliate,
+    getAffiliateDetails,
+    exportToCSV,
   };
 };
