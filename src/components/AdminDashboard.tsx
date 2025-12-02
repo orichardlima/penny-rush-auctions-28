@@ -72,6 +72,8 @@ import { ImageUploadPreview } from '@/components/ImageUploadPreview';
 import { SystemSettings } from '@/components/SystemSettings';
 import { AdminOrdersManagement } from '@/components/AdminOrdersManagement';
 import { AuctionHistory } from '@/components/AuctionHistory';
+import { AdminAffiliateManagement } from '@/components/AdminAffiliateManagement';
+import { Handshake } from 'lucide-react';
 
 interface Auction {
   id: string;
@@ -777,7 +779,7 @@ const AdminDashboard = () => {
 
         {/* Nova estrutura de tabs melhorada */}
         <Tabs defaultValue="auction-details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:grid-cols-9">
+          <TabsList className="grid w-full grid-cols-10 lg:w-auto lg:grid-cols-10">
             <TabsTrigger value="auction-details" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
@@ -813,6 +815,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Config</span>
+            </TabsTrigger>
+            <TabsTrigger value="affiliates" className="flex items-center gap-2">
+              <Handshake className="h-4 w-4" />
+              <span className="hidden sm:inline">Afiliados</span>
             </TabsTrigger>
             <TabsTrigger value="my-history" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
@@ -1349,6 +1355,17 @@ const AdminDashboard = () => {
           {/* Nova aba: Configurações do Sistema */}
           <TabsContent value="settings" className="space-y-6">
             <SystemSettings />
+          </TabsContent>
+
+          {/* Nova aba: Afiliados */}
+          <TabsContent value="affiliates" className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Gerenciamento de Afiliados</h2>
+                <p className="text-muted-foreground">Controle total sobre o programa de afiliados</p>
+              </div>
+            </div>
+            <AdminAffiliateManagement />
           </TabsContent>
 
           {/* Nova aba: Histórico de Leilões do Admin */}
