@@ -22,14 +22,15 @@ export const generateAffiliateCode = (userId: string, fullName: string | null): 
  */
 export const checkCodeAvailability = async (code: string): Promise<boolean> => {
   const { data, error } = await supabase
-    .from('affiliates')
-    .select('id')
-    .eq('affiliate_code', code)
-    .maybeSingle();
+    .rpc('check_affiliate_code_availability', { code_to_check: code });
   
-  // Se encontrou dados (data existe), o código já está em uso (não disponível)
-  // Se não encontrou dados (data é null), o código está disponível
-  return data === null && !error;
+  if (error) {
+    console.error('Error checking code availability:', error);
+    return false;
+  }
+  
+  // A função retorna true se o código está disponível
+  return data === true;
 };
 
 /**

@@ -797,6 +797,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_affiliate_code_availability: {
+        Args: { code_to_check: string }
+        Returns: boolean
+      }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
       get_admin_audit_log: {
