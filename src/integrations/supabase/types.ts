@@ -276,6 +276,7 @@ export type Database = {
           total_commission_paid: number
           total_conversions: number
           total_referrals: number
+          total_signups: number
           user_id: string
         }
         Insert: {
@@ -296,6 +297,7 @@ export type Database = {
           total_commission_paid?: number
           total_conversions?: number
           total_referrals?: number
+          total_signups?: number
           user_id: string
         }
         Update: {
@@ -316,6 +318,7 @@ export type Database = {
           total_commission_paid?: number
           total_conversions?: number
           total_referrals?: number
+          total_signups?: number
           user_id?: string
         }
         Relationships: []

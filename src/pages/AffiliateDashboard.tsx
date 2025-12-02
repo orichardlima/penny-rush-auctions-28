@@ -18,6 +18,7 @@ import { ConversionPieChart } from '@/components/Affiliate/ConversionPieChart';
 import { QRCodeModal } from '@/components/Affiliate/QRCodeModal';
 
 import { CPAGoalProgress } from '@/components/Affiliate/CPAGoalProgress';
+import { ConversionFunnel } from '@/components/Affiliate/ConversionFunnel';
 
 interface AffiliateData {
   id: string;
@@ -28,6 +29,7 @@ interface AffiliateData {
   cpa_value_per_conversion: number;
   cpa_conversions_target: number;
   total_referrals: number;
+  total_signups: number;
   total_conversions: number;
   commission_balance: number;
   total_commission_earned: number;
@@ -380,7 +382,7 @@ export default function AffiliateDashboard() {
             )}
             
             {/* Cards Principais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
@@ -407,28 +409,43 @@ export default function AffiliateDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20 hover:shadow-lg transition-all">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Conversões</CardTitle>
-                  <CheckCircle className="h-5 w-5 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">{affiliateData.total_conversions}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {conversionRate}% taxa de conversão
-                  </p>
-                </CardContent>
-              </Card>
-
               <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Referrals</CardTitle>
+                  <CardTitle className="text-sm font-medium">Cliques</CardTitle>
                   <Users className="h-5 w-5 text-purple-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-purple-600">{affiliateData.total_referrals}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Cliques no seu link
+                    No seu link
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20 hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Cadastros</CardTitle>
+                  <Users className="h-5 w-5 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-600">{affiliateData.total_signups}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {affiliateData.total_referrals > 0 
+                      ? `${((affiliateData.total_signups / affiliateData.total_referrals) * 100).toFixed(1)}% dos cliques`
+                      : '0% dos cliques'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20 hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Compradores</CardTitle>
+                  <CheckCircle className="h-5 w-5 text-emerald-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-emerald-600">{affiliateData.total_conversions}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {conversionRate}% taxa de conversão
                   </p>
                 </CardContent>
               </Card>
@@ -514,10 +531,17 @@ export default function AffiliateDashboard() {
 
           {/* Tab: Analytics */}
           <TabsContent value="analytics" className="space-y-6">
+            {/* Funil de Conversão */}
+            <ConversionFunnel
+              clicks={affiliateData.total_referrals}
+              signups={affiliateData.total_signups}
+              buyers={affiliateData.total_conversions}
+            />
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PerformanceChart totalCommissionEarned={affiliateData.total_commission_earned} />
               <ConversionPieChart 
-                totalReferrals={affiliateData.total_referrals}
+                totalReferrals={affiliateData.total_signups}
                 totalConversions={affiliateData.total_conversions}
               />
             </div>
