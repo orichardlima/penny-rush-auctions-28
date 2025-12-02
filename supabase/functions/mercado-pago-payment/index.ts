@@ -166,31 +166,52 @@ serve(async (req) => {
 
     console.log('✅ Payment response ready:', response)
 
-    // 5. Se tem código de referral, criar comissão
+    // 5. Se tem código de referral, verificar se é primeira compra do indicado
     if (referralCode) {
       console.log('🤝 Processing affiliate referral:', referralCode)
       
-      const { data: affiliate } = await supabase
-        .from('affiliates')
-        .select('id, commission_rate')
-        .eq('affiliate_code', referralCode)
-        .eq('status', 'active')
+      // 🆕 VERIFICAÇÃO: Checar se este usuário já gerou comissão anteriormente
+      const { data: existingCommission, error: checkError } = await supabase
+        .from('affiliate_commissions')
+        .select('id')
+        .eq('referred_user_id', userId)
+        .in('status', ['approved', 'paid', 'pending'])
+        .limit(1)
         .maybeSingle()
 
-      if (affiliate) {
-        const commissionAmount = (packageData.price * affiliate.commission_rate) / 100
-        
-        await supabase.from('affiliate_commissions').insert({
-          affiliate_id: affiliate.id,
-          purchase_id: purchaseData.id,
-          referred_user_id: userId,
-          purchase_amount: packageData.price,
-          commission_rate: affiliate.commission_rate,
-          commission_amount: commissionAmount,
-          status: 'pending'
-        })
+      if (checkError) {
+        console.error('❌ Error checking existing commission:', checkError)
+      }
 
-        console.log('✅ Affiliate commission created:', commissionAmount)
+      if (existingCommission) {
+        console.log('ℹ️ User already generated commission before (ID: ' + existingCommission.id + '), skipping affiliate reward')
+        // NÃO criar comissão - usuário já foi convertido anteriormente
+      } else {
+        // Usuário é NOVO - criar comissão normalmente
+        const { data: affiliate } = await supabase
+          .from('affiliates')
+          .select('id, commission_rate')
+          .eq('affiliate_code', referralCode)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (affiliate) {
+          const commissionAmount = (packageData.price * affiliate.commission_rate) / 100
+          
+          await supabase.from('affiliate_commissions').insert({
+            affiliate_id: affiliate.id,
+            purchase_id: purchaseData.id,
+            referred_user_id: userId,
+            purchase_amount: packageData.price,
+            commission_rate: affiliate.commission_rate,
+            commission_amount: commissionAmount,
+            status: 'pending'
+          })
+
+          console.log('✅ First purchase! Affiliate commission created:', commissionAmount)
+        } else {
+          console.log('⚠️ Affiliate not found or inactive for code:', referralCode)
+        }
       }
     }
 
