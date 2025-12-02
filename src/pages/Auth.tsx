@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
+import { getReferralCode, clearReferralTracking } from '@/hooks/useReferralTracking';
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -224,6 +225,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Capturar código de referral antes do cadastro
+      const referralCode = getReferralCode();
+      
       const userData = {
         full_name: formData.fullName,
         cpf: formData.cpf.replace(/\D/g, ''), // Sempre salvar CPF sem formatação
@@ -236,6 +240,7 @@ const Auth = () => {
         neighborhood: formData.neighborhood,
         city: formData.city,
         state: formData.state,
+        referral_code: referralCode, // Adicionar código de referral
       };
 
       const { error } = await signUp(formData.email, formData.password, userData);
@@ -261,6 +266,9 @@ const Auth = () => {
           });
         }
       } else {
+        // Limpar tracking de referral após cadastro bem sucedido
+        clearReferralTracking();
+        
         // Primeiro toast de confirmação de cadastro
         toast({
           title: "Cadastro realizado!",

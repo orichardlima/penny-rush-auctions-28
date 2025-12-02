@@ -14,6 +14,7 @@ interface SignUpData {
   neighborhood: string;
   city: string;
   state: string;
+  referral_code?: string | null;
 }
 
 interface Profile {
@@ -137,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           neighborhood: userData.neighborhood,
           city: userData.city,
           state: userData.state,
+          referral_code: userData.referral_code || null,
         },
       },
     });
