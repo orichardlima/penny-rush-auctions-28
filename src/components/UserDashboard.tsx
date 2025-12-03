@@ -69,8 +69,10 @@ const UserDashboard = () => {
   const [isAffiliate, setIsAffiliate] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (profile?.user_id) {
+      fetchUserData();
+    }
+  }, [profile?.user_id]);
 
   const fetchUserData = async () => {
     if (!profile?.user_id) return;
@@ -228,8 +230,8 @@ const UserDashboard = () => {
           </Card>
         </div>
 
-        {/* CTA Afiliados - Só mostra se NÃO for afiliado */}
-        {isAffiliate === false && (
+        {/* CTA Afiliados - Só mostra se NÃO for afiliado e dados já carregaram */}
+        {!loading && isAffiliate === false && (
           <Card className="bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 border-primary/20">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
