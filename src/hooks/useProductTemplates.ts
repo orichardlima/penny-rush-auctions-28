@@ -35,20 +35,33 @@ export interface ProductTemplateInput {
 export const useProductTemplates = () => {
   const [templates, setTemplates] = useState<ProductTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTemplates = async () => {
+    console.log('[useProductTemplates] Iniciando fetch de templates...');
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      setError(null);
+      
+      const { data, error: fetchError } = await supabase
         .from('product_templates')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      console.log('[useProductTemplates] Resposta:', { data, error: fetchError });
+
+      if (fetchError) {
+        console.error('[useProductTemplates] Erro no fetch:', fetchError);
+        throw fetchError;
+      }
+      
       setTemplates(data || []);
-    } catch (error: any) {
-      console.error('Error fetching templates:', error);
-      toast.error('Erro ao carregar templates');
+      console.log('[useProductTemplates] Templates carregados:', data?.length || 0);
+    } catch (err: any) {
+      console.error('[useProductTemplates] Erro:', err);
+      const errorMessage = err?.message || 'Erro desconhecido ao carregar templates';
+      setError(errorMessage);
+      toast.error('Erro ao carregar templates: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -118,6 +131,7 @@ export const useProductTemplates = () => {
   return {
     templates,
     loading,
+    error,
     fetchTemplates,
     createTemplate,
     updateTemplate,

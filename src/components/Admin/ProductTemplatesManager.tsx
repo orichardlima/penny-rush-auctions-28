@@ -11,10 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useProductTemplates, ProductTemplateInput, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { BatchAuctionGenerator } from './BatchAuctionGenerator';
-import { Plus, Pencil, Trash2, Package, Rocket, Image, Link } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Rocket, Image, Link as LinkIcon, AlertCircle, RefreshCw } from 'lucide-react';
 
 export const ProductTemplatesManager = () => {
-  const { templates, loading, createTemplate, updateTemplate, deleteTemplate } = useProductTemplates();
+  const { templates, loading, error, fetchTemplates, createTemplate, updateTemplate, deleteTemplate } = useProductTemplates();
+  
+  console.log('[ProductTemplatesManager] Render:', { loading, error, templatesCount: templates?.length });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
@@ -104,7 +106,26 @@ export const ProductTemplatesManager = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8">Carregando templates...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center p-8">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Carregando templates...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <p className="text-lg font-medium">Erro ao carregar templates</p>
+        <p className="text-sm text-muted-foreground mb-4">{error}</p>
+        <Button onClick={fetchTemplates} variant="outline" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Tentar Novamente
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -176,7 +197,7 @@ export const ProductTemplatesManager = () => {
                   <Label htmlFor="image_url">URL da Imagem</Label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <Link className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="image_url"
                         value={formData.image_url}
