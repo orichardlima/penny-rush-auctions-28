@@ -385,6 +385,59 @@ export default function AffiliateDashboard() {
                 status={cpaGoals[0]?.status ?? 'in_progress'}
               />
             )}
+
+            {/* Link de Indicação - Seção Destacada */}
+            <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border-primary/20 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-primary" />
+                  Seu Link de Indicação
+                </CardTitle>
+                <CardDescription>
+                  Compartilhe este link e ganhe {affiliateData.commission_type === 'cpa' 
+                    ? formatPrice(affiliateData.cpa_value_per_conversion) + ' por cada novo depositante'
+                    : affiliateData.commission_rate + '% em cada compra'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Input com o link */}
+                <div className="flex gap-2">
+                  <Input
+                    value={affiliateLink}
+                    readOnly
+                    className="font-mono text-sm bg-background"
+                  />
+                  <Button onClick={copyAffiliateLink} variant="outline" size="icon" title="Copiar link">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button onClick={shareAffiliateLink} variant="outline" size="icon" title="Compartilhar">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <QRCodeModal 
+                    affiliateLink={affiliateLink}
+                    affiliateCode={affiliateData.affiliate_code}
+                  />
+                </div>
+                
+                {/* Botões de ação principais */}
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={copyAffiliateLink} className="flex-1 min-w-[200px]">
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copiar Link
+                  </Button>
+                  <Button onClick={shareAffiliateLink} variant="outline" className="flex-1 min-w-[200px]">
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Compartilhar
+                  </Button>
+                </div>
+                
+                {/* Info do código */}
+                <div className="p-3 rounded-lg bg-background/50 border text-center">
+                  <span className="text-sm text-muted-foreground">Seu código: </span>
+                  <span className="font-mono font-bold text-primary">{affiliateData.affiliate_code}</span>
+                </div>
+              </CardContent>
+            </Card>
             
             {/* Cards Principais */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
