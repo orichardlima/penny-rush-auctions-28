@@ -73,7 +73,8 @@ import { SystemSettings } from '@/components/SystemSettings';
 import { AdminOrdersManagement } from '@/components/AdminOrdersManagement';
 import { AuctionHistory } from '@/components/AuctionHistory';
 import { AdminAffiliateManagement } from '@/components/AdminAffiliateManagement';
-import { Handshake } from 'lucide-react';
+import { ProductTemplatesManager } from '@/components/Admin/ProductTemplatesManager';
+import { Handshake, LayoutTemplate } from 'lucide-react';
 
 interface Auction {
   id: string;
@@ -779,7 +780,7 @@ const AdminDashboard = () => {
 
         {/* Nova estrutura de tabs melhorada */}
         <Tabs defaultValue="auction-details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10 lg:w-auto lg:grid-cols-10">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-12 gap-1">
             <TabsTrigger value="auction-details" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
@@ -795,6 +796,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="auctions" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Leilões</span>
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <LayoutTemplate className="h-4 w-4" />
+              <span className="hidden sm:inline">Templates</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -822,7 +827,7 @@ const AdminDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="my-history" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
-              <span className="hidden sm:inline">Meu Histórico</span>
+              <span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1137,6 +1142,11 @@ const AdminDashboard = () => {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Aba de Templates de Produtos */}
+          <TabsContent value="templates" className="space-y-6">
+            <ProductTemplatesManager />
           </TabsContent>
 
           {/* Aba de Usuários melhorada */}

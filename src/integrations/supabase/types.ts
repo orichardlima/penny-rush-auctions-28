@@ -648,6 +648,57 @@ export type Database = {
         }
         Relationships: []
       }
+      product_templates: {
+        Row: {
+          bid_cost: number | null
+          bid_increment: number | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          market_value: number | null
+          revenue_target: number | null
+          starting_price: number | null
+          times_used: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          bid_cost?: number | null
+          bid_increment?: number | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          market_value?: number | null
+          revenue_target?: number | null
+          starting_price?: number | null
+          times_used?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          bid_cost?: number | null
+          bid_increment?: number | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          market_value?: number | null
+          revenue_target?: number | null
+          starting_price?: number | null
+          times_used?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
