@@ -24,7 +24,8 @@ import {
   Package,
   Bell,
   BarChart3,
-  Users
+  Users,
+  ExternalLink
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
@@ -250,6 +251,33 @@ const UserDashboard = () => {
                   <Button size="lg" className="whitespace-nowrap">
                     Seja um Afiliado
                     <TrendingUp className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Atalho para Dashboard de Afiliado - Só mostra se É afiliado */}
+        {!loading && isAffiliate === true && (
+          <Card className="bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-teal-500/10 border-green-500/20">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-green-500/20 rounded-full">
+                    <Users className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">🎉 Você é um Afiliado!</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Acesse seu painel para ver suas comissões, referências e ferramentas de divulgação
+                    </p>
+                  </div>
+                </div>
+                <Link to="/afiliado">
+                  <Button size="lg" variant="outline" className="whitespace-nowrap border-green-500/50 hover:bg-green-500/10 text-green-600">
+                    Meu Painel de Afiliado
+                    <ExternalLink className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
               </div>
