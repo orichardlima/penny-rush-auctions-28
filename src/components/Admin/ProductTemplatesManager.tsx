@@ -11,7 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useProductTemplates, ProductTemplateInput, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { BatchAuctionGenerator } from './BatchAuctionGenerator';
-import { Plus, Pencil, Trash2, Package, Rocket, Image, Link as LinkIcon, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { processImageFile, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
 
 export const ProductTemplatesManager = () => {
   const { templates, loading, error, fetchTemplates, createTemplate, updateTemplate, deleteTemplate } = useProductTemplates();
@@ -21,6 +24,9 @@ export const ProductTemplatesManager = () => {
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   
   const [formData, setFormData] = useState<ProductTemplateInput>({
     title: '',
@@ -49,6 +55,63 @@ export const ProductTemplatesManager = () => {
       is_active: true
     });
     setEditingTemplate(null);
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
+
+  const handleImageSelect = (file: File) => {
+    setSelectedImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      setUploading(true);
+      
+      // Process image for optimization
+      const processedFile = await processImageFile(file, AUCTION_CARD_OPTIONS);
+      
+      // Generate unique filename
+      const fileExt = processedFile.name.split('.').pop();
+      const fileName = `template_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `templates/${fileName}`;
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('auction-images')
+        .upload(filePath, processedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Upload error:', error);
+        toast.error('Erro ao fazer upload da imagem');
+        return null;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('auction-images')
+        .getPublicUrl(filePath);
+      
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Image upload error:', err);
+      toast.error('Erro ao processar imagem');
+      return null;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleOpenDialog = (templateId?: string) => {
@@ -68,6 +131,10 @@ export const ProductTemplatesManager = () => {
           is_active: template.is_active
         });
         setEditingTemplate(templateId);
+        // Set existing image as preview
+        if (template.image_url) {
+          setImagePreview(template.image_url);
+        }
       }
     } else {
       resetForm();
@@ -78,10 +145,25 @@ export const ProductTemplatesManager = () => {
   const handleSubmit = async () => {
     if (!formData.title) return;
 
+    let finalImageUrl = formData.image_url;
+    
+    // Upload new image if selected
+    if (selectedImage) {
+      const uploadedUrl = await uploadImage(selectedImage);
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+      }
+    }
+
+    const dataToSave = {
+      ...formData,
+      image_url: finalImageUrl
+    };
+
     if (editingTemplate) {
-      await updateTemplate(editingTemplate, formData);
+      await updateTemplate(editingTemplate, dataToSave);
     } else {
-      await createTemplate(formData);
+      await createTemplate(dataToSave);
     }
     
     setIsDialogOpen(false);
@@ -194,27 +276,61 @@ export const ProductTemplatesManager = () => {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="image_url">URL da Imagem</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="image_url"
-                        value={formData.image_url}
-                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                        placeholder="https://exemplo.com/imagem.jpg"
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-                  {formData.image_url && (
-                    <div className="mt-2 rounded-lg overflow-hidden border h-32 w-32">
+                  <Label>Imagem do Produto</Label>
+                  
+                  {/* Preview da imagem existente ou selecionada */}
+                  {imagePreview && (
+                    <div className="relative w-full max-w-xs">
                       <img 
-                        src={formData.image_url} 
+                        src={imagePreview} 
                         alt="Preview" 
-                        className="h-full w-full object-cover"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                        className="w-full h-48 object-cover rounded-lg border"
                       />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8"
+                        onClick={clearSelectedImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Input de arquivo */}
+                  {!imagePreview && (
+                    <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                      <input
+                        type="file"
+                        id="image-upload"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageSelect(file);
+                        }}
+                        disabled={uploading}
+                      />
+                      <label 
+                        htmlFor="image-upload" 
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        <Upload className="h-10 w-10 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Clique para selecionar uma imagem
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          PNG, JPG ou WEBP (máx. 5MB)
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                  
+                  {uploading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Fazendo upload...
                     </div>
                   )}
                 </div>
