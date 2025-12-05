@@ -44,7 +44,7 @@ export const usePurchaseProcessor = () => {
         throw new Error('Pacote não encontrado');
       }
 
-      if (packageData.price !== price || packageData.bids_count !== bidsCount) {
+      if (packageData.price !== price) {
         throw new Error('Dados do pacote não conferem. Recarregue a página e tente novamente.');
       }
 
