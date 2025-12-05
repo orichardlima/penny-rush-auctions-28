@@ -260,7 +260,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                   </ul>
 
                   <Button 
-                    onClick={() => onPurchase(pkg.id, pkg.bids_count, pkg.price, pkg.name)}
+                    onClick={() => onPurchase(pkg.id, promotedBids, pkg.price, pkg.name)}
                     variant={pkg.is_popular ? "default" : "outline"}
                     size="lg"
                     className={`w-full ${hasPromo ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0' : ''}`}

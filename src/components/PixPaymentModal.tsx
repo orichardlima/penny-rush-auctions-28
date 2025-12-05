@@ -231,14 +231,15 @@ export const PixPaymentModal = ({
               <p className="text-2xl font-bold text-primary">{formatPrice(packageInfo.price)}</p>
               <div className="space-y-1">
                 {(() => {
-                  const calc = calculateBidBreakdown(packageInfo.price, packageInfo.bidsCount);
+                  const baseBids = Math.floor(packageInfo.price);
+                  const bonusBids = Math.max(0, packageInfo.bidsCount - baseBids);
                   return (
                     <>
                       <Badge variant="secondary" className="text-xs">
-                        {calc.totalBids} lances inclusos
+                        {packageInfo.bidsCount} lances inclusos
                       </Badge>
                       <p className="text-xs text-muted-foreground">
-                        {calc.baseBids} base + {calc.bonusBids} bônus
+                        {baseBids} base + {bonusBids} bônus
                       </p>
                     </>
                   );
