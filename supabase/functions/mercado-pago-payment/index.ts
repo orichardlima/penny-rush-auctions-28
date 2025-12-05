@@ -65,13 +65,55 @@ serve(async (req) => {
 
     console.log('✅ Package found:', packageData.name, packageData.price)
 
-    // 2. Criar pedido de compra no banco (status pending)
+    // 2. Buscar configurações de promoção de multiplicador
+    const { data: promoSettings, error: promoError } = await supabase
+      .from('system_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', [
+        'promo_multiplier_enabled',
+        'promo_multiplier_value',
+        'promo_multiplier_expires_at'
+      ])
+
+    let promoMultiplier = 1
+    let promoApplied = false
+
+    if (!promoError && promoSettings) {
+      const settings: Record<string, string> = {}
+      promoSettings.forEach(s => {
+        settings[s.setting_key] = s.setting_value
+      })
+
+      const promoEnabled = settings['promo_multiplier_enabled'] === 'true'
+      const promoExpires = settings['promo_multiplier_expires_at'] || ''
+      const multiplierValue = parseFloat(settings['promo_multiplier_value'] || '1') || 1
+
+      // Verificar se promoção está ativa e válida
+      const isExpired = promoExpires && new Date(promoExpires) < new Date()
+      const isPromoValid = promoEnabled && !isExpired
+
+      if (isPromoValid && multiplierValue > 1) {
+        promoMultiplier = multiplierValue
+        promoApplied = true
+        console.log(`🎉 Promoção ativa! Multiplicador: ${promoMultiplier}x`)
+      } else {
+        console.log('ℹ️ Nenhuma promoção ativa ou válida')
+      }
+    }
+
+    // 3. Calcular lances finais com promoção
+    const baseBids = packageData.bids_count
+    const finalBidsCount = Math.floor(baseBids * promoMultiplier)
+    
+    console.log(`📊 Lances: base=${baseBids}, multiplicador=${promoMultiplier}, final=${finalBidsCount}`)
+
+    // 4. Criar pedido de compra no banco (status pending) com lances multiplicados
     const { data: purchaseData, error: purchaseError } = await supabase
       .from('bid_purchases')
       .insert({
         user_id: userId,
         package_id: packageId,
-        bids_purchased: packageData.bids_count,
+        bids_purchased: finalBidsCount, // Lances já multiplicados
         amount_paid: packageData.price,
         payment_status: 'pending'
       })
@@ -89,12 +131,13 @@ serve(async (req) => {
       )
     }
 
-    console.log('✅ Purchase created:', purchaseData.id)
+    console.log('✅ Purchase created:', purchaseData.id, `(${finalBidsCount} lances)`)
 
-    // 3. Criar pagamento no Mercado Pago
+    // 5. Criar pagamento no Mercado Pago
+    const descriptionSuffix = promoApplied ? ` (${promoMultiplier}x PROMO)` : ''
     const paymentPayload = {
       transaction_amount: packageData.price,
-      description: `${packageData.name} - ${packageData.bids_count} lances`,
+      description: `${packageData.name} - ${finalBidsCount} lances${descriptionSuffix}`,
       payment_method_id: "pix",
       payer: {
         email: userEmail,
@@ -141,7 +184,7 @@ serve(async (req) => {
 
     console.log('✅ Mercado Pago payment created:', mpData.id)
 
-    // 4. Atualizar compra com dados do pagamento
+    // 6. Atualizar compra com dados do pagamento
     const { error: updateError } = await supabase
       .from('bid_purchases')
       .update({
@@ -154,19 +197,21 @@ serve(async (req) => {
       console.error('❌ Purchase update failed:', updateError)
     }
 
-    // 5. Retornar dados para o frontend
+    // 7. Retornar dados para o frontend
     const response = {
       purchaseId: purchaseData.id,
       paymentId: mpData.id,
       qrCode: mpData.point_of_interaction?.transaction_data?.qr_code,
       qrCodeBase64: mpData.point_of_interaction?.transaction_data?.qr_code_base64,
       pixCopyPaste: mpData.point_of_interaction?.transaction_data?.qr_code,
-      status: mpData.status
+      status: mpData.status,
+      promoApplied,
+      finalBidsCount
     }
 
     console.log('✅ Payment response ready:', response)
 
-    // 5. Se tem código de referral, verificar se é primeira compra do indicado
+    // 8. Se tem código de referral, verificar se é primeira compra do indicado
     if (referralCode) {
       console.log('🤝 Processing affiliate referral:', referralCode)
       
