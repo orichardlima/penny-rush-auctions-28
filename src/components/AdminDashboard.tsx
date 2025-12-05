@@ -46,6 +46,7 @@ import {
   BarChart3,
   Calendar,
   Eye,
+  EyeOff,
   TrendingUp,
   Filter,
   Search,
@@ -96,6 +97,7 @@ interface Auction {
   company_revenue: number;
   created_at: string;
   starts_at: string;
+  is_hidden?: boolean;
 }
 
 interface User {
@@ -457,6 +459,34 @@ const AdminDashboard = () => {
       toast({
         title: "Erro",
         description: "Erro ao deletar leilão",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Função para ocultar/mostrar leilão
+  const toggleAuctionVisibility = async (auctionId: string, hide: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('auctions')
+        .update({ is_hidden: hide })
+        .eq('id', auctionId);
+
+      if (error) throw error;
+
+      toast({
+        title: hide ? "Leilão ocultado" : "Leilão visível",
+        description: hide 
+          ? "O leilão não será mais exibido na home."
+          : "O leilão voltou a ser exibido na home."
+      });
+
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error toggling auction visibility:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar visibilidade do leilão",
         variant: "destructive"
       });
     }
@@ -1089,15 +1119,37 @@ const AdminDashboard = () => {
                         </TableCell>
                         <TableCell className="font-medium">{auction.title}</TableCell>
                         <TableCell>
-                          <Badge variant={auction.status === 'active' ? 'default' : 'secondary'}>
-                            {auction.status}
-                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Badge variant={auction.status === 'active' ? 'default' : 'secondary'}>
+                              {auction.status}
+                            </Badge>
+                            {auction.is_hidden && (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                <EyeOff className="h-3 w-3 mr-1" />
+                                Oculto
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{formatPrice(auction.current_price)}</TableCell>
                         <TableCell>{auction.total_bids}</TableCell>
                         <TableCell>{formatDateTime(auction.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
+                            {auction.status === 'finished' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => toggleAuctionVisibility(auction.id, !auction.is_hidden)}
+                                title={auction.is_hidden ? 'Mostrar na home' : 'Ocultar da home'}
+                              >
+                                {auction.is_hidden ? (
+                                  <Eye className="h-4 w-4" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
                             <Button 
                               size="sm" 
                               variant="outline"
