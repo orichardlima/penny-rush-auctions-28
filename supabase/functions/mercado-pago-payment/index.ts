@@ -129,7 +129,7 @@ serve(async (req) => {
       }
     }
     
-    console.log(`📊 Lances: base=${baseBids}, multiplicador=${promoMultiplier}, final=${finalBidsCount}`)
+    console.log(`📊 Lances: base=${baseBidsFromPrice}, multiplicador=${promoMultiplier}, final=${finalBidsCount}`)
 
     // 4. Criar pedido de compra no banco (status pending) com lances multiplicados
     const { data: purchaseData, error: purchaseError } = await supabase
