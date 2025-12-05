@@ -284,7 +284,8 @@ export const BidPackageFormDialog: React.FC<BidPackageFormDialogProps> = ({
           <div className="flex items-center space-x-2">
             <Switch
               id="is_popular"
-              {...register('is_popular')}
+              checked={watch('is_popular')}
+              onCheckedChange={(checked) => setValue('is_popular', checked)}
             />
             <Label htmlFor="is_popular">Marcar como popular</Label>
           </div>
