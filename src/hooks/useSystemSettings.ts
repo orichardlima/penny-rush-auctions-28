@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -73,12 +73,12 @@ export const useSystemSettings = () => {
     }
   };
 
-  const getSetting = (key: string): SystemSetting | undefined => {
+  const getSetting = useCallback((key: string): SystemSetting | undefined => {
     return settings.find(setting => setting.setting_key === key);
-  };
+  }, [settings]);
 
-  const getSettingValue = (key: string, defaultValue: any = null): any => {
-    const setting = getSetting(key);
+  const getSettingValue = useCallback((key: string, defaultValue: any = null): any => {
+    const setting = settings.find(s => s.setting_key === key);
     if (!setting) return defaultValue;
 
     switch (setting.setting_type) {
@@ -89,7 +89,7 @@ export const useSystemSettings = () => {
       default:
         return setting.setting_value;
     }
-  };
+  }, [settings]);
 
   useEffect(() => {
     fetchSettings();
