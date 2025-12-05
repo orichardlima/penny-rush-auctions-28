@@ -169,11 +169,26 @@ const Auctions = () => {
 
   const fetchAuctions = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('auctions')
-        .select('*')
-        .or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()})`)
-        .order('created_at', { ascending: false });
+      // Buscar configuração de horas de exibição de leilões finalizados
+      const { data: settingsData } = await supabase
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', 'finished_auctions_display_hours')
+        .single();
+
+      const displayHours = parseInt(settingsData?.setting_value || '48');
+      
+      let query = supabase.from('auctions').select('*');
+      
+      if (displayHours > 0) {
+        const cutoffTime = new Date(Date.now() - displayHours * 60 * 60 * 1000).toISOString();
+        query = query.or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${cutoffTime},is_hidden.eq.false)`);
+      } else {
+        // Se displayHours = 0, não mostrar leilões finalizados
+        query = query.in('status', ['active', 'waiting']);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching auctions:', error);

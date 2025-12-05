@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,10 @@ export const SystemSettings: React.FC = () => {
   const [promoLabel, setPromoLabel] = useState<string>('LANCES EM DOBRO 🔥');
   const [promoExpiresAt, setPromoExpiresAt] = useState<string>('');
   const [savingPromo, setSavingPromo] = useState(false);
+
+  // Finished Auctions Display State
+  const [finishedAuctionsDisplayHours, setFinishedAuctionsDisplayHours] = useState<string>('48');
+  const [savingDisplayHours, setSavingDisplayHours] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
   const [isInitialized, setIsInitialized] = useState(false);
@@ -54,6 +58,9 @@ export const SystemSettings: React.FC = () => {
         }
       }
       
+      // Finished Auctions Display Hours
+      setFinishedAuctionsDisplayHours(getSettingValue('finished_auctions_display_hours', 48).toString());
+      
       setIsInitialized(true);
     }
   }, [settings, isInitialized, getSettingValue]);
@@ -63,6 +70,27 @@ export const SystemSettings: React.FC = () => {
       updateSetting('signup_bonus_enabled', signupBonusEnabled.toString()),
       updateSetting('signup_bonus_bids', signupBonusBids)
     ]);
+  };
+
+  const handleSaveDisplayHours = async () => {
+    setSavingDisplayHours(true);
+    try {
+      await updateSetting('finished_auctions_display_hours', finishedAuctionsDisplayHours);
+      toast({
+        title: "Configuração salva!",
+        description: finishedAuctionsDisplayHours === '0' 
+          ? "Leilões finalizados não serão exibidos na home."
+          : `Leilões finalizados serão exibidos por ${finishedAuctionsDisplayHours} horas.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar a configuração.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingDisplayHours(false);
+    }
   };
 
   const handleSavePromoSettings = async () => {
@@ -430,6 +458,63 @@ export const SystemSettings: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Exibição de Leilões Finalizados */}
+      <Card className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-blue-600">Exibição de Leilões Finalizados</CardTitle>
+          </div>
+          <CardDescription>
+            Configure quanto tempo os leilões finalizados aparecem na home e página de leilões
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <Label htmlFor="display-hours">Tempo de exibição após finalização</Label>
+            <Select 
+              value={finishedAuctionsDisplayHours} 
+              onValueChange={setFinishedAuctionsDisplayHours}
+            >
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue placeholder="Selecione o tempo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Não exibir leilões finalizados</SelectItem>
+                <SelectItem value="12">12 horas</SelectItem>
+                <SelectItem value="24">24 horas</SelectItem>
+                <SelectItem value="48">48 horas (padrão)</SelectItem>
+                <SelectItem value="72">72 horas (3 dias)</SelectItem>
+                <SelectItem value="168">168 horas (1 semana)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {finishedAuctionsDisplayHours === '0' 
+                ? 'Leilões finalizados não serão exibidos na home.'
+                : `Leilões finalizados serão exibidos por ${finishedAuctionsDisplayHours} horas após o término.`
+              }
+            </p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <p className="text-xs text-muted-foreground">
+              💡 <strong>Dica:</strong> Você também pode ocultar leilões finalizados individualmente na aba "Leilões" do painel administrativo usando o botão "Ocultar".
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button 
+              onClick={handleSaveDisplayHours}
+              disabled={savingDisplayHours || updating}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+            >
+              <Save className="h-4 w-4" />
+              {savingDisplayHours ? 'Salvando...' : 'Salvar Configuração'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Estatísticas */}
       <Card>
         <CardHeader>
@@ -461,6 +546,12 @@ export const SystemSettings: React.FC = () => {
               <div className="font-medium">Validade Promoção</div>
               <div className="text-muted-foreground">
                 {promoEnabled && promoExpiresAt ? getPromoTimeRemaining() : 'N/A'}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium">Exibição Finalizados</div>
+              <div className="text-muted-foreground">
+                {finishedAuctionsDisplayHours === '0' ? 'Desativado' : `${finishedAuctionsDisplayHours}h`}
               </div>
             </div>
           </div>
