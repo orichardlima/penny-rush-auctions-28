@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -15,14 +15,36 @@ export const SystemSettings: React.FC = () => {
   const { settings, loading, updating, updateSetting, getSettingValue } = useSystemSettings();
   const { toast } = useToast();
   
+  // Signup Bonus State
   const [signupBonusEnabled, setSignupBonusEnabled] = useState<boolean>(false);
   const [signupBonusBids, setSignupBonusBids] = useState<string>('5');
   const [isResetting, setIsResetting] = useState(false);
 
+  // Promo Multiplier State
+  const [promoEnabled, setPromoEnabled] = useState<boolean>(false);
+  const [promoMultiplier, setPromoMultiplier] = useState<string>('2');
+  const [promoLabel, setPromoLabel] = useState<string>('LANCES EM DOBRO 🔥');
+  const [promoExpiresAt, setPromoExpiresAt] = useState<string>('');
+  const [savingPromo, setSavingPromo] = useState(false);
+
   React.useEffect(() => {
     if (settings.length > 0) {
+      // Signup Bonus
       setSignupBonusEnabled(getSettingValue('signup_bonus_enabled', false));
       setSignupBonusBids(getSettingValue('signup_bonus_bids', 5).toString());
+      
+      // Promo Multiplier
+      setPromoEnabled(getSettingValue('promo_multiplier_enabled', false));
+      setPromoMultiplier(getSettingValue('promo_multiplier_value', 2).toString());
+      setPromoLabel(getSettingValue('promo_multiplier_label', 'LANCES EM DOBRO 🔥'));
+      const expiresAt = getSettingValue('promo_multiplier_expires_at', '');
+      // Convert ISO to datetime-local format
+      if (expiresAt) {
+        const date = new Date(expiresAt);
+        if (!isNaN(date.getTime())) {
+          setPromoExpiresAt(date.toISOString().slice(0, 16));
+        }
+      }
     }
   }, [settings, getSettingValue]);
 
@@ -33,10 +55,37 @@ export const SystemSettings: React.FC = () => {
     ]);
   };
 
+  const handleSavePromoSettings = async () => {
+    setSavingPromo(true);
+    try {
+      // Convert datetime-local to ISO string
+      const expiresAtISO = promoExpiresAt ? new Date(promoExpiresAt).toISOString() : '';
+      
+      await Promise.all([
+        updateSetting('promo_multiplier_enabled', promoEnabled.toString()),
+        updateSetting('promo_multiplier_value', promoMultiplier),
+        updateSetting('promo_multiplier_label', promoLabel),
+        updateSetting('promo_multiplier_expires_at', expiresAtISO)
+      ]);
+      
+      toast({
+        title: "Promoção salva!",
+        description: promoEnabled ? "A promoção de multiplicador está ativa." : "Promoção desativada.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações da promoção.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+
   const handleResetFinancialData = async () => {
     setIsResetting(true);
     try {
-      // 1. Resetar dados dos leilões (manter leilões, mas zerar dados financeiros)
       const { error: auctionsError } = await supabase
         .from('auctions')
         .update({
@@ -50,27 +99,19 @@ export const SystemSettings: React.FC = () => {
 
       if (auctionsError) throw auctionsError;
 
-      // 2. Deletar todos os lances
       const { error: bidsError } = await supabase
         .from('bids')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deletar todos
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (bidsError) throw bidsError;
 
-      // 3. Deletar todas as compras de pacotes
       const { error: purchasesError } = await supabase
         .from('bid_purchases')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deletar todos
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (purchasesError) throw purchasesError;
-
-      // 4. Resetar saldo de lances dos usuários (opcional - manter comentado se não quiser resetar)
-      // const { error: profilesError } = await supabase
-      //   .from('profiles')
-      //   .update({ bids_balance: 0 })
-      //   .neq('user_id', '00000000-0000-0000-0000-000000000000');
 
       toast({
         title: "Dados Resetados!",
@@ -89,6 +130,27 @@ export const SystemSettings: React.FC = () => {
     }
   };
 
+  // Calculate time remaining for promotion preview
+  const getPromoTimeRemaining = () => {
+    if (!promoExpiresAt) return null;
+    const now = new Date().getTime();
+    const expiry = new Date(promoExpiresAt).getTime();
+    const diff = expiry - now;
+    
+    if (diff <= 0) return 'Expirado';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let result = '';
+    if (days > 0) result += `${days}d `;
+    if (hours > 0 || days > 0) result += `${hours}h `;
+    result += `${minutes}min`;
+    
+    return result;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -104,6 +166,123 @@ export const SystemSettings: React.FC = () => {
         <h2 className="text-xl font-semibold">Configurações do Sistema</h2>
       </div>
 
+      {/* Promoção de Multiplicador */}
+      <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-yellow-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-orange-500" />
+            <CardTitle className="text-orange-600">Promoção de Lances</CardTitle>
+          </div>
+          <CardDescription>
+            Configure promoções de multiplicador (ex: lances em dobro, 1.5x, 3x)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="promo-enabled">Ativar promoção de multiplicador</Label>
+              <p className="text-sm text-muted-foreground">
+                Usuários receberão mais lances ao comprar pacotes
+              </p>
+            </div>
+            <Switch
+              id="promo-enabled"
+              checked={promoEnabled}
+              onCheckedChange={setPromoEnabled}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="promo-multiplier">Multiplicador</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="promo-multiplier"
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="0.5"
+                  value={promoMultiplier}
+                  onChange={(e) => setPromoMultiplier(e.target.value)}
+                  className="w-24"
+                  disabled={!promoEnabled}
+                />
+                <span className="text-sm text-muted-foreground">x</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                2 = dobro, 1.5 = 50% extra, 3 = triplo
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="promo-label">Texto do Banner</Label>
+              <Input
+                id="promo-label"
+                value={promoLabel}
+                onChange={(e) => setPromoLabel(e.target.value)}
+                placeholder="LANCES EM DOBRO 🔥"
+                disabled={!promoEnabled}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="promo-expires">Validade da Promoção</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="promo-expires"
+                type="datetime-local"
+                value={promoExpiresAt}
+                onChange={(e) => setPromoExpiresAt(e.target.value)}
+                className="w-auto"
+                disabled={!promoEnabled}
+              />
+              {promoExpiresAt && promoEnabled && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>{getPromoTimeRemaining()}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Deixe vazio para promoção sem prazo definido
+            </p>
+          </div>
+
+          {/* Preview */}
+          {promoEnabled && (
+            <div className="p-4 rounded-lg bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 border border-orange-500/30">
+              <p className="text-sm font-medium mb-2">📣 Preview do Banner:</p>
+              <div className="text-center p-3 rounded bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white">
+                <p className="font-bold">{promoLabel || 'PROMOÇÃO'}</p>
+                <p className="text-xs opacity-90">
+                  Compre agora e receba {promoMultiplier}x mais lances!
+                </p>
+                {promoExpiresAt && (
+                  <p className="text-xs mt-1 opacity-75">
+                    ⏰ Termina em: {getPromoTimeRemaining()}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button 
+              onClick={handleSavePromoSettings}
+              disabled={savingPromo || updating}
+              className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+            >
+              <Save className="h-4 w-4" />
+              {savingPromo ? 'Salvando...' : 'Salvar Promoção'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bônus de Cadastro */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -171,16 +350,17 @@ export const SystemSettings: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Estatísticas */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            Estatísticas do Bônus
+            Estatísticas do Sistema
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <div className="font-medium">Status atual</div>
+              <div className="font-medium">Bônus Cadastro</div>
               <div className="text-muted-foreground">
                 {signupBonusEnabled ? 'Ativo' : 'Inativo'}
               </div>
@@ -191,10 +371,23 @@ export const SystemSettings: React.FC = () => {
                 {signupBonusEnabled ? `${signupBonusBids} lances` : '0 lances'}
               </div>
             </div>
+            <div>
+              <div className="font-medium">Promoção Multiplicador</div>
+              <div className={promoEnabled ? "text-orange-500 font-medium" : "text-muted-foreground"}>
+                {promoEnabled ? `${promoMultiplier}x Ativo` : 'Inativo'}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium">Validade Promoção</div>
+              <div className="text-muted-foreground">
+                {promoEnabled && promoExpiresAt ? getPromoTimeRemaining() : 'N/A'}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Zona de Perigo */}
       <Card className="border-destructive/20">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -248,7 +441,7 @@ export const SystemSettings: React.FC = () => {
                       <div className="bg-destructive/10 p-3 rounded-md text-sm">
                         <p className="font-medium text-destructive mb-2">Dados que serão DELETADOS:</p>
                         <ul className="space-y-1 text-muted-foreground">
-                          <li>• Todos os {loading ? '...' : 'X'} lances existentes</li>
+                          <li>• Todos os lances existentes</li>
                           <li>• Todas as compras de pacotes</li>
                           <li>• Todo histórico de receita</li>
                           <li>• Vencedores atuais dos leilões</li>
