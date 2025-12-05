@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export type PromoMode = 'base' | 'total' | 'bonus';
+
 export interface PromotionData {
   enabled: boolean;
   multiplier: number;
+  mode: PromoMode;
   label: string;
   expiresAt: string | null;
   isValid: boolean;
@@ -51,7 +54,8 @@ export const usePromotion = () => {
           'promo_multiplier_enabled',
           'promo_multiplier_value',
           'promo_multiplier_label',
-          'promo_multiplier_expires_at'
+          'promo_multiplier_expires_at',
+          'promo_multiplier_mode'
         ]);
 
       if (error) throw error;
@@ -65,6 +69,7 @@ export const usePromotion = () => {
       const multiplier = parseFloat(settings['promo_multiplier_value'] || '1') || 1;
       const label = settings['promo_multiplier_label'] || 'PROMOÇÃO';
       const expiresAt = settings['promo_multiplier_expires_at'] || null;
+      const mode = (settings['promo_multiplier_mode'] as PromoMode) || 'base';
       
       const timeRemaining = calculateTimeRemaining(expiresAt);
       const isValid = enabled && (!expiresAt || timeRemaining !== null);
@@ -72,6 +77,7 @@ export const usePromotion = () => {
       setPromoData({
         enabled,
         multiplier,
+        mode,
         label,
         expiresAt,
         isValid,

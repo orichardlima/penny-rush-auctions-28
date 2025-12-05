@@ -5,11 +5,13 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PromoMode } from '@/hooks/usePromotion';
 
 export const SystemSettings: React.FC = () => {
   const { settings, loading, updating, updateSetting, getSettingValue } = useSystemSettings();
@@ -23,6 +25,7 @@ export const SystemSettings: React.FC = () => {
   // Promo Multiplier State
   const [promoEnabled, setPromoEnabled] = useState<boolean>(false);
   const [promoMultiplier, setPromoMultiplier] = useState<string>('2');
+  const [promoMode, setPromoMode] = useState<PromoMode>('base');
   const [promoLabel, setPromoLabel] = useState<string>('LANCES EM DOBRO 🔥');
   const [promoExpiresAt, setPromoExpiresAt] = useState<string>('');
   const [savingPromo, setSavingPromo] = useState(false);
@@ -40,6 +43,7 @@ export const SystemSettings: React.FC = () => {
       // Promo Multiplier
       setPromoEnabled(getSettingValue('promo_multiplier_enabled', false));
       setPromoMultiplier(getSettingValue('promo_multiplier_value', 2).toString());
+      setPromoMode(getSettingValue('promo_multiplier_mode', 'base') as PromoMode);
       setPromoLabel(getSettingValue('promo_multiplier_label', 'LANCES EM DOBRO 🔥'));
       const expiresAt = getSettingValue('promo_multiplier_expires_at', '');
       // Convert ISO to datetime-local format
@@ -70,6 +74,7 @@ export const SystemSettings: React.FC = () => {
       await Promise.all([
         updateSetting('promo_multiplier_enabled', promoEnabled.toString()),
         updateSetting('promo_multiplier_value', promoMultiplier),
+        updateSetting('promo_multiplier_mode', promoMode),
         updateSetting('promo_multiplier_label', promoLabel),
         updateSetting('promo_multiplier_expires_at', expiresAtISO)
       ]);
@@ -86,6 +91,25 @@ export const SystemSettings: React.FC = () => {
       });
     } finally {
       setSavingPromo(false);
+    }
+  };
+
+  // Calculate preview for each mode
+  const getPromoPreview = () => {
+    const examplePrice = 350;
+    const exampleBids = 700;
+    const mult = parseFloat(promoMultiplier) || 2;
+    
+    switch (promoMode) {
+      case 'base':
+        return { result: Math.floor(examplePrice * mult), desc: `${examplePrice} × ${mult} = ${Math.floor(examplePrice * mult)} lances` };
+      case 'total':
+        return { result: Math.floor(exampleBids * mult), desc: `${exampleBids} × ${mult} = ${Math.floor(exampleBids * mult)} lances` };
+      case 'bonus':
+        const bonus = Math.floor(examplePrice * (mult - 1));
+        return { result: exampleBids + bonus, desc: `${exampleBids} + ${bonus} bônus = ${exampleBids + bonus} lances` };
+      default:
+        return { result: Math.floor(examplePrice * mult), desc: '' };
     }
   };
 
@@ -234,6 +258,46 @@ export const SystemSettings: React.FC = () => {
             </div>
           </div>
 
+          {/* Novo seletor de modo de cálculo */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Calculator className="h-4 w-4 text-orange-500" />
+              <Label>Modo de Cálculo</Label>
+            </div>
+            <Select 
+              value={promoMode} 
+              onValueChange={(value: PromoMode) => setPromoMode(value)}
+              disabled={!promoEnabled}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o modo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="base">
+                  <div className="flex flex-col">
+                    <span className="font-medium">Multiplicar preço base</span>
+                    <span className="text-xs text-muted-foreground">R$ 350 × 2 = 700 lances</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="total">
+                  <div className="flex flex-col">
+                    <span className="font-medium">Multiplicar total do pacote</span>
+                    <span className="text-xs text-muted-foreground">700 lances × 2 = 1400 lances</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="bonus">
+                  <div className="flex flex-col">
+                    <span className="font-medium">Total + bônus adicional</span>
+                    <span className="text-xs text-muted-foreground">700 + (350 × 1) = 1050 lances</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Define como o multiplicador é aplicado nos pacotes
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="promo-expires">Validade da Promoção</Label>
             <div className="flex items-center gap-3">
@@ -261,7 +325,7 @@ export const SystemSettings: React.FC = () => {
           {promoEnabled && (
             <div className="p-4 rounded-lg bg-gradient-to-r from-yellow-500/20 via-orange-500/20 to-red-500/20 border border-orange-500/30">
               <p className="text-sm font-medium mb-2">📣 Preview do Banner:</p>
-              <div className="text-center p-3 rounded bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white">
+              <div className="text-center p-3 rounded bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white mb-3">
                 <p className="font-bold">{promoLabel || 'PROMOÇÃO'}</p>
                 <p className="text-xs opacity-90">
                   Compre agora e receba {promoMultiplier}x mais lances!
@@ -271,6 +335,16 @@ export const SystemSettings: React.FC = () => {
                     ⏰ Termina em: {getPromoTimeRemaining()}
                   </p>
                 )}
+              </div>
+              
+              {/* Preview de cálculo */}
+              <div className="bg-background/50 p-3 rounded-lg border border-orange-500/20">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  📊 Exemplo de cálculo (Pacote R$ 350, 700 lances):
+                </p>
+                <p className="text-sm font-bold text-orange-600">
+                  {getPromoPreview().desc}
+                </p>
               </div>
             </div>
           )}
