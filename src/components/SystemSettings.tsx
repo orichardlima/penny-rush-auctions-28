@@ -27,8 +27,12 @@ export const SystemSettings: React.FC = () => {
   const [promoExpiresAt, setPromoExpiresAt] = useState<string>('');
   const [savingPromo, setSavingPromo] = useState(false);
 
+  // Flag to prevent useEffect from resetting local state after user edits
+  const [isInitialized, setIsInitialized] = useState(false);
+
   React.useEffect(() => {
-    if (settings.length > 0) {
+    // Only sync from database on initial load
+    if (settings.length > 0 && !isInitialized) {
       // Signup Bonus
       setSignupBonusEnabled(getSettingValue('signup_bonus_enabled', false));
       setSignupBonusBids(getSettingValue('signup_bonus_bids', 5).toString());
@@ -45,8 +49,10 @@ export const SystemSettings: React.FC = () => {
           setPromoExpiresAt(date.toISOString().slice(0, 16));
         }
       }
+      
+      setIsInitialized(true);
     }
-  }, [settings, getSettingValue]);
+  }, [settings, isInitialized, getSettingValue]);
 
   const handleSaveSignupBonus = async () => {
     await Promise.all([
