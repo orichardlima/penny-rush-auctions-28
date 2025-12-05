@@ -75,10 +75,31 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
     }).format(priceInReais || 0);
   };
 
-  // Calculate promoted bids
-  const getPromotedBids = (baseBids: number) => {
-    if (!promoData?.isValid) return baseBids;
-    return Math.floor(baseBids * promoData.multiplier);
+  // Calculate promoted bids based on promo mode
+  const getPromotedBids = (packagePrice: number, bidsCount: number) => {
+    if (!promoData?.isValid) return bidsCount;
+    
+    const baseBids = Math.floor(packagePrice);
+    const multiplier = promoData.multiplier;
+    const mode = promoData.mode || 'base';
+    
+    switch (mode) {
+      case 'base':
+        // Multiplica apenas o preço base
+        return Math.floor(baseBids * multiplier);
+      
+      case 'total':
+        // Multiplica o total do pacote
+        return Math.floor(bidsCount * multiplier);
+      
+      case 'bonus':
+        // Total + (base × (multiplicador - 1))
+        const bonusBids = Math.floor(baseBids * (multiplier - 1));
+        return bidsCount + bonusBids;
+      
+      default:
+        return Math.floor(baseBids * multiplier);
+    }
   };
 
   if (loading) {
@@ -161,7 +182,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {packages.map((pkg) => {
-            const promotedBids = getPromotedBids(pkg.bids_count);
+            const promotedBids = getPromotedBids(pkg.price, pkg.bids_count);
             const hasPromo = promoData?.isValid && promotedBids > pkg.bids_count;
             
             return (

@@ -72,10 +72,12 @@ serve(async (req) => {
       .in('setting_key', [
         'promo_multiplier_enabled',
         'promo_multiplier_value',
-        'promo_multiplier_expires_at'
+        'promo_multiplier_expires_at',
+        'promo_multiplier_mode'
       ])
 
     let promoMultiplier = 1
+    let promoMode = 'base'
     let promoApplied = false
 
     if (!promoError && promoSettings) {
@@ -87,6 +89,7 @@ serve(async (req) => {
       const promoEnabled = settings['promo_multiplier_enabled'] === 'true'
       const promoExpires = settings['promo_multiplier_expires_at'] || ''
       const multiplierValue = parseFloat(settings['promo_multiplier_value'] || '1') || 1
+      promoMode = settings['promo_multiplier_mode'] || 'base'
 
       // Verificar se promoção está ativa e válida
       const isExpired = promoExpires && new Date(promoExpires) < new Date()
@@ -95,15 +98,36 @@ serve(async (req) => {
       if (isPromoValid && multiplierValue > 1) {
         promoMultiplier = multiplierValue
         promoApplied = true
-        console.log(`🎉 Promoção ativa! Multiplicador: ${promoMultiplier}x`)
+        console.log(`🎉 Promoção ativa! Multiplicador: ${promoMultiplier}x, Modo: ${promoMode}`)
       } else {
         console.log('ℹ️ Nenhuma promoção ativa ou válida')
       }
     }
 
-    // 3. Calcular lances finais com promoção
-    const baseBids = packageData.bids_count
-    const finalBidsCount = Math.floor(baseBids * promoMultiplier)
+    // 3. Calcular lances finais com promoção baseado no modo
+    const baseBidsFromPrice = Math.floor(packageData.price)
+    const totalBidsFromPackage = packageData.bids_count
+    let finalBidsCount = totalBidsFromPackage
+
+    if (promoApplied) {
+      switch (promoMode) {
+        case 'base':
+          // Multiplica apenas o preço base
+          finalBidsCount = Math.floor(baseBidsFromPrice * promoMultiplier)
+          break
+        case 'total':
+          // Multiplica o total do pacote
+          finalBidsCount = Math.floor(totalBidsFromPackage * promoMultiplier)
+          break
+        case 'bonus':
+          // Total + (base × (multiplicador - 1))
+          const bonusBids = Math.floor(baseBidsFromPrice * (promoMultiplier - 1))
+          finalBidsCount = totalBidsFromPackage + bonusBids
+          break
+        default:
+          finalBidsCount = Math.floor(baseBidsFromPrice * promoMultiplier)
+      }
+    }
     
     console.log(`📊 Lances: base=${baseBids}, multiplicador=${promoMultiplier}, final=${finalBidsCount}`)
 
