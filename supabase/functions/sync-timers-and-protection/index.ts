@@ -111,42 +111,42 @@ Deno.serve(async (req) => {
         const currentPrice = Number(auction.current_price);
         const marketValue = Number(auction.market_value);
 
-        // SE HÁ PREJUÍZO (preço > valor da loja)
-        if (currentPrice > marketValue) {
-          console.log(`💰 [PREJUÍZO] Leilão "${auction.title}": R$${currentPrice} > R$${marketValue}`);
+        // CONTROLE ANTI-SPAM: Verificar se já foi adicionado bot nos últimos 5s
+        const { data: recentBot } = await supabase
+          .from('bids')
+          .select('id')
+          .eq('auction_id', auction.id)
+          .eq('cost_paid', 0) // Bots internos têm cost_paid = 0
+          .gte('created_at', new Date(Date.now() - 5000).toISOString())
+          .limit(1);
 
-          // CONTROLE ANTI-SPAM: Verificar se já foi adicionado bot nos últimos 5s
-          const { data: recentBot } = await supabase
-            .from('bids')
-            .select('id')
-            .eq('auction_id', auction.id)
-            .eq('cost_paid', 0) // Bots internos têm cost_paid = 0
-            .gte('created_at', new Date(Date.now() - 5000).toISOString())
-            .limit(1);
+        if (recentBot && recentBot.length > 0) {
+          console.log(`🚫 [ANTI-SPAM] Leilão "${auction.title}" - bot já adicionado recentemente`);
+          continue;
+        }
 
-          if (recentBot && recentBot.length > 0) {
-            console.log(`🚫 [ANTI-SPAM] Leilão "${auction.title}" - bot já adicionado recentemente`);
-            continue;
-          }
-
-          // ADICIONAR UM BOT INTERNO
-          const { data: randomBot } = await supabase.rpc('get_random_bot');
+        // ADICIONAR UM BOT PARA MANTER ATIVO
+        const { data: randomBot } = await supabase.rpc('get_random_bot');
+        
+        if (randomBot) {
+          const newPrice = currentPrice + Number(auction.bid_increment);
           
-          if (randomBot) {
-            const { error: bidError } = await supabase
-              .from('bids')
-              .insert({
-                auction_id: auction.id,
-                user_id: randomBot,
-                bid_amount: currentPrice + Number(auction.bid_increment),
-                cost_paid: 0 // Bot interno não paga
-              });
+          const { error: bidError } = await supabase
+            .from('bids')
+            .insert({
+              auction_id: auction.id,
+              user_id: randomBot,
+              bid_amount: newPrice,
+              cost_paid: 0 // Bot interno não paga
+            });
 
-            if (!bidError) {
-              console.log(`🤖 [PROTEÇÃO] Bot adicionado ao leilão "${auction.title}" - prejuízo evitado`);
-              botBidsAdded++;
+          if (!bidError) {
+            botBidsAdded++;
+            
+            // SE HÁ PREJUÍZO - finalizar imediatamente
+            if (currentPrice > marketValue) {
+              console.log(`💰 [PREJUÍZO] Bot finalizou "${auction.title}" - R$${currentPrice} > R$${marketValue}`);
               
-              // **REGRA 5: Finalizar leilão imediatamente após bot em cenário de prejuízo**
               const { data: lastBidData } = await supabase
                 .from('bids')
                 .select('user_id')
@@ -171,14 +171,15 @@ Deno.serve(async (req) => {
                 })
                 .eq('id', auction.id);
 
-              console.log(`🏁 [REGRA-5] Leilão "${auction.title}" finalizado - bot + prejuízo evitado`);
+              console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - prejuízo evitado`);
               finalizedCount++;
             } else {
-              console.error(`❌ [ERRO] Falha ao adicionar bot: ${bidError.message}`);
+              // SEM PREJUÍZO - apenas reaquece o leilão (o trigger já faz isso, mas garantimos)
+              console.log(`🤖 [REAQUECER] Bot reaqueceu "${auction.title}" - R$${newPrice.toFixed(2)} - continuando`);
             }
+          } else {
+            console.error(`❌ [ERRO] Falha ao adicionar bot: ${bidError.message}`);
           }
-        } else {
-          console.log(`✅ [OK] Leilão "${auction.title}" inativo mas sem prejuízo - continuando`);
         }
       }
     }
