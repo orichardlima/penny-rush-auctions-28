@@ -161,20 +161,21 @@ export const AuctionCard = ({
     
     let endTime;
     if (displayStatus === 'finished' && finished_at) {
-      // For finished auctions, use finished_at
       endTime = toZonedTime(new Date(finished_at), brazilTimezone);
     } else if (displayStatus === 'active') {
-      // For active auctions, use current time
       endTime = toZonedTime(new Date(), brazilTimezone);
     } else {
       return null;
     }
     
     const totalMinutes = Math.floor((endTime.getTime() - startsAtInBrazil.getTime()) / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
+    const days = Math.floor(totalMinutes / (60 * 24));
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
     const minutes = totalMinutes % 60;
     
-    if (hours > 0) {
+    if (days > 0) {
+      return `${days} dia${days > 1 ? 's' : ''} e ${hours}h ${minutes}min`;
+    } else if (hours > 0) {
       return `${hours}h ${minutes}min`;
     } else {
       return `${minutes}min`;
