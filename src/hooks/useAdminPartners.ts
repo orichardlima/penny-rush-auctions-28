@@ -502,21 +502,80 @@ export const useAdminPartners = () => {
     }
   };
 
+  const [terminations, setTerminations] = useState<any[]>([]);
+
+  const fetchTerminations = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('partner_early_terminations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTerminations(data || []);
+    } catch (error) {
+      console.error('Error fetching terminations:', error);
+    }
+  }, []);
+
+  const processTermination = async (terminationId: string, action: 'approve' | 'reject', notes?: string) => {
+    setProcessing(true);
+    try {
+      const termination = terminations.find(t => t.id === terminationId);
+      if (!termination) throw new Error('Solicitação não encontrada');
+
+      if (action === 'reject') {
+        await supabase
+          .from('partner_early_terminations')
+          .update({ status: 'REJECTED', admin_notes: notes, processed_at: new Date().toISOString() })
+          .eq('id', terminationId);
+      } else {
+        // Aprovar e encerrar contrato
+        await supabase
+          .from('partner_early_terminations')
+          .update({ status: 'COMPLETED', admin_notes: notes, processed_at: new Date().toISOString(), final_value: termination.proposed_value })
+          .eq('id', terminationId);
+
+        await supabase
+          .from('partner_contracts')
+          .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_reason: 'Encerramento antecipado' })
+          .eq('id', termination.partner_contract_id);
+
+        // Creditar lances se aplicável
+        if (termination.liquidation_type === 'BIDS' && termination.bids_amount > 0) {
+          const contract = contracts.find(c => c.id === termination.partner_contract_id);
+          if (contract) {
+            const { data: profile } = await supabase.from('profiles').select('bids_balance').eq('user_id', contract.user_id).single();
+            await supabase.from('profiles').update({ bids_balance: (profile?.bids_balance || 0) + termination.bids_amount }).eq('user_id', contract.user_id);
+          }
+        }
+      }
+
+      toast({ title: action === 'approve' ? 'Encerramento aprovado' : 'Encerramento rejeitado' });
+      await Promise.all([fetchContracts(), fetchTerminations()]);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: error.message });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots()]);
+      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchContracts, fetchPlans, fetchPayouts, fetchSnapshots]);
+  }, [fetchContracts, fetchPlans, fetchPayouts, fetchSnapshots, fetchTerminations]);
 
   const stats = {
     totalContracts: contracts.length,
     activeContracts: contracts.filter(c => c.status === 'ACTIVE').length,
     totalAportes: contracts.filter(c => c.status === 'ACTIVE').reduce((sum, c) => sum + c.aporte_value, 0),
     totalPaid: contracts.reduce((sum, c) => sum + c.total_received, 0),
-    pendingPayouts: payouts.filter(p => p.status === 'PENDING').length
+    pendingPayouts: payouts.filter(p => p.status === 'PENDING').length,
+    pendingTerminations: terminations.filter(t => t.status === 'PENDING').length
   };
 
   return {
@@ -524,6 +583,7 @@ export const useAdminPartners = () => {
     plans,
     payouts,
     snapshots,
+    terminations,
     stats,
     loading,
     processing,
@@ -534,8 +594,9 @@ export const useAdminPartners = () => {
     cancelPayout,
     processMonthlyPayouts,
     markPayoutAsPaid,
+    processTermination,
     refreshData: async () => {
-      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots()]);
+      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations()]);
     }
   };
 };

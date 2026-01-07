@@ -38,6 +38,7 @@ const AdminPartnerManagement = () => {
     plans, 
     payouts, 
     snapshots,
+    terminations,
     stats,
     loading, 
     processing,
@@ -48,6 +49,7 @@ const AdminPartnerManagement = () => {
     cancelPayout,
     processMonthlyPayouts,
     markPayoutAsPaid,
+    processTermination,
     refreshData 
   } = useAdminPartners();
 
@@ -272,6 +274,14 @@ const AdminPartnerManagement = () => {
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
           <TabsTrigger value="plans">Planos</TabsTrigger>
           <TabsTrigger value="payouts">Repasses</TabsTrigger>
+          <TabsTrigger value="terminations">
+            Encerramentos
+            {stats.pendingTerminations > 0 && (
+              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 text-xs flex items-center justify-center">
+                {stats.pendingTerminations}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
           <TabsTrigger value="process">Processar Mês</TabsTrigger>
         </TabsList>
@@ -764,6 +774,67 @@ const AdminPartnerManagement = () => {
                 <div className="text-center py-8 text-muted-foreground">
                   Nenhum repasse processado ainda
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Encerramentos Tab */}
+        <TabsContent value="terminations" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Solicitações de Encerramento Antecipado</CardTitle>
+              <CardDescription>Gerencie as solicitações de encerramento de contratos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Parceiro</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Valor Proposto</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {terminations.map((term) => {
+                    const contract = contracts.find(c => c.id === term.partner_contract_id);
+                    return (
+                      <TableRow key={term.id}>
+                        <TableCell className="font-medium">{contract?.user_name || 'N/A'}</TableCell>
+                        <TableCell>
+                          {term.liquidation_type === 'CREDITS' && 'Créditos'}
+                          {term.liquidation_type === 'BIDS' && `${term.bids_amount} Lances`}
+                          {term.liquidation_type === 'PARTIAL_REFUND' && 'Reembolso'}
+                        </TableCell>
+                        <TableCell>{formatPrice(term.proposed_value)}</TableCell>
+                        <TableCell>
+                          <Badge variant={term.status === 'PENDING' ? 'secondary' : term.status === 'COMPLETED' ? 'default' : 'destructive'}>
+                            {term.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(term.created_at)}</TableCell>
+                        <TableCell>
+                          {term.status === 'PENDING' && (
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => processTermination(term.id, 'approve')} disabled={processing}>
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => processTermination(term.id, 'reject')} disabled={processing}>
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {terminations.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">Nenhuma solicitação de encerramento</div>
               )}
             </CardContent>
           </Card>

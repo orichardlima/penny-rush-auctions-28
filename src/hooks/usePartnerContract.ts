@@ -102,7 +102,7 @@ export const usePartnerContract = () => {
     }
   }, [contract?.id]);
 
-  const createContract = async (planId: string) => {
+  const createContract = async (planId: string, referralCode?: string) => {
     if (!profile?.user_id) return { success: false };
 
     const plan = plans.find(p => p.id === planId);
@@ -115,8 +115,46 @@ export const usePartnerContract = () => {
       return { success: false };
     }
 
+    // Verificar se já existe contrato ativo
+    const { data: existingActive } = await supabase
+      .from('partner_contracts')
+      .select('id')
+      .eq('user_id', profile.user_id)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+
+    if (existingActive) {
+      toast({
+        variant: "destructive",
+        title: "Contrato já existe",
+        description: "Você já possui um contrato ativo. Aguarde seu encerramento para criar outro."
+      });
+      return { success: false };
+    }
+
     setSubmitting(true);
     try {
+      // Buscar contrato referenciador se houver código
+      let referredByUserId: string | null = null;
+      let referrerContractId: string | null = null;
+      
+      if (referralCode) {
+        const { data: referrerContract } = await supabase
+          .from('partner_contracts')
+          .select('id, user_id')
+          .eq('referral_code', referralCode.toUpperCase())
+          .eq('status', 'ACTIVE')
+          .maybeSingle();
+
+        if (referrerContract && referrerContract.user_id !== profile.user_id) {
+          referredByUserId = referrerContract.user_id;
+          referrerContractId = referrerContract.id;
+        }
+      }
+
+      // Gerar código de indicação único
+      const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
       const { data, error } = await supabase
         .from('partner_contracts')
         .insert({
@@ -125,12 +163,33 @@ export const usePartnerContract = () => {
           aporte_value: plan.aporte_value,
           monthly_cap: plan.monthly_cap,
           total_cap: plan.total_cap,
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          referred_by_user_id: referredByUserId,
+          referral_code: newReferralCode
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Criar bônus de indicação se foi indicado
+      if (referrerContractId && data) {
+        const bonusPercentage = 10;
+        const bonusValue = plan.aporte_value * (bonusPercentage / 100);
+        const availableAt = new Date();
+        availableAt.setDate(availableAt.getDate() + 7); // 7 dias para validação
+
+        await supabase.from('partner_referral_bonuses').insert({
+          referrer_contract_id: referrerContractId,
+          referred_contract_id: data.id,
+          referred_user_id: profile.user_id,
+          aporte_value: plan.aporte_value,
+          bonus_percentage: bonusPercentage,
+          bonus_value: bonusValue,
+          status: 'PENDING',
+          available_at: availableAt.toISOString()
+        });
+      }
 
       setContract(data as PartnerContract);
       toast({

@@ -4,7 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
+import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { 
   Wallet, 
   TrendingUp, 
@@ -14,9 +16,12 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  AlertTriangle,
   RefreshCw
 } from 'lucide-react';
 import { PartnerPlanCard } from './PartnerPlanCard';
+import PartnerReferralSection from './PartnerReferralSection';
+import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
 
 const PartnerDashboard = () => {
   const { 
@@ -30,6 +35,14 @@ const PartnerDashboard = () => {
     getLastPayout,
     refreshData 
   } = usePartnerContract();
+  
+  const { fetchPendingRequest } = usePartnerEarlyTermination();
+  
+  React.useEffect(() => {
+    if (contract?.id) {
+      fetchPendingRequest(contract.id);
+    }
+  }, [contract?.id, fetchPendingRequest]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -315,6 +328,37 @@ const PartnerDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Seção de Indicações */}
+      <PartnerReferralSection />
+
+      {/* Encerramento Antecipado */}
+      {contract.status === 'ACTIVE' && (
+        <Card className="border-orange-500/20">
+          <CardHeader>
+            <CardTitle className="text-lg">Opções do Contrato</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PartnerEarlyTerminationDialog 
+              contract={contract} 
+              onSuccess={refreshData}
+            />
+            <p className="text-xs text-muted-foreground">
+              O encerramento antecipado é uma liquidação condicionada, sujeita à liquidez da plataforma.
+              Não representa devolução garantida do aporte.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Aviso Legal */}
+      <Alert className="border-yellow-500/20 bg-yellow-500/5">
+        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+        <AlertDescription className="text-sm text-yellow-700">
+          Os valores dependem exclusivamente do desempenho da plataforma. 
+          Não há garantia de retorno, valor mínimo ou prazo.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };
