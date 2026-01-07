@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,11 @@ export const SystemSettings: React.FC = () => {
   // Finished Auctions Display State
   const [finishedAuctionsDisplayHours, setFinishedAuctionsDisplayHours] = useState<string>('48');
   const [savingDisplayHours, setSavingDisplayHours] = useState(false);
+
+  // Partner System State
+  const [partnerSystemEnabled, setPartnerSystemEnabled] = useState<boolean>(true);
+  const [partnerFundPercentage, setPartnerFundPercentage] = useState<string>('20');
+  const [savingPartner, setSavingPartner] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
   const [isInitialized, setIsInitialized] = useState(false);
@@ -60,6 +65,10 @@ export const SystemSettings: React.FC = () => {
       
       // Finished Auctions Display Hours
       setFinishedAuctionsDisplayHours(getSettingValue('finished_auctions_display_hours', 48).toString());
+      
+      // Partner System
+      setPartnerSystemEnabled(getSettingValue('partner_system_enabled', true));
+      setPartnerFundPercentage(getSettingValue('partner_fund_percentage', 20).toString());
       
       setIsInitialized(true);
     }
@@ -90,6 +99,28 @@ export const SystemSettings: React.FC = () => {
       });
     } finally {
       setSavingDisplayHours(false);
+    }
+  };
+
+  const handleSavePartnerSettings = async () => {
+    setSavingPartner(true);
+    try {
+      await Promise.all([
+        updateSetting('partner_system_enabled', partnerSystemEnabled.toString()),
+        updateSetting('partner_fund_percentage', partnerFundPercentage)
+      ]);
+      toast({
+        title: "Configurações salvas!",
+        description: partnerSystemEnabled ? "Sistema de parceiros ativo." : "Sistema de parceiros desativado.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingPartner(false);
     }
   };
 
@@ -510,6 +541,73 @@ export const SystemSettings: React.FC = () => {
             >
               <Save className="h-4 w-4" />
               {savingDisplayHours ? 'Salvando...' : 'Salvar Configuração'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sistema de Parceiros */}
+      <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-purple-500" />
+            <CardTitle className="text-purple-600">Sistema de Parceiros</CardTitle>
+          </div>
+          <CardDescription>
+            Configure o programa de participação em receita
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="partner-enabled">Ativar sistema de parceiros</Label>
+              <p className="text-sm text-muted-foreground">
+                Permite que usuários se tornem parceiros e participem da receita
+              </p>
+            </div>
+            <Switch
+              id="partner-enabled"
+              checked={partnerSystemEnabled}
+              onCheckedChange={setPartnerSystemEnabled}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <Label htmlFor="partner-fund">% do Faturamento para Fundo de Parceiros</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="partner-fund"
+                type="number"
+                min="0"
+                max="100"
+                value={partnerFundPercentage}
+                onChange={(e) => setPartnerFundPercentage(e.target.value)}
+                className="w-24"
+                disabled={!partnerSystemEnabled}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Porcentagem do faturamento bruto destinada aos repasses de parceiros
+            </p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <p className="text-xs text-muted-foreground">
+              💡 <strong>Dica:</strong> Acesse "Gerenciamento de Parceiros" para configurar planos, processar repasses e ver relatórios detalhados.
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button 
+              onClick={handleSavePartnerSettings}
+              disabled={savingPartner || updating}
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+            >
+              <Save className="h-4 w-4" />
+              {savingPartner ? 'Salvando...' : 'Salvar Configurações'}
             </Button>
           </div>
         </CardContent>
