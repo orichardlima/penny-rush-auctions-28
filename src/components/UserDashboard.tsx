@@ -298,7 +298,7 @@ const UserDashboard = () => {
             <TabsTrigger value="auctions" className={isMobile ? "flex-shrink-0" : ""}>Leilões</TabsTrigger>
             <TabsTrigger value="financial" className={isMobile ? "flex-shrink-0" : ""}>Financeiro</TabsTrigger>
             <TabsTrigger value="packages" className={isMobile ? "flex-shrink-0" : ""}>Pacotes</TabsTrigger>
-            <TabsTrigger value="investments" className={isMobile ? "flex-shrink-0" : ""}>Investimentos</TabsTrigger>
+            <TabsTrigger value="investments" className={isMobile ? "flex-shrink-0" : ""}>Parcerias</TabsTrigger>
             <TabsTrigger value="analytics" className={isMobile ? "flex-shrink-0" : ""}>Analytics</TabsTrigger>
             <TabsTrigger value="notifications" className={isMobile ? "flex-shrink-0" : ""}>Notificações</TabsTrigger>
             <TabsTrigger value="profile" className={isMobile ? "flex-shrink-0" : ""}>Perfil</TabsTrigger>

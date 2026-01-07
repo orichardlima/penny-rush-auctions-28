@@ -16,7 +16,8 @@ import {
   ArrowRight,
   Wallet,
   BarChart3,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 
 const PartnerLanding = () => {
@@ -54,9 +55,9 @@ const PartnerLanding = () => {
             <div className="p-4 bg-green-500/10 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
               <Check className="h-10 w-10 text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold mb-4">Você já é um Investidor!</h1>
+            <h1 className="text-3xl font-bold mb-4">Você já é um Parceiro!</h1>
             <p className="text-muted-foreground mb-6">
-              Acesse seu painel para acompanhar seus investimentos e retornos.
+              Acesse seu painel para acompanhar sua participação e repasses.
             </p>
             <Link to="/dashboard">
               <Button size="lg">
@@ -77,17 +78,17 @@ const PartnerLanding = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <Badge className="mb-4" variant="secondary">
-          Programa de Investidores
+          Programa de Parceiros
         </Badge>
         <h1 className="text-4xl md:text-5xl font-bold mb-4">
-          Invista e Receba até{' '}
+          Torne-se um{' '}
           <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            200% de Retorno
+            Parceiro da Plataforma
           </span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Torne-se um parceiro investidor e receba repasses mensais proporcionais ao faturamento da plataforma.
-          Transparência total e retornos garantidos até o teto do seu plano.
+          Participe de repasses mensais proporcionais ao faturamento, respeitando os limites do seu plano.
+          Transparência total e acompanhamento em tempo real.
         </p>
         <div className="flex justify-center gap-4">
           <Button size="lg" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth' })}>
@@ -108,9 +109,9 @@ const PartnerLanding = () => {
               <div className="p-4 bg-primary/10 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <TrendingUp className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Retorno Garantido</h3>
+              <h3 className="text-xl font-bold mb-2">Repasses Proporcionais</h3>
               <p className="text-muted-foreground">
-                Receba até 200% do valor investido através de repasses mensais proporcionais.
+                Receba repasses mensais proporcionais ao faturamento da plataforma, até o teto do seu plano.
               </p>
             </CardContent>
           </Card>
@@ -134,7 +135,7 @@ const PartnerLanding = () => {
               </div>
               <h3 className="text-xl font-bold mb-2">Repasses Mensais</h3>
               <p className="text-muted-foreground">
-                Todo mês você recebe sua parte do fundo de parceiros, proporcional ao seu investimento.
+                Todo mês você recebe sua parte do fundo de parceiros, proporcional ao seu aporte.
               </p>
             </CardContent>
           </Card>
@@ -146,7 +147,7 @@ const PartnerLanding = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Escolha Seu Plano</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Selecione o plano que melhor se adapta aos seus objetivos de investimento
+            Selecione o plano de participação que melhor se adapta aos seus objetivos
           </p>
         </div>
 
@@ -156,8 +157,7 @@ const PartnerLanding = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan, index) => {
-              const returnPercentage = ((plan.total_cap / plan.aporte_value) * 100).toFixed(0);
+            {plans.map((plan) => {
               const isFeatured = plan.name === 'PRO';
               
               return (
@@ -177,7 +177,7 @@ const PartnerLanding = () => {
                   
                   <CardHeader className="text-center pb-2">
                     <CardTitle className="text-2xl">{plan.display_name}</CardTitle>
-                    <p className="text-muted-foreground">Plano de Investimento</p>
+                    <p className="text-muted-foreground">Plano de Participação</p>
                   </CardHeader>
                   
                   <CardContent className="space-y-6">
@@ -185,7 +185,7 @@ const PartnerLanding = () => {
                     <div className="text-center py-4">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
                         <Wallet className="h-4 w-4" />
-                        <span className="text-sm">Investimento</span>
+                        <span className="text-sm">Aporte</span>
                       </div>
                       <p className="text-4xl font-bold">{formatPrice(plan.aporte_value)}</p>
                     </div>
@@ -194,22 +194,29 @@ const PartnerLanding = () => {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-green-500/10 rounded-full">
-                          <TrendingUp className="h-4 w-4 text-green-600" />
+                          <Target className="h-4 w-4 text-green-600" />
                         </div>
                         <div>
-                          <p className="font-medium">Retorno de até {returnPercentage}%</p>
-                          <p className="text-xs text-muted-foreground">Teto: {formatPrice(plan.total_cap)}</p>
+                          <p className="font-medium">Teto total de recebimento</p>
+                          <p className="text-sm text-primary font-semibold">{formatPrice(plan.total_cap)}</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-500/10 rounded-full">
-                          <Target className="h-4 w-4 text-blue-600" />
+                          <DollarSign className="h-4 w-4 text-blue-600" />
                         </div>
                         <div>
                           <p className="font-medium">Limite mensal</p>
                           <p className="text-xs text-muted-foreground">Até {formatPrice(plan.monthly_cap)}/mês</p>
                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-full">
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-sm">Repasses proporcionais ao faturamento</span>
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -223,7 +230,7 @@ const PartnerLanding = () => {
                         <div className="p-2 bg-primary/10 rounded-full">
                           <Clock className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-sm">Repasses mensais garantidos</span>
+                        <span className="text-sm">Relatórios mensais detalhados</span>
                       </div>
                     </div>
 
@@ -235,7 +242,7 @@ const PartnerLanding = () => {
                       onClick={() => handleSelectPlan(plan.id)}
                       disabled={submitting}
                     >
-                      {submitting ? 'Processando...' : 'Escolher Plano'}
+                      {submitting ? 'Processando...' : 'Participar deste plano'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -243,6 +250,16 @@ const PartnerLanding = () => {
             })}
           </div>
         )}
+
+        {/* Texto Legal */}
+        <div className="text-center text-sm text-muted-foreground mt-8 p-4 bg-muted/50 rounded-lg max-w-2xl mx-auto">
+          <AlertCircle className="h-4 w-4 inline-block mr-2" />
+          <p className="inline">
+            Este programa não representa investimento financeiro.
+            Os valores recebidos dependem do desempenho da plataforma.
+            Não há garantia de retorno, rentabilidade ou prazo.
+          </p>
+        </div>
       </section>
 
       {/* How it Works */}
@@ -258,7 +275,7 @@ const PartnerLanding = () => {
             </div>
             <h3 className="font-bold mb-2">Escolha um Plano</h3>
             <p className="text-sm text-muted-foreground">
-              Selecione o plano de investimento que melhor se adequa a você
+              Selecione o plano de participação que melhor se adequa a você
             </p>
           </div>
 
@@ -268,7 +285,7 @@ const PartnerLanding = () => {
             </div>
             <h3 className="font-bold mb-2">Faça seu Aporte</h3>
             <p className="text-sm text-muted-foreground">
-              Confirme seu investimento e ative seu contrato de parceiro
+              Confirme seu aporte e ative seu contrato de parceiro
             </p>
           </div>
 
@@ -276,9 +293,9 @@ const PartnerLanding = () => {
             <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
               3
             </div>
-            <h3 className="font-bold mb-2">Receba Repasses</h3>
+            <h3 className="font-bold mb-2">Acompanhe</h3>
             <p className="text-sm text-muted-foreground">
-              Todo mês você recebe sua parte proporcional do fundo de parceiros
+              Repasses mensais proporcionais ao faturamento da plataforma
             </p>
           </div>
 
@@ -286,9 +303,9 @@ const PartnerLanding = () => {
             <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
               4
             </div>
-            <h3 className="font-bold mb-2">Até 200% de Retorno</h3>
+            <h3 className="font-bold mb-2">Encerramento Automático</h3>
             <p className="text-sm text-muted-foreground">
-              Continue recebendo até atingir o teto do seu plano
+              O contrato se encerra automaticamente ao atingir o teto do plano
             </p>
           </div>
         </div>
@@ -299,9 +316,9 @@ const PartnerLanding = () => {
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-12 text-center">
             <Users className="h-16 w-16 mx-auto mb-6 text-primary" />
-            <h2 className="text-3xl font-bold mb-4">Pronto para Investir?</h2>
+            <h2 className="text-3xl font-bold mb-4">Pronto para Participar?</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              Junte-se aos nossos parceiros investidores e comece a receber retornos mensais hoje mesmo.
+              Junte-se aos nossos parceiros e comece a receber repasses mensais hoje mesmo.
             </p>
             <Button 
               size="lg" 
@@ -312,6 +329,13 @@ const PartnerLanding = () => {
             </Button>
           </CardContent>
         </Card>
+      </section>
+
+      {/* Footer Legal */}
+      <section className="container mx-auto px-4 pb-8">
+        <div className="text-center text-xs text-muted-foreground p-4 border-t">
+          Este programa não representa investimento financeiro. Os valores recebidos dependem do desempenho da plataforma. Não há garantia de retorno, rentabilidade ou prazo.
+        </div>
       </section>
     </div>
   );

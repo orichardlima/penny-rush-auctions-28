@@ -90,9 +90,9 @@ const PartnerDashboard = () => {
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold">Torne-se um Investidor</h2>
+          <h2 className="text-2xl font-bold">Torne-se um Parceiro</h2>
           <p className="text-muted-foreground">
-            Escolha um plano de investimento e receba retornos mensais baseados no faturamento da plataforma
+            Escolha um plano de participação e receba repasses mensais proporcionais ao faturamento da plataforma
           </p>
         </div>
 
@@ -116,7 +116,7 @@ const PartnerDashboard = () => {
                   <DollarSign className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Invista</p>
+                  <p className="font-medium">Participe</p>
                   <p className="text-muted-foreground">Escolha um plano e faça seu aporte</p>
                 </div>
               </div>
@@ -125,8 +125,8 @@ const PartnerDashboard = () => {
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Receba</p>
-                  <p className="text-muted-foreground">Repasses mensais proporcionais ao faturamento</p>
+                  <p className="font-medium">Acompanhe</p>
+                  <p className="text-muted-foreground">Repasses proporcionais ao faturamento</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -134,11 +134,14 @@ const PartnerDashboard = () => {
                   <Target className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Retorno de até 200%</p>
-                  <p className="text-muted-foreground">Até atingir o teto do seu plano</p>
+                  <p className="font-medium">Encerramento automático</p>
+                  <p className="text-muted-foreground">O contrato encerra ao atingir o teto</p>
                 </div>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground text-center mt-4">
+              Este programa não representa investimento financeiro. Os valores dependem do desempenho da plataforma.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -153,8 +156,8 @@ const PartnerDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Painel do Investidor</h2>
-          <p className="text-muted-foreground">Acompanhe seus investimentos e retornos</p>
+          <h2 className="text-2xl font-bold">Painel do Parceiro</h2>
+          <p className="text-muted-foreground">Acompanhe sua participação e repasses</p>
         </div>
         <Button variant="outline" onClick={refreshData}>
           <RefreshCw className="h-4 w-4 mr-2" />
