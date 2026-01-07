@@ -298,7 +298,7 @@ const AdminPartnerManagement = () => {
         <TabsContent value="plans" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Planos de Investimento</CardTitle>
+              <CardTitle>Planos de Participação</CardTitle>
               <CardDescription>Configure os planos disponíveis</CardDescription>
             </CardHeader>
             <CardContent>

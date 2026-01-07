@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, TrendingUp, Wallet, Target } from 'lucide-react';
+import { Check, TrendingUp, Wallet, Target, DollarSign, BarChart3 } from 'lucide-react';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
 
 interface PartnerPlanCardProps {
@@ -27,7 +27,6 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
     }).format(value);
   };
 
-  const returnPercentage = ((plan.total_cap / plan.aporte_value) * 100).toFixed(0);
   const isFeatured = featured || plan.name === 'PRO';
 
   return (
@@ -44,7 +43,7 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
       
       <CardHeader className="text-center pb-2">
         <CardTitle className="text-2xl">{plan.display_name}</CardTitle>
-        <CardDescription>Plano de Investimento</CardDescription>
+        <CardDescription>Plano de Participação</CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-6">
@@ -61,17 +60,17 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
         <div className="space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <div className="p-1.5 bg-green-500/10 rounded-full">
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <Target className="h-4 w-4 text-green-600" />
             </div>
             <div>
-              <span className="font-medium">Retorno de até {returnPercentage}%</span>
-              <p className="text-xs text-muted-foreground">Teto: {formatPrice(plan.total_cap)}</p>
+              <span className="font-medium">Teto total de recebimento</span>
+              <p className="text-sm text-primary font-semibold">{formatPrice(plan.total_cap)}</p>
             </div>
           </div>
           
           <div className="flex items-center gap-3 text-sm">
             <div className="p-1.5 bg-blue-500/10 rounded-full">
-              <Target className="h-4 w-4 text-blue-600" />
+              <DollarSign className="h-4 w-4 text-blue-600" />
             </div>
             <div>
               <span className="font-medium">Limite mensal</span>
@@ -81,14 +80,14 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
 
           <div className="flex items-center gap-3 text-sm">
             <div className="p-1.5 bg-primary/10 rounded-full">
-              <Check className="h-4 w-4 text-primary" />
+              <TrendingUp className="h-4 w-4 text-primary" />
             </div>
             <span>Repasses proporcionais ao faturamento</span>
           </div>
 
           <div className="flex items-center gap-3 text-sm">
             <div className="p-1.5 bg-primary/10 rounded-full">
-              <Check className="h-4 w-4 text-primary" />
+              <BarChart3 className="h-4 w-4 text-primary" />
             </div>
             <span>Dashboard exclusivo de acompanhamento</span>
           </div>
@@ -109,7 +108,7 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
           onClick={() => onSelect(plan.id)}
           disabled={loading}
         >
-          {loading ? 'Processando...' : 'Escolher Plano'}
+          {loading ? 'Processando...' : 'Participar deste plano'}
         </Button>
       </CardContent>
     </Card>
