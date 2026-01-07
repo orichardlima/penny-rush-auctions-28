@@ -65,6 +65,7 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
             <div>
               <span className="font-medium">Teto total de recebimento</span>
               <p className="text-sm text-primary font-semibold">{formatPrice(plan.total_cap)}</p>
+              <p className="text-xs text-muted-foreground">(limitado ao desempenho da plataforma)</p>
             </div>
           </div>
           
@@ -74,7 +75,7 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
             </div>
             <div>
               <span className="font-medium">Limite mensal</span>
-              <p className="text-xs text-muted-foreground">{formatPrice(plan.monthly_cap)}/mês</p>
+              <p className="text-xs text-muted-foreground">até {formatPrice(plan.monthly_cap)}/mês</p>
             </div>
           </div>
 

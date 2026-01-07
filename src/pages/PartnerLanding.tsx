@@ -199,6 +199,7 @@ const PartnerLanding = () => {
                         <div>
                           <p className="font-medium">Teto total de recebimento</p>
                           <p className="text-sm text-primary font-semibold">{formatPrice(plan.total_cap)}</p>
+                          <p className="text-xs text-muted-foreground">(limitado ao desempenho da plataforma)</p>
                         </div>
                       </div>
                       
@@ -255,9 +256,9 @@ const PartnerLanding = () => {
         <div className="text-center text-sm text-muted-foreground mt-8 p-4 bg-muted/50 rounded-lg max-w-2xl mx-auto">
           <AlertCircle className="h-4 w-4 inline-block mr-2" />
           <p className="inline">
-            Este programa não representa investimento financeiro.
-            Os valores recebidos dependem do desempenho da plataforma.
-            Não há garantia de retorno, rentabilidade ou prazo.
+            Este programa não representa investimento financeiro ou promessa de rentabilidade.
+            Os valores recebidos dependem exclusivamente do desempenho da plataforma.
+            Não há garantia de retorno, valor mínimo ou prazo.
           </p>
         </div>
       </section>
@@ -334,7 +335,7 @@ const PartnerLanding = () => {
       {/* Footer Legal */}
       <section className="container mx-auto px-4 pb-8">
         <div className="text-center text-xs text-muted-foreground p-4 border-t">
-          Este programa não representa investimento financeiro. Os valores recebidos dependem do desempenho da plataforma. Não há garantia de retorno, rentabilidade ou prazo.
+          Este programa não representa investimento financeiro ou promessa de rentabilidade. Os valores recebidos dependem exclusivamente do desempenho da plataforma. Não há garantia de retorno, valor mínimo ou prazo.
         </div>
       </section>
     </div>

@@ -92,7 +92,7 @@ const PartnerDashboard = () => {
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">Torne-se um Parceiro</h2>
           <p className="text-muted-foreground">
-            Escolha um plano de participação e receba repasses mensais proporcionais ao faturamento da plataforma
+            Escolha um plano de participação e participe de repasses mensais, proporcionais ao faturamento da plataforma
           </p>
         </div>
 
@@ -117,7 +117,7 @@ const PartnerDashboard = () => {
                 </div>
                 <div>
                   <p className="font-medium">Participe</p>
-                  <p className="text-muted-foreground">Escolha um plano e faça seu aporte</p>
+                  <p className="text-muted-foreground">Escolha um plano e realize seu aporte contratual</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -140,7 +140,7 @@ const PartnerDashboard = () => {
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Este programa não representa investimento financeiro. Os valores dependem do desempenho da plataforma.
+              Este programa não representa investimento financeiro ou promessa de rentabilidade. Os valores dependem exclusivamente do desempenho da plataforma. Não há garantia de retorno, valor mínimo ou prazo.
             </p>
           </CardContent>
         </Card>
