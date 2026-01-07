@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useAdminPartners, ManualPayoutOptions } from '@/hooks/useAdminPartners';
+import { useAdminPartners, ManualPayoutOptions, isContractEligibleForMonth } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import { 
@@ -62,6 +62,8 @@ const AdminPartnerManagement = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   });
   const [fundPercentage, setFundPercentage] = useState(getSettingValue('partner_fund_percentage', 20));
+  const cutoffDay = getSettingValue('partner_cutoff_day', 10);
+  const paymentDay = getSettingValue('partner_payment_day', 20);
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [suspendReason, setSuspendReason] = useState('');
   const [cancelReason, setCancelReason] = useState('');
@@ -84,35 +86,46 @@ const AdminPartnerManagement = () => {
     sort_order: 0
   });
 
-  // Calculate preview for manual mode
+  // Calculate preview for manual mode with eligibility check
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
   const manualPreview = useMemo(() => {
-    if (calculationMode !== 'manual' || activeContracts.length === 0) return [];
+    if (activeContracts.length === 0) return [];
+    
+    const month = selectedMonth.slice(0, 7) + '-01';
     
     return activeContracts.map(contract => {
+      const eligibility = isContractEligibleForMonth(contract.created_at, month, cutoffDay);
       const baseValue = manualBase === 'aporte' ? contract.aporte_value : contract.monthly_cap;
-      let calculatedAmount = baseValue * (manualPercentage / 100);
+      let calculatedAmount = 0;
       
-      // Apply monthly cap if base is aporte
-      if (manualBase === 'aporte' && calculatedAmount > contract.monthly_cap) {
-        calculatedAmount = contract.monthly_cap;
-      }
-      
-      // Apply total cap
-      const remaining = contract.total_cap - contract.total_received;
-      if (calculatedAmount > remaining) {
-        calculatedAmount = Math.max(0, remaining);
+      if (eligibility.eligible && calculationMode === 'manual') {
+        calculatedAmount = baseValue * (manualPercentage / 100);
+        
+        // Apply monthly cap if base is aporte
+        if (manualBase === 'aporte' && calculatedAmount > contract.monthly_cap) {
+          calculatedAmount = contract.monthly_cap;
+        }
+        
+        // Apply total cap
+        const remaining = contract.total_cap - contract.total_received;
+        if (calculatedAmount > remaining) {
+          calculatedAmount = Math.max(0, remaining);
+        }
       }
       
       return {
         ...contract,
         baseValue,
-        calculatedAmount
+        calculatedAmount,
+        eligible: eligibility.eligible,
+        eligibilityReason: eligibility.reason
       };
     });
-  }, [calculationMode, manualBase, manualPercentage, activeContracts]);
+  }, [calculationMode, manualBase, manualPercentage, activeContracts, selectedMonth, cutoffDay]);
 
-  const totalManualDistribution = manualPreview.reduce((sum, p) => sum + p.calculatedAmount, 0);
+  const eligibleContracts = manualPreview.filter(p => p.eligible);
+  const ineligibleContracts = manualPreview.filter(p => !p.eligible);
+  const totalManualDistribution = eligibleContracts.reduce((sum, p) => sum + p.calculatedAmount, 0);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -151,11 +164,17 @@ const AdminPartnerManagement = () => {
         manualMode: true,
         manualBase,
         manualPercentage,
-        manualDescription: manualDescription || undefined
+        manualDescription: manualDescription || undefined,
+        cutoffDay
       };
       await processMonthlyPayouts(selectedMonth, fundPercentage, options);
     } else {
-      await processMonthlyPayouts(selectedMonth, fundPercentage);
+      await processMonthlyPayouts(selectedMonth, fundPercentage, { 
+        manualMode: false, 
+        manualBase: 'aporte', 
+        manualPercentage: 0,
+        cutoffDay 
+      });
     }
   };
 
@@ -1046,8 +1065,8 @@ const AdminPartnerManagement = () => {
               </CardContent>
             </Card>
 
-            {/* Preview ou Histórico */}
-            {calculationMode === 'manual' && manualPreview.length > 0 ? (
+            {/* Preview com Elegibilidade */}
+            {manualPreview.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1055,32 +1074,82 @@ const AdminPartnerManagement = () => {
                     Preview da Distribuição
                   </CardTitle>
                   <CardDescription>
-                    {manualPercentage}% sobre {manualBase === 'aporte' ? 'o aporte' : 'o limite mensal'}
+                    📅 Corte: dia {cutoffDay} | Pagamento: dia {paymentDay}
+                    {calculationMode === 'manual' && ` • ${manualPercentage}% sobre ${manualBase === 'aporte' ? 'o aporte' : 'o limite mensal'}`}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {manualPreview.map((preview) => (
-                      <div key={preview.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-sm">{preview.user_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {preview.plan_name} • Base: {formatPrice(preview.baseValue)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-green-600">{formatPrice(preview.calculatedAmount)}</p>
-                          {preview.calculatedAmount < preview.baseValue * (manualPercentage / 100) && (
-                            <p className="text-xs text-yellow-600">Limite aplicado</p>
-                          )}
-                        </div>
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                    {/* Contratos elegíveis */}
+                    {eligibleContracts.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-green-600 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" />
+                          Elegíveis ({eligibleContracts.length})
+                        </p>
+                        {eligibleContracts.map((preview) => (
+                          <div key={preview.id} className="flex items-center justify-between p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
+                            <div>
+                              <p className="font-medium text-sm">{preview.user_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {preview.plan_name} • {preview.eligibilityReason}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              {calculationMode === 'manual' ? (
+                                <>
+                                  <p className="font-medium text-green-600">{formatPrice(preview.calculatedAmount)}</p>
+                                  {preview.calculatedAmount < preview.baseValue * (manualPercentage / 100) && (
+                                    <p className="text-xs text-yellow-600">Limite aplicado</p>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Proporcional ao aporte</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    {/* Contratos não elegíveis */}
+                    {ineligibleContracts.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-yellow-600 flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          Aguardando próximo mês ({ineligibleContracts.length})
+                        </p>
+                        {ineligibleContracts.map((preview) => (
+                          <div key={preview.id} className="flex items-center justify-between p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg opacity-75">
+                            <div>
+                              <p className="font-medium text-sm">{preview.user_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {preview.plan_name} • {preview.eligibilityReason}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-yellow-600">Próximo mês</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                    <span className="font-medium">Total a distribuir:</span>
-                    <span className="text-xl font-bold text-green-600">{formatPrice(totalManualDistribution)}</span>
-                  </div>
+                  
+                  {calculationMode === 'manual' && eligibleContracts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t flex justify-between items-center">
+                      <span className="font-medium">Total a distribuir:</span>
+                      <span className="text-xl font-bold text-green-600">{formatPrice(totalManualDistribution)}</span>
+                    </div>
+                  )}
+
+                  {eligibleContracts.length === 0 && (
+                    <div className="text-center py-4 text-yellow-600">
+                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhum contrato elegível para este mês</p>
+                      <p className="text-xs text-muted-foreground">Todos os contratos foram cadastrados após o dia {cutoffDay}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (
