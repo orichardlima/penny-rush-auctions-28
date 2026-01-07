@@ -597,6 +597,39 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_revenue_snapshots: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          gross_revenue: number
+          id: string
+          is_closed: boolean
+          month: string
+          partner_fund_percentage: number
+          partner_fund_value: number
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          gross_revenue: number
+          id?: string
+          is_closed?: boolean
+          month: string
+          partner_fund_percentage?: number
+          partner_fund_value: number
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          gross_revenue?: number
+          id?: string
+          is_closed?: boolean
+          month?: string
+          partner_fund_percentage?: number
+          partner_fund_value?: number
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           auction_id: string
@@ -648,6 +681,137 @@ export type Database = {
           tracking_code?: string | null
           updated_at?: string
           winner_id?: string
+        }
+        Relationships: []
+      }
+      partner_contracts: {
+        Row: {
+          aporte_value: number
+          closed_at: string | null
+          closed_reason: string | null
+          created_at: string
+          id: string
+          monthly_cap: number
+          plan_name: string
+          status: string
+          total_cap: number
+          total_received: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aporte_value: number
+          closed_at?: string | null
+          closed_reason?: string | null
+          created_at?: string
+          id?: string
+          monthly_cap: number
+          plan_name: string
+          status?: string
+          total_cap: number
+          total_received?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aporte_value?: number
+          closed_at?: string | null
+          closed_reason?: string | null
+          created_at?: string
+          id?: string
+          monthly_cap?: number
+          plan_name?: string
+          status?: string
+          total_cap?: number
+          total_received?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      partner_payouts: {
+        Row: {
+          amount: number
+          calculated_amount: number
+          created_at: string
+          id: string
+          month: string
+          monthly_cap_applied: boolean
+          paid_at: string | null
+          partner_contract_id: string
+          status: string
+          total_cap_applied: boolean
+        }
+        Insert: {
+          amount: number
+          calculated_amount: number
+          created_at?: string
+          id?: string
+          month: string
+          monthly_cap_applied?: boolean
+          paid_at?: string | null
+          partner_contract_id: string
+          status?: string
+          total_cap_applied?: boolean
+        }
+        Update: {
+          amount?: number
+          calculated_amount?: number
+          created_at?: string
+          id?: string
+          month?: string
+          monthly_cap_applied?: boolean
+          paid_at?: string | null
+          partner_contract_id?: string
+          status?: string
+          total_cap_applied?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_payouts_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_plans: {
+        Row: {
+          aporte_value: number
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          monthly_cap: number
+          name: string
+          sort_order: number
+          total_cap: number
+          updated_at: string
+        }
+        Insert: {
+          aporte_value: number
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          monthly_cap: number
+          name: string
+          sort_order?: number
+          total_cap: number
+          updated_at?: string
+        }
+        Update: {
+          aporte_value?: number
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          monthly_cap?: number
+          name?: string
+          sort_order?: number
+          total_cap?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -789,6 +953,51 @@ export type Database = {
           street?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      referral_bonuses: {
+        Row: {
+          available_at: string | null
+          blocked_reason: string | null
+          bonus_percentage: number
+          bonus_value: number
+          created_at: string
+          id: string
+          package_value: number
+          purchase_id: string | null
+          referred_user_id: string
+          referrer_user_id: string
+          status: string
+          used_at: string | null
+        }
+        Insert: {
+          available_at?: string | null
+          blocked_reason?: string | null
+          bonus_percentage?: number
+          bonus_value: number
+          created_at?: string
+          id?: string
+          package_value: number
+          purchase_id?: string | null
+          referred_user_id: string
+          referrer_user_id: string
+          status?: string
+          used_at?: string | null
+        }
+        Update: {
+          available_at?: string | null
+          blocked_reason?: string | null
+          bonus_percentage?: number
+          bonus_value?: number
+          created_at?: string
+          id?: string
+          package_value?: number
+          purchase_id?: string | null
+          referred_user_id?: string
+          referrer_user_id?: string
+          status?: string
+          used_at?: string | null
         }
         Relationships: []
       }
