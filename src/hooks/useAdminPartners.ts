@@ -52,7 +52,37 @@ export interface ManualPayoutOptions {
   manualBase: 'aporte' | 'monthly_cap';
   manualPercentage: number;
   manualDescription?: string;
+  cutoffDay?: number;
 }
+
+// Helper function to check if a contract is eligible for a given month based on cutoff
+export const isContractEligibleForMonth = (
+  contractCreatedAt: string,
+  month: string,
+  cutoffDay: number
+): { eligible: boolean; reason: string } => {
+  const contractDate = new Date(contractCreatedAt);
+  const [year, monthNum] = month.split('-').map(Number);
+  const processingMonthStart = new Date(year, monthNum - 1, 1);
+  
+  // If the contract was created before the processing month, it's eligible
+  if (contractDate < processingMonthStart) {
+    return { eligible: true, reason: 'Cadastro anterior ao mês' };
+  }
+  
+  // If the contract was created in the same month
+  if (contractDate.getFullYear() === year && contractDate.getMonth() + 1 === monthNum) {
+    // Only eligible if registered on or before the cutoff day
+    if (contractDate.getDate() <= cutoffDay) {
+      return { eligible: true, reason: `Cadastro até dia ${cutoffDay}` };
+    } else {
+      return { eligible: false, reason: `Cadastro após dia ${cutoffDay}` };
+    }
+  }
+  
+  // If the contract was created after the processing month (shouldn't happen normally)
+  return { eligible: false, reason: 'Cadastro posterior ao mês' };
+};
 
 export interface PartnerPayoutWithContract {
   id: string;
@@ -362,21 +392,44 @@ export const useAdminPartners = () => {
   const processMonthlyPayouts = async (month: string, fundPercentage: number, options?: ManualPayoutOptions) => {
     setProcessing(true);
     try {
+      // Get cutoff day from options or default to 10
+      const cutoffDay = options?.cutoffDay || 10;
+
       // 1. Buscar contratos ativos
-      const { data: activeContracts, error: contractsError } = await supabase
+      const { data: allActiveContracts, error: contractsError } = await supabase
         .from('partner_contracts')
         .select('*')
         .eq('status', 'ACTIVE');
 
       if (contractsError) throw contractsError;
 
-      if (!activeContracts || activeContracts.length === 0) {
+      if (!allActiveContracts || allActiveContracts.length === 0) {
         toast({
           title: "Sem contratos ativos",
           description: "Não há contratos ativos para processar repasses."
         });
         setProcessing(false);
         return;
+      }
+
+      // Filter contracts by cutoff eligibility
+      const activeContracts = allActiveContracts.filter(contract => {
+        const { eligible } = isContractEligibleForMonth(contract.created_at, month, cutoffDay);
+        return eligible;
+      });
+
+      if (activeContracts.length === 0) {
+        toast({
+          title: "Sem contratos elegíveis",
+          description: `Nenhum contrato é elegível para o mês selecionado (corte: dia ${cutoffDay}).`
+        });
+        setProcessing(false);
+        return;
+      }
+
+      const skippedCount = allActiveContracts.length - activeContracts.length;
+      if (skippedCount > 0) {
+        console.log(`${skippedCount} contrato(s) não elegível(is) para este mês (cadastro após dia ${cutoffDay})`);
       }
 
       let grossRevenue = 0;
