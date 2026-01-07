@@ -41,6 +41,17 @@ export interface MonthlyRevenueSnapshot {
   is_closed: boolean;
   closed_at: string | null;
   created_at: string;
+  is_manual?: boolean;
+  manual_base?: string | null;
+  manual_percentage?: number | null;
+  manual_description?: string | null;
+}
+
+export interface ManualPayoutOptions {
+  manualMode: boolean;
+  manualBase: 'aporte' | 'monthly_cap';
+  manualPercentage: number;
+  manualDescription?: string;
 }
 
 export interface PartnerPayoutWithContract {
@@ -348,39 +359,10 @@ export const useAdminPartners = () => {
     }
   };
 
-  const processMonthlyPayouts = async (month: string, fundPercentage: number) => {
+  const processMonthlyPayouts = async (month: string, fundPercentage: number, options?: ManualPayoutOptions) => {
     setProcessing(true);
     try {
-      // 1. Calcular faturamento bruto do mês
-      const startOfMonth = new Date(month);
-      const endOfMonth = new Date(startOfMonth);
-      endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-
-      const { data: purchases, error: purchasesError } = await supabase
-        .from('bid_purchases')
-        .select('amount_paid')
-        .eq('payment_status', 'completed')
-        .gte('created_at', startOfMonth.toISOString())
-        .lt('created_at', endOfMonth.toISOString());
-
-      if (purchasesError) throw purchasesError;
-
-      const grossRevenue = purchases?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
-      const partnerFundValue = grossRevenue * (fundPercentage / 100);
-
-      // 2. Criar snapshot do mês
-      const { error: snapshotError } = await supabase
-        .from('monthly_revenue_snapshots')
-        .upsert({
-          month: month,
-          gross_revenue: grossRevenue,
-          partner_fund_percentage: fundPercentage,
-          partner_fund_value: partnerFundValue
-        }, { onConflict: 'month' });
-
-      if (snapshotError) throw snapshotError;
-
-      // 3. Buscar contratos ativos
+      // 1. Buscar contratos ativos
       const { data: activeContracts, error: contractsError } = await supabase
         .from('partner_contracts')
         .select('*')
@@ -397,18 +379,94 @@ export const useAdminPartners = () => {
         return;
       }
 
-      // 4. Calcular distribuição proporcional
-      const totalAportes = activeContracts.reduce((sum, c) => sum + c.aporte_value, 0);
+      let grossRevenue = 0;
+      let partnerFundValue = 0;
+      let snapshotData: any = {
+        month: month,
+        is_manual: false,
+        manual_base: null,
+        manual_percentage: null,
+        manual_description: null
+      };
 
+      if (options?.manualMode) {
+        // MODO MANUAL: calcular baseado na porcentagem sobre a base escolhida
+        partnerFundValue = activeContracts.reduce((sum, contract) => {
+          const baseValue = options.manualBase === 'aporte' 
+            ? contract.aporte_value 
+            : contract.monthly_cap;
+          return sum + (baseValue * (options.manualPercentage / 100));
+        }, 0);
+
+        snapshotData = {
+          ...snapshotData,
+          gross_revenue: 0,
+          partner_fund_percentage: 0,
+          partner_fund_value: partnerFundValue,
+          is_manual: true,
+          manual_base: options.manualBase,
+          manual_percentage: options.manualPercentage,
+          manual_description: options.manualDescription || null
+        };
+      } else {
+        // MODO AUTOMÁTICO: calcular baseado no faturamento
+        const startOfMonth = new Date(month);
+        const endOfMonth = new Date(startOfMonth);
+        endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+
+        const { data: purchases, error: purchasesError } = await supabase
+          .from('bid_purchases')
+          .select('amount_paid')
+          .eq('payment_status', 'completed')
+          .gte('created_at', startOfMonth.toISOString())
+          .lt('created_at', endOfMonth.toISOString());
+
+        if (purchasesError) throw purchasesError;
+
+        grossRevenue = purchases?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+        partnerFundValue = grossRevenue * (fundPercentage / 100);
+
+        snapshotData = {
+          ...snapshotData,
+          gross_revenue: grossRevenue,
+          partner_fund_percentage: fundPercentage,
+          partner_fund_value: partnerFundValue
+        };
+      }
+
+      // 2. Criar snapshot do mês
+      const { error: snapshotError } = await supabase
+        .from('monthly_revenue_snapshots')
+        .upsert(snapshotData, { onConflict: 'month' });
+
+      if (snapshotError) throw snapshotError;
+
+      // 3. Calcular distribuição para cada contrato
       for (const contract of activeContracts) {
-        const participation = contract.aporte_value / totalAportes;
-        let calculatedAmount = partnerFundValue * participation;
+        let calculatedAmount = 0;
+        
+        if (options?.manualMode) {
+          // Modo manual: aplicar porcentagem diretamente sobre a base
+          const baseValue = options.manualBase === 'aporte' 
+            ? contract.aporte_value 
+            : contract.monthly_cap;
+          calculatedAmount = baseValue * (options.manualPercentage / 100);
+        } else {
+          // Modo automático: distribuição proporcional
+          const totalAportes = activeContracts.reduce((sum, c) => sum + c.aporte_value, 0);
+          const participation = contract.aporte_value / totalAportes;
+          calculatedAmount = partnerFundValue * participation;
+        }
+
         let amount = calculatedAmount;
         let monthlyCapApplied = false;
         let totalCapApplied = false;
 
-        // Aplicar limite mensal
-        if (amount > contract.monthly_cap) {
+        // Aplicar limite mensal (apenas no modo manual sobre aporte)
+        if (options?.manualMode && options.manualBase === 'aporte' && amount > contract.monthly_cap) {
+          amount = contract.monthly_cap;
+          monthlyCapApplied = true;
+        } else if (!options?.manualMode && amount > contract.monthly_cap) {
           amount = contract.monthly_cap;
           monthlyCapApplied = true;
         }
@@ -416,41 +474,44 @@ export const useAdminPartners = () => {
         // Aplicar teto total
         const remaining = contract.total_cap - contract.total_received;
         if (amount > remaining) {
-          amount = remaining;
+          amount = Math.max(0, remaining);
           totalCapApplied = true;
         }
 
-        // Criar registro de repasse
-        await supabase
-          .from('partner_payouts')
-          .insert({
-            partner_contract_id: contract.id,
-            month: month,
-            calculated_amount: calculatedAmount,
-            amount: amount,
-            status: 'PENDING',
-            monthly_cap_applied: monthlyCapApplied,
-            total_cap_applied: totalCapApplied
-          });
+        // Só criar repasse se houver valor
+        if (amount > 0) {
+          // Criar registro de repasse
+          await supabase
+            .from('partner_payouts')
+            .insert({
+              partner_contract_id: contract.id,
+              month: month,
+              calculated_amount: calculatedAmount,
+              amount: amount,
+              status: 'PENDING',
+              monthly_cap_applied: monthlyCapApplied,
+              total_cap_applied: totalCapApplied
+            });
 
-        // Atualizar total recebido do contrato
-        const newTotalReceived = contract.total_received + amount;
-        const updates: any = { 
-          total_received: newTotalReceived,
-          updated_at: new Date().toISOString()
-        };
+          // Atualizar total recebido do contrato
+          const newTotalReceived = contract.total_received + amount;
+          const updates: any = { 
+            total_received: newTotalReceived,
+            updated_at: new Date().toISOString()
+          };
 
-        // Se atingiu o teto, encerrar contrato
-        if (newTotalReceived >= contract.total_cap) {
-          updates.status = 'CLOSED';
-          updates.closed_at = new Date().toISOString();
-          updates.closed_reason = 'Teto total atingido';
+          // Se atingiu o teto, encerrar contrato
+          if (newTotalReceived >= contract.total_cap) {
+            updates.status = 'CLOSED';
+            updates.closed_at = new Date().toISOString();
+            updates.closed_reason = 'Teto total atingido';
+          }
+
+          await supabase
+            .from('partner_contracts')
+            .update(updates)
+            .eq('id', contract.id);
         }
-
-        await supabase
-          .from('partner_contracts')
-          .update(updates)
-          .eq('id', contract.id);
       }
 
       toast({

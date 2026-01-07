@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useAdminPartners } from '@/hooks/useAdminPartners';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useAdminPartners, ManualPayoutOptions } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import { 
@@ -29,7 +30,8 @@ import {
   Plus,
   Trash2,
   Download,
-  BarChart3
+  BarChart3,
+  Calculator
 } from 'lucide-react';
 
 const AdminPartnerManagement = () => {
@@ -64,6 +66,12 @@ const AdminPartnerManagement = () => {
   const [suspendReason, setSuspendReason] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   
+  // Manual mode state
+  const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual'>('automatic');
+  const [manualBase, setManualBase] = useState<'aporte' | 'monthly_cap'>('aporte');
+  const [manualPercentage, setManualPercentage] = useState(5);
+  const [manualDescription, setManualDescription] = useState('');
+  
   // Create Plan State
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [newPlan, setNewPlan] = useState({
@@ -75,6 +83,36 @@ const AdminPartnerManagement = () => {
     is_active: true,
     sort_order: 0
   });
+
+  // Calculate preview for manual mode
+  const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
+  const manualPreview = useMemo(() => {
+    if (calculationMode !== 'manual' || activeContracts.length === 0) return [];
+    
+    return activeContracts.map(contract => {
+      const baseValue = manualBase === 'aporte' ? contract.aporte_value : contract.monthly_cap;
+      let calculatedAmount = baseValue * (manualPercentage / 100);
+      
+      // Apply monthly cap if base is aporte
+      if (manualBase === 'aporte' && calculatedAmount > contract.monthly_cap) {
+        calculatedAmount = contract.monthly_cap;
+      }
+      
+      // Apply total cap
+      const remaining = contract.total_cap - contract.total_received;
+      if (calculatedAmount > remaining) {
+        calculatedAmount = Math.max(0, remaining);
+      }
+      
+      return {
+        ...contract,
+        baseValue,
+        calculatedAmount
+      };
+    });
+  }, [calculationMode, manualBase, manualPercentage, activeContracts]);
+
+  const totalManualDistribution = manualPreview.reduce((sum, p) => sum + p.calculatedAmount, 0);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -107,7 +145,18 @@ const AdminPartnerManagement = () => {
 
   const handleProcessPayouts = async () => {
     if (!selectedMonth) return;
-    await processMonthlyPayouts(selectedMonth, fundPercentage);
+    
+    if (calculationMode === 'manual') {
+      const options: ManualPayoutOptions = {
+        manualMode: true,
+        manualBase,
+        manualPercentage,
+        manualDescription: manualDescription || undefined
+      };
+      await processMonthlyPayouts(selectedMonth, fundPercentage, options);
+    } else {
+      await processMonthlyPayouts(selectedMonth, fundPercentage);
+    }
   };
 
   const handleSaveFundPercentage = async () => {
@@ -852,7 +901,7 @@ const AdminPartnerManagement = () => {
 
         {/* Processar Mês Tab */}
         <TabsContent value="process" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -863,7 +912,99 @@ const AdminPartnerManagement = () => {
                   Calcule e distribua os repasses para todos os parceiros ativos
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Modo de Cálculo */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">Modo de Cálculo</Label>
+                  <RadioGroup 
+                    value={calculationMode} 
+                    onValueChange={(v) => setCalculationMode(v as 'automatic' | 'manual')}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="automatic" id="automatic" />
+                      <Label htmlFor="automatic" className="flex-1 cursor-pointer">
+                        <span className="font-medium">Automático</span>
+                        <p className="text-xs text-muted-foreground">Baseado no faturamento real do mês</p>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="manual" id="manual" />
+                      <Label htmlFor="manual" className="flex-1 cursor-pointer">
+                        <span className="font-medium">Manual por Porcentagem</span>
+                        <p className="text-xs text-muted-foreground">Definir % sobre aporte ou limite mensal</p>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Configurações do Modo */}
+                {calculationMode === 'automatic' ? (
+                  <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
+                    <Label>% do Faturamento para Fundo</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="number"
+                        value={fundPercentage}
+                        onChange={(e) => setFundPercentage(Number(e.target.value))}
+                        min={0}
+                        max={100}
+                      />
+                      <Button variant="outline" onClick={handleSaveFundPercentage}>
+                        Salvar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                    <div className="space-y-3">
+                      <Label className="font-medium">Base de Cálculo</Label>
+                      <RadioGroup 
+                        value={manualBase} 
+                        onValueChange={(v) => setManualBase(v as 'aporte' | 'monthly_cap')}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        <div className="flex items-center space-x-2 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+                          <RadioGroupItem value="aporte" id="base-aporte" />
+                          <Label htmlFor="base-aporte" className="cursor-pointer">
+                            <span className="font-medium text-sm">Aporte</span>
+                            <p className="text-xs text-muted-foreground">Valor investido</p>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+                          <RadioGroupItem value="monthly_cap" id="base-cap" />
+                          <Label htmlFor="base-cap" className="cursor-pointer">
+                            <span className="font-medium text-sm">Limite Mensal</span>
+                            <p className="text-xs text-muted-foreground">Monthly cap</p>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Porcentagem (%)</Label>
+                      <Input 
+                        type="number"
+                        value={manualPercentage}
+                        onChange={(e) => setManualPercentage(Number(e.target.value))}
+                        min={0}
+                        max={100}
+                        step={0.1}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Descrição (opcional)</Label>
+                      <Input 
+                        value={manualDescription}
+                        onChange={(e) => setManualDescription(e.target.value)}
+                        placeholder="Ex: Repasse promocional Janeiro"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mês de Referência */}
                 <div className="space-y-2">
                   <Label>Mês de Referência</Label>
                   <Input 
@@ -872,23 +1013,8 @@ const AdminPartnerManagement = () => {
                     onChange={(e) => setSelectedMonth(`${e.target.value}-01`)}
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label>% do Faturamento para Fundo</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      type="number"
-                      value={fundPercentage}
-                      onChange={(e) => setFundPercentage(Number(e.target.value))}
-                      min={0}
-                      max={100}
-                    />
-                    <Button variant="outline" onClick={handleSaveFundPercentage}>
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
 
+                {/* Resumo */}
                 <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Contratos ativos:</span>
@@ -920,43 +1046,95 @@ const AdminPartnerManagement = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Histórico de Meses
-                </CardTitle>
-                <CardDescription>
-                  Snapshots mensais do faturamento
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {snapshots.length > 0 ? (
-                  <div className="space-y-3">
-                    {snapshots.slice(0, 6).map((snapshot) => (
-                      <div key={snapshot.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            {/* Preview ou Histórico */}
+            {calculationMode === 'manual' && manualPreview.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5" />
+                    Preview da Distribuição
+                  </CardTitle>
+                  <CardDescription>
+                    {manualPercentage}% sobre {manualBase === 'aporte' ? 'o aporte' : 'o limite mensal'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {manualPreview.map((preview) => (
+                      <div key={preview.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div>
-                          <p className="font-medium">{formatMonth(snapshot.month)}</p>
+                          <p className="font-medium text-sm">{preview.user_name}</p>
                           <p className="text-xs text-muted-foreground">
-                            Faturamento: {formatPrice(snapshot.gross_revenue)}
+                            {preview.plan_name} • Base: {formatPrice(preview.baseValue)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-green-600">{formatPrice(snapshot.partner_fund_value)}</p>
-                          <p className="text-xs text-muted-foreground">{snapshot.partner_fund_percentage}% do fat.</p>
+                          <p className="font-medium text-green-600">{formatPrice(preview.calculatedAmount)}</p>
+                          {preview.calculatedAmount < preview.baseValue * (manualPercentage / 100) && (
+                            <p className="text-xs text-yellow-600">Limite aplicado</p>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhum snapshot ainda</p>
-                    <p className="text-sm">Processe o primeiro mês para gerar dados</p>
+                  <div className="mt-4 pt-4 border-t flex justify-between items-center">
+                    <span className="font-medium">Total a distribuir:</span>
+                    <span className="text-xl font-bold text-green-600">{formatPrice(totalManualDistribution)}</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Histórico de Meses
+                  </CardTitle>
+                  <CardDescription>
+                    Snapshots mensais dos repasses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {snapshots.length > 0 ? (
+                    <div className="space-y-3">
+                      {snapshots.slice(0, 6).map((snapshot) => (
+                        <div key={snapshot.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div>
+                            <p className="font-medium">{formatMonth(snapshot.month)}</p>
+                            {snapshot.is_manual ? (
+                              <p className="text-xs text-orange-600">
+                                {snapshot.manual_percentage}% sobre {snapshot.manual_base === 'aporte' ? 'aporte' : 'limite mensal'}
+                                {snapshot.manual_description && ` • ${snapshot.manual_description}`}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Faturamento: {formatPrice(snapshot.gross_revenue)}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-green-600">{formatPrice(snapshot.partner_fund_value)}</p>
+                            {snapshot.is_manual ? (
+                              <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
+                                Manual
+                              </Badge>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">{snapshot.partner_fund_percentage}% do fat.</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhum snapshot ainda</p>
+                      <p className="text-sm">Processe o primeiro mês para gerar dados</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>
