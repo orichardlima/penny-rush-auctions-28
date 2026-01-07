@@ -35,6 +35,7 @@ import { SignupBonusWelcome } from '@/components/SignupBonusWelcome';
 import { UserOrders } from '@/components/UserOrders';
 import { PersonalAnalytics } from '@/components/PersonalAnalytics';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import PartnerDashboard from '@/components/Partner/PartnerDashboard';
 
 interface Bid {
   id: string;
@@ -289,7 +290,7 @@ const UserDashboard = () => {
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className={isMobile 
             ? "flex w-full overflow-x-auto overflow-y-hidden scrollbar-hide" 
-            : "grid w-full grid-cols-9"
+            : "grid w-full grid-cols-10"
           }>
             <TabsTrigger value="overview" className={isMobile ? "flex-shrink-0" : ""}>Visão Geral</TabsTrigger>
             <TabsTrigger value="orders" className={isMobile ? "flex-shrink-0" : ""}>Pedidos</TabsTrigger>
@@ -297,6 +298,7 @@ const UserDashboard = () => {
             <TabsTrigger value="auctions" className={isMobile ? "flex-shrink-0" : ""}>Leilões</TabsTrigger>
             <TabsTrigger value="financial" className={isMobile ? "flex-shrink-0" : ""}>Financeiro</TabsTrigger>
             <TabsTrigger value="packages" className={isMobile ? "flex-shrink-0" : ""}>Pacotes</TabsTrigger>
+            <TabsTrigger value="investments" className={isMobile ? "flex-shrink-0" : ""}>Investimentos</TabsTrigger>
             <TabsTrigger value="analytics" className={isMobile ? "flex-shrink-0" : ""}>Analytics</TabsTrigger>
             <TabsTrigger value="notifications" className={isMobile ? "flex-shrink-0" : ""}>Notificações</TabsTrigger>
             <TabsTrigger value="profile" className={isMobile ? "flex-shrink-0" : ""}>Perfil</TabsTrigger>
@@ -484,6 +486,10 @@ const UserDashboard = () => {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="investments" className="space-y-4">
+            <PartnerDashboard />
           </TabsContent>
 
           <TabsContent value="analytics">
