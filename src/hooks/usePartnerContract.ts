@@ -79,7 +79,7 @@ export const usePartnerContract = () => {
         .maybeSingle();
 
       if (error) throw error;
-      setContract(data);
+      setContract(data as PartnerContract | null);
     } catch (error) {
       console.error('Error fetching partner contract:', error);
     }
@@ -96,7 +96,7 @@ export const usePartnerContract = () => {
         .order('month', { ascending: false });
 
       if (error) throw error;
-      setPayouts(data || []);
+      setPayouts((data || []) as PartnerPayout[]);
     } catch (error) {
       console.error('Error fetching partner payouts:', error);
     }
@@ -132,7 +132,7 @@ export const usePartnerContract = () => {
 
       if (error) throw error;
 
-      setContract(data);
+      setContract(data as PartnerContract);
       toast({
         title: "Contrato criado!",
         description: "Seu contrato de parceiro foi registrado com sucesso."

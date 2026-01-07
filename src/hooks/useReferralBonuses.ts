@@ -52,9 +52,9 @@ export const useReferralBonuses = () => {
           referred_user_name: profilesMap.get(bonus.referred_user_id) || 'Usuário'
         }));
 
-        setBonuses(bonusesWithNames);
+        setBonuses(bonusesWithNames as ReferralBonus[]);
       } else {
-        setBonuses(data || []);
+        setBonuses((data || []) as ReferralBonus[]);
       }
     } catch (error) {
       console.error('Error fetching referral bonuses:', error);
