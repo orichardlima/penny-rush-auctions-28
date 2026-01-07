@@ -75,8 +75,7 @@ import { AdminOrdersManagement } from '@/components/AdminOrdersManagement';
 import { AuctionHistory } from '@/components/AuctionHistory';
 import { AdminAffiliateManagement } from '@/components/AdminAffiliateManagement';
 import { ProductTemplatesManager } from '@/components/Admin/ProductTemplatesManager';
-import { AdminPartnerManagement } from '@/components/Admin/AdminPartnerManagement';
-import { Handshake, LayoutTemplate, UsersRound } from 'lucide-react';
+import { Handshake, LayoutTemplate } from 'lucide-react';
 
 interface Auction {
   id: string;
@@ -856,10 +855,6 @@ const AdminDashboard = () => {
               <Handshake className="h-4 w-4" />
               <span className="hidden sm:inline">Afiliados</span>
             </TabsTrigger>
-            <TabsTrigger value="partners" className="flex items-center gap-2">
-              <UsersRound className="h-4 w-4" />
-              <span className="hidden sm:inline">Parceiros</span>
-            </TabsTrigger>
             <TabsTrigger value="my-history" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Histórico</span>
@@ -1433,17 +1428,6 @@ const AdminDashboard = () => {
               </div>
             </div>
             <AdminAffiliateManagement />
-          </TabsContent>
-
-          {/* Nova aba: Parceiros */}
-          <TabsContent value="partners" className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">Gerenciamento de Parceiros</h2>
-                <p className="text-muted-foreground">Controle de contratos e repasses do programa de parceiros</p>
-              </div>
-            </div>
-            <AdminPartnerManagement />
           </TabsContent>
 
           {/* Nova aba: Histórico de Leilões do Admin */}

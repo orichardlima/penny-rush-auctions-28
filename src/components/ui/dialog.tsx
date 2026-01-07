@@ -6,16 +6,7 @@ import { cn } from "@/lib/utils"
 
 const Dialog = DialogPrimitive.Root
 
-type DialogTriggerProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Trigger> &
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    asChild?: boolean
-  }
-
-const DialogTrigger = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Trigger>,
-  DialogTriggerProps
->((props, ref) => <DialogPrimitive.Trigger ref={ref} {...props} />)
-DialogTrigger.displayName = DialogPrimitive.Trigger.displayName
+const DialogTrigger = DialogPrimitive.Trigger
 
 const DialogPortal = DialogPrimitive.Portal
 
@@ -92,8 +83,7 @@ DialogFooter.displayName = "DialogFooter"
 
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title> &
-    React.HTMLAttributes<HTMLHeadingElement>
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
@@ -108,8 +98,7 @@ DialogTitle.displayName = DialogPrimitive.Title.displayName
 
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description> &
-    React.HTMLAttributes<HTMLParagraphElement>
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
