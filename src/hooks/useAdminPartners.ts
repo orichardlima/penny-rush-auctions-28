@@ -237,6 +237,117 @@ export const useAdminPartners = () => {
     }
   };
 
+  const deletePlan = async (planId: string) => {
+    setProcessing(true);
+    try {
+      // Check if there are contracts using this plan
+      const plan = plans.find(p => p.id === planId);
+      if (!plan) throw new Error('Plano não encontrado');
+
+      const contractsUsingPlan = contracts.filter(c => c.plan_name === plan.name);
+      
+      if (contractsUsingPlan.length > 0) {
+        // Just deactivate if there are contracts
+        const { error } = await supabase
+          .from('partner_plans')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', planId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Plano desativado",
+          description: `O plano possui ${contractsUsingPlan.length} contrato(s) vinculado(s) e foi desativado.`
+        });
+      } else {
+        // Delete permanently if no contracts
+        const { error } = await supabase
+          .from('partner_plans')
+          .delete()
+          .eq('id', planId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Plano deletado",
+          description: "O plano foi removido permanentemente."
+        });
+      }
+      
+      await fetchPlans();
+    } catch (error: any) {
+      console.error('Error deleting plan:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao deletar plano",
+        description: error.message
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const cancelPayout = async (payoutId: string, reason: string) => {
+    setProcessing(true);
+    try {
+      // Get the payout details
+      const payout = payouts.find(p => p.id === payoutId);
+      if (!payout) throw new Error('Repasse não encontrado');
+      if (payout.status !== 'PENDING') throw new Error('Apenas repasses pendentes podem ser cancelados');
+
+      // Get the contract
+      const contract = contracts.find(c => c.id === payout.partner_contract_id);
+      if (!contract) throw new Error('Contrato não encontrado');
+
+      // Update payout status to CANCELLED
+      const { error: payoutError } = await supabase
+        .from('partner_payouts')
+        .update({ 
+          status: 'CANCELLED'
+        })
+        .eq('id', payoutId);
+
+      if (payoutError) throw payoutError;
+
+      // Subtract the amount from contract's total_received
+      const newTotalReceived = Math.max(0, contract.total_received - payout.amount);
+      const updates: any = {
+        total_received: newTotalReceived,
+        updated_at: new Date().toISOString()
+      };
+
+      // If contract was CLOSED due to cap, reactivate it
+      if (contract.status === 'CLOSED' && contract.closed_reason === 'Teto total atingido') {
+        updates.status = 'ACTIVE';
+        updates.closed_at = null;
+        updates.closed_reason = null;
+      }
+
+      const { error: contractError } = await supabase
+        .from('partner_contracts')
+        .update(updates)
+        .eq('id', contract.id);
+
+      if (contractError) throw contractError;
+
+      toast({
+        title: "Repasse cancelado",
+        description: `Repasse cancelado. Motivo: ${reason}`
+      });
+
+      await Promise.all([fetchContracts(), fetchPayouts()]);
+    } catch (error: any) {
+      console.error('Error cancelling payout:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao cancelar repasse",
+        description: error.message
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const processMonthlyPayouts = async (month: string, fundPercentage: number) => {
     setProcessing(true);
     try {
@@ -419,6 +530,8 @@ export const useAdminPartners = () => {
     updateContractStatus,
     updatePlan,
     createPlan,
+    deletePlan,
+    cancelPayout,
     processMonthlyPayouts,
     markPayoutAsPaid,
     refreshData: async () => {

@@ -8,8 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAdminPartners } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import { 
   Users, 
   DollarSign, 
@@ -23,7 +25,11 @@ import {
   Edit,
   AlertTriangle,
   Wallet,
-  Calendar
+  Calendar,
+  Plus,
+  Trash2,
+  Download,
+  BarChart3
 } from 'lucide-react';
 
 const AdminPartnerManagement = () => {
@@ -37,6 +43,9 @@ const AdminPartnerManagement = () => {
     processing,
     updateContractStatus,
     updatePlan,
+    createPlan,
+    deletePlan,
+    cancelPayout,
     processMonthlyPayouts,
     markPayoutAsPaid,
     refreshData 
@@ -51,6 +60,19 @@ const AdminPartnerManagement = () => {
   const [fundPercentage, setFundPercentage] = useState(getSettingValue('partner_fund_percentage', 20));
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [suspendReason, setSuspendReason] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  
+  // Create Plan State
+  const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+  const [newPlan, setNewPlan] = useState({
+    name: '',
+    display_name: '',
+    aporte_value: 0,
+    monthly_cap: 0,
+    total_cap: 0,
+    is_active: true,
+    sort_order: 0
+  });
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -88,6 +110,80 @@ const AdminPartnerManagement = () => {
 
   const handleSaveFundPercentage = async () => {
     await updateSetting('partner_fund_percentage', fundPercentage.toString());
+  };
+
+  const handleCreatePlan = async () => {
+    if (!newPlan.name || !newPlan.display_name || newPlan.aporte_value <= 0) return;
+    
+    await createPlan(newPlan);
+    setIsCreatingPlan(false);
+    setNewPlan({
+      name: '',
+      display_name: '',
+      aporte_value: 0,
+      monthly_cap: 0,
+      total_cap: 0,
+      is_active: true,
+      sort_order: plans.length
+    });
+  };
+
+  const handleDeletePlan = async (planId: string) => {
+    await deletePlan(planId);
+  };
+
+  const handleCancelPayout = async (payoutId: string) => {
+    if (!cancelReason.trim()) return;
+    await cancelPayout(payoutId, cancelReason);
+    setCancelReason('');
+  };
+
+  // Export to CSV function
+  const exportToCSV = (data: any[], filename: string, headers: string[]) => {
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => headers.map(h => {
+        const key = h.toLowerCase().replace(/ /g, '_');
+        const value = row[key] ?? '';
+        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
+      }).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const exportContracts = () => {
+    const data = contracts.map(c => ({
+      parceiro: c.user_name,
+      email: c.user_email,
+      plano: c.plan_name,
+      aporte: c.aporte_value,
+      recebido: c.total_received,
+      teto: c.total_cap,
+      status: c.status,
+      criado_em: formatDate(c.created_at)
+    }));
+    exportToCSV(data, 'contratos_parceiros', ['Parceiro', 'Email', 'Plano', 'Aporte', 'Recebido', 'Teto', 'Status', 'Criado_em']);
+  };
+
+  const exportPayouts = () => {
+    const data = payouts.map(p => {
+      const contract = contracts.find(c => c.id === p.partner_contract_id);
+      return {
+        mes: formatMonth(p.month),
+        parceiro: contract?.user_name || 'N/A',
+        plano: contract?.plan_name || 'N/A',
+        calculado: p.calculated_amount,
+        valor_final: p.amount,
+        status: p.status,
+        pago_em: p.paid_at ? formatDate(p.paid_at) : 'N/A'
+      };
+    });
+    exportToCSV(data, 'repasses_parceiros', ['Mes', 'Parceiro', 'Plano', 'Calculado', 'Valor_final', 'Status', 'Pago_em']);
   };
 
   if (loading) {
@@ -176,15 +272,22 @@ const AdminPartnerManagement = () => {
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
           <TabsTrigger value="plans">Planos</TabsTrigger>
           <TabsTrigger value="payouts">Repasses</TabsTrigger>
+          <TabsTrigger value="reports">Relatórios</TabsTrigger>
           <TabsTrigger value="process">Processar Mês</TabsTrigger>
         </TabsList>
 
         {/* Contratos Tab */}
         <TabsContent value="contracts" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Todos os Contratos</CardTitle>
-              <CardDescription>Lista de todos os contratos de parceiros</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Todos os Contratos</CardTitle>
+                <CardDescription>Lista de todos os contratos de parceiros</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={exportContracts}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -297,9 +400,106 @@ const AdminPartnerManagement = () => {
         {/* Planos Tab */}
         <TabsContent value="plans" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Planos de Participação</CardTitle>
-              <CardDescription>Configure os planos disponíveis</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Planos de Participação</CardTitle>
+                <CardDescription>Configure os planos disponíveis</CardDescription>
+              </div>
+              <Dialog open={isCreatingPlan} onOpenChange={setIsCreatingPlan}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Plano
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Criar Novo Plano</DialogTitle>
+                    <DialogDescription>
+                      Configure os detalhes do novo plano de participação
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Nome Interno</Label>
+                        <Input 
+                          value={newPlan.name}
+                          onChange={(e) => setNewPlan({...newPlan, name: e.target.value})}
+                          placeholder="ex: starter"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Nome de Exibição</Label>
+                        <Input 
+                          value={newPlan.display_name}
+                          onChange={(e) => setNewPlan({...newPlan, display_name: e.target.value})}
+                          placeholder="ex: Plano Starter"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Valor do Aporte (R$)</Label>
+                        <Input 
+                          type="number"
+                          value={newPlan.aporte_value}
+                          onChange={(e) => setNewPlan({...newPlan, aporte_value: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Limite Mensal (R$)</Label>
+                        <Input 
+                          type="number"
+                          value={newPlan.monthly_cap}
+                          onChange={(e) => setNewPlan({...newPlan, monthly_cap: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Teto Total (R$)</Label>
+                        <Input 
+                          type="number"
+                          value={newPlan.total_cap}
+                          onChange={(e) => setNewPlan({...newPlan, total_cap: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ordem de Exibição</Label>
+                        <Input 
+                          type="number"
+                          value={newPlan.sort_order}
+                          onChange={(e) => setNewPlan({...newPlan, sort_order: Number(e.target.value)})}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox"
+                        checked={newPlan.is_active}
+                        onChange={(e) => setNewPlan({...newPlan, is_active: e.target.checked})}
+                      />
+                      <Label>Plano ativo</Label>
+                    </div>
+                    
+                    {newPlan.aporte_value > 0 && newPlan.total_cap > 0 && (
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          Retorno máximo: <span className="font-medium text-green-600">{((newPlan.total_cap / newPlan.aporte_value) * 100).toFixed(0)}%</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsCreatingPlan(false)}>
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleCreatePlan}
+                      disabled={processing || !newPlan.name || !newPlan.display_name || newPlan.aporte_value <= 0}
+                    >
+                      {processing ? 'Criando...' : 'Criar Plano'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <Table>
@@ -330,78 +530,113 @@ const AdminPartnerManagement = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setEditingPlan({ ...plan })}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Editar Plano</DialogTitle>
-                            </DialogHeader>
-                            {editingPlan && (
-                              <div className="space-y-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label>Nome de Exibição</Label>
-                                    <Input 
-                                      value={editingPlan.display_name}
-                                      onChange={(e) => setEditingPlan({...editingPlan, display_name: e.target.value})}
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Valor do Aporte (R$)</Label>
-                                    <Input 
-                                      type="number"
-                                      value={editingPlan.aporte_value}
-                                      onChange={(e) => setEditingPlan({...editingPlan, aporte_value: Number(e.target.value)})}
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Limite Mensal (R$)</Label>
-                                    <Input 
-                                      type="number"
-                                      value={editingPlan.monthly_cap}
-                                      onChange={(e) => setEditingPlan({...editingPlan, monthly_cap: Number(e.target.value)})}
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Teto Total (R$)</Label>
-                                    <Input 
-                                      type="number"
-                                      value={editingPlan.total_cap}
-                                      onChange={(e) => setEditingPlan({...editingPlan, total_cap: Number(e.target.value)})}
-                                    />
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <input 
-                                    type="checkbox"
-                                    checked={editingPlan.is_active}
-                                    onChange={(e) => setEditingPlan({...editingPlan, is_active: e.target.checked})}
-                                  />
-                                  <Label>Plano ativo</Label>
-                                </div>
-                              </div>
-                            )}
-                            <DialogFooter>
+                        <div className="flex gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
                               <Button 
-                                onClick={() => {
-                                  updatePlan(editingPlan.id, editingPlan);
-                                  setEditingPlan(null);
-                                }}
-                                disabled={processing}
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setEditingPlan({ ...plan })}
                               >
-                                Salvar
+                                <Edit className="h-4 w-4" />
                               </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Editar Plano</DialogTitle>
+                              </DialogHeader>
+                              {editingPlan && (
+                                <div className="space-y-4 py-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label>Nome de Exibição</Label>
+                                      <Input 
+                                        value={editingPlan.display_name}
+                                        onChange={(e) => setEditingPlan({...editingPlan, display_name: e.target.value})}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Valor do Aporte (R$)</Label>
+                                      <Input 
+                                        type="number"
+                                        value={editingPlan.aporte_value}
+                                        onChange={(e) => setEditingPlan({...editingPlan, aporte_value: Number(e.target.value)})}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Limite Mensal (R$)</Label>
+                                      <Input 
+                                        type="number"
+                                        value={editingPlan.monthly_cap}
+                                        onChange={(e) => setEditingPlan({...editingPlan, monthly_cap: Number(e.target.value)})}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Teto Total (R$)</Label>
+                                      <Input 
+                                        type="number"
+                                        value={editingPlan.total_cap}
+                                        onChange={(e) => setEditingPlan({...editingPlan, total_cap: Number(e.target.value)})}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input 
+                                      type="checkbox"
+                                      checked={editingPlan.is_active}
+                                      onChange={(e) => setEditingPlan({...editingPlan, is_active: e.target.checked})}
+                                    />
+                                    <Label>Plano ativo</Label>
+                                  </div>
+                                </div>
+                              )}
+                              <DialogFooter>
+                                <Button 
+                                  onClick={() => {
+                                    updatePlan(editingPlan.id, editingPlan);
+                                    setEditingPlan(null);
+                                  }}
+                                  disabled={processing}
+                                >
+                                  Salvar
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Deletar Plano</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {contracts.filter(c => c.plan_name === plan.name).length > 0 ? (
+                                    <>
+                                      Este plano possui contratos vinculados e será <strong>desativado</strong> (não deletado permanentemente).
+                                    </>
+                                  ) : (
+                                    <>
+                                      Este plano não possui contratos e será <strong>deletado permanentemente</strong>.
+                                    </>
+                                  )}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeletePlan(plan.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {contracts.filter(c => c.plan_name === plan.name).length > 0 ? 'Desativar' : 'Deletar'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -414,9 +649,15 @@ const AdminPartnerManagement = () => {
         {/* Repasses Tab */}
         <TabsContent value="payouts" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Repasses</CardTitle>
-              <CardDescription>Todos os repasses processados</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Histórico de Repasses</CardTitle>
+                <CardDescription>Todos os repasses processados</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={exportPayouts}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -450,22 +691,69 @@ const AdminPartnerManagement = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {payout.status === 'PENDING' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => markPayoutAsPaid(payout.id)}
-                              disabled={processing}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Marcar Pago
-                            </Button>
-                          )}
-                          {payout.paid_at && (
-                            <span className="text-xs text-muted-foreground">
-                              Pago em {formatDate(payout.paid_at)}
-                            </span>
-                          )}
+                          <div className="flex gap-2">
+                            {payout.status === 'PENDING' && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => markPayoutAsPaid(payout.id)}
+                                  disabled={processing}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Pago
+                                </Button>
+                                
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <XCircle className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Cancelar Repasse</DialogTitle>
+                                      <DialogDescription>
+                                        O valor será subtraído do total recebido do parceiro. Informe o motivo do cancelamento.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                      <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                        <p className="text-sm">
+                                          <strong>Valor:</strong> {formatPrice(payout.amount)}
+                                        </p>
+                                        <p className="text-sm">
+                                          <strong>Parceiro:</strong> {contract?.user_name}
+                                        </p>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Motivo do cancelamento</Label>
+                                        <Input 
+                                          value={cancelReason}
+                                          onChange={(e) => setCancelReason(e.target.value)}
+                                          placeholder="Ex: Erro no cálculo, fraude detectada..."
+                                        />
+                                      </div>
+                                    </div>
+                                    <DialogFooter>
+                                      <Button 
+                                        variant="destructive"
+                                        onClick={() => handleCancelPayout(payout.id)}
+                                        disabled={processing || !cancelReason.trim()}
+                                      >
+                                        Cancelar Repasse
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              </>
+                            )}
+                            {payout.paid_at && (
+                              <span className="text-xs text-muted-foreground">
+                                Pago em {formatDate(payout.paid_at)}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -479,6 +767,16 @@ const AdminPartnerManagement = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Relatórios Tab */}
+        <TabsContent value="reports" className="space-y-4">
+          <PartnerAnalyticsCharts
+            snapshots={snapshots}
+            payouts={payouts}
+            contracts={contracts}
+            plans={plans}
+          />
         </TabsContent>
 
         {/* Processar Mês Tab */}
