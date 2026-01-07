@@ -604,6 +604,10 @@ export type Database = {
           gross_revenue: number
           id: string
           is_closed: boolean
+          is_manual: boolean | null
+          manual_base: string | null
+          manual_description: string | null
+          manual_percentage: number | null
           month: string
           partner_fund_percentage: number
           partner_fund_value: number
@@ -614,6 +618,10 @@ export type Database = {
           gross_revenue: number
           id?: string
           is_closed?: boolean
+          is_manual?: boolean | null
+          manual_base?: string | null
+          manual_description?: string | null
+          manual_percentage?: number | null
           month: string
           partner_fund_percentage?: number
           partner_fund_value: number
@@ -624,6 +632,10 @@ export type Database = {
           gross_revenue?: number
           id?: string
           is_closed?: boolean
+          is_manual?: boolean | null
+          manual_base?: string | null
+          manual_description?: string | null
+          manual_percentage?: number | null
           month?: string
           partner_fund_percentage?: number
           partner_fund_value?: number
