@@ -1,8 +1,11 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { Header } from '@/components/Header';
@@ -17,13 +20,26 @@ import {
   Wallet,
   BarChart3,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Gift
 } from 'lucide-react';
 
 const PartnerLanding = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { plans, loading, createContract, submitting, contract } = usePartnerContract();
+  
+  const [referralCode, setReferralCode] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // Capturar código de indicação da URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode.toUpperCase());
+    }
+  }, [searchParams]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -35,11 +51,16 @@ const PartnerLanding = () => {
 
   const handleSelectPlan = async (planId: string) => {
     if (!user) {
-      navigate('/auth?redirect=/parceiro');
+      const redirectUrl = referralCode ? `/parceiro?ref=${referralCode}` : '/parceiro';
+      navigate(`/auth?redirect=${encodeURIComponent(redirectUrl)}`);
       return;
     }
     
-    const result = await createContract(planId);
+    if (!acceptedTerms) {
+      return;
+    }
+    
+    const result = await createContract(planId, referralCode || undefined);
     if (result.success) {
       navigate('/dashboard');
     }
@@ -235,15 +256,42 @@ const PartnerLanding = () => {
                       </div>
                     </div>
 
+                    {/* Campo de código de indicação */}
+                    <div className="space-y-2 pt-2 border-t">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Gift className="h-4 w-4" />
+                        <span>Tem um código de indicação?</span>
+                      </div>
+                      <Input 
+                        placeholder="Código de indicação (opcional)"
+                        value={referralCode}
+                        onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                        className="font-mono"
+                      />
+                    </div>
+
+                    {/* Checkbox de termos */}
+                    <div className="flex items-start gap-2 pt-2">
+                      <Checkbox 
+                        id={`terms-${plan.id}`}
+                        checked={acceptedTerms}
+                        onCheckedChange={(checked) => setAcceptedTerms(!!checked)}
+                      />
+                      <Label htmlFor={`terms-${plan.id}`} className="text-xs text-muted-foreground leading-tight cursor-pointer">
+                        Li e concordo que este não é um investimento financeiro e que não há garantia de retorno. 
+                        Os valores dependem exclusivamente do desempenho da plataforma.
+                      </Label>
+                    </div>
+
                     {/* Botão */}
                     <Button 
                       className="w-full" 
                       size="lg"
                       variant={isFeatured ? 'default' : 'outline'}
                       onClick={() => handleSelectPlan(plan.id)}
-                      disabled={submitting}
+                      disabled={submitting || (user && !acceptedTerms)}
                     >
-                      {submitting ? 'Processando...' : 'Participar deste plano'}
+                      {submitting ? 'Processando...' : user ? 'Participar deste plano' : 'Entrar e participar'}
                     </Button>
                   </CardContent>
                 </Card>

@@ -693,6 +693,8 @@ export type Database = {
           id: string
           monthly_cap: number
           plan_name: string
+          referral_code: string | null
+          referred_by_user_id: string | null
           status: string
           total_cap: number
           total_received: number
@@ -707,6 +709,8 @@ export type Database = {
           id?: string
           monthly_cap: number
           plan_name: string
+          referral_code?: string | null
+          referred_by_user_id?: string | null
           status?: string
           total_cap: number
           total_received?: number
@@ -721,6 +725,8 @@ export type Database = {
           id?: string
           monthly_cap?: number
           plan_name?: string
+          referral_code?: string | null
+          referred_by_user_id?: string | null
           status?: string
           total_cap?: number
           total_received?: number
@@ -728,6 +734,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      partner_early_terminations: {
+        Row: {
+          admin_notes: string | null
+          aporte_original: number
+          bids_amount: number | null
+          created_at: string
+          credits_amount: number | null
+          discount_percentage: number
+          final_value: number | null
+          id: string
+          liquidation_type: string
+          partner_contract_id: string
+          processed_at: string | null
+          processed_by: string | null
+          proposed_value: number
+          remaining_cap: number
+          requested_at: string
+          status: string
+          total_received: number
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          aporte_original: number
+          bids_amount?: number | null
+          created_at?: string
+          credits_amount?: number | null
+          discount_percentage?: number
+          final_value?: number | null
+          id?: string
+          liquidation_type: string
+          partner_contract_id: string
+          processed_at?: string | null
+          processed_by?: string | null
+          proposed_value: number
+          remaining_cap: number
+          requested_at?: string
+          status?: string
+          total_received: number
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          aporte_original?: number
+          bids_amount?: number | null
+          created_at?: string
+          credits_amount?: number | null
+          discount_percentage?: number
+          final_value?: number | null
+          id?: string
+          liquidation_type?: string
+          partner_contract_id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          proposed_value?: number
+          remaining_cap?: number
+          requested_at?: string
+          status?: string
+          total_received?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_early_terminations_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_payouts: {
         Row: {
@@ -814,6 +891,63 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      partner_referral_bonuses: {
+        Row: {
+          aporte_value: number
+          available_at: string | null
+          bonus_percentage: number
+          bonus_value: number
+          created_at: string
+          id: string
+          paid_at: string | null
+          referred_contract_id: string
+          referred_user_id: string
+          referrer_contract_id: string
+          status: string
+        }
+        Insert: {
+          aporte_value: number
+          available_at?: string | null
+          bonus_percentage?: number
+          bonus_value: number
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          referred_contract_id: string
+          referred_user_id: string
+          referrer_contract_id: string
+          status?: string
+        }
+        Update: {
+          aporte_value?: number
+          available_at?: string | null
+          bonus_percentage?: number
+          bonus_value?: number
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          referred_contract_id?: string
+          referred_user_id?: string
+          referrer_contract_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_referral_bonuses_referred_contract_id_fkey"
+            columns: ["referred_contract_id"]
+            isOneToOne: true
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_referral_bonuses_referrer_contract_id_fkey"
+            columns: ["referrer_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_templates: {
         Row: {
