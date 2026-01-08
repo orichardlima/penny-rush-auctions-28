@@ -879,7 +879,7 @@ export const useAdminPartners = () => {
     totalPaid: contracts.reduce((sum, c) => sum + c.total_received, 0),
     pendingPayouts: payouts.filter(p => p.status === 'PENDING').length,
     pendingTerminations: terminations.filter(t => t.status === 'PENDING').length,
-    pendingWithdrawals: withdrawals.filter(w => w.status === 'PENDING').length
+    pendingWithdrawals: withdrawals.filter(w => w.status === 'APPROVED').length
   };
 
   return {
@@ -900,7 +900,6 @@ export const useAdminPartners = () => {
     processMonthlyPayouts,
     markPayoutAsPaid,
     processTermination,
-    approveWithdrawal,
     rejectWithdrawal,
     markWithdrawalAsPaid,
     refreshData: async () => {

@@ -117,13 +117,13 @@ export const usePartnerWithdrawals = (contractId?: string) => {
       return { success: false };
     }
 
-    // Verificar se já existe solicitação pendente
-    const pendingWithdrawal = withdrawals.find(w => w.status === 'PENDING');
-    if (pendingWithdrawal) {
+    // Verificar se já existe solicitação aguardando pagamento
+    const awaitingPayment = withdrawals.find(w => w.status === 'APPROVED');
+    if (awaitingPayment) {
       toast({
         variant: "destructive",
-        title: "Solicitação pendente",
-        description: "Você já possui uma solicitação de saque em análise."
+        title: "Saque em andamento",
+        description: "Você já possui uma solicitação aguardando pagamento."
       });
       return { success: false };
     }
@@ -136,14 +136,16 @@ export const usePartnerWithdrawals = (contractId?: string) => {
           partner_contract_id: contractId,
           amount,
           payment_method: 'pix',
-          payment_details: JSON.parse(JSON.stringify(paymentDetails))
+          payment_details: JSON.parse(JSON.stringify(paymentDetails)),
+          status: 'APPROVED',
+          approved_at: new Date().toISOString()
         }]);
 
       if (error) throw error;
 
       toast({
         title: "Saque solicitado!",
-        description: "Sua solicitação foi enviada e será analisada em breve."
+        description: "Sua solicitação foi aprovada e aguarda pagamento."
       });
 
       await fetchWithdrawals();
@@ -214,6 +216,6 @@ export const usePartnerWithdrawals = (contractId?: string) => {
     updateContractPaymentDetails,
     calculateAvailableBalance,
     refreshWithdrawals: fetchWithdrawals,
-    hasPendingWithdrawal: withdrawals.some(w => w.status === 'PENDING')
+    hasPendingWithdrawal: withdrawals.some(w => w.status === 'APPROVED')
   };
 };
