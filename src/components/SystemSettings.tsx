@@ -37,8 +37,6 @@ export const SystemSettings: React.FC = () => {
   // Partner System State
   const [partnerSystemEnabled, setPartnerSystemEnabled] = useState<boolean>(true);
   const [partnerFundPercentage, setPartnerFundPercentage] = useState<string>('20');
-  const [partnerCutoffDay, setPartnerCutoffDay] = useState<string>('10');
-  const [partnerPaymentDay, setPartnerPaymentDay] = useState<string>('20');
   const [savingPartner, setSavingPartner] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
@@ -71,8 +69,6 @@ export const SystemSettings: React.FC = () => {
       // Partner System
       setPartnerSystemEnabled(getSettingValue('partner_system_enabled', true));
       setPartnerFundPercentage(getSettingValue('partner_fund_percentage', 20).toString());
-      setPartnerCutoffDay(getSettingValue('partner_cutoff_day', 10).toString());
-      setPartnerPaymentDay(getSettingValue('partner_payment_day', 20).toString());
       
       setIsInitialized(true);
     }
@@ -111,9 +107,7 @@ export const SystemSettings: React.FC = () => {
     try {
       await Promise.all([
         updateSetting('partner_system_enabled', partnerSystemEnabled.toString()),
-        updateSetting('partner_fund_percentage', partnerFundPercentage),
-        updateSetting('partner_cutoff_day', partnerCutoffDay),
-        updateSetting('partner_payment_day', partnerPaymentDay)
+        updateSetting('partner_fund_percentage', partnerFundPercentage)
       ]);
       toast({
         title: "Configurações salvas!",
@@ -602,67 +596,46 @@ export const SystemSettings: React.FC = () => {
 
           <Separator />
 
-          {/* Datas de Repasse */}
+          {/* Regras de Repasse Semanal */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-purple-500" />
-              <Label className="text-base font-medium">Datas de Repasse</Label>
+              <Label className="text-base font-medium">Regras de Repasse Semanal</Label>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="partner-cutoff">Dia de Corte</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="partner-cutoff"
-                    type="number"
-                    min="1"
-                    max="28"
-                    value={partnerCutoffDay}
-                    onChange={(e) => setPartnerCutoffDay(e.target.value)}
-                    className="w-20"
-                    disabled={!partnerSystemEnabled}
-                  />
-                  <span className="text-sm text-muted-foreground">do mês</span>
-                </div>
+                <p className="text-sm font-medium text-purple-600">📅 Período da Semana</p>
                 <p className="text-xs text-muted-foreground">
-                  Cadastros até este dia recebem no mesmo mês
+                  Cada semana é calculada de <strong>segunda-feira (00:00)</strong> até <strong>domingo (23:59)</strong>.
                 </p>
               </div>
-
+              
+              <Separator className="bg-purple-500/20" />
+              
               <div className="space-y-2">
-                <Label htmlFor="partner-payment">Dia de Pagamento</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="partner-payment"
-                    type="number"
-                    min="1"
-                    max="28"
-                    value={partnerPaymentDay}
-                    onChange={(e) => setPartnerPaymentDay(e.target.value)}
-                    className="w-20"
-                    disabled={!partnerSystemEnabled}
-                  />
-                  <span className="text-sm text-muted-foreground">do mês</span>
-                </div>
+                <p className="text-sm font-medium text-purple-600">✂️ Data de Corte</p>
                 <p className="text-xs text-muted-foreground">
-                  Dia do repasse mensal
+                  Contratos criados <strong>antes da segunda-feira</strong> da semana processada são elegíveis para receber o repasse daquela semana.
+                  Contratos criados na segunda-feira ou depois aguardam a próxima semana.
                 </p>
               </div>
-            </div>
-
-            {/* Preview da regra */}
-            <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <p className="text-xs text-muted-foreground">
-                📅 <strong>Exemplo:</strong> Cadastros até dia {partnerCutoffDay} de Janeiro recebem no dia {partnerPaymentDay} de Janeiro. 
-                Cadastros após o dia {partnerCutoffDay} recebem no dia {partnerPaymentDay} de Fevereiro.
-              </p>
+              
+              <Separator className="bg-purple-500/20" />
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-purple-600">💰 Processamento</p>
+                <p className="text-xs text-muted-foreground">
+                  Os repasses são processados manualmente pelo administrador após o fim de cada semana.
+                  Acesse a aba <strong>"Processar Semana"</strong> no Gerenciamento de Parceiros para processar.
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
             <p className="text-xs text-muted-foreground">
-              💡 <strong>Dica:</strong> Acesse "Gerenciamento de Parceiros" para configurar planos, processar repasses e ver relatórios detalhados.
+              💡 <strong>Dica:</strong> Acesse "Gerenciamento de Parceiros" para configurar planos, processar repasses semanais e ver relatórios detalhados.
             </p>
           </div>
 
