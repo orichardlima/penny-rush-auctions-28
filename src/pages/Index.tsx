@@ -438,33 +438,33 @@ const Index = () => {
               <div className="flex-1 text-center lg:text-left">
                 <Badge className="bg-purple-500 text-white mb-4">Exclusivo</Badge>
                 <h2 className="text-3xl font-bold mb-4">
-                  Seja um Parceiro Investidor
+                  Seja um Parceiro da Plataforma
                 </h2>
                 <p className="text-lg text-muted-foreground mb-6">
-                  Contribua com a plataforma e receba repasses semanais proporcionais 
-                  ao faturamento. Transparência total e retornos reais.
+                  Contribua com a plataforma e participe de repasses semanais proporcionais 
+                  ao faturamento. Transparência total e regras claras.
                 </p>
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Repasses Semanais</span>
+                    <span className="text-sm">Apuração semanal</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">100% Transparente</span>
+                    <span className="text-sm">Transparência total</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Dashboard Exclusivo</span>
+                    <span className="text-sm">Dashboard exclusivo</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Encerramento Automático</span>
+                    <span className="text-sm">Encerramento automático ao atingir o teto</span>
                   </div>
                 </div>
                 <Link to="/parceiro">
                   <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
-                    Conhecer Programa de Parceiros
+                    Conhecer o Programa de Parcerias
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -481,21 +481,21 @@ const Index = () => {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-purple-500" />
-                          <span>Repasses semanais</span>
+                          <span>Apuração semanal</span>
                         </div>
-                        <span className="font-medium">Toda semana</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-purple-500" />
-                          <span>Retorno potencial</span>
-                        </div>
-                        <span className="font-medium">Até 150%</span>
+                        <span className="font-medium">Conforme faturamento</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <Target className="h-4 w-4 text-purple-500" />
-                          <span>Transparência</span>
+                          <span>Teto total</span>
+                        </div>
+                        <span className="font-medium">Conforme plano</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="h-4 w-4 text-purple-500" />
+                          <span>Acompanhamento</span>
                         </div>
                         <span className="font-medium">Dashboard ao vivo</span>
                       </div>
@@ -503,6 +503,14 @@ const Index = () => {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+            {/* Texto Legal Obrigatório */}
+            <div className="mt-8 text-center">
+              <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
+                Este programa não representa investimento financeiro. 
+                Os valores recebidos dependem do desempenho da plataforma. 
+                Não há garantia de repasse mínimo ou prazo.
+              </p>
             </div>
           </div>
         </section>
