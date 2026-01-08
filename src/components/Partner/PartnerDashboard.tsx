@@ -335,7 +335,11 @@ const PartnerDashboard = () => {
                   <TableBody>
                     {payouts.map((payout) => (
                       <TableRow key={payout.id}>
-                        <TableCell className="font-medium">{formatMonth(payout.month)}</TableCell>
+                        <TableCell className="font-medium">
+                          {payout.period_start && payout.period_end 
+                            ? `${new Date(payout.period_start).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${new Date(payout.period_end).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                            : new Date(payout.period_start).toLocaleDateString('pt-BR')}
+                        </TableCell>
                         <TableCell>{formatPrice(payout.calculated_amount)}</TableCell>
                         <TableCell className="font-medium">{formatPrice(payout.amount)}</TableCell>
                         <TableCell>{getPayoutStatusBadge(payout.status)}</TableCell>
