@@ -72,10 +72,8 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING':
-        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><Clock className="h-3 w-3 mr-1" />Pendente</Badge>;
       case 'APPROVED':
-        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20"><CheckCircle className="h-3 w-3 mr-1" />Aprovado</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20"><Clock className="h-3 w-3 mr-1" />Aguardando Pagamento</Badge>;
       case 'PAID':
         return <Badge className="bg-green-500/10 text-green-600 border-green-500/20"><CheckCircle className="h-3 w-3 mr-1" />Pago</Badge>;
       case 'REJECTED':
@@ -186,7 +184,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
               <h4 className="font-medium">Solicitar Saque</h4>
               <p className="text-sm text-muted-foreground">
                 {hasPendingWithdrawal 
-                  ? 'Você já possui uma solicitação pendente'
+                  ? 'Você já possui uma solicitação aguardando pagamento'
                   : availableBalance > 0 
                     ? 'Solicite a transferência do seu saldo disponível'
                     : 'Sem saldo disponível para saque'

@@ -53,7 +53,7 @@ const AdminPartnerManagement = () => {
     processMonthlyPayouts,
     markPayoutAsPaid,
     processTermination,
-    approveWithdrawal,
+    
     rejectWithdrawal,
     markWithdrawalAsPaid,
     refreshData 
@@ -897,11 +897,8 @@ const AdminPartnerManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {withdrawal.status === 'PENDING' && (
-                          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pendente</Badge>
-                        )}
                         {withdrawal.status === 'APPROVED' && (
-                          <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Aprovado</Badge>
+                          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Aguardando Pagamento</Badge>
                         )}
                         {withdrawal.status === 'PAID' && (
                           <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Pago</Badge>
@@ -913,15 +910,16 @@ const AdminPartnerManagement = () => {
                       <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          {withdrawal.status === 'PENDING' && (
+                          {withdrawal.status === 'APPROVED' && (
                             <>
                               <Button
-                                variant="outline"
+                                variant="default"
                                 size="sm"
-                                onClick={() => approveWithdrawal(withdrawal.id)}
+                                onClick={() => markWithdrawalAsPaid(withdrawal.id)}
                                 disabled={processing}
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                Pagar
                               </Button>
                               <Dialog>
                                 <DialogTrigger asChild>
@@ -967,17 +965,6 @@ const AdminPartnerManagement = () => {
                                 </DialogContent>
                               </Dialog>
                             </>
-                          )}
-                          {withdrawal.status === 'APPROVED' && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => markWithdrawalAsPaid(withdrawal.id)}
-                              disabled={processing}
-                            >
-                              <DollarSign className="h-4 w-4 mr-1" />
-                              Pagar
-                            </Button>
                           )}
                           {withdrawal.status === 'PAID' && withdrawal.paid_at && (
                             <span className="text-xs text-green-600">
