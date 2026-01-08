@@ -63,9 +63,11 @@ const PartnerDashboard = () => {
     });
   };
 
-  const formatMonth = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const formatPeriod = (periodStart: string, periodEnd?: string | null) => {
+    const start = new Date(periodStart);
+    const end = periodEnd ? new Date(periodEnd) : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+    const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return `${formatDate(start)} - ${formatDate(end)}/${start.getFullYear()}`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -290,11 +292,11 @@ const PartnerDashboard = () => {
           {lastPayout && (
             <Card className="border-l-4 border-l-green-500">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Último Repasse - {formatMonth(lastPayout.month)}
-                </CardTitle>
-              </CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Último Repasse - {formatPeriod(lastPayout.period_start, lastPayout.period_end)}
+              </CardTitle>
+            </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
@@ -316,7 +318,7 @@ const PartnerDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Histórico de Repasses</CardTitle>
-              <CardDescription>Todos os repasses recebidos</CardDescription>
+                <CardDescription>Todos os repasses recebidos</CardDescription>
             </CardHeader>
             <CardContent>
               {payouts.length > 0 ? (

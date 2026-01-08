@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useAdminPartners, ManualPayoutOptions, isContractEligibleForMonth } from '@/hooks/useAdminPartners';
+import { useAdminPartners, ManualPayoutOptions, isContractEligibleForWeek, getWeekOptions, formatWeekRange } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import { 
@@ -50,7 +50,7 @@ const AdminPartnerManagement = () => {
     createPlan,
     deletePlan,
     cancelPayout,
-    processMonthlyPayouts,
+    processWeeklyPayouts,
     markPayoutAsPaid,
     processTermination,
     
@@ -61,12 +61,9 @@ const AdminPartnerManagement = () => {
 
   const { getSettingValue, updateSetting } = useSystemSettings();
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  });
+  const weekOptions = getWeekOptions(12);
+  const [selectedWeek, setSelectedWeek] = useState(() => weekOptions[0]?.value || '');
   const [fundPercentage, setFundPercentage] = useState(getSettingValue('partner_fund_percentage', 20));
-  const cutoffDay = getSettingValue('partner_cutoff_day', 10);
   const paymentDay = getSettingValue('partner_payment_day', 20);
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [suspendReason, setSuspendReason] = useState('');
@@ -95,10 +92,8 @@ const AdminPartnerManagement = () => {
   const manualPreview = useMemo(() => {
     if (activeContracts.length === 0) return [];
     
-    const month = selectedMonth.slice(0, 7) + '-01';
-    
     return activeContracts.map(contract => {
-      const eligibility = isContractEligibleForMonth(contract.created_at, month, cutoffDay);
+      const eligibility = isContractEligibleForWeek(contract.created_at, selectedWeek);
       const baseValue = manualBase === 'aporte' ? contract.aporte_value : contract.monthly_cap;
       let calculatedAmount = 0;
       
@@ -125,7 +120,7 @@ const AdminPartnerManagement = () => {
         eligibilityReason: eligibility.reason
       };
     });
-  }, [calculationMode, manualBase, manualPercentage, activeContracts, selectedMonth, cutoffDay]);
+  }, [calculationMode, manualBase, manualPercentage, activeContracts, selectedWeek]);
 
   const eligibleContracts = manualPreview.filter(p => p.eligible);
   const ineligibleContracts = manualPreview.filter(p => !p.eligible);
@@ -142,9 +137,8 @@ const AdminPartnerManagement = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const formatMonth = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const formatPeriod = (periodStart: string, periodEnd?: string | null) => {
+    return formatWeekRange(periodStart, periodEnd);
   };
 
   const getStatusBadge = (status: string) => {
@@ -161,23 +155,21 @@ const AdminPartnerManagement = () => {
   };
 
   const handleProcessPayouts = async () => {
-    if (!selectedMonth) return;
+    if (!selectedWeek) return;
     
     if (calculationMode === 'manual') {
       const options: ManualPayoutOptions = {
         manualMode: true,
         manualBase,
         manualPercentage,
-        manualDescription: manualDescription || undefined,
-        cutoffDay
+        manualDescription: manualDescription || undefined
       };
-      await processMonthlyPayouts(selectedMonth, fundPercentage, options);
+      await processWeeklyPayouts(selectedWeek, fundPercentage, options);
     } else {
-      await processMonthlyPayouts(selectedMonth, fundPercentage, { 
+      await processWeeklyPayouts(selectedWeek, fundPercentage, { 
         manualMode: false, 
         manualBase: 'aporte', 
-        manualPercentage: 0,
-        cutoffDay 
+        manualPercentage: 0
       });
     }
   };
@@ -248,7 +240,7 @@ const AdminPartnerManagement = () => {
     const data = payouts.map(p => {
       const contract = contracts.find(c => c.id === p.partner_contract_id);
       return {
-        mes: formatMonth(p.month),
+        semana: formatPeriod(p.period_start, p.period_end),
         parceiro: contract?.user_name || 'N/A',
         plano: contract?.plan_name || 'N/A',
         calculado: p.calculated_amount,
@@ -257,7 +249,7 @@ const AdminPartnerManagement = () => {
         pago_em: p.paid_at ? formatDate(p.paid_at) : 'N/A'
       };
     });
-    exportToCSV(data, 'repasses_parceiros', ['Mes', 'Parceiro', 'Plano', 'Calculado', 'Valor_final', 'Status', 'Pago_em']);
+    exportToCSV(data, 'repasses_parceiros', ['Semana', 'Parceiro', 'Plano', 'Calculado', 'Valor_final', 'Status', 'Pago_em']);
   };
 
   if (loading) {
@@ -766,7 +758,7 @@ const AdminPartnerManagement = () => {
                     const contract = contracts.find(c => c.id === payout.partner_contract_id);
                     return (
                       <TableRow key={payout.id}>
-                        <TableCell>{formatMonth(payout.month)}</TableCell>
+                        <TableCell>{formatPeriod(payout.period_start, payout.period_end)}</TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium">{contract?.user_name || 'N/A'}</p>
@@ -1167,14 +1159,21 @@ const AdminPartnerManagement = () => {
                   </div>
                 )}
 
-                {/* Mês de Referência */}
+                {/* Semana de Referência */}
                 <div className="space-y-2">
-                  <Label>Mês de Referência</Label>
-                  <Input 
-                    type="month"
-                    value={selectedMonth.slice(0, 7)}
-                    onChange={(e) => setSelectedMonth(`${e.target.value}-01`)}
-                  />
+                  <Label>Semana de Referência</Label>
+                  <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a semana" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {weekOptions.map((week) => (
+                        <SelectItem key={week.value} value={week.value}>
+                          {week.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Resumo */}
@@ -1218,8 +1217,7 @@ const AdminPartnerManagement = () => {
                     Preview da Distribuição
                   </CardTitle>
                   <CardDescription>
-                    📅 Corte: dia {cutoffDay} | Pagamento: dia {paymentDay}
-                    {calculationMode === 'manual' && ` • ${manualPercentage}% sobre ${manualBase === 'aporte' ? 'o aporte' : 'o limite mensal'}`}
+                    {calculationMode === 'manual' && ` ${manualPercentage}% sobre ${manualBase === 'aporte' ? 'o aporte' : 'o limite mensal'}`}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1287,13 +1285,13 @@ const AdminPartnerManagement = () => {
                     </div>
                   )}
 
-                  {eligibleContracts.length === 0 && (
-                    <div className="text-center py-4 text-yellow-600">
-                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Nenhum contrato elegível para este mês</p>
-                      <p className="text-xs text-muted-foreground">Todos os contratos foram cadastrados após o dia {cutoffDay}</p>
-                    </div>
-                  )}
+                    {eligibleContracts.length === 0 && (
+                      <div className="text-center py-4 text-yellow-600">
+                        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Nenhum contrato elegível para esta semana</p>
+                        <p className="text-xs text-muted-foreground">Todos os contratos foram cadastrados após o início da semana</p>
+                      </div>
+                    )}
                 </CardContent>
               </Card>
             ) : (
@@ -1313,7 +1311,7 @@ const AdminPartnerManagement = () => {
                       {snapshots.slice(0, 6).map((snapshot) => (
                         <div key={snapshot.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                           <div>
-                            <p className="font-medium">{formatMonth(snapshot.month)}</p>
+                            <p className="font-medium">{formatPeriod(snapshot.period_start, snapshot.period_end)}</p>
                             {snapshot.is_manual ? (
                               <p className="text-xs text-orange-600">
                                 {snapshot.manual_percentage}% sobre {snapshot.manual_base === 'aporte' ? 'aporte' : 'limite mensal'}

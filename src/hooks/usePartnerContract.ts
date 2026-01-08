@@ -32,7 +32,8 @@ export interface PartnerContract {
 export interface PartnerPayout {
   id: string;
   partner_contract_id: string;
-  month: string;
+  period_start: string;
+  period_end: string | null;
   calculated_amount: number;
   amount: number;
   status: 'PENDING' | 'PAID' | 'CANCELLED';
@@ -93,7 +94,7 @@ export const usePartnerContract = () => {
         .from('partner_payouts')
         .select('*')
         .eq('partner_contract_id', contract.id)
-        .order('month', { ascending: false });
+        .order('period_start', { ascending: false });
 
       if (error) throw error;
       setPayouts((data || []) as PartnerPayout[]);
