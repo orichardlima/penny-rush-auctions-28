@@ -41,6 +41,7 @@ const AdminPartnerManagement = () => {
     payouts, 
     snapshots,
     terminations,
+    withdrawals,
     stats,
     loading, 
     processing,
@@ -52,6 +53,9 @@ const AdminPartnerManagement = () => {
     processMonthlyPayouts,
     markPayoutAsPaid,
     processTermination,
+    approveWithdrawal,
+    rejectWithdrawal,
+    markWithdrawalAsPaid,
     refreshData 
   } = useAdminPartners();
 
@@ -342,6 +346,14 @@ const AdminPartnerManagement = () => {
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
           <TabsTrigger value="plans">Planos</TabsTrigger>
           <TabsTrigger value="payouts">Repasses</TabsTrigger>
+          <TabsTrigger value="withdrawals">
+            Saques
+            {stats.pendingWithdrawals > 0 && (
+              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 text-xs flex items-center justify-center">
+                {stats.pendingWithdrawals}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="terminations">
             Encerramentos
             {stats.pendingTerminations > 0 && (

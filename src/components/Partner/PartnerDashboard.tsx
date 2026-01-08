@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { 
@@ -17,11 +18,14 @@ import {
   Clock,
   AlertCircle,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  ArrowUpRight,
+  Users
 } from 'lucide-react';
 import { PartnerPlanCard } from './PartnerPlanCard';
 import PartnerReferralSection from './PartnerReferralSection';
 import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
+import PartnerWithdrawalSection from './PartnerWithdrawalSection';
 
 const PartnerDashboard = () => {
   const { 
@@ -164,6 +168,13 @@ const PartnerDashboard = () => {
   const progress = getProgress();
   const lastPayout = getLastPayout();
 
+  // Extend contract with pix fields for WithdrawalSection
+  const contractWithPix = contract as typeof contract & {
+    pix_key?: string | null;
+    pix_key_type?: string | null;
+    bank_details?: any;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -256,81 +267,109 @@ const PartnerDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Último Repasse */}
-      {lastPayout && (
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Último Repasse - {formatMonth(lastPayout.month)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-green-600">{formatPrice(lastPayout.amount)}</p>
-                {lastPayout.monthly_cap_applied && (
-                  <p className="text-xs text-yellow-600">Limite mensal aplicado</p>
-                )}
-                {lastPayout.total_cap_applied && (
-                  <p className="text-xs text-orange-600">Limite de teto aplicado</p>
-                )}
-              </div>
-              {getPayoutStatusBadge(lastPayout.status)}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Tabs de Conteúdo */}
+      <Tabs defaultValue="payouts" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="payouts" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Repasses
+          </TabsTrigger>
+          <TabsTrigger value="withdrawals" className="flex items-center gap-2">
+            <ArrowUpRight className="h-4 w-4" />
+            Saques
+          </TabsTrigger>
+          <TabsTrigger value="referrals" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Indicações
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Histórico de Repasses */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Repasses</CardTitle>
-          <CardDescription>Todos os repasses recebidos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {payouts.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mês</TableHead>
-                  <TableHead>Valor Calculado</TableHead>
-                  <TableHead>Valor Recebido</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Observações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payouts.map((payout) => (
-                  <TableRow key={payout.id}>
-                    <TableCell className="font-medium">{formatMonth(payout.month)}</TableCell>
-                    <TableCell>{formatPrice(payout.calculated_amount)}</TableCell>
-                    <TableCell className="font-medium">{formatPrice(payout.amount)}</TableCell>
-                    <TableCell>{getPayoutStatusBadge(payout.status)}</TableCell>
-                    <TableCell>
-                      {payout.monthly_cap_applied && (
-                        <Badge variant="outline" className="text-xs mr-1">Limite mensal</Badge>
-                      )}
-                      {payout.total_cap_applied && (
-                        <Badge variant="outline" className="text-xs">Limite teto</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum repasse ainda</p>
-              <p className="text-sm">Os repasses são processados mensalmente</p>
-            </div>
+        {/* Tab de Repasses */}
+        <TabsContent value="payouts" className="space-y-4">
+          {/* Último Repasse */}
+          {lastPayout && (
+            <Card className="border-l-4 border-l-green-500">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Último Repasse - {formatMonth(lastPayout.month)}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{formatPrice(lastPayout.amount)}</p>
+                    {lastPayout.monthly_cap_applied && (
+                      <p className="text-xs text-yellow-600">Limite mensal aplicado</p>
+                    )}
+                    {lastPayout.total_cap_applied && (
+                      <p className="text-xs text-orange-600">Limite de teto aplicado</p>
+                    )}
+                  </div>
+                  {getPayoutStatusBadge(lastPayout.status)}
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Seção de Indicações */}
-      <PartnerReferralSection />
+          {/* Histórico de Repasses */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Repasses</CardTitle>
+              <CardDescription>Todos os repasses recebidos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {payouts.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mês</TableHead>
+                      <TableHead>Valor Calculado</TableHead>
+                      <TableHead>Valor Recebido</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Observações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payouts.map((payout) => (
+                      <TableRow key={payout.id}>
+                        <TableCell className="font-medium">{formatMonth(payout.month)}</TableCell>
+                        <TableCell>{formatPrice(payout.calculated_amount)}</TableCell>
+                        <TableCell className="font-medium">{formatPrice(payout.amount)}</TableCell>
+                        <TableCell>{getPayoutStatusBadge(payout.status)}</TableCell>
+                        <TableCell>
+                          {payout.monthly_cap_applied && (
+                            <Badge variant="outline" className="text-xs mr-1">Limite mensal</Badge>
+                          )}
+                          {payout.total_cap_applied && (
+                            <Badge variant="outline" className="text-xs">Limite teto</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhum repasse ainda</p>
+                  <p className="text-sm">Os repasses são processados mensalmente</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab de Saques */}
+        <TabsContent value="withdrawals">
+          <PartnerWithdrawalSection contract={contractWithPix} onRefresh={refreshData} />
+        </TabsContent>
+
+        {/* Tab de Indicações */}
+        <TabsContent value="referrals">
+          <PartnerReferralSection />
+        </TabsContent>
+      </Tabs>
 
       {/* Encerramento Antecipado */}
       {contract.status === 'ACTIVE' && (
