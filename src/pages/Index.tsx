@@ -138,16 +138,11 @@ const Index = () => {
   const fetchAuctions = useCallback(async () => {
     try {
       // Buscar configuração de horas de exibição de leilões finalizados
-      const { data: settingsData } = await supabase
-        .from('system_settings')
-        .select('setting_value')
-        .eq('setting_key', 'finished_auctions_display_hours')
-        .single();
-
+      const {
+        data: settingsData
+      } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'finished_auctions_display_hours').single();
       const displayHours = parseInt(settingsData?.setting_value || '48');
-      
       let query = supabase.from('auctions').select('*');
-      
       if (displayHours > 0) {
         const cutoffTime = new Date(Date.now() - displayHours * 60 * 60 * 1000).toISOString();
         query = query.or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${cutoffTime},is_hidden.eq.false)`);
@@ -155,8 +150,12 @@ const Index = () => {
         // Se displayHours = 0, não mostrar leilões finalizados
         query = query.in('status', ['active', 'waiting']);
       }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const {
+        data,
+        error
+      } = await query.order('created_at', {
+        ascending: false
+      });
       if (error) {
         console.error('Error fetching auctions:', error);
         toast({
@@ -438,33 +437,33 @@ const Index = () => {
               <div className="flex-1 text-center lg:text-left">
                 <Badge className="bg-purple-500 text-white mb-4">Exclusivo</Badge>
                 <h2 className="text-3xl font-bold mb-4">
-                  Seja um Parceiro da Plataforma
+                  Seja um Parceiro Investidor
                 </h2>
                 <p className="text-lg text-muted-foreground mb-6">
-                  Contribua com a plataforma e participe de repasses semanais proporcionais 
-                  ao faturamento. Transparência total e regras claras.
+                  Contribua com a plataforma e receba repasses semanais proporcionais 
+                  ao faturamento. Transparência total e retornos reais.
                 </p>
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Apuração semanal</span>
+                    <span className="text-sm">Repasses Semanais</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Transparência total</span>
+                    <span className="text-sm">100% Transparente</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Dashboard exclusivo</span>
+                    <span className="text-sm">Dashboard Exclusivo</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span className="text-sm">Encerramento automático ao atingir o teto</span>
+                    <span className="text-sm">Encerramento Automático</span>
                   </div>
                 </div>
                 <Link to="/parceiro">
                   <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
-                    Conhecer o Programa de Parcerias
+                    Conhecer Programa de Parceiros
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -481,21 +480,21 @@ const Index = () => {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-purple-500" />
-                          <span>Apuração semanal</span>
+                          <span>Repasses semanais</span>
                         </div>
-                        <span className="font-medium">Conforme faturamento</span>
+                        <span className="font-medium">Toda semana</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-purple-500" />
+                          <span>Retorno potencial</span>
+                        </div>
+                        <span className="font-medium">Até 200% do aporte</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <Target className="h-4 w-4 text-purple-500" />
-                          <span>Teto total</span>
-                        </div>
-                        <span className="font-medium">Conforme plano</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="h-4 w-4 text-purple-500" />
-                          <span>Acompanhamento</span>
+                          <span>Transparência</span>
                         </div>
                         <span className="font-medium">Dashboard ao vivo</span>
                       </div>
@@ -503,14 +502,6 @@ const Index = () => {
                   </CardContent>
                 </Card>
               </div>
-            </div>
-            {/* Texto Legal Obrigatório */}
-            <div className="mt-8 text-center">
-              <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
-                Este programa não representa investimento financeiro. 
-                Os valores recebidos dependem do desempenho da plataforma. 
-                Não há garantia de repasse mínimo ou prazo.
-              </p>
             </div>
           </div>
         </section>
