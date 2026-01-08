@@ -355,7 +355,7 @@ const AdminPartnerManagement = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
-          <TabsTrigger value="process">Processar Mês</TabsTrigger>
+          <TabsTrigger value="process">Processar Semana</TabsTrigger>
         </TabsList>
 
         {/* Contratos Tab */}
@@ -1080,7 +1080,7 @@ const AdminPartnerManagement = () => {
                       <RadioGroupItem value="automatic" id="automatic" />
                       <Label htmlFor="automatic" className="flex-1 cursor-pointer">
                         <span className="font-medium">Automático</span>
-                        <p className="text-xs text-muted-foreground">Baseado no faturamento real do mês</p>
+                        <p className="text-xs text-muted-foreground">Baseado no faturamento real da semana</p>
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
@@ -1259,7 +1259,7 @@ const AdminPartnerManagement = () => {
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-yellow-600 flex items-center gap-1">
                           <Clock className="h-4 w-4" />
-                          Aguardando próximo mês ({ineligibleContracts.length})
+                          Aguardando próxima semana ({ineligibleContracts.length})
                         </p>
                         {ineligibleContracts.map((preview) => (
                           <div key={preview.id} className="flex items-center justify-between p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg opacity-75">
@@ -1270,7 +1270,7 @@ const AdminPartnerManagement = () => {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs text-yellow-600">Próximo mês</p>
+                              <p className="text-xs text-yellow-600">Próxima semana</p>
                             </div>
                           </div>
                         ))}
@@ -1299,10 +1299,10 @@ const AdminPartnerManagement = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
-                    Histórico de Meses
+                    Histórico de Semanas
                   </CardTitle>
                   <CardDescription>
-                    Snapshots mensais dos repasses
+                    Snapshots semanais dos repasses
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1340,7 +1340,7 @@ const AdminPartnerManagement = () => {
                     <div className="text-center py-8 text-muted-foreground">
                       <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>Nenhum snapshot ainda</p>
-                      <p className="text-sm">Processe o primeiro mês para gerar dados</p>
+                      <p className="text-sm">Processe a primeira semana para gerar dados</p>
                     </div>
                   )}
                 </CardContent>
