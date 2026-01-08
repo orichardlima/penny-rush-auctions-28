@@ -25,7 +25,9 @@ import {
   Bell,
   BarChart3,
   Users,
-  ExternalLink
+  ExternalLink,
+  Briefcase,
+  ArrowRight
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { BidPackages } from '@/components/BidPackages';
@@ -69,6 +71,8 @@ const UserDashboard = () => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAffiliate, setIsAffiliate] = useState<boolean | null>(null);
+  const [hasPartnerContract, setHasPartnerContract] = useState<boolean | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (profile?.user_id) {
@@ -114,7 +118,16 @@ const UserDashboard = () => {
         .eq('user_id', profile.user_id)
         .maybeSingle();
 
+      // Verificar se o usuário tem contrato de parceiro ativo
+      const { data: partnerData } = await supabase
+        .from('partner_contracts')
+        .select('id, status')
+        .eq('user_id', profile.user_id)
+        .in('status', ['active', 'pending'])
+        .maybeSingle();
+
       setIsAffiliate(!!affiliateData);
+      setHasPartnerContract(!!partnerData);
       setBids(bidsData || []);
       setPurchases(purchasesData || []);
     } catch (error) {
@@ -286,8 +299,68 @@ const UserDashboard = () => {
           </Card>
         )}
 
+        {/* CTA Parceiros - Mostrar para usuários que NÃO são parceiros */}
+        {!loading && hasPartnerContract === false && (
+          <Card className="bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-blue-500/10 border-purple-500/20">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-500/20 rounded-full">
+                    <Briefcase className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-foreground">💎 Seja um Parceiro Investidor!</h3>
+                      <Badge className="bg-purple-500 text-white text-xs">PRO</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Contribua com a plataforma e receba repasses semanais proporcionais ao faturamento
+                    </p>
+                  </div>
+                </div>
+                <Link to="/parceiro">
+                  <Button size="lg" className="whitespace-nowrap bg-purple-600 hover:bg-purple-700">
+                    Conhecer Programa
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Atalho para Dashboard de Parceiro - Mostrar para usuários que SÃO parceiros */}
+        {!loading && hasPartnerContract === true && (
+          <Card className="bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-blue-500/10 border-purple-500/20">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-500/20 rounded-full">
+                    <Briefcase className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">💎 Você é um Parceiro!</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Acesse seu painel para ver seus repasses semanais e evolução
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="whitespace-nowrap border-purple-500/50 hover:bg-purple-500/10 text-purple-600"
+                  onClick={() => setActiveTab('investments')}
+                >
+                  Meu Painel de Parceiro
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabs do Dashboard */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={isMobile 
             ? "flex w-full overflow-x-auto overflow-y-hidden scrollbar-hide" 
             : "grid w-full grid-cols-10"
@@ -298,7 +371,13 @@ const UserDashboard = () => {
             <TabsTrigger value="auctions" className={isMobile ? "flex-shrink-0" : ""}>Leilões</TabsTrigger>
             <TabsTrigger value="financial" className={isMobile ? "flex-shrink-0" : ""}>Financeiro</TabsTrigger>
             <TabsTrigger value="packages" className={isMobile ? "flex-shrink-0" : ""}>Pacotes</TabsTrigger>
-            <TabsTrigger value="investments" className={isMobile ? "flex-shrink-0" : ""}>Parcerias</TabsTrigger>
+            <TabsTrigger 
+              value="investments" 
+              className={`${isMobile ? "flex-shrink-0" : ""} ${hasPartnerContract ? "relative after:absolute after:top-1 after:right-1 after:w-2 after:h-2 after:bg-purple-500 after:rounded-full" : ""}`}
+            >
+              <Briefcase className="h-4 w-4 mr-1" />
+              Parcerias
+            </TabsTrigger>
             <TabsTrigger value="analytics" className={isMobile ? "flex-shrink-0" : ""}>Analytics</TabsTrigger>
             <TabsTrigger value="notifications" className={isMobile ? "flex-shrink-0" : ""}>Notificações</TabsTrigger>
             <TabsTrigger value="profile" className={isMobile ? "flex-shrink-0" : ""}>Perfil</TabsTrigger>
