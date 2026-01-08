@@ -32,9 +32,10 @@ export interface PartnerPlan {
   updated_at: string;
 }
 
-export interface MonthlyRevenueSnapshot {
+export interface WeeklyRevenueSnapshot {
   id: string;
-  month: string;
+  period_start: string;
+  period_end: string | null;
   gross_revenue: number;
   partner_fund_percentage: number;
   partner_fund_value: number;
@@ -47,6 +48,53 @@ export interface MonthlyRevenueSnapshot {
   manual_description?: string | null;
 }
 
+// Helper: Get the Monday of the week for a given date
+export const getWeekStart = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  return new Date(d.setDate(diff));
+};
+
+// Helper: Get the Sunday of the week for a given date
+export const getWeekEnd = (date: Date): Date => {
+  const weekStart = getWeekStart(date);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  return weekEnd;
+};
+
+// Helper: Format a week range for display
+export const formatWeekRange = (periodStart: string, periodEnd?: string | null): string => {
+  const start = new Date(periodStart);
+  const end = periodEnd ? new Date(periodEnd) : getWeekEnd(start);
+  
+  const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const year = start.getFullYear();
+  
+  return `${formatDate(start)} - ${formatDate(end)}/${year}`;
+};
+
+// Helper: Get list of weeks for selection (last N weeks)
+export const getWeekOptions = (numWeeks: number = 12): { value: string; label: string; start: Date; end: Date }[] => {
+  const weeks: { value: string; label: string; start: Date; end: Date }[] = [];
+  const today = new Date();
+  
+  for (let i = 0; i < numWeeks; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (i * 7));
+    const weekStart = getWeekStart(d);
+    const weekEnd = getWeekEnd(weekStart);
+    
+    const value = weekStart.toISOString().split('T')[0];
+    const label = formatWeekRange(value, weekEnd.toISOString().split('T')[0]);
+    
+    weeks.push({ value, label, start: weekStart, end: weekEnd });
+  }
+  
+  return weeks;
+};
+
 export interface ManualPayoutOptions {
   manualMode: boolean;
   manualBase: 'aporte' | 'monthly_cap';
@@ -55,39 +103,27 @@ export interface ManualPayoutOptions {
   cutoffDay?: number;
 }
 
-// Helper function to check if a contract is eligible for a given month based on cutoff
-export const isContractEligibleForMonth = (
+// Helper function to check if a contract is eligible for a given week
+export const isContractEligibleForWeek = (
   contractCreatedAt: string,
-  month: string,
-  cutoffDay: number
+  weekStart: string
 ): { eligible: boolean; reason: string } => {
   const contractDate = new Date(contractCreatedAt);
-  const [year, monthNum] = month.split('-').map(Number);
-  const processingMonthStart = new Date(year, monthNum - 1, 1);
+  const weekStartDate = new Date(weekStart);
   
-  // If the contract was created before the processing month, it's eligible
-  if (contractDate < processingMonthStart) {
-    return { eligible: true, reason: 'Cadastro anterior ao mês' };
+  // Contract must be created before the start of the processing week
+  if (contractDate < weekStartDate) {
+    return { eligible: true, reason: 'Cadastro anterior à semana' };
   }
   
-  // If the contract was created in the same month
-  if (contractDate.getFullYear() === year && contractDate.getMonth() + 1 === monthNum) {
-    // Only eligible if registered on or before the cutoff day
-    if (contractDate.getDate() <= cutoffDay) {
-      return { eligible: true, reason: `Cadastro até dia ${cutoffDay}` };
-    } else {
-      return { eligible: false, reason: `Cadastro após dia ${cutoffDay}` };
-    }
-  }
-  
-  // If the contract was created after the processing month (shouldn't happen normally)
-  return { eligible: false, reason: 'Cadastro posterior ao mês' };
+  return { eligible: false, reason: 'Cadastro durante ou após a semana' };
 };
 
 export interface PartnerPayoutWithContract {
   id: string;
   partner_contract_id: string;
-  month: string;
+  period_start: string;
+  period_end: string | null;
   calculated_amount: number;
   amount: number;
   status: string;
@@ -126,7 +162,7 @@ export const useAdminPartners = () => {
   const [contracts, setContracts] = useState<PartnerContractWithUser[]>([]);
   const [plans, setPlans] = useState<PartnerPlan[]>([]);
   const [payouts, setPayouts] = useState<PartnerPayoutWithContract[]>([]);
-  const [snapshots, setSnapshots] = useState<MonthlyRevenueSnapshot[]>([]);
+  const [snapshots, setSnapshots] = useState<WeeklyRevenueSnapshot[]>([]);
   const [withdrawals, setWithdrawals] = useState<PartnerWithdrawalWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -185,11 +221,11 @@ export const useAdminPartners = () => {
       const { data, error } = await supabase
         .from('partner_payouts')
         .select('*')
-        .order('month', { ascending: false })
+        .order('period_start', { ascending: false })
         .limit(100);
 
       if (error) throw error;
-      setPayouts(data || []);
+      setPayouts((data || []) as PartnerPayoutWithContract[]);
     } catch (error) {
       console.error('Error fetching payouts:', error);
     }
@@ -198,12 +234,12 @@ export const useAdminPartners = () => {
   const fetchSnapshots = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('monthly_revenue_snapshots')
+        .from('weekly_revenue_snapshots')
         .select('*')
-        .order('month', { ascending: false });
+        .order('period_start', { ascending: false });
 
       if (error) throw error;
-      setSnapshots(data || []);
+      setSnapshots((data || []) as WeeklyRevenueSnapshot[]);
     } catch (error) {
       console.error('Error fetching snapshots:', error);
     }
@@ -413,11 +449,12 @@ export const useAdminPartners = () => {
     }
   };
 
-  const processMonthlyPayouts = async (month: string, fundPercentage: number, options?: ManualPayoutOptions) => {
+  const processWeeklyPayouts = async (weekStart: string, fundPercentage: number, options?: ManualPayoutOptions) => {
     setProcessing(true);
     try {
-      // Get cutoff day from options or default to 10
-      const cutoffDay = options?.cutoffDay || 10;
+      const weekStartDate = new Date(weekStart);
+      const weekEndDate = getWeekEnd(weekStartDate);
+      const weekEnd = weekEndDate.toISOString().split('T')[0];
 
       // 1. Buscar contratos ativos
       const { data: allActiveContracts, error: contractsError } = await supabase
@@ -436,16 +473,16 @@ export const useAdminPartners = () => {
         return;
       }
 
-      // Filter contracts by cutoff eligibility
+      // Filter contracts by eligibility (must be created before the week)
       const activeContracts = allActiveContracts.filter(contract => {
-        const { eligible } = isContractEligibleForMonth(contract.created_at, month, cutoffDay);
+        const { eligible } = isContractEligibleForWeek(contract.created_at, weekStart);
         return eligible;
       });
 
       if (activeContracts.length === 0) {
         toast({
           title: "Sem contratos elegíveis",
-          description: `Nenhum contrato é elegível para o mês selecionado (corte: dia ${cutoffDay}).`
+          description: `Nenhum contrato é elegível para a semana selecionada.`
         });
         setProcessing(false);
         return;
@@ -453,13 +490,14 @@ export const useAdminPartners = () => {
 
       const skippedCount = allActiveContracts.length - activeContracts.length;
       if (skippedCount > 0) {
-        console.log(`${skippedCount} contrato(s) não elegível(is) para este mês (cadastro após dia ${cutoffDay})`);
+        console.log(`${skippedCount} contrato(s) não elegível(is) para esta semana`);
       }
 
       let grossRevenue = 0;
       let partnerFundValue = 0;
       let snapshotData: any = {
-        month: month,
+        period_start: weekStart,
+        period_end: weekEnd,
         is_manual: false,
         manual_base: null,
         manual_percentage: null,
@@ -486,17 +524,13 @@ export const useAdminPartners = () => {
           manual_description: options.manualDescription || null
         };
       } else {
-        // MODO AUTOMÁTICO: calcular baseado no faturamento
-        const startOfMonth = new Date(month);
-        const endOfMonth = new Date(startOfMonth);
-        endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-
+        // MODO AUTOMÁTICO: calcular baseado no faturamento da semana
         const { data: purchases, error: purchasesError } = await supabase
           .from('bid_purchases')
           .select('amount_paid')
           .eq('payment_status', 'completed')
-          .gte('created_at', startOfMonth.toISOString())
-          .lt('created_at', endOfMonth.toISOString());
+          .gte('created_at', weekStartDate.toISOString())
+          .lt('created_at', new Date(weekEndDate.getTime() + 86400000).toISOString()); // +1 day to include the full end date
 
         if (purchasesError) throw purchasesError;
 
@@ -511,10 +545,10 @@ export const useAdminPartners = () => {
         };
       }
 
-      // 2. Criar snapshot do mês
+      // 2. Criar snapshot da semana
       const { error: snapshotError } = await supabase
-        .from('monthly_revenue_snapshots')
-        .upsert(snapshotData, { onConflict: 'month' });
+        .from('weekly_revenue_snapshots')
+        .upsert(snapshotData, { onConflict: 'period_start' });
 
       if (snapshotError) throw snapshotError;
 
@@ -539,12 +573,22 @@ export const useAdminPartners = () => {
         let monthlyCapApplied = false;
         let totalCapApplied = false;
 
-        // Aplicar limite mensal (apenas no modo manual sobre aporte)
-        if (options?.manualMode && options.manualBase === 'aporte' && amount > contract.monthly_cap) {
-          amount = contract.monthly_cap;
-          monthlyCapApplied = true;
-        } else if (!options?.manualMode && amount > contract.monthly_cap) {
-          amount = contract.monthly_cap;
+        // Aplicar limite mensal (verificação mensal acumulada)
+        // Calcular quanto já recebeu no mês atual
+        const currentMonth = weekStartDate.toISOString().slice(0, 7);
+        const { data: monthPayouts } = await supabase
+          .from('partner_payouts')
+          .select('amount')
+          .eq('partner_contract_id', contract.id)
+          .eq('status', 'PENDING')
+          .gte('period_start', `${currentMonth}-01`)
+          .lt('period_start', `${currentMonth.split('-')[0]}-${String(Number(currentMonth.split('-')[1]) + 1).padStart(2, '0')}-01`);
+
+        const monthTotal = (monthPayouts || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+        const remainingMonthCap = contract.monthly_cap - monthTotal;
+        
+        if (amount > remainingMonthCap) {
+          amount = Math.max(0, remainingMonthCap);
           monthlyCapApplied = true;
         }
 
@@ -562,7 +606,8 @@ export const useAdminPartners = () => {
             .from('partner_payouts')
             .insert({
               partner_contract_id: contract.id,
-              month: month,
+              period_start: weekStart,
+              period_end: weekEnd,
               calculated_amount: calculatedAmount,
               amount: amount,
               status: 'PENDING',
@@ -593,7 +638,7 @@ export const useAdminPartners = () => {
 
       toast({
         title: "Repasses processados",
-        description: `${activeContracts.length} contratos processados para ${month}`
+        description: `${activeContracts.length} contratos processados para a semana ${formatWeekRange(weekStart, weekEnd)}`
       });
 
       await Promise.all([fetchContracts(), fetchPayouts(), fetchSnapshots()]);
@@ -897,7 +942,7 @@ export const useAdminPartners = () => {
     createPlan,
     deletePlan,
     cancelPayout,
-    processMonthlyPayouts,
+    processWeeklyPayouts,
     markPayoutAsPaid,
     processTermination,
     rejectWithdrawal,

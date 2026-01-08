@@ -597,51 +597,6 @@ export type Database = {
         }
         Relationships: []
       }
-      monthly_revenue_snapshots: {
-        Row: {
-          closed_at: string | null
-          created_at: string
-          gross_revenue: number
-          id: string
-          is_closed: boolean
-          is_manual: boolean | null
-          manual_base: string | null
-          manual_description: string | null
-          manual_percentage: number | null
-          month: string
-          partner_fund_percentage: number
-          partner_fund_value: number
-        }
-        Insert: {
-          closed_at?: string | null
-          created_at?: string
-          gross_revenue: number
-          id?: string
-          is_closed?: boolean
-          is_manual?: boolean | null
-          manual_base?: string | null
-          manual_description?: string | null
-          manual_percentage?: number | null
-          month: string
-          partner_fund_percentage?: number
-          partner_fund_value: number
-        }
-        Update: {
-          closed_at?: string | null
-          created_at?: string
-          gross_revenue?: number
-          id?: string
-          is_closed?: boolean
-          is_manual?: boolean | null
-          manual_base?: string | null
-          manual_description?: string | null
-          manual_percentage?: number | null
-          month?: string
-          partner_fund_percentage?: number
-          partner_fund_value?: number
-        }
-        Relationships: []
-      }
       orders: {
         Row: {
           auction_id: string
@@ -839,10 +794,11 @@ export type Database = {
           calculated_amount: number
           created_at: string
           id: string
-          month: string
           monthly_cap_applied: boolean
           paid_at: string | null
           partner_contract_id: string
+          period_end: string | null
+          period_start: string
           status: string
           total_cap_applied: boolean
         }
@@ -851,10 +807,11 @@ export type Database = {
           calculated_amount: number
           created_at?: string
           id?: string
-          month: string
           monthly_cap_applied?: boolean
           paid_at?: string | null
           partner_contract_id: string
+          period_end?: string | null
+          period_start: string
           status?: string
           total_cap_applied?: boolean
         }
@@ -863,10 +820,11 @@ export type Database = {
           calculated_amount?: number
           created_at?: string
           id?: string
-          month?: string
           monthly_cap_applied?: boolean
           paid_at?: string | null
           partner_contract_id?: string
+          period_end?: string | null
+          period_start?: string
           status?: string
           total_cap_applied?: boolean
         }
@@ -1275,6 +1233,54 @@ export type Database = {
           new_value?: string
           old_value?: string | null
           setting_key?: string
+        }
+        Relationships: []
+      }
+      weekly_revenue_snapshots: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          gross_revenue: number
+          id: string
+          is_closed: boolean
+          is_manual: boolean | null
+          manual_base: string | null
+          manual_description: string | null
+          manual_percentage: number | null
+          partner_fund_percentage: number
+          partner_fund_value: number
+          period_end: string | null
+          period_start: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          gross_revenue: number
+          id?: string
+          is_closed?: boolean
+          is_manual?: boolean | null
+          manual_base?: string | null
+          manual_description?: string | null
+          manual_percentage?: number | null
+          partner_fund_percentage?: number
+          partner_fund_value: number
+          period_end?: string | null
+          period_start: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          gross_revenue?: number
+          id?: string
+          is_closed?: boolean
+          is_manual?: boolean | null
+          manual_base?: string | null
+          manual_description?: string | null
+          manual_percentage?: number | null
+          partner_fund_percentage?: number
+          partner_fund_value?: number
+          period_end?: string | null
+          period_start?: string
         }
         Relationships: []
       }

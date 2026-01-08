@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 import { TrendingUp, PieChartIcon, DollarSign, Users } from 'lucide-react';
-import { MonthlyRevenueSnapshot, PartnerPayoutWithContract, PartnerContractWithUser, PartnerPlan } from '@/hooks/useAdminPartners';
+import { WeeklyRevenueSnapshot, PartnerPayoutWithContract, PartnerContractWithUser, PartnerPlan, formatWeekRange } from '@/hooks/useAdminPartners';
 
 interface PartnerAnalyticsChartsProps {
-  snapshots: MonthlyRevenueSnapshot[];
+  snapshots: WeeklyRevenueSnapshot[];
   payouts: PartnerPayoutWithContract[];
   contracts: PartnerContractWithUser[];
   plans: PartnerPlan[];
@@ -29,17 +29,16 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
     }).format(value);
   };
 
-  const formatMonth = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+  const formatPeriod = (periodStart: string, periodEnd?: string | null) => {
+    return formatWeekRange(periodStart, periodEnd);
   };
 
-  // Data for Monthly Fund Evolution (last 12 months)
-  const monthlyFundData = snapshots
+  // Data for Weekly Fund Evolution (last 12 weeks)
+  const weeklyFundData = snapshots
     .slice(0, 12)
     .reverse()
     .map(s => ({
-      month: formatMonth(s.month),
+      period: formatPeriod(s.period_start, s.period_end),
       faturamento: s.gross_revenue,
       fundo: s.partner_fund_value,
       percentual: s.partner_fund_percentage
@@ -56,23 +55,23 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
     };
   }).filter(p => p.value > 0);
 
-  // Data for Accumulated Payouts (last 12 months)
+  // Data for Accumulated Payouts (last 12 weeks)
   const accumulatedPayoutsData = snapshots
     .slice(0, 12)
     .reverse()
     .map((s, index, arr) => {
-      const monthPayouts = payouts.filter(p => p.month === s.month);
-      const pendingAmount = monthPayouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
-      const paidAmount = monthPayouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
+      const periodPayouts = payouts.filter(p => p.period_start === s.period_start);
+      const pendingAmount = periodPayouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
+      const paidAmount = periodPayouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
       
       // Calculate accumulated
       const previousPaid = arr.slice(0, index).reduce((sum, prev) => {
-        const prevPayouts = payouts.filter(p => p.month === prev.month && p.status === 'PAID');
+        const prevPayouts = payouts.filter(p => p.period_start === prev.period_start && p.status === 'PAID');
         return sum + prevPayouts.reduce((s, p) => s + p.amount, 0);
       }, 0);
       
       return {
-        month: formatMonth(s.month),
+        period: formatPeriod(s.period_start, s.period_end),
         pago: paidAmount,
         pendente: pendingAmount,
         acumulado: previousPaid + paidAmount
@@ -93,6 +92,7 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
     pago: { label: 'Pago', color: 'hsl(var(--primary))' },
     pendente: { label: 'Pendente', color: 'hsl(var(--chart-2))' },
     acumulado: { label: 'Acumulado', color: 'hsl(var(--chart-3))' },
+    period: { label: 'Período', color: 'hsl(var(--primary))' },
   };
 
   return (
@@ -145,21 +145,21 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Monthly Fund Evolution */}
+        {/* Weekly Fund Evolution */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <CardTitle>Evolução Mensal do Fundo</CardTitle>
+              <CardTitle>Evolução Semanal do Fundo</CardTitle>
             </div>
             <CardDescription>Faturamento bruto vs Fundo de parceiros</CardDescription>
           </CardHeader>
           <CardContent>
-            {monthlyFundData.length > 0 ? (
+            {weeklyFundData.length > 0 ? (
               <ChartContainer config={chartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyFundData}>
-                    <XAxis dataKey="month" fontSize={12} />
+                  <BarChart data={weeklyFundData}>
+                    <XAxis dataKey="period" fontSize={10} angle={-45} textAnchor="end" height={60} />
                     <YAxis fontSize={12} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
                     <ChartTooltip 
                       content={<ChartTooltipContent />}
@@ -239,16 +239,16 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
         <CardHeader>
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />
-            <CardTitle>Repasses por Mês</CardTitle>
+            <CardTitle>Repasses por Semana</CardTitle>
           </div>
-          <CardDescription>Valores pagos e pendentes por mês</CardDescription>
+          <CardDescription>Valores pagos e pendentes por semana</CardDescription>
         </CardHeader>
         <CardContent>
           {accumulatedPayoutsData.length > 0 ? (
             <ChartContainer config={chartConfig} className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={accumulatedPayoutsData}>
-                  <XAxis dataKey="month" fontSize={12} />
+                  <XAxis dataKey="period" fontSize={10} angle={-45} textAnchor="end" height={60} />
                   <YAxis fontSize={12} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
                   <ChartTooltip 
                     content={<ChartTooltipContent />}
