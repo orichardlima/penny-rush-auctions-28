@@ -2,12 +2,12 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { 
   Wallet, 
   TrendingUp, 
@@ -20,8 +20,11 @@ import {
   AlertTriangle,
   RefreshCw,
   ArrowUpRight,
-  Users
+  Users,
+  CalendarDays,
+  BanknoteIcon
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { PartnerPlanCard } from './PartnerPlanCard';
 import PartnerReferralSection from './PartnerReferralSection';
 import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
@@ -40,13 +43,43 @@ const PartnerDashboard = () => {
     refreshData 
   } = usePartnerContract();
   
+  const { getSettingValue } = useSystemSettings();
   const { fetchPendingRequest } = usePartnerEarlyTermination();
+  
+  const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
+  
+  const getDayName = (day: number) => {
+    const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    return days[day] || 'Sexta-feira';
+  };
   
   React.useEffect(() => {
     if (contract?.id) {
       fetchPendingRequest(contract.id);
     }
   }, [contract?.id, fetchPendingRequest]);
+  
+  // Prepare chart data from payouts
+  const chartData = React.useMemo(() => {
+    return payouts
+      .slice(0, 10)
+      .reverse()
+      .map((p) => {
+        const start = new Date(p.period_start);
+        return {
+          semana: `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`,
+          valor: p.amount,
+          status: p.status
+        };
+      });
+  }, [payouts]);
+  
+  // Calculate totals for summary
+  const payoutTotals = React.useMemo(() => {
+    const totalPaid = payouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
+    const totalPending = payouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
+    return { totalPaid, totalPending, totalWeeks: payouts.length };
+  }, [payouts]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -111,7 +144,7 @@ const PartnerDashboard = () => {
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">Torne-se um Parceiro</h2>
           <p className="text-muted-foreground">
-            Escolha um plano de participação e participe de repasses mensais, proporcionais ao faturamento da plataforma
+            Escolha um plano de participação e participe de repasses semanais, proporcionais ao faturamento da plataforma
           </p>
         </div>
 
@@ -288,78 +321,145 @@ const PartnerDashboard = () => {
 
         {/* Tab de Repasses */}
         <TabsContent value="payouts" className="space-y-4">
-          {/* Último Repasse */}
-          {lastPayout && (
-            <Card className="border-l-4 border-l-green-500">
-              <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Último Repasse - {formatPeriod(lastPayout.period_start, lastPayout.period_end)}
-              </CardTitle>
-            </CardHeader>
+          {/* Alerta do Dia de Pagamento */}
+          <Alert className="bg-blue-500/10 border-blue-500/20">
+            <CalendarDays className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-700">
+              Os pagamentos são processados toda <strong>{getDayName(weeklyPaymentDay)}</strong>
+            </AlertDescription>
+          </Alert>
+
+          {/* Card de Resumo */}
+          <Card className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20">
+            <CardContent className="grid grid-cols-3 gap-4 p-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Total de Semanas</p>
+                <p className="text-2xl font-bold">{payoutTotals.totalWeeks}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Total Pago</p>
+                <p className="text-2xl font-bold text-green-600">{formatPrice(payoutTotals.totalPaid)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Pendente</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatPrice(payoutTotals.totalPending)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Evolução */}
+          {chartData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Evolução dos Ganhos Semanais
+                </CardTitle>
+              </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{formatPrice(lastPayout.amount)}</p>
-                    {lastPayout.monthly_cap_applied && (
-                      <p className="text-xs text-yellow-600">Limite mensal aplicado</p>
-                    )}
-                    {lastPayout.total_cap_applied && (
-                      <p className="text-xs text-orange-600">Limite de teto aplicado</p>
-                    )}
-                  </div>
-                  {getPayoutStatusBadge(lastPayout.status)}
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="semana" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${v}`} />
+                    <Tooltip 
+                      formatter={(value: number) => [formatPrice(value), 'Valor']}
+                      labelFormatter={(label) => `Semana de ${label}`}
+                    />
+                    <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.status === 'PAID' ? '#22c55e' : entry.status === 'PENDING' ? '#eab308' : '#6b7280'} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="flex justify-center gap-4 mt-2 text-xs">
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500"></span> Pago</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500"></span> Pendente</span>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Histórico de Repasses */}
+          {/* Histórico de Repasses em Cards */}
           <Card>
             <CardHeader>
-              <CardTitle>Histórico de Repasses</CardTitle>
-                <CardDescription>Todos os repasses recebidos</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <BanknoteIcon className="h-5 w-5" />
+                Histórico Semanal
+              </CardTitle>
+              <CardDescription>Detalhes de cada repasse semanal</CardDescription>
             </CardHeader>
             <CardContent>
               {payouts.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Mês</TableHead>
-                      <TableHead>Valor Calculado</TableHead>
-                      <TableHead>Valor Recebido</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Observações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payouts.map((payout) => (
-                      <TableRow key={payout.id}>
-                        <TableCell className="font-medium">
-                          {payout.period_start && payout.period_end 
-                            ? `${new Date(payout.period_start).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${new Date(payout.period_end).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
-                            : new Date(payout.period_start).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell>{formatPrice(payout.calculated_amount)}</TableCell>
-                        <TableCell className="font-medium">{formatPrice(payout.amount)}</TableCell>
-                        <TableCell>{getPayoutStatusBadge(payout.status)}</TableCell>
-                        <TableCell>
-                          {payout.monthly_cap_applied && (
-                            <Badge variant="outline" className="text-xs mr-1">Limite mensal</Badge>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {payouts.map((payout) => {
+                    const start = new Date(payout.period_start);
+                    const end = payout.period_end ? new Date(payout.period_end) : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+                    const isPaid = payout.status === 'PAID';
+                    const isPending = payout.status === 'PENDING';
+                    
+                    return (
+                      <Card 
+                        key={payout.id} 
+                        className={`border-l-4 ${isPaid ? 'border-l-green-500 bg-green-500/5' : isPending ? 'border-l-yellow-500 bg-yellow-500/5' : 'border-l-gray-500 bg-gray-500/5'}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">
+                                {start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - {end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                              </span>
+                            </div>
+                            {getPayoutStatusBadge(payout.status)}
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Valor Calculado:</span>
+                              <span>{formatPrice(payout.calculated_amount)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm font-medium">
+                              <span className="text-muted-foreground">Valor Recebido:</span>
+                              <span className={isPaid ? 'text-green-600' : isPending ? 'text-yellow-600' : ''}>
+                                {formatPrice(payout.amount)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {(payout.monthly_cap_applied || payout.total_cap_applied) && (
+                            <div className="flex gap-1 mt-2">
+                              {payout.monthly_cap_applied && (
+                                <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-500/30">
+                                  Limite mensal
+                                </Badge>
+                              )}
+                              {payout.total_cap_applied && (
+                                <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-700 border-orange-500/30">
+                                  Limite teto
+                                </Badge>
+                              )}
+                            </div>
                           )}
-                          {payout.total_cap_applied && (
-                            <Badge variant="outline" className="text-xs">Limite teto</Badge>
+                          
+                          {isPaid && payout.paid_at && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Pago em {new Date(payout.paid_at).toLocaleDateString('pt-BR')}
+                            </p>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhum repasse ainda</p>
-                  <p className="text-sm">Os repasses são processados mensalmente</p>
+                  <p className="text-sm">Os repasses são processados semanalmente</p>
                 </div>
               )}
             </CardContent>
