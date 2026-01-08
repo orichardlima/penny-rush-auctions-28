@@ -43,11 +43,29 @@ export interface PartnerPayout {
   created_at: string;
 }
 
+export interface PartnerUpgrade {
+  id: string;
+  partner_contract_id: string;
+  previous_plan_name: string;
+  previous_aporte_value: number;
+  previous_monthly_cap: number;
+  previous_total_cap: number;
+  new_plan_name: string;
+  new_aporte_value: number;
+  new_monthly_cap: number;
+  new_total_cap: number;
+  total_received_at_upgrade: number;
+  difference_paid: number;
+  created_at: string;
+  notes: string | null;
+}
+
 export const usePartnerContract = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [contract, setContract] = useState<PartnerContract | null>(null);
   const [payouts, setPayouts] = useState<PartnerPayout[]>([]);
+  const [upgrades, setUpgrades] = useState<PartnerUpgrade[]>([]);
   const [plans, setPlans] = useState<PartnerPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -100,6 +118,23 @@ export const usePartnerContract = () => {
       setPayouts((data || []) as PartnerPayout[]);
     } catch (error) {
       console.error('Error fetching partner payouts:', error);
+    }
+  }, [contract?.id]);
+
+  const fetchUpgrades = useCallback(async () => {
+    if (!contract?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('partner_upgrades')
+        .select('*')
+        .eq('partner_contract_id', contract.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUpgrades((data || []) as PartnerUpgrade[]);
+    } catch (error) {
+      console.error('Error fetching partner upgrades:', error);
     }
   }, [contract?.id]);
 
@@ -211,6 +246,113 @@ export const usePartnerContract = () => {
     }
   };
 
+  const upgradeContract = async (newPlanId: string) => {
+    if (!contract || !profile?.user_id) return { success: false };
+
+    const newPlan = plans.find(p => p.id === newPlanId);
+    if (!newPlan) {
+      toast({
+        variant: "destructive",
+        title: "Plano não encontrado",
+        description: "O plano selecionado não está disponível."
+      });
+      return { success: false };
+    }
+
+    // Validação 1: Apenas planos superiores
+    if (newPlan.aporte_value <= contract.aporte_value) {
+      toast({
+        variant: "destructive",
+        title: "Upgrade inválido",
+        description: "Só é possível fazer upgrade para um plano superior."
+      });
+      return { success: false };
+    }
+
+    // Validação 2: Limite de 80% do teto
+    const progressPercentage = (contract.total_received / contract.total_cap) * 100;
+    if (progressPercentage >= 80) {
+      toast({
+        variant: "destructive",
+        title: "Upgrade não disponível",
+        description: "Você já atingiu mais de 80% do teto atual. Aguarde o encerramento do contrato."
+      });
+      return { success: false };
+    }
+
+    // Validação 3: Contrato deve estar ativo
+    if (contract.status !== 'ACTIVE') {
+      toast({
+        variant: "destructive",
+        title: "Contrato inativo",
+        description: "Só é possível fazer upgrade em contratos ativos."
+      });
+      return { success: false };
+    }
+
+    const differenceToPay = newPlan.aporte_value - contract.aporte_value;
+
+    setSubmitting(true);
+    try {
+      // 1. Registrar o upgrade na tabela de auditoria
+      const { error: upgradeError } = await supabase
+        .from('partner_upgrades')
+        .insert({
+          partner_contract_id: contract.id,
+          previous_plan_name: contract.plan_name,
+          previous_aporte_value: contract.aporte_value,
+          previous_monthly_cap: contract.monthly_cap,
+          previous_total_cap: contract.total_cap,
+          new_plan_name: newPlan.name,
+          new_aporte_value: newPlan.aporte_value,
+          new_monthly_cap: newPlan.monthly_cap,
+          new_total_cap: newPlan.total_cap,
+          total_received_at_upgrade: contract.total_received,
+          difference_paid: differenceToPay
+        });
+
+      if (upgradeError) throw upgradeError;
+
+      // 2. Atualizar o contrato existente (NÃO criar novo)
+      // total_received NÃO é alterado - preservando histórico
+      const { data: updatedContract, error: updateError } = await supabase
+        .from('partner_contracts')
+        .update({
+          plan_name: newPlan.name,
+          aporte_value: newPlan.aporte_value,
+          monthly_cap: newPlan.monthly_cap,
+          total_cap: newPlan.total_cap,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contract.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      setContract(updatedContract as PartnerContract);
+      
+      toast({
+        title: "Upgrade realizado!",
+        description: `Seu plano foi atualizado para ${newPlan.display_name}. Diferença: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(differenceToPay)}`
+      });
+
+      await fetchUpgrades();
+
+      return { success: true, differenceToPay };
+    } catch (error: any) {
+      console.error('Error upgrading contract:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro no upgrade",
+        description: error.message || "Não foi possível realizar o upgrade."
+      });
+      return { success: false };
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getProgress = useCallback(() => {
     if (!contract) return { percentage: 0, remaining: 0 };
     
@@ -225,6 +367,18 @@ export const usePartnerContract = () => {
     return payouts[0];
   }, [payouts]);
 
+  const getAvailableUpgrades = useCallback(() => {
+    if (!contract) return [];
+    return plans.filter(p => p.aporte_value > contract.aporte_value);
+  }, [contract, plans]);
+
+  const canUpgrade = useCallback(() => {
+    if (!contract) return false;
+    if (contract.status !== 'ACTIVE') return false;
+    const progressPercentage = (contract.total_received / contract.total_cap) * 100;
+    return progressPercentage < 80 && getAvailableUpgrades().length > 0;
+  }, [contract, getAvailableUpgrades]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -238,21 +392,27 @@ export const usePartnerContract = () => {
   useEffect(() => {
     if (contract?.id) {
       fetchPayouts();
+      fetchUpgrades();
     }
-  }, [contract?.id, fetchPayouts]);
+  }, [contract?.id, fetchPayouts, fetchUpgrades]);
 
   return {
     contract,
     payouts,
+    upgrades,
     plans,
     loading,
     submitting,
     createContract,
+    upgradeContract,
     getProgress,
     getLastPayout,
+    getAvailableUpgrades,
+    canUpgrade,
     refreshData: async () => {
       await fetchContract();
       await fetchPayouts();
+      await fetchUpgrades();
     }
   };
 };

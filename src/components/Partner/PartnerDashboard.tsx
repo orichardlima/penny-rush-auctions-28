@@ -30,6 +30,7 @@ import { PartnerPlanCard } from './PartnerPlanCard';
 import PartnerReferralSection from './PartnerReferralSection';
 import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
 import PartnerWithdrawalSection from './PartnerWithdrawalSection';
+import PartnerUpgradeDialog from './PartnerUpgradeDialog';
 
 const PartnerDashboard = () => {
   const { 
@@ -39,8 +40,10 @@ const PartnerDashboard = () => {
     loading, 
     submitting,
     createContract,
+    upgradeContract,
     getProgress,
     getLastPayout,
+    canUpgrade,
     refreshData 
   } = usePartnerContract();
   
@@ -263,15 +266,25 @@ const PartnerDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold">Painel do Parceiro</h2>
           <p className="text-muted-foreground">Acompanhe sua participação e repasses</p>
         </div>
-        <Button variant="outline" onClick={refreshData}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {canUpgrade() && (
+            <PartnerUpgradeDialog
+              contract={contract}
+              plans={plans}
+              onUpgrade={upgradeContract}
+              submitting={submitting}
+            />
+          )}
+          <Button variant="outline" onClick={refreshData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Cards de Estatísticas */}

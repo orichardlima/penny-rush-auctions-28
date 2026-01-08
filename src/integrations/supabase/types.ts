@@ -934,6 +934,65 @@ export type Database = {
           },
         ]
       }
+      partner_upgrades: {
+        Row: {
+          created_at: string
+          difference_paid: number
+          id: string
+          new_aporte_value: number
+          new_monthly_cap: number
+          new_plan_name: string
+          new_total_cap: number
+          notes: string | null
+          partner_contract_id: string
+          previous_aporte_value: number
+          previous_monthly_cap: number
+          previous_plan_name: string
+          previous_total_cap: number
+          total_received_at_upgrade: number
+        }
+        Insert: {
+          created_at?: string
+          difference_paid: number
+          id?: string
+          new_aporte_value: number
+          new_monthly_cap: number
+          new_plan_name: string
+          new_total_cap: number
+          notes?: string | null
+          partner_contract_id: string
+          previous_aporte_value: number
+          previous_monthly_cap: number
+          previous_plan_name: string
+          previous_total_cap: number
+          total_received_at_upgrade?: number
+        }
+        Update: {
+          created_at?: string
+          difference_paid?: number
+          id?: string
+          new_aporte_value?: number
+          new_monthly_cap?: number
+          new_plan_name?: string
+          new_total_cap?: number
+          notes?: string | null
+          partner_contract_id?: string
+          previous_aporte_value?: number
+          previous_monthly_cap?: number
+          previous_plan_name?: string
+          previous_total_cap?: number
+          total_received_at_upgrade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_upgrades_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_withdrawals: {
         Row: {
           amount: number
