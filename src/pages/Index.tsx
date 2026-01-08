@@ -9,6 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { CheckCircle, ArrowRight, Briefcase, TrendingUp, Target, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toZonedTime, format } from 'date-fns-tz';
 import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
@@ -426,6 +430,83 @@ const Index = () => {
         </section>
 
         <HowItWorks />
+
+        {/* Partner Program Section */}
+        <section className="py-12 lg:py-16 bg-gradient-to-br from-purple-500/5 via-background to-indigo-500/5">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+              <div className="flex-1 text-center lg:text-left">
+                <Badge className="bg-purple-500 text-white mb-4">Exclusivo</Badge>
+                <h2 className="text-3xl font-bold mb-4">
+                  Seja um Parceiro Investidor
+                </h2>
+                <p className="text-lg text-muted-foreground mb-6">
+                  Contribua com a plataforma e receba repasses semanais proporcionais 
+                  ao faturamento. Transparência total e retornos reais.
+                </p>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-sm">Repasses Semanais</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-sm">100% Transparente</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-sm">Dashboard Exclusivo</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-sm">Encerramento Automático</span>
+                  </div>
+                </div>
+                <Link to="/parceiro">
+                  <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
+                    Conhecer Programa de Parceiros
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="flex-1 max-w-md w-full">
+                <Card className="bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-purple-500/20">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">A partir de</p>
+                      <p className="text-4xl font-bold text-purple-600">R$ 1.000</p>
+                      <p className="text-sm text-muted-foreground">de aporte</p>
+                    </div>
+                    <div className="space-y-3 pt-4 border-t border-border">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-purple-500" />
+                          <span>Repasses semanais</span>
+                        </div>
+                        <span className="font-medium">Toda semana</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-purple-500" />
+                          <span>Retorno potencial</span>
+                        </div>
+                        <span className="font-medium">Até 150%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4 text-purple-500" />
+                          <span>Transparência</span>
+                        </div>
+                        <span className="font-medium">Dashboard ao vivo</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <BidPackages onPurchase={handlePurchasePackage} />
         <RecentWinners />
       </main>
