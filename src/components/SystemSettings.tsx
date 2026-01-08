@@ -37,6 +37,7 @@ export const SystemSettings: React.FC = () => {
   // Partner System State
   const [partnerSystemEnabled, setPartnerSystemEnabled] = useState<boolean>(true);
   const [partnerFundPercentage, setPartnerFundPercentage] = useState<string>('20');
+  const [weeklyPaymentDay, setWeeklyPaymentDay] = useState<string>('5');
   const [savingPartner, setSavingPartner] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
@@ -69,6 +70,7 @@ export const SystemSettings: React.FC = () => {
       // Partner System
       setPartnerSystemEnabled(getSettingValue('partner_system_enabled', true));
       setPartnerFundPercentage(getSettingValue('partner_fund_percentage', 20).toString());
+      setWeeklyPaymentDay(getSettingValue('partner_weekly_payment_day', 5).toString());
       
       setIsInitialized(true);
     }
@@ -107,7 +109,8 @@ export const SystemSettings: React.FC = () => {
     try {
       await Promise.all([
         updateSetting('partner_system_enabled', partnerSystemEnabled.toString()),
-        updateSetting('partner_fund_percentage', partnerFundPercentage)
+        updateSetting('partner_fund_percentage', partnerFundPercentage),
+        updateSetting('partner_weekly_payment_day', weeklyPaymentDay)
       ]);
       toast({
         title: "Configurações salvas!",
@@ -628,6 +631,35 @@ export const SystemSettings: React.FC = () => {
                 <p className="text-xs text-muted-foreground">
                   Os repasses são processados manualmente pelo administrador após o fim de cada semana.
                   Acesse a aba <strong>"Processar Semana"</strong> no Gerenciamento de Parceiros para processar.
+                </p>
+              </div>
+              
+              <Separator className="bg-purple-500/20" />
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-purple-600">📆 Dia de Pagamento</p>
+                <div className="flex items-center gap-3">
+                  <Select 
+                    value={weeklyPaymentDay} 
+                    onValueChange={setWeeklyPaymentDay}
+                    disabled={!partnerSystemEnabled}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Selecione o dia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Domingo</SelectItem>
+                      <SelectItem value="1">Segunda-feira</SelectItem>
+                      <SelectItem value="2">Terça-feira</SelectItem>
+                      <SelectItem value="3">Quarta-feira</SelectItem>
+                      <SelectItem value="4">Quinta-feira</SelectItem>
+                      <SelectItem value="5">Sexta-feira</SelectItem>
+                      <SelectItem value="6">Sábado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Define o dia da semana em que os pagamentos semanais devem ser processados.
                 </p>
               </div>
             </div>
