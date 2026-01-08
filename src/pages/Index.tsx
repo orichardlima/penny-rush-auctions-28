@@ -472,7 +472,7 @@ const Index = () => {
                 <Card className="bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-purple-500/20">
                   <CardContent className="p-6 space-y-4">
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">A partir de</p>
+                      <p className="text-sm text-muted-foreground">R$ 499,00</p>
                       <p className="text-4xl font-bold text-purple-600">R$ 1.000</p>
                       <p className="text-sm text-muted-foreground">de aporte</p>
                     </div>
