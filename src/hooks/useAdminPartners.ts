@@ -98,12 +98,36 @@ export interface PartnerPayoutWithContract {
   contract?: PartnerContractWithUser;
 }
 
+export interface PartnerWithdrawalWithUser {
+  id: string;
+  partner_contract_id: string;
+  amount: number;
+  payment_method: string;
+  payment_details: {
+    pix_key?: string;
+    pix_key_type?: string;
+    holder_name?: string;
+  };
+  status: string;
+  rejection_reason: string | null;
+  requested_at: string;
+  approved_at: string | null;
+  approved_by: string | null;
+  paid_at: string | null;
+  paid_by: string | null;
+  created_at: string;
+  user_name?: string;
+  user_email?: string;
+  plan_name?: string;
+}
+
 export const useAdminPartners = () => {
   const { toast } = useToast();
   const [contracts, setContracts] = useState<PartnerContractWithUser[]>([]);
   const [plans, setPlans] = useState<PartnerPlan[]>([]);
   const [payouts, setPayouts] = useState<PartnerPayoutWithContract[]>([]);
   const [snapshots, setSnapshots] = useState<MonthlyRevenueSnapshot[]>([]);
+  const [withdrawals, setWithdrawals] = useState<PartnerWithdrawalWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
@@ -632,6 +656,171 @@ export const useAdminPartners = () => {
     }
   }, []);
 
+  const fetchWithdrawals = useCallback(async () => {
+    try {
+      const { data: withdrawalsData, error } = await supabase
+        .from('partner_withdrawals')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get contract info for each withdrawal
+      const contractIds = [...new Set(withdrawalsData?.map(w => w.partner_contract_id) || [])];
+      
+      if (contractIds.length === 0) {
+        setWithdrawals([]);
+        return;
+      }
+
+      const { data: contractsData } = await supabase
+        .from('partner_contracts')
+        .select('id, user_id, plan_name')
+        .in('id', contractIds);
+
+      const userIds = [...new Set(contractsData?.map(c => c.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', userIds);
+
+      const contractsMap = new Map(contractsData?.map(c => [c.id, c]) || []);
+      const profilesMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+
+      const withdrawalsWithUsers = (withdrawalsData || []).map(w => {
+        const contract = contractsMap.get(w.partner_contract_id);
+        const profile = contract ? profilesMap.get(contract.user_id) : null;
+        return {
+          ...w,
+          payment_details: w.payment_details as PartnerWithdrawalWithUser['payment_details'],
+          user_name: profile?.full_name || 'N/A',
+          user_email: profile?.email || 'N/A',
+          plan_name: contract?.plan_name || 'N/A'
+        };
+      });
+
+      setWithdrawals(withdrawalsWithUsers);
+    } catch (error) {
+      console.error('Error fetching withdrawals:', error);
+    }
+  }, []);
+
+  const approveWithdrawal = async (withdrawalId: string) => {
+    setProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('partner_withdrawals')
+        .update({
+          status: 'APPROVED',
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', withdrawalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Saque aprovado",
+        description: "O saque foi aprovado e aguarda pagamento."
+      });
+
+      await fetchWithdrawals();
+    } catch (error: any) {
+      console.error('Error approving withdrawal:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao aprovar",
+        description: error.message
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const rejectWithdrawal = async (withdrawalId: string, reason: string) => {
+    setProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('partner_withdrawals')
+        .update({
+          status: 'REJECTED',
+          rejection_reason: reason,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', withdrawalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Saque rejeitado",
+        description: "O saque foi rejeitado."
+      });
+
+      await fetchWithdrawals();
+    } catch (error: any) {
+      console.error('Error rejecting withdrawal:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao rejeitar",
+        description: error.message
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const markWithdrawalAsPaid = async (withdrawalId: string) => {
+    setProcessing(true);
+    try {
+      const withdrawal = withdrawals.find(w => w.id === withdrawalId);
+      if (!withdrawal) throw new Error('Saque não encontrado');
+
+      const { error } = await supabase
+        .from('partner_withdrawals')
+        .update({
+          status: 'PAID',
+          paid_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', withdrawalId);
+
+      if (error) throw error;
+
+      // Update contract total_withdrawn
+      const { data: contractData, error: contractError } = await supabase
+        .from('partner_contracts')
+        .select('total_withdrawn')
+        .eq('id', withdrawal.partner_contract_id)
+        .single();
+
+      if (!contractError && contractData) {
+        await supabase
+          .from('partner_contracts')
+          .update({
+            total_withdrawn: (contractData.total_withdrawn || 0) + withdrawal.amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', withdrawal.partner_contract_id);
+      }
+
+      toast({
+        title: "Pagamento confirmado",
+        description: "O saque foi marcado como pago."
+      });
+
+      await Promise.all([fetchWithdrawals(), fetchContracts()]);
+    } catch (error: any) {
+      console.error('Error marking withdrawal as paid:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.message
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const processTermination = async (terminationId: string, action: 'approve' | 'reject', notes?: string) => {
     setProcessing(true);
     try {
@@ -677,11 +866,11 @@ export const useAdminPartners = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations()]);
+      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations(), fetchWithdrawals()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchContracts, fetchPlans, fetchPayouts, fetchSnapshots, fetchTerminations]);
+  }, [fetchContracts, fetchPlans, fetchPayouts, fetchSnapshots, fetchTerminations, fetchWithdrawals]);
 
   const stats = {
     totalContracts: contracts.length,
@@ -689,7 +878,8 @@ export const useAdminPartners = () => {
     totalAportes: contracts.filter(c => c.status === 'ACTIVE').reduce((sum, c) => sum + c.aporte_value, 0),
     totalPaid: contracts.reduce((sum, c) => sum + c.total_received, 0),
     pendingPayouts: payouts.filter(p => p.status === 'PENDING').length,
-    pendingTerminations: terminations.filter(t => t.status === 'PENDING').length
+    pendingTerminations: terminations.filter(t => t.status === 'PENDING').length,
+    pendingWithdrawals: withdrawals.filter(w => w.status === 'PENDING').length
   };
 
   return {
@@ -698,6 +888,7 @@ export const useAdminPartners = () => {
     payouts,
     snapshots,
     terminations,
+    withdrawals,
     stats,
     loading,
     processing,
@@ -709,8 +900,11 @@ export const useAdminPartners = () => {
     processMonthlyPayouts,
     markPayoutAsPaid,
     processTermination,
+    approveWithdrawal,
+    rejectWithdrawal,
+    markWithdrawalAsPaid,
     refreshData: async () => {
-      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations()]);
+      await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations(), fetchWithdrawals()]);
     }
   };
 };

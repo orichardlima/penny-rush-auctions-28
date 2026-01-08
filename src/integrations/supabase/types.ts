@@ -699,49 +699,64 @@ export type Database = {
       partner_contracts: {
         Row: {
           aporte_value: number
+          available_balance: number
+          bank_details: Json | null
           closed_at: string | null
           closed_reason: string | null
           created_at: string
           id: string
           monthly_cap: number
+          pix_key: string | null
+          pix_key_type: string | null
           plan_name: string
           referral_code: string | null
           referred_by_user_id: string | null
           status: string
           total_cap: number
           total_received: number
+          total_withdrawn: number
           updated_at: string
           user_id: string
         }
         Insert: {
           aporte_value: number
+          available_balance?: number
+          bank_details?: Json | null
           closed_at?: string | null
           closed_reason?: string | null
           created_at?: string
           id?: string
           monthly_cap: number
+          pix_key?: string | null
+          pix_key_type?: string | null
           plan_name: string
           referral_code?: string | null
           referred_by_user_id?: string | null
           status?: string
           total_cap: number
           total_received?: number
+          total_withdrawn?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           aporte_value?: number
+          available_balance?: number
+          bank_details?: Json | null
           closed_at?: string | null
           closed_reason?: string | null
           created_at?: string
           id?: string
           monthly_cap?: number
+          pix_key?: string | null
+          pix_key_type?: string | null
           plan_name?: string
           referral_code?: string | null
           referred_by_user_id?: string | null
           status?: string
           total_cap?: number
           total_received?: number
+          total_withdrawn?: number
           updated_at?: string
           user_id?: string
         }
@@ -955,6 +970,65 @@ export type Database = {
           {
             foreignKeyName: "partner_referral_bonuses_referrer_contract_id_fkey"
             columns: ["referrer_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_withdrawals: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          partner_contract_id: string
+          payment_details: Json
+          payment_method: string
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          partner_contract_id: string
+          payment_details: Json
+          payment_method?: string
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          partner_contract_id?: string
+          payment_details?: Json
+          payment_method?: string
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_withdrawals_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
             isOneToOne: false
             referencedRelation: "partner_contracts"
             referencedColumns: ["id"]
