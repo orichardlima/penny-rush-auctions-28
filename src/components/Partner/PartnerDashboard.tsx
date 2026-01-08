@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -22,7 +22,8 @@ import {
   ArrowUpRight,
   Users,
   CalendarDays,
-  BanknoteIcon
+  BanknoteIcon,
+  Timer
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { PartnerPlanCard } from './PartnerPlanCard';
@@ -47,11 +48,52 @@ const PartnerDashboard = () => {
   const { fetchPendingRequest } = usePartnerEarlyTermination();
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   
   const getDayName = (day: number) => {
     const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     return days[day] || 'Sexta-feira';
   };
+
+  // Calculate next payment day
+  const getNextPaymentInfo = React.useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    let daysUntil = weeklyPaymentDay - currentDay;
+    if (daysUntil <= 0) daysUntil += 7;
+    
+    const nextPaymentDate = new Date(today);
+    nextPaymentDate.setDate(today.getDate() + daysUntil);
+    
+    return {
+      date: nextPaymentDate,
+      daysUntil,
+      formatted: nextPaymentDate.toLocaleDateString('pt-BR', { 
+        weekday: 'long', 
+        day: '2-digit', 
+        month: '2-digit' 
+      })
+    };
+  }, [weeklyPaymentDay]);
+
+  // Get current week period (Monday to Sunday)
+  const getCurrentWeekPeriod = React.useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    return {
+      start: monday,
+      end: sunday,
+      formatted: `${monday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${sunday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+    };
+  }, []);
   
   React.useEffect(() => {
     if (contract?.id) {
@@ -76,10 +118,18 @@ const PartnerDashboard = () => {
   
   // Calculate totals for summary
   const payoutTotals = React.useMemo(() => {
-    const totalPaid = payouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
+    const paidPayouts = payouts.filter(p => p.status === 'PAID');
+    const totalPaid = paidPayouts.reduce((sum, p) => sum + p.amount, 0);
     const totalPending = payouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
-    return { totalPaid, totalPending, totalWeeks: payouts.length };
+    const averagePayout = paidPayouts.length > 0 ? totalPaid / paidPayouts.length : 0;
+    return { totalPaid, totalPending, totalWeeks: payouts.length, averagePayout, paidCount: paidPayouts.length, pendingCount: payouts.filter(p => p.status === 'PENDING').length };
   }, [payouts]);
+
+  // Filter payouts based on status
+  const filteredPayouts = React.useMemo(() => {
+    if (statusFilter === 'all') return payouts;
+    return payouts.filter(p => p.status === statusFilter);
+  }, [payouts, statusFilter]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -321,13 +371,56 @@ const PartnerDashboard = () => {
 
         {/* Tab de Repasses */}
         <TabsContent value="payouts" className="space-y-4">
-          {/* Alerta do Dia de Pagamento */}
-          <Alert className="bg-blue-500/10 border-blue-500/20">
-            <CalendarDays className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-700">
-              Os pagamentos são processados toda <strong>{getDayName(weeklyPaymentDay)}</strong>
-            </AlertDescription>
-          </Alert>
+          {/* Card de Próximo Repasse */}
+          <Card className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-purple-500/20 rounded-full">
+                    <CalendarDays className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Próximo Repasse</p>
+                    <p className="text-lg font-bold capitalize">{getNextPaymentInfo.formatted}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Faltam <strong>{getNextPaymentInfo.daysUntil}</strong> {getNextPaymentInfo.daysUntil === 1 ? 'dia' : 'dias'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Previsão (média)</p>
+                  <p className="text-xl font-semibold text-purple-600">
+                    {payoutTotals.averagePayout > 0 ? formatPrice(payoutTotals.averagePayout) : 'Aguardando dados'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card de Semana Atual em Andamento */}
+          <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Timer className="h-5 w-5 text-primary animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Semana em Andamento</p>
+                    <p className="text-sm text-muted-foreground">
+                      {getCurrentWeekPeriod.formatted}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                  Contabilizando...
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                O repasse desta semana será processado na próxima <strong>{getDayName(weeklyPaymentDay)}</strong>.
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Card de Resumo */}
           <Card className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20">
@@ -386,16 +479,45 @@ const PartnerDashboard = () => {
           {/* Histórico de Repasses em Cards */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BanknoteIcon className="h-5 w-5" />
-                Histórico Semanal
-              </CardTitle>
-              <CardDescription>Detalhes de cada repasse semanal</CardDescription>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BanknoteIcon className="h-5 w-5" />
+                    Histórico Semanal
+                  </CardTitle>
+                  <CardDescription>Detalhes de cada repasse semanal</CardDescription>
+                </div>
+                {payouts.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      variant={statusFilter === 'all' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => setStatusFilter('all')}
+                    >
+                      Todos ({payoutTotals.totalWeeks})
+                    </Button>
+                    <Button 
+                      variant={statusFilter === 'PAID' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => setStatusFilter('PAID')}
+                    >
+                      Pagos ({payoutTotals.paidCount})
+                    </Button>
+                    <Button 
+                      variant={statusFilter === 'PENDING' ? 'default' : 'outline'} 
+                      size="sm"
+                      onClick={() => setStatusFilter('PENDING')}
+                    >
+                      Pendentes ({payoutTotals.pendingCount})
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {payouts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {payouts.map((payout) => {
+                  {filteredPayouts.map((payout) => {
                     const start = new Date(payout.period_start);
                     const end = payout.period_end ? new Date(payout.period_end) : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
                     const isPaid = payout.status === 'PAID';
@@ -456,10 +578,52 @@ const PartnerDashboard = () => {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhum repasse ainda</p>
-                  <p className="text-sm">Os repasses são processados semanalmente</p>
+                <div className="space-y-6">
+                  {/* Explicação Visual do Ciclo */}
+                  <Card className="bg-muted/30">
+                    <CardContent className="p-6">
+                      <h3 className="font-semibold mb-4 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-500" />
+                        Como funciona o ciclo de repasses?
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-background rounded-lg">
+                          <div className="p-2 bg-blue-500/10 rounded-full inline-flex mb-2">
+                            <Calendar className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <p className="text-sm font-medium">Segunda-feira</p>
+                          <p className="text-xs text-muted-foreground">Início do período</p>
+                        </div>
+                        <div className="text-center p-3 bg-background rounded-lg">
+                          <div className="p-2 bg-purple-500/10 rounded-full inline-flex mb-2">
+                            <TrendingUp className="h-5 w-5 text-purple-500" />
+                          </div>
+                          <p className="text-sm font-medium">Durante a Semana</p>
+                          <p className="text-xs text-muted-foreground">Faturamento contabilizado</p>
+                        </div>
+                        <div className="text-center p-3 bg-background rounded-lg">
+                          <div className="p-2 bg-orange-500/10 rounded-full inline-flex mb-2">
+                            <Target className="h-5 w-5 text-orange-500" />
+                          </div>
+                          <p className="text-sm font-medium">Domingo</p>
+                          <p className="text-xs text-muted-foreground">Fechamento do período</p>
+                        </div>
+                        <div className="text-center p-3 bg-background rounded-lg">
+                          <div className="p-2 bg-green-500/10 rounded-full inline-flex mb-2">
+                            <DollarSign className="h-5 w-5 text-green-500" />
+                          </div>
+                          <p className="text-sm font-medium">{getDayName(weeklyPaymentDay)}</p>
+                          <p className="text-xs text-muted-foreground">Processamento do repasse</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum repasse processado ainda</p>
+                    <p className="text-sm">Seu primeiro repasse será creditado na próxima {getDayName(weeklyPaymentDay)}</p>
+                  </div>
                 </div>
               )}
             </CardContent>
