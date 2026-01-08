@@ -859,6 +859,151 @@ const AdminPartnerManagement = () => {
           </Card>
         </TabsContent>
 
+        {/* Saques Tab */}
+        <TabsContent value="withdrawals" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Solicitações de Saque</CardTitle>
+              <CardDescription>Gerencie as solicitações de saque dos parceiros</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Parceiro</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>PIX</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {withdrawals.map((withdrawal) => (
+                    <TableRow key={withdrawal.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{withdrawal.user_name}</p>
+                          <p className="text-xs text-muted-foreground">{withdrawal.user_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{withdrawal.plan_name}</TableCell>
+                      <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p>{withdrawal.payment_details?.pix_key || '-'}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{withdrawal.payment_details?.pix_key_type || '-'}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {withdrawal.status === 'PENDING' && (
+                          <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pendente</Badge>
+                        )}
+                        {withdrawal.status === 'APPROVED' && (
+                          <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Aprovado</Badge>
+                        )}
+                        {withdrawal.status === 'PAID' && (
+                          <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Pago</Badge>
+                        )}
+                        {withdrawal.status === 'REJECTED' && (
+                          <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Rejeitado</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {withdrawal.status === 'PENDING' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => approveWithdrawal(withdrawal.id)}
+                                disabled={processing}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Rejeitar Saque</DialogTitle>
+                                    <DialogDescription>
+                                      Informe o motivo da rejeição
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                    <div className="p-3 bg-muted rounded-lg text-sm">
+                                      <p><strong>Parceiro:</strong> {withdrawal.user_name}</p>
+                                      <p><strong>Valor:</strong> {formatPrice(withdrawal.amount)}</p>
+                                      <p><strong>PIX:</strong> {withdrawal.payment_details?.pix_key}</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Motivo da rejeição</Label>
+                                      <Input
+                                        id={`reject-reason-${withdrawal.id}`}
+                                        placeholder="Ex: Dados de pagamento incorretos..."
+                                      />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button
+                                      variant="destructive"
+                                      onClick={() => {
+                                        const input = document.getElementById(`reject-reason-${withdrawal.id}`) as HTMLInputElement;
+                                        if (input?.value) {
+                                          rejectWithdrawal(withdrawal.id, input.value);
+                                        }
+                                      }}
+                                      disabled={processing}
+                                    >
+                                      Rejeitar
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </>
+                          )}
+                          {withdrawal.status === 'APPROVED' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => markWithdrawalAsPaid(withdrawal.id)}
+                              disabled={processing}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Pagar
+                            </Button>
+                          )}
+                          {withdrawal.status === 'PAID' && withdrawal.paid_at && (
+                            <span className="text-xs text-green-600">
+                              Pago em {formatDate(withdrawal.paid_at)}
+                            </span>
+                          )}
+                          {withdrawal.status === 'REJECTED' && withdrawal.rejection_reason && (
+                            <span className="text-xs text-red-600">
+                              {withdrawal.rejection_reason}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {withdrawals.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma solicitação de saque
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Encerramentos Tab */}
         <TabsContent value="terminations" className="space-y-4">
           <Card>
