@@ -13,10 +13,6 @@ export const PlanComparison = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const getReturnPercentage = (aporte: number, total: number) => {
-    return ((total / aporte) * 100 - 100).toFixed(0);
-  };
-
   const handleSelectPlan = (planId: string) => {
     navigate(`/parceiro?plan=${planId}`);
   };
@@ -51,9 +47,8 @@ export const PlanComparison = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {plans.map((plan, index) => {
+          {plans.map((plan) => {
             const isPro = plan.name === 'pro';
-            const returnPct = getReturnPercentage(plan.aporte_value, plan.total_cap);
             
             return (
               <Card 
@@ -92,16 +87,16 @@ export const PlanComparison = () => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground">Limite Mensal</span>
+                      <span className="text-muted-foreground">Limite Semanal</span>
                       <span className="font-semibold">
-                        {formatCurrency(plan.monthly_cap)}
+                        {formatCurrency(plan.monthly_cap / 4)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground">Retorno</span>
-                      <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
-                        +{returnPct}%
-                      </Badge>
+                      <span className="text-muted-foreground">Teto Máximo</span>
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(plan.total_cap)}
+                      </span>
                     </div>
                   </div>
 
@@ -112,7 +107,7 @@ export const PlanComparison = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-600" />
-                      <span>Repasses mensais</span>
+                      <span>Apuração semanal</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-600" />

@@ -11,7 +11,7 @@ const steps = [
   {
     icon: ListChecks,
     title: "Escolha seu Plano",
-    description: "Selecione entre START, PRO ou ELITE conforme seu perfil de investimento."
+    description: "Selecione entre START, PRO ou ELITE conforme seu perfil de participação."
   },
   {
     icon: CreditCard,
@@ -26,7 +26,7 @@ const steps = [
   {
     icon: BarChart3,
     title: "Acompanhe Repasses",
-    description: "Receba repasses mensais proporcionais ao desempenho da plataforma."
+    description: "Receba repasses semanais proporcionais ao desempenho da plataforma."
   },
   {
     icon: CheckCircle2,

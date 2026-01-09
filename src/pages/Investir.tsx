@@ -121,7 +121,7 @@ const Investir = () => {
             <p className="text-xs text-muted-foreground leading-relaxed">
               O programa de parceiros da Show de Lances não constitui investimento financeiro, aplicação financeira, 
               oferta de valores mobiliários ou qualquer outra forma de captação de recursos regulamentada. 
-              Os repasses são proporcionais ao desempenho da plataforma e não há garantia de rentabilidade ou retorno. 
+              Os repasses são proporcionais ao desempenho da plataforma e não há garantia de repasse mínimo, valor fixo ou prazo. 
               Ao participar do programa, você declara estar ciente dos termos e condições e assume os riscos envolvidos.
             </p>
           </div>
