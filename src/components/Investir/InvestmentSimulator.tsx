@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Calendar, Wallet, Target, ArrowRight } from "lucide-react";
+import { TrendingUp, Calendar, Wallet, Target, ArrowRight, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
 
@@ -17,14 +17,9 @@ export const InvestmentSimulator = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  // Calculate estimated months to reach total cap
-  const estimatedMonths = selectedPlan 
-    ? Math.ceil(selectedPlan.total_cap / selectedPlan.monthly_cap)
-    : 0;
-
-  // Calculate return percentage
-  const returnPercentage = selectedPlan 
-    ? ((selectedPlan.total_cap / selectedPlan.aporte_value) * 100 - 100).toFixed(0)
+  // Calculate estimated weeks to reach total cap (based on weekly cap = monthly_cap / 4)
+  const estimatedWeeks = selectedPlan 
+    ? Math.ceil(selectedPlan.total_cap / (selectedPlan.monthly_cap / 4))
     : 0;
 
   const handleSelectPlan = () => {
@@ -54,10 +49,10 @@ export const InvestmentSimulator = () => {
               Calculadora Interativa
             </Badge>
             <h2 className="text-2xl sm:text-4xl font-bold text-foreground mb-4">
-              Simule seu Investimento
+              Simule sua Participação
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Selecione um plano e veja em tempo real os benefícios e projeções de retorno
+              Selecione um plano e veja em tempo real os detalhes do plano
             </p>
           </div>
 
@@ -110,26 +105,29 @@ export const InvestmentSimulator = () => {
                     </div>
                     <div className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl p-4 text-center border border-amber-500/10">
                       <TrendingUp className="w-6 h-6 text-amber-600 mx-auto mb-2" />
-                      <div className="text-sm text-muted-foreground mb-1">Limite Mensal</div>
+                      <div className="text-sm text-muted-foreground mb-1">Limite Semanal</div>
                       <div className="text-xl sm:text-2xl font-bold text-amber-600">
-                        {formatCurrency(selectedPlan.monthly_cap)}
+                        {formatCurrency(selectedPlan.monthly_cap / 4)}
                       </div>
                     </div>
                     <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-xl p-4 text-center border border-purple-500/10">
                       <Calendar className="w-6 h-6 text-purple-600 mx-auto mb-2" />
                       <div className="text-sm text-muted-foreground mb-1">Tempo Estimado</div>
                       <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                        ~{estimatedMonths} meses
+                        ~{estimatedWeeks} semanas
                       </div>
                     </div>
                   </div>
 
-                  {/* Return percentage highlight */}
-                  <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl p-6 mb-8 text-center text-white">
-                    <div className="text-lg opacity-90 mb-1">Retorno potencial sobre o aporte</div>
-                    <div className="text-4xl sm:text-5xl font-bold">+{returnPercentage}%</div>
+                  {/* Teto highlight (replaces return percentage) */}
+                  <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-6 mb-8 text-center text-white">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Lock className="w-5 h-5" />
+                      <span className="text-lg opacity-90">Teto máximo de recebimento</span>
+                    </div>
+                    <div className="text-4xl sm:text-5xl font-bold">{formatCurrency(selectedPlan.total_cap)}</div>
                     <div className="text-sm opacity-80 mt-2">
-                      de {formatCurrency(selectedPlan.aporte_value)} para {formatCurrency(selectedPlan.total_cap)}
+                      Encerramento automático ao atingir o teto
                     </div>
                   </div>
 
@@ -144,17 +142,17 @@ export const InvestmentSimulator = () => {
                         className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-green-500 rounded-full transition-all duration-500"
                         style={{ width: '100%' }}
                       />
-                      {Array.from({ length: estimatedMonths }).map((_, i) => (
+                      {Array.from({ length: Math.min(estimatedWeeks, 20) }).map((_, i) => (
                         <div 
                           key={i}
                           className="absolute top-0 bottom-0 w-px bg-white/30"
-                          style={{ left: `${((i + 1) / estimatedMonths) * 100}%` }}
+                          style={{ left: `${((i + 1) / Math.min(estimatedWeeks, 20)) * 100}%` }}
                         />
                       ))}
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>Mês 1</span>
-                      <span>Mês {estimatedMonths}</span>
+                      <span>Semana 1</span>
+                      <span>Semana {estimatedWeeks}</span>
                     </div>
                   </div>
 
@@ -169,7 +167,7 @@ export const InvestmentSimulator = () => {
                   </Button>
 
                   <p className="text-center text-xs text-muted-foreground mt-4">
-                    *Tempo estimado baseado no recebimento máximo mensal. 
+                    *Tempo estimado baseado no recebimento máximo semanal. 
                     Os repasses dependem do desempenho da plataforma.
                   </p>
                 </>

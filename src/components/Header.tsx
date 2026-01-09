@@ -105,7 +105,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
             <Link to="/investir" className="text-foreground hover:text-amber-500 transition-colors relative">
               <span className="flex items-center gap-1.5">
                 <span className="relative">
-                  Investir
+                  Seja Parceiro
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                 </span>
                 <Badge className="bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">
@@ -280,7 +280,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                       </Link>
                       <Link to="/investir" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/investir' ? 'bg-amber-500/10 text-amber-600' : 'text-foreground hover:text-amber-600 hover:bg-amber-500/5'}`}>
                         <Briefcase className="w-5 h-5" />
-                        <span>Investir</span>
+                        <span>Seja Parceiro</span>
                         <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
                       </Link>
                       <Link to="/vencedores" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/vencedores' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>

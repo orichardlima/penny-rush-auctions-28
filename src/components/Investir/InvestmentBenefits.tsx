@@ -72,7 +72,7 @@ export const InvestmentBenefits = () => {
             Por que ser um Parceiro?
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Benefícios exclusivos para quem acredita e investe no crescimento da plataforma
+            Benefícios exclusivos para quem faz parte do crescimento da plataforma
           </p>
         </div>
 

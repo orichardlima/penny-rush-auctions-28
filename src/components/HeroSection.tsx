@@ -32,7 +32,7 @@ export const HeroSection = () => {
             <Link to="/investir" className="w-full sm:w-auto">
               <Button size="xl" className="w-full text-base sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0">
                 <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Seja um Investidor
+                Seja um Parceiro
               </Button>
             </Link>
           </div>

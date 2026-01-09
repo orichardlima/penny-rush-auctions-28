@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Shield, Users, Wallet } from "lucide-react";
+import { TrendingUp, Shield, Users, Wallet, Lock } from "lucide-react";
 
 interface InvestmentHeroProps {
   onScrollToSimulator: () => void;
@@ -26,15 +26,15 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
           </Badge>
           
           <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold mb-6 text-white leading-tight">
-            Invista no Futuro da
+            Participe do Crescimento da
             <span className="block bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent mt-2">
               Plataforma Líder em Leilões
             </span>
           </h1>
           
           <p className="text-lg sm:text-xl lg:text-2xl text-purple-100/90 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Seja parceiro e receba repasses proporcionais mensais. 
-            Transparência total, dashboard exclusivo e retorno de até 133% do seu aporte.
+            Seja parceiro e participe de repasses semanais proporcionais ao faturamento da plataforma.
+            Transparência total, dashboard exclusivo e regras claras.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
@@ -44,7 +44,7 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
               className="bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-amber-950 font-bold shadow-lg shadow-amber-500/25"
             >
               <TrendingUp className="w-5 h-5 mr-2" />
-              Simular Investimento
+              Simular Participação
             </Button>
             <Button 
               size="xl" 
@@ -52,7 +52,7 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
               onClick={onScrollToPlans}
               className="border-2 border-white/30 bg-white/5 text-white hover:bg-white/10 hover:border-white/50 backdrop-blur-sm"
             >
-              Ver Planos Disponíveis
+              Ver Planos de Parceria
             </Button>
           </div>
 
@@ -74,10 +74,10 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/10">
               <div className="flex items-center justify-center mb-2">
-                <TrendingUp className="w-5 h-5 text-amber-400 mr-2" />
-                <span className="text-2xl sm:text-3xl font-bold text-white">133%</span>
+                <Lock className="w-5 h-5 text-amber-400 mr-2" />
+                <span className="text-2xl sm:text-3xl font-bold text-white">Teto</span>
               </div>
-              <div className="text-purple-200/80 text-sm">Retorno Máximo</div>
+              <div className="text-purple-200/80 text-sm">Definido em Contrato</div>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/10">
               <div className="flex items-center justify-center mb-2">
@@ -97,13 +97,22 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
             <div className="w-px h-4 bg-purple-200/30" />
             <div className="flex items-center gap-2 text-purple-200/70 text-sm">
               <TrendingUp className="w-4 h-4" />
-              <span>Repasses Mensais</span>
+              <span>Apuração Semanal</span>
             </div>
             <div className="w-px h-4 bg-purple-200/30" />
             <div className="flex items-center gap-2 text-purple-200/70 text-sm">
               <Users className="w-4 h-4" />
               <span>Dashboard Exclusivo</span>
             </div>
+          </div>
+
+          {/* Legal text below hero */}
+          <div className="mt-10 p-4 bg-black/20 rounded-lg border border-white/10">
+            <p className="text-xs text-purple-200/60 leading-relaxed">
+              Este programa não representa investimento financeiro.
+              Os valores recebidos dependem do desempenho da plataforma.
+              Não há garantia de repasse mínimo, valor fixo ou prazo.
+            </p>
           </div>
         </div>
       </div>
