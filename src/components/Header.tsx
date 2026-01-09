@@ -102,10 +102,15 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
             <Link to="/afiliado" className="text-foreground hover:text-primary transition-colors">
               Afiliados
             </Link>
-            <Link to="/parceiro" className="text-foreground hover:text-primary transition-colors relative">
-              <span className="flex items-center gap-1">
-                Parceiros
-                <Badge className="bg-purple-500 text-white text-[10px] px-1.5 py-0">PRO</Badge>
+            <Link to="/investir" className="text-foreground hover:text-amber-500 transition-colors relative">
+              <span className="flex items-center gap-1.5">
+                <span className="relative">
+                  Investir
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                </span>
+                <Badge className="bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">
+                  NOVO
+                </Badge>
               </span>
             </Link>
             <Link to="/vencedores" className="text-foreground hover:text-primary transition-colors">
@@ -273,10 +278,10 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <User className="w-5 h-5" />
                         <span>Afiliados</span>
                       </Link>
-                      <Link to="/parceiro" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/parceiro' ? 'bg-purple-500/10 text-purple-600' : 'text-foreground hover:text-purple-600 hover:bg-purple-500/5'}`}>
+                      <Link to="/investir" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/investir' ? 'bg-amber-500/10 text-amber-600' : 'text-foreground hover:text-amber-600 hover:bg-amber-500/5'}`}>
                         <Briefcase className="w-5 h-5" />
-                        <span>Parceiros</span>
-                        <Badge className="ml-auto bg-purple-500 text-white text-[10px] px-1.5 py-0">PRO</Badge>
+                        <span>Investir</span>
+                        <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
                       </Link>
                       <Link to="/vencedores" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/vencedores' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
                         <Trophy className="w-5 h-5" />
