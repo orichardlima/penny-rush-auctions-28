@@ -12,6 +12,7 @@ import { PlanComparison } from "@/components/Investir/PlanComparison";
 import { InvestmentFAQ } from "@/components/Investir/InvestmentFAQ";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
+import { CheckCircle } from "lucide-react";
 
 const Investir = () => {
   const navigate = useNavigate();
@@ -19,12 +20,6 @@ const Investir = () => {
   const { contract } = usePartnerContract();
   const simulatorRef = useRef<HTMLDivElement>(null);
   const plansRef = useRef<HTMLDivElement>(null);
-
-  // If user already has a contract, redirect to dashboard
-  if (contract) {
-    navigate('/dashboard');
-    return null;
-  }
 
   const scrollToSimulator = () => {
     simulatorRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,6 +36,27 @@ const Investir = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header onBuyBids={handleBuyBids} />
+
+      {/* Banner for existing partners */}
+      {contract && (
+        <div className="bg-primary/10 border-b border-primary/20">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-primary" />
+              <span className="text-sm">
+                Você já é parceiro <strong>{contract.plan_name}</strong>!
+              </span>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/dashboard')}
+            >
+              Ir para o Dashboard
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <InvestmentHero 
