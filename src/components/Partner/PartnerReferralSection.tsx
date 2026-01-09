@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
+import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { 
   Users, 
   Copy, 
@@ -12,10 +13,14 @@ import {
   Gift,
   Clock,
   DollarSign,
-  ExternalLink
+  Percent
 } from 'lucide-react';
 
-const PartnerReferralSection = () => {
+interface PartnerReferralSectionProps {
+  planName?: string;
+}
+
+const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planName }) => {
   const { 
     bonuses, 
     referralCode,
@@ -26,6 +31,10 @@ const PartnerReferralSection = () => {
     getStatusLabel,
     getStatusColor
   } = usePartnerReferrals();
+  
+  const { plans } = usePartnerContract();
+  const currentPlan = plans.find(p => p.name === planName);
+  const referralBonusPercentage = currentPlan?.referral_bonus_percentage || 10;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -69,8 +78,8 @@ const PartnerReferralSection = () => {
             <Share2 className="h-5 w-5" />
             Indique Parceiros
           </CardTitle>
-          <CardDescription>
-            Ganhe um bônus de 10% sobre o aporte de cada parceiro que você indicar
+          <CardDescription className="flex items-center gap-2 flex-wrap">
+            Ganhe um bônus de <Badge variant="secondary" className="font-bold text-primary">{referralBonusPercentage}%</Badge> sobre o aporte de cada parceiro que você indicar
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -129,7 +138,7 @@ const PartnerReferralSection = () => {
                 <TableRow>
                   <TableHead>Indicado</TableHead>
                   <TableHead>Valor do Aporte</TableHead>
-                  <TableHead>Bônus (10%)</TableHead>
+                  <TableHead>Bônus</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
