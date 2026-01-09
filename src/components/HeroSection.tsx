@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Users, Clock, Shield } from "lucide-react";
+import { TrendingUp, Users, Clock, Shield, Briefcase } from "lucide-react";
 import { Link } from "react-router-dom";
 export const HeroSection = () => {
   return <section className="py-12 sm:py-16 lg:py-20 bg-gradient-hero text-center relative overflow-hidden min-h-[80vh] flex items-center">
@@ -22,16 +22,17 @@ export const HeroSection = () => {
           
           <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-2 sm:px-0">Participe dos leilões mais emocionantes do Brasil. Cada lance custa apenas R$ 1 e pode te dar produtos de até R$ 100.000!</p>
 
-          <div className="flex flex-col gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4 sm:px-0">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 px-4 sm:px-0">
             <Link to="/leiloes" className="w-full sm:w-auto">
               <Button size="xl" variant="accent" className="shadow-glow w-full text-base sm:text-lg">
                 <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Ver Leilões Ativos
               </Button>
             </Link>
-            <Link to="/como-funciona" className="w-full sm:w-auto">
-              <Button size="xl" variant="outline-hero" className="w-full text-base sm:text-lg">
-                Como Funciona
+            <Link to="/investir" className="w-full sm:w-auto">
+              <Button size="xl" className="w-full text-base sm:text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0">
+                <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                Seja um Investidor
               </Button>
             </Link>
           </div>
