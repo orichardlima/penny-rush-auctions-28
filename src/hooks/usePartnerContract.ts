@@ -12,6 +12,7 @@ export interface PartnerPlan {
   total_cap: number;
   is_active: boolean;
   sort_order: number;
+  referral_bonus_percentage: number;
 }
 
 export interface PartnerContract {
@@ -208,9 +209,17 @@ export const usePartnerContract = () => {
 
       if (error) throw error;
 
-      // Criar bônus de indicação se foi indicado
+      // Criar bônus de indicação se foi indicado - usar % do plano do referrer
       if (referrerContractId && data) {
-        const bonusPercentage = 10;
+        // Buscar o plano do referrer para pegar a porcentagem correta
+        const { data: referrerContractData } = await supabase
+          .from('partner_contracts')
+          .select('plan_name')
+          .eq('id', referrerContractId)
+          .single();
+        
+        const referrerPlan = plans.find(p => p.name === referrerContractData?.plan_name);
+        const bonusPercentage = referrerPlan?.referral_bonus_percentage || 10;
         const bonusValue = plan.aporte_value * (bonusPercentage / 100);
         const availableAt = new Date();
         availableAt.setDate(availableAt.getDate() + 7); // 7 dias para validação

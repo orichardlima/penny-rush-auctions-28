@@ -31,6 +31,7 @@ import PartnerReferralSection from './PartnerReferralSection';
 import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
 import PartnerWithdrawalSection from './PartnerWithdrawalSection';
 import PartnerUpgradeDialog from './PartnerUpgradeDialog';
+import { PartnerBadge } from './PartnerBadge';
 
 const PartnerDashboard = () => {
   const { 
@@ -267,9 +268,14 @@ const PartnerDashboard = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Painel do Parceiro</h2>
-          <p className="text-muted-foreground">Acompanhe sua participação e repasses</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h2 className="text-2xl font-bold">Painel do Parceiro</h2>
+              <PartnerBadge planName={contract.plan_name} size="md" />
+            </div>
+            <p className="text-muted-foreground">Acompanhe sua participação e repasses</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {canUpgrade() && (
@@ -650,7 +656,7 @@ const PartnerDashboard = () => {
 
         {/* Tab de Indicações */}
         <TabsContent value="referrals">
-          <PartnerReferralSection />
+          <PartnerReferralSection planName={contract.plan_name} />
         </TabsContent>
       </Tabs>
 

@@ -1,9 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Check, X, Crown } from "lucide-react";
+import { Check, X, Crown, TrendingUp, Medal, Award, Trophy, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePartnerContract } from "@/hooks/usePartnerContract";
+import { usePartnerContract, PartnerPlan } from "@/hooks/usePartnerContract";
 
 export const PlanComparison = () => {
   const navigate = useNavigate();
@@ -13,8 +13,59 @@ export const PlanComparison = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  const calculateROI = (plan: PartnerPlan) => {
+    return ((plan.total_cap - plan.aporte_value) / plan.aporte_value) * 100;
+  };
+
   const handleSelectPlan = (planId: string) => {
     navigate(`/parceiro?plan=${planId}`);
+  };
+
+  const getPlanConfig = (planName: string) => {
+    switch (planName) {
+      case 'start':
+        return {
+          icon: Medal,
+          iconColor: 'text-amber-600',
+          iconBg: 'bg-amber-500/10',
+          badge: null,
+          badgeLabel: null,
+          highlight: false,
+          gradient: 'from-amber-700/10 to-transparent'
+        };
+      case 'pro':
+        return {
+          icon: Award,
+          iconColor: 'text-slate-500',
+          iconBg: 'bg-slate-400/10',
+          badge: 'bg-primary text-primary-foreground',
+          badgeLabel: 'Mais Popular',
+          badgeIcon: Crown,
+          highlight: true,
+          gradient: 'from-primary/20 to-transparent'
+        };
+      case 'elite':
+        return {
+          icon: Trophy,
+          iconColor: 'text-yellow-500',
+          iconBg: 'bg-yellow-400/10',
+          badge: 'bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-950',
+          badgeLabel: 'Melhor ROI',
+          badgeIcon: TrendingUp,
+          highlight: false,
+          gradient: 'from-yellow-500/20 to-transparent'
+        };
+      default:
+        return {
+          icon: Medal,
+          iconColor: 'text-muted-foreground',
+          iconBg: 'bg-muted',
+          badge: null,
+          badgeLabel: null,
+          highlight: false,
+          gradient: ''
+        };
+    }
   };
 
   if (loading) {
@@ -23,7 +74,7 @@ export const PlanComparison = () => {
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex gap-6 justify-center">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse bg-muted h-96 w-80 rounded-2xl" />
+              <div key={i} className="animate-pulse bg-muted h-[500px] w-80 rounded-2xl" />
             ))}
           </div>
         </div>
@@ -42,31 +93,44 @@ export const PlanComparison = () => {
             Planos de Parceria
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Compare os planos e escolha o que melhor se adapta ao seu perfil
+            Compare os planos e escolha o que melhor se adapta ao seu perfil. 
+            <strong className="text-foreground"> Quanto maior o plano, maior o retorno!</strong>
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
           {plans.map((plan) => {
-            const isPro = plan.name === 'pro';
+            const config = getPlanConfig(plan.name);
+            const roi = calculateROI(plan);
+            const Icon = config.icon;
+            const BadgeIcon = config.badgeIcon;
             
             return (
               <Card 
                 key={plan.id}
                 className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
-                  isPro 
+                  config.highlight 
                     ? 'border-2 border-primary shadow-lg scale-105 z-10' 
                     : 'border border-border hover:-translate-y-1'
                 }`}
               >
-                {isPro && (
-                  <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-center py-1 text-sm font-medium flex items-center justify-center gap-1">
-                    <Crown className="w-4 h-4" />
-                    Mais Popular
+                {/* Background gradient */}
+                <div className={`absolute inset-0 bg-gradient-to-b ${config.gradient} pointer-events-none`} />
+                
+                {/* Badge */}
+                {config.badgeLabel && (
+                  <div className={`absolute top-0 left-0 right-0 ${config.badge} text-center py-1.5 text-sm font-medium flex items-center justify-center gap-1.5`}>
+                    {BadgeIcon && <BadgeIcon className="w-4 h-4" />}
+                    {config.badgeLabel}
                   </div>
                 )}
 
-                <CardHeader className={`text-center ${isPro ? 'pt-10' : 'pt-6'} pb-4`}>
+                <CardHeader className={`text-center ${config.badgeLabel ? 'pt-12' : 'pt-6'} pb-4 relative`}>
+                  {/* Plan Icon */}
+                  <div className={`mx-auto mb-4 p-4 rounded-full ${config.iconBg} w-fit`}>
+                    <Icon className={`w-8 h-8 ${config.iconColor}`} />
+                  </div>
+                  
                   <h3 className="text-2xl font-bold text-foreground mb-2">
                     {plan.display_name}
                   </h3>
@@ -78,63 +142,81 @@ export const PlanComparison = () => {
                   </div>
                 </CardHeader>
 
-                <CardContent className="px-6 pb-6">
-                  <div className="space-y-4 mb-6">
+                <CardContent className="px-6 pb-6 relative">
+                  {/* ROI Highlight */}
+                  <div className={`mb-6 p-4 rounded-xl ${config.highlight ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'}`}>
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <TrendingUp className={`w-5 h-5 ${config.highlight ? 'text-primary' : 'text-green-600'}`} />
+                      <span className={`text-3xl font-bold ${config.highlight ? 'text-primary' : 'text-green-600'}`}>
+                        {roi.toFixed(0)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Retorno sobre Investimento
+                    </p>
+                    <p className="text-sm text-center font-medium mt-1">
+                      Receba até {formatCurrency(plan.total_cap)}
+                    </p>
+                  </div>
+
+                  {/* Plan Details */}
+                  <div className="space-y-3 mb-6">
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground">Teto Total</span>
+                      <span className="text-muted-foreground text-sm">Teto Total</span>
                       <span className="font-semibold text-green-600">
                         {formatCurrency(plan.total_cap)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground">Limite Semanal</span>
+                      <span className="text-muted-foreground text-sm">Limite Semanal</span>
                       <span className="font-semibold">
                         {formatCurrency(plan.monthly_cap / 4)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground">Teto Máximo</span>
-                      <span className="font-semibold text-green-600">
-                        {formatCurrency(plan.total_cap)}
+                      <span className="text-muted-foreground text-sm">Bônus Indicação</span>
+                      <span className="font-semibold text-primary">
+                        {plan.referral_bonus_percentage || 10}%
                       </span>
                     </div>
                   </div>
 
-                  <div className="space-y-3 mb-6">
+                  {/* Features */}
+                  <div className="space-y-2.5 mb-6">
                     <div className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-600" />
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                       <span>Dashboard exclusivo</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-600" />
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                       <span>Apuração semanal</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-600" />
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                       <span>Relatórios detalhados</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       {plan.name !== 'elite' ? (
                         <>
-                          <Check className="w-4 h-4 text-green-600" />
+                          <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                           <span>Upgrade disponível</span>
                         </>
                       ) : (
                         <>
-                          <X className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">Plano máximo</span>
+                          <Sparkles className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                          <span className="font-medium text-yellow-600">Plano máximo</span>
                         </>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       {plan.name !== 'start' ? (
                         <>
-                          <Check className="w-4 h-4 text-green-600" />
+                          <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                           <span>Suporte prioritário</span>
                         </>
                       ) : (
                         <>
-                          <X className="w-4 h-4 text-muted-foreground" />
+                          <X className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                           <span className="text-muted-foreground">Suporte padrão</span>
                         </>
                       )}
@@ -143,11 +225,14 @@ export const PlanComparison = () => {
 
                   <Button 
                     className={`w-full ${
-                      isPro 
-                        ? 'bg-gradient-to-r from-primary to-primary/80' 
+                      config.highlight 
+                        ? 'bg-gradient-to-r from-primary to-primary/80 shadow-lg' 
+                        : plan.name === 'elite'
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-950 hover:from-amber-400 hover:to-yellow-300'
                         : ''
                     }`}
-                    variant={isPro ? 'default' : 'outline'}
+                    variant={config.highlight ? 'default' : plan.name === 'elite' ? 'default' : 'outline'}
+                    size="lg"
                     onClick={() => handleSelectPlan(plan.id)}
                   >
                     Escolher {plan.display_name}
@@ -156,6 +241,14 @@ export const PlanComparison = () => {
               </Card>
             );
           })}
+        </div>
+
+        {/* ROI Comparison Note */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+            <strong className="text-foreground">💡 Dica:</strong> O ROI (Retorno sobre Investimento) 
+            aumenta progressivamente conforme o plano. O Elite oferece o dobro do retorno percentual do Start!
+          </p>
         </div>
       </div>
     </section>

@@ -847,6 +847,7 @@ export type Database = {
           is_active: boolean
           monthly_cap: number
           name: string
+          referral_bonus_percentage: number | null
           sort_order: number
           total_cap: number
           updated_at: string
@@ -859,6 +860,7 @@ export type Database = {
           is_active?: boolean
           monthly_cap: number
           name: string
+          referral_bonus_percentage?: number | null
           sort_order?: number
           total_cap: number
           updated_at?: string
@@ -871,6 +873,7 @@ export type Database = {
           is_active?: boolean
           monthly_cap?: number
           name?: string
+          referral_bonus_percentage?: number | null
           sort_order?: number
           total_cap?: number
           updated_at?: string
