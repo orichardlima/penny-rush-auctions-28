@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -6,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Coins, ShoppingCart, User, Menu, Gavel, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Bell, Briefcase } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderProps {
   userBids?: number;
@@ -20,6 +22,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   let signOut = null;
   
   const location = useLocation();
+  const [hasPartnerContract, setHasPartnerContract] = useState(false);
   
   try {
     const authContext = useAuth();
@@ -31,6 +34,27 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
     // If useAuth fails (not within AuthProvider), use userBids from props
     console.log('Auth context not available in Header, using props');
   }
+
+  // Check if user has active partner contract
+  useEffect(() => {
+    const checkPartnerContract = async () => {
+      if (!profile?.user_id) {
+        setHasPartnerContract(false);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('partner_contracts')
+        .select('id')
+        .eq('user_id', profile.user_id)
+        .in('status', ['active', 'pending'])
+        .maybeSingle();
+      
+      setHasPartnerContract(!!data);
+    };
+    
+    checkPartnerContract();
+  }, [profile?.user_id]);
 
   // Get current page context
   const getPageContext = () => {
@@ -45,6 +69,8 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
         return { title: 'Como Funciona', icon: HelpCircle };
       case '/dashboard':
         return { title: 'Dashboard', icon: Settings };
+      case '/minha-parceria':
+        return { title: 'Minha Parceria', icon: Briefcase };
       default:
         return { title: 'Show de Lances', icon: Gavel };
     }
@@ -62,6 +88,10 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
       await signOut();
     }
   };
+
+  // Partner link config based on user status
+  const partnerLink = hasPartnerContract ? '/minha-parceria' : '/parceiro';
+  const partnerLabel = hasPartnerContract ? 'Minha Parceria' : 'Seja Parceiro';
 
   return (
     <header className="bg-background/95 backdrop-blur-sm border-b border-border shadow-sm sticky top-0 z-50">
@@ -102,15 +132,19 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
             <Link to="/afiliado" className="text-foreground hover:text-primary transition-colors">
               Afiliados
             </Link>
-            <Link to="/investir" className="text-foreground hover:text-amber-500 transition-colors relative">
+            <Link to={partnerLink} className="text-foreground hover:text-amber-500 transition-colors relative">
               <span className="flex items-center gap-1.5">
                 <span className="relative">
-                  Seja Parceiro
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  {partnerLabel}
+                  {!hasPartnerContract && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  )}
                 </span>
-                <Badge className="bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">
-                  NOVO
-                </Badge>
+                {!hasPartnerContract && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">
+                    NOVO
+                  </Badge>
+                )}
               </span>
             </Link>
             <Link to="/vencedores" className="text-foreground hover:text-primary transition-colors">
@@ -278,10 +312,12 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <User className="w-5 h-5" />
                         <span>Afiliados</span>
                       </Link>
-                      <Link to="/investir" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/investir' ? 'bg-amber-500/10 text-amber-600' : 'text-foreground hover:text-amber-600 hover:bg-amber-500/5'}`}>
+                      <Link to={partnerLink} className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/minha-parceria' || location.pathname === '/parceiro' || location.pathname === '/investir' ? 'bg-amber-500/10 text-amber-600' : 'text-foreground hover:text-amber-600 hover:bg-amber-500/5'}`}>
                         <Briefcase className="w-5 h-5" />
-                        <span>Seja Parceiro</span>
-                        <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
+                        <span>{partnerLabel}</span>
+                        {!hasPartnerContract && (
+                          <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
+                        )}
                       </Link>
                       <Link to="/vencedores" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/vencedores' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
                         <Trophy className="w-5 h-5" />

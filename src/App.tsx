@@ -16,6 +16,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import PartnerLanding from "./pages/PartnerLanding";
 import Investir from "./pages/Investir";
+import MinhaParceria from "./pages/MinhaParceria";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const AppContent = () => {
       <Route path="/afiliado" element={<AffiliateDashboard />} />
       <Route path="/parceiro" element={<PartnerLanding />} />
       <Route path="/investir" element={<Investir />} />
+      <Route path="/minha-parceria" element={<MinhaParceria />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
