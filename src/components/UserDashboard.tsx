@@ -37,7 +37,6 @@ import { SignupBonusWelcome } from '@/components/SignupBonusWelcome';
 import { UserOrders } from '@/components/UserOrders';
 import { PersonalAnalytics } from '@/components/PersonalAnalytics';
 import { NotificationSettings } from '@/components/NotificationSettings';
-import PartnerDashboard from '@/components/Partner/PartnerDashboard';
 
 interface Bid {
   id: string;
@@ -345,15 +344,16 @@ const UserDashboard = () => {
                     </p>
                   </div>
                 </div>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="whitespace-nowrap border-purple-500/50 hover:bg-purple-500/10 text-purple-600"
-                  onClick={() => setActiveTab('investments')}
-                >
-                  Meu Painel de Parceiro
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
+                <Link to="/minha-parceria">
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="whitespace-nowrap border-purple-500/50 hover:bg-purple-500/10 text-purple-600"
+                  >
+                    Meu Painel de Parceiro
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -363,7 +363,7 @@ const UserDashboard = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={isMobile 
             ? "flex w-full overflow-x-auto overflow-y-hidden scrollbar-hide" 
-            : "grid w-full grid-cols-10"
+            : "grid w-full grid-cols-9"
           }>
             <TabsTrigger value="overview" className={isMobile ? "flex-shrink-0" : ""}>Visão Geral</TabsTrigger>
             <TabsTrigger value="orders" className={isMobile ? "flex-shrink-0" : ""}>Pedidos</TabsTrigger>
@@ -371,13 +371,6 @@ const UserDashboard = () => {
             <TabsTrigger value="auctions" className={isMobile ? "flex-shrink-0" : ""}>Leilões</TabsTrigger>
             <TabsTrigger value="financial" className={isMobile ? "flex-shrink-0" : ""}>Financeiro</TabsTrigger>
             <TabsTrigger value="packages" className={isMobile ? "flex-shrink-0" : ""}>Pacotes</TabsTrigger>
-            <TabsTrigger 
-              value="investments" 
-              className={`${isMobile ? "flex-shrink-0" : ""} ${hasPartnerContract ? "relative after:absolute after:top-1 after:right-1 after:w-2 after:h-2 after:bg-purple-500 after:rounded-full" : ""}`}
-            >
-              <Briefcase className="h-4 w-4 mr-1" />
-              Parcerias
-            </TabsTrigger>
             <TabsTrigger value="analytics" className={isMobile ? "flex-shrink-0" : ""}>Analytics</TabsTrigger>
             <TabsTrigger value="notifications" className={isMobile ? "flex-shrink-0" : ""}>Notificações</TabsTrigger>
             <TabsTrigger value="profile" className={isMobile ? "flex-shrink-0" : ""}>Perfil</TabsTrigger>
@@ -565,10 +558,6 @@ const UserDashboard = () => {
                 </div>
               )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="investments" className="space-y-4">
-            <PartnerDashboard />
           </TabsContent>
 
           <TabsContent value="analytics">

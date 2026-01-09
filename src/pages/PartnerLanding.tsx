@@ -62,7 +62,7 @@ const PartnerLanding = () => {
     
     const result = await createContract(planId, referralCode || undefined);
     if (result.success) {
-      navigate('/dashboard');
+      navigate('/minha-parceria');
     }
   };
 
@@ -80,7 +80,7 @@ const PartnerLanding = () => {
             <p className="text-muted-foreground mb-6">
               Acesse seu painel para acompanhar sua participação e repasses.
             </p>
-            <Link to="/dashboard">
+            <Link to="/minha-parceria">
               <Button size="lg">
                 Ir para o Painel
                 <ArrowRight className="ml-2 h-4 w-4" />
