@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
 import Index from "./pages/Index";
@@ -15,7 +15,6 @@ import Dashboard from "./pages/Dashboard";
 import ResetPassword from "./pages/ResetPassword";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import PartnerLanding from "./pages/PartnerLanding";
-import Investir from "./pages/Investir";
 import MinhaParceria from "./pages/MinhaParceria";
 import NotFound from "./pages/NotFound";
 
@@ -35,7 +34,7 @@ const AppContent = () => {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/afiliado" element={<AffiliateDashboard />} />
       <Route path="/parceiro" element={<PartnerLanding />} />
-      <Route path="/investir" element={<Investir />} />
+      <Route path="/investir" element={<Navigate to="/parceiro" replace />} />
       <Route path="/minha-parceria" element={<MinhaParceria />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
