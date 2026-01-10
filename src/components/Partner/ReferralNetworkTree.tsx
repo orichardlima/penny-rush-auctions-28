@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useReferralNetwork, ReferralNode } from '@/hooks/useReferralNetwork';
 import { 
   Users, 
@@ -11,7 +11,11 @@ import {
   ChevronRight,
   DollarSign,
   GitBranch,
-  User
+  User,
+  Search,
+  X,
+  ChevronsDownUp,
+  ChevronsUpDown
 } from 'lucide-react';
 
 const formatPrice = (value: number) => {
@@ -56,13 +60,44 @@ const getStatusBadgeColor = (status: string) => {
   }
 };
 
+// Highlight text component for search matches
+const HighlightText: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  if (!query) return <>{text}</>;
+  
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
+  
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+};
+
 interface TreeNodeProps {
   node: ReferralNode;
   isLast?: boolean;
+  searchQuery?: string;
+  expandedNodes: Set<string>;
+  onToggle: (nodeId: string) => void;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ node, isLast = false }) => {
-  const [isOpen, setIsOpen] = useState(true);
+const TreeNode: React.FC<TreeNodeProps> = ({ 
+  node, 
+  isLast = false, 
+  searchQuery = '',
+  expandedNodes,
+  onToggle
+}) => {
+  const isOpen = expandedNodes.has(node.id);
   const hasChildren = node.children && node.children.length > 0;
   const initials = node.userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -93,7 +128,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, isLast = false }) => {
               variant="ghost"
               size="icon"
               className="h-10 w-10 rounded-full"
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={() => onToggle(node.id)}
             >
               {isOpen ? (
                 <ChevronDown className="h-4 w-4" />
@@ -120,7 +155,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, isLast = false }) => {
             
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-sm truncate">{node.userName}</span>
+                <span className="font-medium text-sm truncate">
+                  <HighlightText text={node.userName} query={searchQuery} />
+                </span>
                 <Badge variant="outline" className="text-xs">
                   {node.planName}
                 </Badge>
@@ -153,6 +190,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, isLast = false }) => {
               key={child.id} 
               node={child} 
               isLast={index === node.children.length - 1}
+              searchQuery={searchQuery}
+              expandedNodes={expandedNodes}
+              onToggle={onToggle}
             />
           ))}
         </div>
@@ -162,7 +202,54 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, isLast = false }) => {
 };
 
 const ReferralNetworkTree: React.FC = () => {
-  const { networkTree, stats, loading } = useReferralNetwork();
+  const { 
+    networkTree, 
+    filteredTree, 
+    stats, 
+    loading,
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    levelFilter,
+    setLevelFilter,
+    hasActiveFilters,
+    clearFilters,
+    filteredCount,
+    getAllNodeIds
+  } = useReferralNetwork();
+
+  // Manage expanded nodes
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  // Initialize all nodes as expanded
+  useEffect(() => {
+    if (filteredTree.length > 0) {
+      const allIds = getAllNodeIds(filteredTree);
+      setExpandedNodes(new Set(allIds));
+    }
+  }, [filteredTree, getAllNodeIds]);
+
+  const handleToggle = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  };
+
+  const expandAll = () => {
+    const allIds = getAllNodeIds(filteredTree);
+    setExpandedNodes(new Set(allIds));
+  };
+
+  const collapseAll = () => {
+    setExpandedNodes(new Set());
+  };
 
   if (loading) {
     return (
@@ -215,6 +302,104 @@ const ReferralNetworkTree: React.FC = () => {
         <span className="font-bold text-green-600">{formatPrice(stats.totalBonusValue)}</span>
       </div>
 
+      {/* Search and Filters */}
+      <div className="border rounded-lg p-4 bg-card space-y-4">
+        {/* Search Bar */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nome..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={expandAll}
+            title="Expandir todos"
+          >
+            <ChevronsUpDown className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={collapseAll}
+            title="Colapsar todos"
+          >
+            <ChevronsDownUp className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Status Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground min-w-16">Status:</span>
+          <ToggleGroup 
+            type="single" 
+            value={statusFilter || ''} 
+            onValueChange={(value) => setStatusFilter(value || null)}
+            className="flex-wrap justify-start"
+          >
+            <ToggleGroupItem value="" size="sm" className="text-xs">
+              Todos
+            </ToggleGroupItem>
+            <ToggleGroupItem value="PENDING" size="sm" className="text-xs">
+              Pendente
+            </ToggleGroupItem>
+            <ToggleGroupItem value="AVAILABLE" size="sm" className="text-xs">
+              Disponível
+            </ToggleGroupItem>
+            <ToggleGroupItem value="PAID" size="sm" className="text-xs">
+              Pago
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
+        {/* Level Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground min-w-16">Nível:</span>
+          <ToggleGroup 
+            type="single" 
+            value={levelFilter?.toString() || ''} 
+            onValueChange={(value) => setLevelFilter(value ? parseInt(value) : null)}
+            className="flex-wrap justify-start"
+          >
+            <ToggleGroupItem value="" size="sm" className="text-xs">
+              Todos
+            </ToggleGroupItem>
+            <ToggleGroupItem value="1" size="sm" className="text-xs">
+              Direto
+            </ToggleGroupItem>
+            <ToggleGroupItem value="2" size="sm" className="text-xs">
+              2º Nível
+            </ToggleGroupItem>
+            <ToggleGroupItem value="3" size="sm" className="text-xs">
+              3º Nível
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
+        {/* Results count and clear button */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              Mostrando {filteredCount} de {stats.totalNodes} indicações
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              className="text-xs h-7"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Limpar filtros
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Tree View */}
       <div className="border rounded-lg p-4 bg-card">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b">
@@ -222,15 +407,25 @@ const ReferralNetworkTree: React.FC = () => {
           <span className="font-medium">Sua Rede de Indicações</span>
         </div>
         
-        <div className="space-y-2">
-          {networkTree.map((node, index) => (
-            <TreeNode 
-              key={node.id} 
-              node={node} 
-              isLast={index === networkTree.length - 1}
-            />
-          ))}
-        </div>
+        {filteredTree.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Nenhuma indicação encontrada com os filtros aplicados.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredTree.map((node, index) => (
+              <TreeNode 
+                key={node.id} 
+                node={node} 
+                isLast={index === filteredTree.length - 1}
+                searchQuery={searchQuery}
+                expandedNodes={expandedNodes}
+                onToggle={handleToggle}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Legend */}
