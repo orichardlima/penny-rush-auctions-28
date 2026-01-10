@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -33,6 +33,11 @@ export const useReferralNetwork = () => {
     nodesByLevel: { level1: 0, level2: 0, level3: 0 }
   });
   const [loading, setLoading] = useState(true);
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [levelFilter, setLevelFilter] = useState<number | null>(null);
 
   const fetchNetworkData = useCallback(async () => {
     if (!profile?.user_id) return;
@@ -255,10 +260,86 @@ export const useReferralNetwork = () => {
     }
   }, [profile?.user_id, fetchNetworkData]);
 
+  // Filter tree recursively
+  const filterTree = useCallback((
+    nodes: ReferralNode[],
+    query: string,
+    status: string | null,
+    level: number | null
+  ): ReferralNode[] => {
+    return nodes.reduce<ReferralNode[]>((acc, node) => {
+      // Filter children recursively
+      const filteredChildren = filterTree(node.children, query, status, level);
+      
+      // Check if current node matches filters
+      const matchesSearch = query === '' || 
+        node.userName.toLowerCase().includes(query.toLowerCase());
+      const matchesStatus = status === null || node.bonusStatus === status;
+      const matchesLevel = level === null || node.referralLevel === level;
+      
+      // Include node if it matches all filters OR if it has matching children
+      if ((matchesSearch && matchesStatus && matchesLevel) || filteredChildren.length > 0) {
+        acc.push({
+          ...node,
+          children: filteredChildren
+        });
+      }
+      
+      return acc;
+    }, []);
+  }, []);
+
+  // Memoized filtered tree
+  const filteredTree = useMemo(() => {
+    return filterTree(networkTree, searchQuery, statusFilter, levelFilter);
+  }, [networkTree, searchQuery, statusFilter, levelFilter, filterTree]);
+
+  // Count filtered nodes
+  const countNodes = useCallback((nodes: ReferralNode[]): number => {
+    return nodes.reduce((count, node) => {
+      return count + 1 + countNodes(node.children);
+    }, 0);
+  }, []);
+
+  const filteredCount = useMemo(() => countNodes(filteredTree), [filteredTree, countNodes]);
+
+  // Check if any filter is active
+  const hasActiveFilters = searchQuery !== '' || statusFilter !== null || levelFilter !== null;
+
+  // Clear all filters
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setStatusFilter(null);
+    setLevelFilter(null);
+  }, []);
+
+  // Get all node IDs for expand/collapse all functionality
+  const getAllNodeIds = useCallback((nodes: ReferralNode[]): string[] => {
+    return nodes.reduce<string[]>((ids, node) => {
+      ids.push(node.id);
+      if (node.children.length > 0) {
+        ids.push(...getAllNodeIds(node.children));
+      }
+      return ids;
+    }, []);
+  }, []);
+
   return {
     networkTree,
+    filteredTree,
     stats,
     loading,
-    refreshNetwork: fetchNetworkData
+    refreshNetwork: fetchNetworkData,
+    // Filter controls
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    levelFilter,
+    setLevelFilter,
+    hasActiveFilters,
+    clearFilters,
+    filteredCount,
+    getAllNodeIds
   };
 };
