@@ -4,9 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import PartnerLevelProgress from './PartnerLevelProgress';
+import ReferralNetworkTree from './ReferralNetworkTree';
 import { 
   Users, 
   Copy, 
@@ -14,7 +16,9 @@ import {
   Gift,
   Clock,
   DollarSign,
-  Star
+  Star,
+  GitBranch,
+  ChevronDown
 } from 'lucide-react';
 
 interface PartnerReferralSectionProps {
@@ -156,8 +160,27 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               </div>
             </div>
           )}
+
+          {/* Tree View Toggle */}
+          {stats.total > 0 && (
+            <Collapsible className="mt-4 pt-4 border-t">
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <GitBranch className="h-4 w-4" />
+                    Ver Árvore de Indicações
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <ReferralNetworkTree />
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </CardContent>
       </Card>
+
 
       {/* Histórico de Indicações */}
       {bonuses.length > 0 && (
