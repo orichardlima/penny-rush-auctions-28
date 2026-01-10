@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
+import PartnerLevelProgress from './PartnerLevelProgress';
 import { 
   Users, 
   Copy, 
@@ -13,7 +14,7 @@ import {
   Gift,
   Clock,
   DollarSign,
-  Percent
+  Star
 } from 'lucide-react';
 
 interface PartnerReferralSectionProps {
@@ -24,6 +25,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
   const { 
     bonuses, 
     referralCode,
+    totalPoints,
     stats, 
     loading,
     getReferralLink,
@@ -71,6 +73,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
   return (
     <div className="space-y-6">
+      {/* Graduação / Nível do Parceiro */}
+      <PartnerLevelProgress totalPoints={totalPoints} planName={planName} />
+
       {/* Link de Indicação */}
       <Card>
         <CardHeader>
@@ -137,8 +142,10 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               <TableHeader>
                 <TableRow>
                   <TableHead>Indicado</TableHead>
+                  <TableHead>Plano</TableHead>
                   <TableHead>Valor do Aporte</TableHead>
                   <TableHead>Bônus</TableHead>
+                  <TableHead>Pontos</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -149,9 +156,20 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                     <TableCell className="font-medium">
                       {bonus.referred_user_name}
                     </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {bonus.referred_plan_name || '-'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{formatPrice(bonus.aporte_value)}</TableCell>
                     <TableCell className="font-medium text-green-600">
                       {formatPrice(bonus.bonus_value)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1 text-primary font-medium">
+                        <Star className="h-3 w-3" />
+                        +{bonus.points_earned || 0}
+                      </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDate(bonus.created_at)}

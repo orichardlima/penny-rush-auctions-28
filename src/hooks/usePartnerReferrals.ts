@@ -16,6 +16,8 @@ export interface PartnerReferralBonus {
   paid_at: string | null;
   created_at: string;
   referred_user_name?: string;
+  referred_plan_name?: string;
+  points_earned?: number;
 }
 
 export const usePartnerReferrals = () => {
@@ -24,16 +26,17 @@ export const usePartnerReferrals = () => {
   const [bonuses, setBonuses] = useState<PartnerReferralBonus[]>([]);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
+  const [totalPoints, setTotalPoints] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchReferralData = useCallback(async () => {
     if (!profile?.user_id) return;
 
     try {
-      // Get user's active contract with referral code
+      // Get user's active contract with referral code and points
       const { data: contractData, error: contractError } = await supabase
         .from('partner_contracts')
-        .select('id, referral_code')
+        .select('id, referral_code, total_referral_points')
         .eq('user_id', profile.user_id)
         .eq('status', 'ACTIVE')
         .maybeSingle();
@@ -43,6 +46,7 @@ export const usePartnerReferrals = () => {
       if (contractData) {
         setContractId(contractData.id);
         setReferralCode(contractData.referral_code);
+        setTotalPoints(contractData.total_referral_points || 0);
 
         // Fetch referral bonuses
         const { data: bonusesData, error: bonusesError } = await supabase
@@ -53,23 +57,52 @@ export const usePartnerReferrals = () => {
 
         if (bonusesError) throw bonusesError;
 
-        // Fetch referred user names
+        // Fetch level points config
+        const { data: levelPointsData } = await supabase
+          .from('partner_level_points')
+          .select('plan_name, points');
+
+        const pointsMap = new Map(
+          levelPointsData?.map(lp => [lp.plan_name.toUpperCase(), lp.points]) || []
+        );
+
+        // Fetch referred user names and contract plan names
         if (bonusesData && bonusesData.length > 0) {
           const referredUserIds = [...new Set(bonusesData.map(b => b.referred_user_id))];
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('user_id, full_name')
-            .in('user_id', referredUserIds);
+          const referredContractIds = [...new Set(bonusesData.map(b => b.referred_contract_id))];
 
-          const profilesMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+          const [profilesResult, contractsResult] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('user_id, full_name')
+              .in('user_id', referredUserIds),
+            supabase
+              .from('partner_contracts')
+              .select('id, plan_name')
+              .in('id', referredContractIds)
+          ]);
 
-          const bonusesWithNames = bonusesData.map(bonus => ({
-            ...bonus,
-            referred_user_name: profilesMap.get(bonus.referred_user_id) || 'Usuário',
-            status: bonus.status as PartnerReferralBonus['status']
-          }));
+          const profilesMap = new Map(
+            profilesResult.data?.map(p => [p.user_id, p.full_name]) || []
+          );
+          const contractsMap = new Map(
+            contractsResult.data?.map(c => [c.id, c.plan_name]) || []
+          );
 
-          setBonuses(bonusesWithNames);
+          const bonusesWithDetails = bonusesData.map(bonus => {
+            const planName = contractsMap.get(bonus.referred_contract_id) || '';
+            const pointsEarned = pointsMap.get(planName.toUpperCase()) || 0;
+            
+            return {
+              ...bonus,
+              referred_user_name: profilesMap.get(bonus.referred_user_id) || 'Usuário',
+              referred_plan_name: planName,
+              points_earned: pointsEarned,
+              status: bonus.status as PartnerReferralBonus['status']
+            };
+          });
+
+          setBonuses(bonusesWithDetails);
         } else {
           setBonuses([]);
         }
@@ -149,6 +182,7 @@ export const usePartnerReferrals = () => {
     bonuses,
     referralCode,
     contractId,
+    totalPoints,
     stats,
     loading,
     getReferralLink,
