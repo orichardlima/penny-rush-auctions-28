@@ -28,6 +28,7 @@ export interface PartnerPlan {
   total_cap: number;
   is_active: boolean;
   sort_order: number;
+  referral_bonus_percentage?: number;
   created_at: string;
   updated_at: string;
 }

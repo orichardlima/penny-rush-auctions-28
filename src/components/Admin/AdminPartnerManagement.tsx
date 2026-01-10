@@ -84,7 +84,8 @@ const AdminPartnerManagement = () => {
     monthly_cap: 0,
     total_cap: 0,
     is_active: true,
-    sort_order: 0
+    sort_order: 0,
+    referral_bonus_percentage: 10
   });
 
   // Calculate preview for manual mode with eligibility check
@@ -190,7 +191,8 @@ const AdminPartnerManagement = () => {
       monthly_cap: 0,
       total_cap: 0,
       is_active: true,
-      sort_order: plans.length
+      sort_order: plans.length,
+      referral_bonus_percentage: 10
     });
   };
 
@@ -551,6 +553,16 @@ const AdminPartnerManagement = () => {
                           onChange={(e) => setNewPlan({...newPlan, sort_order: Number(e.target.value)})}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label>Bônus Indicação (%)</Label>
+                        <Input 
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={newPlan.referral_bonus_percentage}
+                          onChange={(e) => setNewPlan({...newPlan, referral_bonus_percentage: Number(e.target.value)})}
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <input 
@@ -592,6 +604,7 @@ const AdminPartnerManagement = () => {
                     <TableHead>Limite Mensal</TableHead>
                     <TableHead>Teto Total</TableHead>
                     <TableHead>Retorno</TableHead>
+                    <TableHead>Bônus Ind.</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -605,6 +618,9 @@ const AdminPartnerManagement = () => {
                       <TableCell>{formatPrice(plan.total_cap)}</TableCell>
                       <TableCell className="text-green-600">
                         {((plan.total_cap / plan.aporte_value) * 100).toFixed(0)}%
+                      </TableCell>
+                      <TableCell className="text-blue-600 font-medium">
+                        {plan.referral_bonus_percentage ?? 10}%
                       </TableCell>
                       <TableCell>
                         <Badge variant={plan.is_active ? 'default' : 'secondary'}>
@@ -669,6 +685,16 @@ const AdminPartnerManagement = () => {
                                       onChange={(e) => setEditingPlan({...editingPlan, is_active: e.target.checked})}
                                     />
                                     <Label>Plano ativo</Label>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Bônus Indicação (%)</Label>
+                                    <Input 
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={editingPlan.referral_bonus_percentage ?? 10}
+                                      onChange={(e) => setEditingPlan({...editingPlan, referral_bonus_percentage: Number(e.target.value)})}
+                                    />
                                   </div>
                                 </div>
                               )}
