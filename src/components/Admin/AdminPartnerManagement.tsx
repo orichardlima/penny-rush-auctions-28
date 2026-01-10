@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAdminPartners, ManualPayoutOptions, isContractEligibleForWeek, getWeekOptions, formatWeekRange } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
+import ReferralLevelConfigManager from './ReferralLevelConfigManager';
 import { 
   Users, 
   DollarSign, 
@@ -336,7 +337,7 @@ const AdminPartnerManagement = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="contracts" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
           <TabsTrigger value="plans">Planos</TabsTrigger>
           <TabsTrigger value="payouts">Repasses</TabsTrigger>
@@ -356,9 +357,15 @@ const AdminPartnerManagement = () => {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="levels">Níveis de Indicação</TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
           <TabsTrigger value="process">Processar Semana</TabsTrigger>
         </TabsList>
+
+        {/* Níveis de Indicação Tab */}
+        <TabsContent value="levels">
+          <ReferralLevelConfigManager />
+        </TabsContent>
 
         {/* Contratos Tab */}
         <TabsContent value="contracts" className="space-y-4">

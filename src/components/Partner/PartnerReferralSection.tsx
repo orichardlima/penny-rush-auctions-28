@@ -31,7 +31,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
     getReferralLink,
     copyReferralLink,
     getStatusLabel,
-    getStatusColor
+    getStatusColor,
+    getLevelLabel,
+    getLevelColor
   } = usePartnerReferrals();
   
   const { plans } = usePartnerContract();
@@ -84,7 +86,10 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
             Indique Parceiros
           </CardTitle>
           <CardDescription className="flex items-center gap-2 flex-wrap">
-            Ganhe um bônus de <Badge variant="secondary" className="font-bold text-primary">{referralBonusPercentage}%</Badge> sobre o aporte de cada parceiro que você indicar
+            Ganhe bônus em <Badge variant="secondary" className="font-bold text-primary">3 níveis</Badge> de indicação! 
+            Diretos: <span className="font-semibold">{referralBonusPercentage}%</span> | 
+            2º Nível: <span className="font-semibold">2%</span> | 
+            3º Nível: <span className="font-semibold">0.5%</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -127,6 +132,30 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               <p className="text-xs text-muted-foreground">Total em bônus</p>
             </div>
           </div>
+
+          {/* Estatísticas por Nível */}
+          {stats.total > 0 && (
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm font-medium mb-3">📊 Por Nível de Indicação</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-2 rounded-lg border border-primary/20 bg-primary/5">
+                  <p className="text-xs text-muted-foreground mb-1">Diretos</p>
+                  <p className="text-lg font-bold text-primary">{stats.byLevel.level1.count}</p>
+                  <p className="text-xs text-muted-foreground">{formatPrice(stats.byLevel.level1.value)}</p>
+                </div>
+                <div className="text-center p-2 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                  <p className="text-xs text-muted-foreground mb-1">2º Nível</p>
+                  <p className="text-lg font-bold text-blue-600">{stats.byLevel.level2.count}</p>
+                  <p className="text-xs text-muted-foreground">{formatPrice(stats.byLevel.level2.value)}</p>
+                </div>
+                <div className="text-center p-2 rounded-lg border border-purple-500/20 bg-purple-500/5">
+                  <p className="text-xs text-muted-foreground mb-1">3º Nível</p>
+                  <p className="text-lg font-bold text-purple-600">{stats.byLevel.level3.count}</p>
+                  <p className="text-xs text-muted-foreground">{formatPrice(stats.byLevel.level3.value)}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -141,6 +170,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Nível</TableHead>
                   <TableHead>Indicado</TableHead>
                   <TableHead>Plano</TableHead>
                   <TableHead>Valor do Aporte</TableHead>
@@ -153,6 +183,11 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               <TableBody>
                 {bonuses.map((bonus) => (
                   <TableRow key={bonus.id}>
+                    <TableCell>
+                      <Badge className={getLevelColor(bonus.referral_level)}>
+                        {getLevelLabel(bonus.referral_level)}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="font-medium">
                       {bonus.referred_user_name}
                     </TableCell>

@@ -209,32 +209,8 @@ export const usePartnerContract = () => {
 
       if (error) throw error;
 
-      // Criar bônus de indicação se foi indicado - usar % do plano do referrer
-      if (referrerContractId && data) {
-        // Buscar o plano do referrer para pegar a porcentagem correta
-        const { data: referrerContractData } = await supabase
-          .from('partner_contracts')
-          .select('plan_name')
-          .eq('id', referrerContractId)
-          .single();
-        
-        const referrerPlan = plans.find(p => p.name === referrerContractData?.plan_name);
-        const bonusPercentage = referrerPlan?.referral_bonus_percentage || 10;
-        const bonusValue = plan.aporte_value * (bonusPercentage / 100);
-        const availableAt = new Date();
-        availableAt.setDate(availableAt.getDate() + 7); // 7 dias para validação
-
-        await supabase.from('partner_referral_bonuses').insert({
-          referrer_contract_id: referrerContractId,
-          referred_contract_id: data.id,
-          referred_user_id: profile.user_id,
-          aporte_value: plan.aporte_value,
-          bonus_percentage: bonusPercentage,
-          bonus_value: bonusValue,
-          status: 'PENDING',
-          available_at: availableAt.toISOString()
-        });
-      }
+      // NOTA: Os bônus de indicação em cascata (até 3 níveis) são criados
+      // automaticamente pelo trigger create_cascade_referral_bonuses no banco de dados
 
       setContract(data as PartnerContract);
       toast({

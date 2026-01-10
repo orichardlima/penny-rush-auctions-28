@@ -958,6 +958,7 @@ export type Database = {
           created_at: string
           id: string
           paid_at: string | null
+          referral_level: number
           referred_contract_id: string
           referred_user_id: string
           referrer_contract_id: string
@@ -971,6 +972,7 @@ export type Database = {
           created_at?: string
           id?: string
           paid_at?: string | null
+          referral_level?: number
           referred_contract_id: string
           referred_user_id: string
           referrer_contract_id: string
@@ -984,6 +986,7 @@ export type Database = {
           created_at?: string
           id?: string
           paid_at?: string | null
+          referral_level?: number
           referred_contract_id?: string
           referred_user_id?: string
           referrer_contract_id?: string
@@ -1307,6 +1310,36 @@ export type Database = {
           referrer_user_id?: string
           status?: string
           used_at?: string | null
+        }
+        Relationships: []
+      }
+      referral_level_config: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          level: number
+          percentage: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level: number
+          percentage?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          percentage?: number
+          updated_at?: string
         }
         Relationships: []
       }
