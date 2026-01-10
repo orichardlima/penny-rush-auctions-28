@@ -11,6 +11,7 @@ export interface PartnerReferralBonus {
   aporte_value: number;
   bonus_percentage: number;
   bonus_value: number;
+  referral_level: number;
   status: 'PENDING' | 'AVAILABLE' | 'PAID' | 'CANCELLED';
   available_at: string | null;
   paid_at: string | null;
@@ -18,6 +19,14 @@ export interface PartnerReferralBonus {
   referred_user_name?: string;
   referred_plan_name?: string;
   points_earned?: number;
+}
+
+export interface ReferralLevelConfig {
+  id: string;
+  level: number;
+  percentage: number;
+  is_active: boolean;
+  description: string | null;
 }
 
 export const usePartnerReferrals = () => {
@@ -125,6 +134,11 @@ export const usePartnerReferrals = () => {
     }
   }, [profile?.user_id, fetchReferralData]);
 
+  // Estatísticas por nível
+  const level1Bonuses = bonuses.filter(b => b.referral_level === 1);
+  const level2Bonuses = bonuses.filter(b => b.referral_level === 2);
+  const level3Bonuses = bonuses.filter(b => b.referral_level === 3);
+
   const stats = {
     total: bonuses.length,
     pending: bonuses.filter(b => b.status === 'PENDING').length,
@@ -132,6 +146,21 @@ export const usePartnerReferrals = () => {
     paid: bonuses.filter(b => b.status === 'PAID').length,
     totalValue: bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
     availableValue: bonuses.filter(b => b.status === 'AVAILABLE').reduce((sum, b) => sum + b.bonus_value, 0),
+    // Estatísticas por nível
+    byLevel: {
+      level1: {
+        count: level1Bonuses.length,
+        value: level1Bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
+      },
+      level2: {
+        count: level2Bonuses.length,
+        value: level2Bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
+      },
+      level3: {
+        count: level3Bonuses.length,
+        value: level3Bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
+      },
+    }
   };
 
   const getReferralLink = useCallback(() => {
@@ -156,6 +185,24 @@ export const usePartnerReferrals = () => {
       case 'PAID': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'CANCELLED': return 'bg-red-500/10 text-red-600 border-red-500/20';
       default: return '';
+    }
+  };
+
+  const getLevelLabel = (level: number) => {
+    switch (level) {
+      case 1: return 'Direto';
+      case 2: return '2º Nível';
+      case 3: return '3º Nível';
+      default: return `${level}º Nível`;
+    }
+  };
+
+  const getLevelColor = (level: number) => {
+    switch (level) {
+      case 1: return 'bg-primary/10 text-primary border-primary/20';
+      case 2: return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+      case 3: return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
+      default: return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
     }
   };
 
@@ -189,6 +236,8 @@ export const usePartnerReferrals = () => {
     copyReferralLink,
     getStatusLabel,
     getStatusColor,
+    getLevelLabel,
+    getLevelColor,
     refreshData: fetchReferralData
   };
 };
