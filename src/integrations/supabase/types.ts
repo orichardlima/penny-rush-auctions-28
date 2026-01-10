@@ -669,6 +669,7 @@ export type Database = {
           status: string
           total_cap: number
           total_received: number
+          total_referral_points: number
           total_withdrawn: number
           updated_at: string
           user_id: string
@@ -690,6 +691,7 @@ export type Database = {
           status?: string
           total_cap: number
           total_received?: number
+          total_referral_points?: number
           total_withdrawn?: number
           updated_at?: string
           user_id: string
@@ -711,6 +713,7 @@ export type Database = {
           status?: string
           total_cap?: number
           total_received?: number
+          total_referral_points?: number
           total_withdrawn?: number
           updated_at?: string
           user_id?: string
@@ -787,6 +790,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      partner_level_points: {
+        Row: {
+          created_at: string
+          id: string
+          plan_name: string
+          points: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_name: string
+          points?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_name?: string
+          points?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      partner_levels: {
+        Row: {
+          bonus_percentage_increase: number
+          color: string
+          created_at: string
+          display_name: string
+          icon: string
+          id: string
+          is_active: boolean
+          min_points: number
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          bonus_percentage_increase?: number
+          color: string
+          created_at?: string
+          display_name: string
+          icon: string
+          id?: string
+          is_active?: boolean
+          min_points?: number
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          bonus_percentage_increase?: number
+          color?: string
+          created_at?: string
+          display_name?: string
+          icon?: string
+          id?: string
+          is_active?: boolean
+          min_points?: number
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       partner_payouts: {
         Row: {
