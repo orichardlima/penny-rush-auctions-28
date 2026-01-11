@@ -43,13 +43,32 @@ const planConfig = {
   }
 };
 
+// Default config for unknown plans
+const defaultConfig = {
+  icon: Medal,
+  gradient: 'from-primary to-primary/80',
+  bgColor: 'bg-primary/10',
+  borderColor: 'border-primary/30',
+  textColor: 'text-primary',
+  iconColor: 'text-primary'
+};
+
 export const PartnerBadge: React.FC<PartnerBadgeProps> = ({ 
   planName, 
   size = 'md',
   showLabel = true,
   className 
 }) => {
-  const config = planConfig[planName as keyof typeof planConfig] || planConfig.start;
+  const normalizedName = planName?.toLowerCase();
+  const knownConfig = planConfig[normalizedName as keyof typeof planConfig];
+  
+  // Use known config or create dynamic config with actual plan name
+  const config = knownConfig || {
+    ...defaultConfig,
+    label: `Plano ${planName}`,
+    shortLabel: planName
+  };
+  
   const Icon = config.icon;
   
   const sizeClasses = {
@@ -90,7 +109,9 @@ export const PartnerBadgeIcon: React.FC<{ planName: string; className?: string }
   planName,
   className 
 }) => {
-  const config = planConfig[planName as keyof typeof planConfig] || planConfig.start;
+  const normalizedName = planName?.toLowerCase();
+  const knownConfig = planConfig[normalizedName as keyof typeof planConfig];
+  const config = knownConfig || defaultConfig;
   const Icon = config.icon;
   
   return (
