@@ -15,6 +15,7 @@ import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
 import PartnerGraduationManager from './PartnerGraduationManager';
+import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { 
   Users, 
   DollarSign, 
@@ -402,6 +403,10 @@ const AdminPartnerManagement = () => {
             <Trophy className="h-4 w-4 mr-1" />
             Graduações
           </TabsTrigger>
+          <TabsTrigger value="projections" className="shrink-0">
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Projeções
+          </TabsTrigger>
           <TabsTrigger value="reports" className="shrink-0">Relatórios</TabsTrigger>
           <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
         </TabsList>
@@ -414,6 +419,11 @@ const AdminPartnerManagement = () => {
         {/* Graduações Tab */}
         <TabsContent value="graduations">
           <PartnerGraduationManager />
+        </TabsContent>
+
+        {/* Projeções Tab */}
+        <TabsContent value="projections">
+          <RevenueProjectionDashboard />
         </TabsContent>
 
         {/* Contratos Tab */}
