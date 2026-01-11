@@ -656,6 +656,7 @@ export type Database = {
           aporte_value: number
           available_balance: number
           bank_details: Json | null
+          bonus_bids_received: number | null
           closed_at: string | null
           closed_reason: string | null
           created_at: string
@@ -678,6 +679,7 @@ export type Database = {
           aporte_value: number
           available_balance?: number
           bank_details?: Json | null
+          bonus_bids_received?: number | null
           closed_at?: string | null
           closed_reason?: string | null
           created_at?: string
@@ -700,6 +702,7 @@ export type Database = {
           aporte_value?: number
           available_balance?: number
           bank_details?: Json | null
+          bonus_bids_received?: number | null
           closed_at?: string | null
           closed_reason?: string | null
           created_at?: string
@@ -910,6 +913,7 @@ export type Database = {
       partner_plans: {
         Row: {
           aporte_value: number
+          bonus_bids: number | null
           created_at: string
           display_name: string
           id: string
@@ -923,6 +927,7 @@ export type Database = {
         }
         Insert: {
           aporte_value: number
+          bonus_bids?: number | null
           created_at?: string
           display_name: string
           id?: string
@@ -936,6 +941,7 @@ export type Database = {
         }
         Update: {
           aporte_value?: number
+          bonus_bids?: number | null
           created_at?: string
           display_name?: string
           id?: string

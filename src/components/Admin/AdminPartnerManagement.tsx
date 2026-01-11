@@ -91,7 +91,8 @@ const AdminPartnerManagement = () => {
     total_cap: 0,
     is_active: true,
     sort_order: 0,
-    referral_bonus_percentage: 10
+    referral_bonus_percentage: 10,
+    bonus_bids: 0
   });
 
   // Calculate preview for manual mode with eligibility check
@@ -236,7 +237,8 @@ const AdminPartnerManagement = () => {
       total_cap: 0,
       is_active: true,
       sort_order: plans.length,
-      referral_bonus_percentage: 10
+      referral_bonus_percentage: 10,
+      bonus_bids: 0
     });
   };
 
@@ -649,6 +651,19 @@ const AdminPartnerManagement = () => {
                       />
                       <Label>Plano ativo</Label>
                     </div>
+
+                    <div className="space-y-2">
+                      <Label>Bônus de Lances</Label>
+                      <Input 
+                        type="number"
+                        value={newPlan.bonus_bids}
+                        onChange={(e) => setNewPlan({...newPlan, bonus_bids: parseInt(e.target.value) || 0})}
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Lances creditados automaticamente ao comprar o plano
+                      </p>
+                    </div>
                     
                     {newPlan.aporte_value > 0 && newPlan.total_cap > 0 && (
                       <div className="p-3 bg-muted/50 rounded-lg">
@@ -682,6 +697,7 @@ const AdminPartnerManagement = () => {
                     <TableHead>Teto Total</TableHead>
                     <TableHead>Retorno</TableHead>
                     <TableHead>Bônus Ind.</TableHead>
+                    <TableHead>Lances Bônus</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -698,6 +714,9 @@ const AdminPartnerManagement = () => {
                       </TableCell>
                       <TableCell className="text-blue-600 font-medium">
                         {plan.referral_bonus_percentage ?? 10}%
+                      </TableCell>
+                      <TableCell className="text-yellow-600 font-medium">
+                        {plan.bonus_bids ?? 0}
                       </TableCell>
                       <TableCell>
                         <Badge variant={plan.is_active ? 'default' : 'secondary'}>
@@ -772,6 +791,18 @@ const AdminPartnerManagement = () => {
                                       value={editingPlan.referral_bonus_percentage ?? 10}
                                       onChange={(e) => setEditingPlan({...editingPlan, referral_bonus_percentage: Number(e.target.value)})}
                                     />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Bônus de Lances</Label>
+                                    <Input 
+                                      type="number"
+                                      min={0}
+                                      value={editingPlan.bonus_bids ?? 0}
+                                      onChange={(e) => setEditingPlan({...editingPlan, bonus_bids: parseInt(e.target.value) || 0})}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Lances creditados ao adquirir o plano
+                                    </p>
                                   </div>
                                 </div>
                               )}
