@@ -12,8 +12,8 @@ interface PartnerBadgeProps {
 
 const planConfig = {
   start: {
-    label: 'Parceiro Bronze',
-    shortLabel: 'Bronze',
+    label: 'Plano Start',
+    shortLabel: 'Start',
     icon: Medal,
     gradient: 'from-amber-700 to-amber-600',
     bgColor: 'bg-amber-500/10',
@@ -22,8 +22,8 @@ const planConfig = {
     iconColor: 'text-amber-600'
   },
   pro: {
-    label: 'Parceiro Prata',
-    shortLabel: 'Prata',
+    label: 'Plano Pro',
+    shortLabel: 'Pro',
     icon: Award,
     gradient: 'from-slate-400 to-slate-300',
     bgColor: 'bg-slate-400/10',
@@ -32,8 +32,8 @@ const planConfig = {
     iconColor: 'text-slate-500'
   },
   elite: {
-    label: 'Parceiro Ouro',
-    shortLabel: 'Ouro',
+    label: 'Plano Elite',
+    shortLabel: 'Elite',
     icon: Trophy,
     gradient: 'from-yellow-500 to-amber-400',
     bgColor: 'bg-yellow-400/10',

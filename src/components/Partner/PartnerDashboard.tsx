@@ -32,6 +32,10 @@ import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
 import PartnerWithdrawalSection from './PartnerWithdrawalSection';
 import PartnerUpgradeDialog from './PartnerUpgradeDialog';
 import { PartnerBadge } from './PartnerBadge';
+import { GraduationBadge } from './GraduationBadge';
+import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
+import { usePartnerLevels } from '@/hooks/usePartnerLevels';
+import { FileText, GraduationCap } from 'lucide-react';
 
 const PartnerDashboard = () => {
   const { 
@@ -50,6 +54,8 @@ const PartnerDashboard = () => {
   
   const { getSettingValue } = useSystemSettings();
   const { fetchPendingRequest } = usePartnerEarlyTermination();
+  const { totalPoints, loading: referralLoading } = usePartnerReferrals();
+  const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(totalPoints);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -270,9 +276,10 @@ const PartnerDashboard = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div>
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h2 className="text-2xl font-bold">Painel do Parceiro</h2>
               <PartnerBadge planName={contract.plan_name} size="md" />
+              <GraduationBadge totalPoints={totalPoints} size="md" showPoints />
             </div>
             <p className="text-muted-foreground">Acompanhe sua participação e repasses</p>
           </div>
@@ -292,6 +299,58 @@ const PartnerDashboard = () => {
           </Button>
         </div>
       </div>
+
+      {/* Card de Resumo: Plano + Graduação */}
+      <Card className="bg-gradient-to-r from-muted/50 to-muted/30">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Plano Contratado */}
+            <div className="flex items-start gap-4 p-4 rounded-lg border bg-background">
+              <div className="p-3 bg-amber-500/10 rounded-full">
+                <FileText className="h-6 w-6 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground mb-1">Plano Contratado</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl font-bold">{contract.plan_name}</span>
+                  <PartnerBadge planName={contract.plan_name} size="sm" showLabel={false} />
+                </div>
+                <div className="text-sm text-muted-foreground space-y-0.5">
+                  <p>Aporte: <span className="font-medium text-foreground">{formatPrice(contract.aporte_value)}</span></p>
+                  <p>Teto: <span className="font-medium text-foreground">{formatPrice(contract.total_cap)}</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Graduação */}
+            <div className="flex items-start gap-4 p-4 rounded-lg border bg-background">
+              <div className="p-3 bg-purple-500/10 rounded-full">
+                <GraduationCap className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground mb-1">Sua Graduação</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <GraduationBadge totalPoints={totalPoints} size="md" showPoints={false} />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p><span className="font-medium text-foreground">{totalPoints}</span> pontos acumulados</p>
+                  {getLevelProgress().nextLevel && (
+                    <p className="mt-1">
+                      <span className="font-medium text-primary">
+                        {getLevelProgress().pointsToNextLevel} pts
+                      </span> para {getLevelProgress().nextLevel?.display_name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            ℹ️ O <strong>plano</strong> define seu aporte e teto. A <strong>graduação</strong> aumenta com indicações e dá bônus extras.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
