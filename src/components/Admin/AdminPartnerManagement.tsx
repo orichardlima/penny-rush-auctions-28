@@ -130,6 +130,44 @@ const AdminPartnerManagement = () => {
   const ineligibleContracts = manualPreview.filter(p => !p.eligible);
   const totalManualDistribution = eligibleContracts.reduce((sum, p) => sum + p.calculatedAmount, 0);
 
+  // Simulação por plano para visão didática
+  const planSimulation = useMemo(() => {
+    const activePlans = plans.filter(p => p.is_active);
+    
+    const planStats = activePlans.map(plan => {
+      const contractsForPlan = eligibleContracts.filter(c => c.plan_name === plan.name);
+      const baseValue = manualBase === 'aporte' ? plan.aporte_value : plan.monthly_cap;
+      const rawCalculated = baseValue * (manualPercentage / 100);
+      
+      // Verifica se ultrapassa o cap mensal
+      const isCapped = manualBase === 'aporte' && rawCalculated > plan.monthly_cap;
+      const finalValuePerContract = isCapped ? plan.monthly_cap : rawCalculated;
+      
+      const totalForPlan = finalValuePerContract * contractsForPlan.length;
+      
+      return {
+        id: plan.id,
+        name: plan.name,
+        displayName: plan.display_name,
+        aporteValue: plan.aporte_value,
+        monthlyCap: plan.monthly_cap,
+        totalCap: plan.total_cap,
+        contractCount: contractsForPlan.length,
+        baseValue,
+        rawCalculated,
+        isCapped,
+        finalValuePerContract,
+        totalForPlan
+      };
+    });
+    
+    const grandTotal = planStats.reduce((sum, p) => sum + p.totalForPlan, 0);
+    const totalContracts = planStats.reduce((sum, p) => sum + p.contractCount, 0);
+    const hasAnyCapped = planStats.some(p => p.isCapped && p.contractCount > 0);
+    
+    return { planStats, grandTotal, totalContracts, hasAnyCapped };
+  }, [plans, eligibleContracts, manualBase, manualPercentage]);
+
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -1220,7 +1258,7 @@ const AdminPartnerManagement = () => {
                   </Select>
                 </div>
 
-                {/* Resumo */}
+                {/* Resumo Básico */}
                 <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Contratos ativos:</span>
@@ -1231,6 +1269,97 @@ const AdminPartnerManagement = () => {
                     <span className="font-medium">{formatPrice(stats.totalAportes)}</span>
                   </div>
                 </div>
+
+                {/* Simulador por Plano - Visão Didática */}
+                {calculationMode === 'manual' && planSimulation.planStats.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <Label className="font-medium">Simulação por Plano</Label>
+                    </div>
+                    
+                    {planSimulation.hasAnyCapped && (
+                      <div className="flex items-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-700">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>Alguns planos serão limitados pelo cap mensal</span>
+                      </div>
+                    )}
+
+                    <div className="overflow-x-auto rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead className="font-semibold">Plano</TableHead>
+                            <TableHead className="text-right hidden sm:table-cell">Aporte</TableHead>
+                            <TableHead className="text-right hidden sm:table-cell">Limite</TableHead>
+                            <TableHead className="text-right">{manualPercentage}%</TableHead>
+                            <TableHead className="text-center">Qtd</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {planSimulation.planStats.map((plan) => (
+                            <TableRow key={plan.id} className={plan.contractCount === 0 ? 'opacity-50' : ''}>
+                              <TableCell>
+                                <div className="font-medium">{plan.displayName}</div>
+                              </TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                                {formatPrice(plan.aporteValue)}
+                              </TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                                {formatPrice(plan.monthlyCap)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {plan.isCapped ? (
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <span className="line-through text-muted-foreground text-xs">
+                                      {formatPrice(plan.rawCalculated)}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-yellow-600 font-medium">
+                                        {formatPrice(plan.finalValuePerContract)}
+                                      </span>
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0 bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                                        CAP
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="font-medium text-green-600">
+                                    {formatPrice(plan.finalValuePerContract)}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant={plan.contractCount > 0 ? "default" : "outline"} className="min-w-[2rem]">
+                                  {plan.contractCount}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold">
+                                {plan.contractCount > 0 ? (
+                                  <span className="text-green-600">{formatPrice(plan.totalForPlan)}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Total Geral */}
+                    <div className="flex justify-between items-center p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                      <div>
+                        <span className="font-semibold">Total a distribuir</span>
+                        <p className="text-xs text-muted-foreground">
+                          {planSimulation.totalContracts} contrato{planSimulation.totalContracts !== 1 ? 's' : ''} elegível{planSimulation.totalContracts !== 1 ? 'is' : ''}
+                        </p>
+                      </div>
+                      <span className="text-xl font-bold text-primary">{formatPrice(planSimulation.grandTotal)}</span>
+                    </div>
+                  </div>
+                )}
 
                 <Button 
                   className="w-full" 
