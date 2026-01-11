@@ -16,6 +16,7 @@ import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
 import PartnerGraduationManager from './PartnerGraduationManager';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
+import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import { 
   Users, 
   DollarSign, 
@@ -35,7 +36,8 @@ import {
   Download,
   BarChart3,
   Calculator,
-  Trophy
+  Trophy,
+  Receipt
 } from 'lucide-react';
 
 const AdminPartnerManagement = () => {
@@ -407,6 +409,10 @@ const AdminPartnerManagement = () => {
             <BarChart3 className="h-4 w-4 mr-1" />
             Projeções
           </TabsTrigger>
+          <TabsTrigger value="cashflow" className="shrink-0">
+            <Receipt className="h-4 w-4 mr-1" />
+            Caixa
+          </TabsTrigger>
           <TabsTrigger value="reports" className="shrink-0">Relatórios</TabsTrigger>
           <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
         </TabsList>
@@ -424,6 +430,11 @@ const AdminPartnerManagement = () => {
         {/* Projeções Tab */}
         <TabsContent value="projections">
           <RevenueProjectionDashboard />
+        </TabsContent>
+
+        {/* Caixa Financeiro Tab */}
+        <TabsContent value="cashflow">
+          <PartnerCashflowDashboard />
         </TabsContent>
 
         {/* Contratos Tab */}
