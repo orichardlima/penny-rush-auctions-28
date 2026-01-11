@@ -222,38 +222,38 @@ const PartnerDashboard = () => {
 
         <Card className="bg-muted/50">
           <CardContent className="p-6">
-            <h3 className="font-semibold mb-4">Como funciona?</h3>
+            <h3 className="font-semibold mb-4">Como funciona o modelo?</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-primary/10 rounded-full">
                   <DollarSign className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Participe</p>
-                  <p className="text-muted-foreground">Escolha um plano e realize seu aporte contratual</p>
+                  <p className="font-medium">Seu Aporte</p>
+                  <p className="text-muted-foreground">Contribui para operação e crescimento da plataforma</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-primary/10 rounded-full">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                <div className="p-2 bg-green-500/10 rounded-full">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-medium">Acompanhe</p>
-                  <p className="text-muted-foreground">Repasses proporcionais ao faturamento</p>
+                  <p className="font-medium">Origem dos Repasses</p>
+                  <p className="text-muted-foreground">Parcela do faturamento real da plataforma</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-primary/10 rounded-full">
-                  <Target className="h-4 w-4 text-primary" />
+                <div className="p-2 bg-amber-500/10 rounded-full">
+                  <Target className="h-4 w-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="font-medium">Encerramento automático</p>
-                  <p className="text-muted-foreground">O contrato encerra ao atingir o teto</p>
+                  <p className="font-medium">Limites Claros</p>
+                  <p className="text-muted-foreground">Teto e limite semanal definidos em contrato</p>
                 </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Este programa não representa investimento financeiro ou promessa de rentabilidade. Os valores dependem exclusivamente do desempenho da plataforma. Não há garantia de retorno, valor mínimo ou prazo.
+              Os repasses são proporcionais ao desempenho da plataforma. Não há garantia de valor mínimo ou prazo.
             </p>
           </CardContent>
         </Card>

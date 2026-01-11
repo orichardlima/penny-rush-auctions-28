@@ -11,27 +11,27 @@ const steps = [
   {
     icon: ListChecks,
     title: "Escolha seu Plano",
-    description: "Selecione entre START, PRO ou ELITE conforme seu perfil de participação."
+    description: "Selecione entre os planos disponíveis conforme seu perfil de participação."
   },
   {
     icon: CreditCard,
     title: "Faça seu Aporte",
-    description: "Pagamento seguro via PIX. Valor único para ativar sua parceria."
+    description: "Valor único que contribui para a operação e crescimento da plataforma."
   },
   {
     icon: Rocket,
     title: "Ative seu Contrato",
-    description: "Receba acesso imediato ao dashboard exclusivo de parceiros."
+    description: "Receba acesso imediato ao dashboard exclusivo com todas as métricas."
   },
   {
     icon: BarChart3,
-    title: "Acompanhe Repasses",
-    description: "Receba repasses semanais proporcionais ao desempenho da plataforma."
+    title: "Receba Repasses Semanais",
+    description: "Repasses proporcionais ao faturamento real da plataforma, creditados toda semana."
   },
   {
     icon: CheckCircle2,
     title: "Encerramento Automático",
-    description: "Contrato fecha automaticamente ao atingir o teto total definido."
+    description: "Contrato fecha automaticamente ao atingir o teto total definido no seu plano."
   }
 ];
 
