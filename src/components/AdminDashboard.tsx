@@ -811,58 +811,58 @@ const AdminDashboard = () => {
 
         {/* Nova estrutura de tabs melhorada */}
         <Tabs defaultValue="auction-details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-12 gap-1">
-            <TabsTrigger value="auction-details" className="flex items-center gap-2">
+          <TabsList className="flex w-full overflow-x-auto lg:grid lg:grid-cols-13 gap-1 pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+            <TabsTrigger value="auction-details" title="Detalhes" className="flex items-center gap-2 shrink-0">
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">Detalhes</span>
             </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center gap-2">
+            <TabsTrigger value="financial" title="Financeiro" className="flex items-center gap-2 shrink-0">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Financeiro</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
+            <TabsTrigger value="orders" title="Pedidos" className="flex items-center gap-2 shrink-0">
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Pedidos</span>
             </TabsTrigger>
-            <TabsTrigger value="auctions" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              <span className="hidden sm:inline">Leilões</span>
+            <TabsTrigger value="partners" title="Parceiros" className="flex items-center gap-2 shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Wallet className="h-4 w-4" />
+              <span className="hidden sm:inline">Parceiros</span>
             </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center gap-2">
-              <LayoutTemplate className="h-4 w-4" />
-              <span className="hidden sm:inline">Templates</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Usuários</span>
-            </TabsTrigger>
-            <TabsTrigger value="packages" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">Pacotes</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              <span className="hidden sm:inline">Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              <span className="hidden sm:inline">Auditoria</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Config</span>
-            </TabsTrigger>
-            <TabsTrigger value="affiliates" className="flex items-center gap-2">
+            <TabsTrigger value="affiliates" title="Afiliados" className="flex items-center gap-2 shrink-0">
               <Handshake className="h-4 w-4" />
               <span className="hidden sm:inline">Afiliados</span>
             </TabsTrigger>
-            <TabsTrigger value="my-history" className="flex items-center gap-2">
+            <TabsTrigger value="auctions" title="Leilões" className="flex items-center gap-2 shrink-0">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">Leilões</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" title="Usuários" className="flex items-center gap-2 shrink-0">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Usuários</span>
+            </TabsTrigger>
+            <TabsTrigger value="packages" title="Pacotes" className="flex items-center gap-2 shrink-0">
+              <Package className="h-4 w-4" />
+              <span className="hidden sm:inline">Pacotes</span>
+            </TabsTrigger>
+            <TabsTrigger value="templates" title="Templates" className="flex items-center gap-2 shrink-0">
+              <LayoutTemplate className="h-4 w-4" />
+              <span className="hidden sm:inline">Templates</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" title="Analytics" className="flex items-center gap-2 shrink-0">
+              <Brain className="h-4 w-4" />
+              <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="audit" title="Auditoria" className="flex items-center gap-2 shrink-0">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Auditoria</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" title="Configurações" className="flex items-center gap-2 shrink-0">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Config</span>
+            </TabsTrigger>
+            <TabsTrigger value="my-history" title="Histórico" className="flex items-center gap-2 shrink-0">
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Histórico</span>
-            </TabsTrigger>
-            <TabsTrigger value="partners" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">Parceiros</span>
             </TabsTrigger>
           </TabsList>
 
