@@ -33,8 +33,8 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
           </h1>
           
           <p className="text-lg sm:text-xl lg:text-2xl text-purple-100/90 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Seja parceiro e participe de repasses semanais proporcionais ao faturamento da plataforma.
-            Transparência total, dashboard exclusivo e regras claras.
+            Seu aporte contribui para o crescimento da plataforma. 
+            Receba repasses semanais proporcionais ao faturamento real, com transparência total e regras claras.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">

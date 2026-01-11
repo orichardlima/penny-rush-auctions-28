@@ -6,6 +6,7 @@ import { Shield, ArrowRight, CheckCircle } from "lucide-react";
 import { InvestmentHero } from "@/components/Investir/InvestmentHero";
 import { InvestmentSimulator } from "@/components/Investir/InvestmentSimulator";
 import { InvestmentBenefits } from "@/components/Investir/InvestmentBenefits";
+import { InvestmentModel } from "@/components/Investir/InvestmentModel";
 import { InvestmentTimeline } from "@/components/Investir/InvestmentTimeline";
 import { TestimonialCarousel } from "@/components/Investir/TestimonialCarousel";
 import { PlanComparison } from "@/components/Investir/PlanComparison";
@@ -70,6 +71,9 @@ const PartnerLanding = () => {
 
       {/* Benefits */}
       <InvestmentBenefits />
+
+      {/* Model Explanation */}
+      <InvestmentModel />
 
       {/* Timeline */}
       <InvestmentTimeline />

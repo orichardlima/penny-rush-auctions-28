@@ -12,8 +12,16 @@ const faqs = [
     answer: "Não. O programa de parceiros não é um investimento financeiro regulamentado. É uma parceria onde você contribui com um aporte e recebe repasses proporcionais baseados no desempenho da plataforma. Não há garantia de valor mínimo, prazo ou repasse fixo."
   },
   {
+    question: "Para que é utilizado o meu aporte?",
+    answer: "Seu aporte contribui para a operação e crescimento da plataforma, sendo utilizado para capital de giro, aquisição de produtos para leilões, logística, infraestrutura técnica e marketing. O aporte não fica segregado individualmente e não representa reserva garantida."
+  },
+  {
+    question: "De onde vem o dinheiro dos repasses?",
+    answer: "Os repasses são originados de uma parcela do faturamento real da plataforma, gerado pela venda de pacotes de lances e produtos arrematados em leilões. Importante: os repasses não vêm do seu aporte individual nem de aportes de outros parceiros."
+  },
+  {
     question: "Como são calculados os repasses?",
-    answer: "Os repasses são calculados de forma proporcional. Pegamos uma porcentagem da receita semanal da plataforma e distribuímos entre todos os parceiros ativos, proporcionalmente ao valor do aporte de cada um em relação ao fundo total."
+    answer: "Semanalmente, uma parcela do faturamento real da plataforma é separada (pool de repasses). Esse valor é distribuído entre todos os parceiros ativos, proporcionalmente ao plano de cada um. Cada parceiro recebe respeitando seu limite semanal e teto total. Se o faturamento for menor, o repasse é proporcionalmente menor."
   },
   {
     question: "Posso fazer upgrade do meu plano?",
