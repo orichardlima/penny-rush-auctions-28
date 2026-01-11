@@ -13,6 +13,7 @@ export interface PartnerPlan {
   is_active: boolean;
   sort_order: number;
   referral_bonus_percentage: number;
+  bonus_bids: number;
 }
 
 export interface PartnerContract {
@@ -28,6 +29,7 @@ export interface PartnerContract {
   closed_reason: string | null;
   created_at: string;
   updated_at: string;
+  bonus_bids_received: number;
 }
 
 export interface PartnerPayout {
@@ -212,10 +214,35 @@ export const usePartnerContract = () => {
       // NOTA: Os bônus de indicação em cascata (até 3 níveis) são criados
       // automaticamente pelo trigger create_cascade_referral_bonuses no banco de dados
 
+      // Creditar bônus de lances se o plano tiver
+      if (plan.bonus_bids && plan.bonus_bids > 0) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('bids_balance')
+          .eq('user_id', profile.user_id)
+          .single();
+
+        const currentBalance = profileData?.bids_balance || 0;
+        const newBalance = currentBalance + plan.bonus_bids;
+
+        await supabase
+          .from('profiles')
+          .update({ bids_balance: newBalance })
+          .eq('user_id', profile.user_id);
+
+        // Atualizar o contrato com o bônus recebido
+        await supabase
+          .from('partner_contracts')
+          .update({ bonus_bids_received: plan.bonus_bids })
+          .eq('id', data.id);
+      }
+
       setContract(data as PartnerContract);
       toast({
         title: "Contrato criado!",
-        description: "Seu contrato de parceiro foi registrado com sucesso."
+        description: plan.bonus_bids && plan.bonus_bids > 0 
+          ? `Seu contrato foi registrado e você recebeu ${plan.bonus_bids} lances de bônus!`
+          : "Seu contrato de parceiro foi registrado com sucesso."
       });
       return { success: true };
     } catch (error: any) {

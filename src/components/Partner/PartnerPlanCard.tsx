@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, TrendingUp, Wallet, Target, DollarSign, BarChart3 } from 'lucide-react';
+import { Check, TrendingUp, Wallet, Target, DollarSign, BarChart3, Zap } from 'lucide-react';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
 
 interface PartnerPlanCardProps {
@@ -99,6 +99,18 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
             </div>
             <span>Relatórios mensais detalhados</span>
           </div>
+
+          {plan.bonus_bids && plan.bonus_bids > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-yellow-500/10 rounded-full">
+                <Zap className="h-4 w-4 text-yellow-600" />
+              </div>
+              <div>
+                <span className="font-medium">Bônus de lances</span>
+                <p className="text-xs text-primary font-semibold">+{plan.bonus_bids} lances grátis</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Botão */}

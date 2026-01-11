@@ -23,7 +23,8 @@ import {
   Users,
   CalendarDays,
   BanknoteIcon,
-  Timer
+  Timer,
+  Zap
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { PartnerPlanCard } from './PartnerPlanCard';
@@ -307,8 +308,14 @@ const PartnerDashboard = () => {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">Plano Contratado</p>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <PartnerBadge planName={contract.plan_name} size="md" />
+                  {(contract as any).bonus_bids_received > 0 && (
+                    <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-500/30">
+                      <Zap className="h-3 w-3" />
+                      +{(contract as any).bonus_bids_received} lances
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground space-y-0.5">
                   <p>Aporte: <span className="font-medium text-foreground">{formatPrice(contract.aporte_value)}</span></p>
