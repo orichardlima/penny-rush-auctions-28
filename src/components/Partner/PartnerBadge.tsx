@@ -2,6 +2,12 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Award, Medal, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PartnerBadgeProps {
   planName: string;
@@ -88,20 +94,31 @@ export const PartnerBadge: React.FC<PartnerBadgeProps> = ({
 
   const sizes = sizeClasses[size];
 
+  const tooltipText = `Seu plano contratado define o valor do aporte e o teto máximo de repasses que você pode receber.`;
+
   return (
-    <Badge 
-      className={cn(
-        'font-semibold border',
-        config.bgColor,
-        config.borderColor,
-        config.textColor,
-        sizes.badge,
-        className
-      )}
-    >
-      <Icon className={cn(sizes.icon, config.iconColor)} />
-      {showLabel && (size === 'sm' ? config.shortLabel : config.label)}
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge 
+            className={cn(
+              'font-semibold border cursor-help',
+              config.bgColor,
+              config.borderColor,
+              config.textColor,
+              sizes.badge,
+              className
+            )}
+          >
+            <Icon className={cn(sizes.icon, config.iconColor)} />
+            {showLabel && (size === 'sm' ? config.shortLabel : config.label)}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <p className="text-sm">{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

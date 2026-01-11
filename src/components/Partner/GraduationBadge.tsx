@@ -2,6 +2,12 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { usePartnerLevels } from '@/hooks/usePartnerLevels';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface GraduationBadgeProps {
   totalPoints: number;
@@ -75,25 +81,36 @@ export const GraduationBadge: React.FC<GraduationBadgeProps> = ({
 
   const colors = getColorClasses(currentLevel.color);
 
+  const tooltipText = `Sua graduação aumenta com indicações de novos parceiros. Quanto maior o nível, maiores os bônus de indicação.`;
+
   return (
-    <Badge 
-      className={cn(
-        'font-semibold border',
-        colors.bg,
-        colors.text,
-        colors.border,
-        sizes.badge,
-        className
-      )}
-    >
-      <span className={sizes.icon}>{icon}</span>
-      <span>{currentLevel.display_name}</span>
-      {showPoints && (
-        <span className="opacity-70 font-normal">
-          • {totalPoints} pts
-        </span>
-      )}
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge 
+            className={cn(
+              'font-semibold border cursor-help',
+              colors.bg,
+              colors.text,
+              colors.border,
+              sizes.badge,
+              className
+            )}
+          >
+            <span className={sizes.icon}>{icon}</span>
+            <span>{currentLevel.display_name}</span>
+            {showPoints && (
+              <span className="opacity-70 font-normal">
+                • {totalPoints} pts
+              </span>
+            )}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <p className="text-sm">{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
