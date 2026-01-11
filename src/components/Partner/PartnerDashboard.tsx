@@ -412,7 +412,7 @@ const PartnerDashboard = () => {
             Progresso até o Teto
           </CardTitle>
           <CardDescription>
-            Limite mensal: {formatPrice(contract.monthly_cap)} | Teto total: {formatPrice(contract.total_cap)}
+            Limite semanal: {formatPrice(contract.weekly_cap)} | Teto total: {formatPrice(contract.total_cap)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -625,11 +625,11 @@ const PartnerDashboard = () => {
                             </div>
                           </div>
                           
-                          {(payout.monthly_cap_applied || payout.total_cap_applied) && (
+                          {(payout.weekly_cap_applied || payout.total_cap_applied) && (
                             <div className="flex gap-1 mt-2">
-                              {payout.monthly_cap_applied && (
+                              {payout.weekly_cap_applied && (
                                 <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-500/30">
-                                  Limite mensal
+                                  Limite semanal
                                 </Badge>
                               )}
                               {payout.total_cap_applied && (

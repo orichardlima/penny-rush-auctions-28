@@ -660,7 +660,6 @@ export type Database = {
           closed_reason: string | null
           created_at: string
           id: string
-          monthly_cap: number
           pix_key: string | null
           pix_key_type: string | null
           plan_name: string
@@ -673,6 +672,7 @@ export type Database = {
           total_withdrawn: number
           updated_at: string
           user_id: string
+          weekly_cap: number
         }
         Insert: {
           aporte_value: number
@@ -682,7 +682,6 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           id?: string
-          monthly_cap: number
           pix_key?: string | null
           pix_key_type?: string | null
           plan_name: string
@@ -695,6 +694,7 @@ export type Database = {
           total_withdrawn?: number
           updated_at?: string
           user_id: string
+          weekly_cap: number
         }
         Update: {
           aporte_value?: number
@@ -704,7 +704,6 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           id?: string
-          monthly_cap?: number
           pix_key?: string | null
           pix_key_type?: string | null
           plan_name?: string
@@ -717,6 +716,7 @@ export type Database = {
           total_withdrawn?: number
           updated_at?: string
           user_id?: string
+          weekly_cap?: number
         }
         Relationships: []
       }
@@ -863,39 +863,39 @@ export type Database = {
           calculated_amount: number
           created_at: string
           id: string
-          monthly_cap_applied: boolean
           paid_at: string | null
           partner_contract_id: string
           period_end: string | null
           period_start: string
           status: string
           total_cap_applied: boolean
+          weekly_cap_applied: boolean
         }
         Insert: {
           amount: number
           calculated_amount: number
           created_at?: string
           id?: string
-          monthly_cap_applied?: boolean
           paid_at?: string | null
           partner_contract_id: string
           period_end?: string | null
           period_start: string
           status?: string
           total_cap_applied?: boolean
+          weekly_cap_applied?: boolean
         }
         Update: {
           amount?: number
           calculated_amount?: number
           created_at?: string
           id?: string
-          monthly_cap_applied?: boolean
           paid_at?: string | null
           partner_contract_id?: string
           period_end?: string | null
           period_start?: string
           status?: string
           total_cap_applied?: boolean
+          weekly_cap_applied?: boolean
         }
         Relationships: [
           {
@@ -914,12 +914,12 @@ export type Database = {
           display_name: string
           id: string
           is_active: boolean
-          monthly_cap: number
           name: string
           referral_bonus_percentage: number | null
           sort_order: number
           total_cap: number
           updated_at: string
+          weekly_cap: number
         }
         Insert: {
           aporte_value: number
@@ -927,12 +927,12 @@ export type Database = {
           display_name: string
           id?: string
           is_active?: boolean
-          monthly_cap: number
           name: string
           referral_bonus_percentage?: number | null
           sort_order?: number
           total_cap: number
           updated_at?: string
+          weekly_cap: number
         }
         Update: {
           aporte_value?: number
@@ -940,12 +940,12 @@ export type Database = {
           display_name?: string
           id?: string
           is_active?: boolean
-          monthly_cap?: number
           name?: string
           referral_bonus_percentage?: number | null
           sort_order?: number
           total_cap?: number
           updated_at?: string
+          weekly_cap?: number
         }
         Relationships: []
       }
@@ -1015,15 +1015,15 @@ export type Database = {
           difference_paid: number
           id: string
           new_aporte_value: number
-          new_monthly_cap: number
           new_plan_name: string
           new_total_cap: number
+          new_weekly_cap: number
           notes: string | null
           partner_contract_id: string
           previous_aporte_value: number
-          previous_monthly_cap: number
           previous_plan_name: string
           previous_total_cap: number
+          previous_weekly_cap: number
           total_received_at_upgrade: number
         }
         Insert: {
@@ -1031,15 +1031,15 @@ export type Database = {
           difference_paid: number
           id?: string
           new_aporte_value: number
-          new_monthly_cap: number
           new_plan_name: string
           new_total_cap: number
+          new_weekly_cap: number
           notes?: string | null
           partner_contract_id: string
           previous_aporte_value: number
-          previous_monthly_cap: number
           previous_plan_name: string
           previous_total_cap: number
+          previous_weekly_cap: number
           total_received_at_upgrade?: number
         }
         Update: {
@@ -1047,15 +1047,15 @@ export type Database = {
           difference_paid?: number
           id?: string
           new_aporte_value?: number
-          new_monthly_cap?: number
           new_plan_name?: string
           new_total_cap?: number
+          new_weekly_cap?: number
           notes?: string | null
           partner_contract_id?: string
           previous_aporte_value?: number
-          previous_monthly_cap?: number
           previous_plan_name?: string
           previous_total_cap?: number
+          previous_weekly_cap?: number
           total_received_at_upgrade?: number
         }
         Relationships: [

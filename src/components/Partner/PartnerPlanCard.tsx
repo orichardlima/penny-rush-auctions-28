@@ -74,8 +74,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
               <DollarSign className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <span className="font-medium">Limite mensal</span>
-              <p className="text-xs text-muted-foreground">até {formatPrice(plan.monthly_cap)}/mês</p>
+              <span className="font-medium">Limite semanal</span>
+              <p className="text-xs text-muted-foreground">até {formatPrice(plan.weekly_cap)}/semana</p>
             </div>
           </div>
 

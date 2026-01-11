@@ -17,9 +17,9 @@ export const InvestmentSimulator = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  // Calculate estimated weeks to reach total cap (based on weekly cap = monthly_cap / 4)
+  // Calculate estimated weeks to reach total cap (based on weekly cap)
   const estimatedWeeks = selectedPlan 
-    ? Math.ceil(selectedPlan.total_cap / (selectedPlan.monthly_cap / 4))
+    ? Math.ceil(selectedPlan.total_cap / selectedPlan.weekly_cap)
     : 0;
 
   const handleSelectPlan = () => {
@@ -107,7 +107,7 @@ export const InvestmentSimulator = () => {
                       <TrendingUp className="w-6 h-6 text-amber-600 mx-auto mb-2" />
                       <div className="text-sm text-muted-foreground mb-1">Limite Semanal</div>
                       <div className="text-xl sm:text-2xl font-bold text-amber-600">
-                        {formatCurrency(selectedPlan.monthly_cap / 4)}
+                        {formatCurrency(selectedPlan.weekly_cap)}
                       </div>
                     </div>
                     <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 rounded-xl p-4 text-center border border-purple-500/10">

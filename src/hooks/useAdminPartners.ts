@@ -7,7 +7,7 @@ export interface PartnerContractWithUser {
   user_id: string;
   plan_name: string;
   aporte_value: number;
-  monthly_cap: number;
+  weekly_cap: number;
   total_cap: number;
   total_received: number;
   status: string;
@@ -24,7 +24,7 @@ export interface PartnerPlan {
   name: string;
   display_name: string;
   aporte_value: number;
-  monthly_cap: number;
+  weekly_cap: number;
   total_cap: number;
   is_active: boolean;
   sort_order: number;
@@ -98,7 +98,7 @@ export const getWeekOptions = (numWeeks: number = 12): { value: string; label: s
 
 export interface ManualPayoutOptions {
   manualMode: boolean;
-  manualBase: 'aporte' | 'monthly_cap';
+  manualBase: 'aporte' | 'weekly_cap';
   manualPercentage: number;
   manualDescription?: string;
   cutoffDay?: number;
@@ -128,7 +128,7 @@ export interface PartnerPayoutWithContract {
   calculated_amount: number;
   amount: number;
   status: string;
-  monthly_cap_applied: boolean;
+  weekly_cap_applied: boolean;
   total_cap_applied: boolean;
   paid_at: string | null;
   created_at: string;
@@ -510,7 +510,7 @@ export const useAdminPartners = () => {
         partnerFundValue = activeContracts.reduce((sum, contract) => {
           const baseValue = options.manualBase === 'aporte' 
             ? contract.aporte_value 
-            : contract.monthly_cap;
+            : contract.weekly_cap;
           return sum + (baseValue * (options.manualPercentage / 100));
         }, 0);
 
@@ -561,7 +561,7 @@ export const useAdminPartners = () => {
           // Modo manual: aplicar porcentagem diretamente sobre a base
           const baseValue = options.manualBase === 'aporte' 
             ? contract.aporte_value 
-            : contract.monthly_cap;
+            : contract.weekly_cap;
           calculatedAmount = baseValue * (options.manualPercentage / 100);
         } else {
           // Modo automático: distribuição proporcional
@@ -571,26 +571,13 @@ export const useAdminPartners = () => {
         }
 
         let amount = calculatedAmount;
-        let monthlyCapApplied = false;
+        let weeklyCapApplied = false;
         let totalCapApplied = false;
 
-        // Aplicar limite mensal (verificação mensal acumulada)
-        // Calcular quanto já recebeu no mês atual
-        const currentMonth = weekStartDate.toISOString().slice(0, 7);
-        const { data: monthPayouts } = await supabase
-          .from('partner_payouts')
-          .select('amount')
-          .eq('partner_contract_id', contract.id)
-          .eq('status', 'PENDING')
-          .gte('period_start', `${currentMonth}-01`)
-          .lt('period_start', `${currentMonth.split('-')[0]}-${String(Number(currentMonth.split('-')[1]) + 1).padStart(2, '0')}-01`);
-
-        const monthTotal = (monthPayouts || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-        const remainingMonthCap = contract.monthly_cap - monthTotal;
-        
-        if (amount > remainingMonthCap) {
-          amount = Math.max(0, remainingMonthCap);
-          monthlyCapApplied = true;
+        // Aplicar limite semanal
+        if (amount > contract.weekly_cap) {
+          amount = contract.weekly_cap;
+          weeklyCapApplied = true;
         }
 
         // Aplicar teto total
@@ -612,7 +599,7 @@ export const useAdminPartners = () => {
               calculated_amount: calculatedAmount,
               amount: amount,
               status: 'PENDING',
-              monthly_cap_applied: monthlyCapApplied,
+              weekly_cap_applied: weeklyCapApplied,
               total_cap_applied: totalCapApplied
             });
 
