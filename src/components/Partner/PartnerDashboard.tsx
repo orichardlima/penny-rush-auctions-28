@@ -276,11 +276,7 @@ const PartnerDashboard = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div>
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
-              <h2 className="text-2xl font-bold">Painel do Parceiro</h2>
-              <PartnerBadge planName={contract.plan_name} size="md" />
-              <GraduationBadge totalPoints={totalPoints} size="md" showPoints />
-            </div>
+            <h2 className="text-2xl font-bold mb-1">Painel do Parceiro</h2>
             <p className="text-muted-foreground">Acompanhe sua participação e repasses</p>
           </div>
         </div>
