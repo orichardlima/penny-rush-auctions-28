@@ -1,9 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Check, X, Crown, TrendingUp, Medal, Award, Trophy, Sparkles } from "lucide-react";
+import { Check, X, Crown, Target, Medal, Award, Trophy, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePartnerContract, PartnerPlan } from "@/hooks/usePartnerContract";
+import { usePartnerContract } from "@/hooks/usePartnerContract";
 
 export const PlanComparison = () => {
   const navigate = useNavigate();
@@ -11,10 +11,6 @@ export const PlanComparison = () => {
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  const calculateROI = (plan: PartnerPlan) => {
-    return ((plan.total_cap - plan.aporte_value) / plan.aporte_value) * 100;
   };
 
   const handleSelectPlan = (planId: string) => {
@@ -50,8 +46,8 @@ export const PlanComparison = () => {
           iconColor: 'text-yellow-500',
           iconBg: 'bg-yellow-400/10',
           badge: 'bg-gradient-to-r from-amber-500 to-yellow-400 text-amber-950',
-          badgeLabel: 'Melhor ROI',
-          badgeIcon: TrendingUp,
+          badgeLabel: 'Melhor Teto',
+          badgeIcon: Trophy,
           highlight: false,
           gradient: 'from-yellow-500/20 to-transparent'
         };
@@ -94,14 +90,13 @@ export const PlanComparison = () => {
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Compare os planos e escolha o que melhor se adapta ao seu perfil. 
-            <strong className="text-foreground"> Quanto maior o plano, maior o retorno!</strong>
+            <strong className="text-foreground"> Quanto maior o plano, maiores os limites de participação.</strong>
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
-          {plans.map((plan) => {
+        {plans.map((plan) => {
             const config = getPlanConfig(plan.name);
-            const roi = calculateROI(plan);
             const Icon = config.icon;
             const BadgeIcon = config.badgeIcon;
             
@@ -143,19 +138,19 @@ export const PlanComparison = () => {
                 </CardHeader>
 
                 <CardContent className="px-6 pb-6 relative">
-                  {/* ROI Highlight */}
+                  {/* Teto do Contrato */}
                   <div className={`mb-6 p-4 rounded-xl ${config.highlight ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'}`}>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <TrendingUp className={`w-5 h-5 ${config.highlight ? 'text-primary' : 'text-green-600'}`} />
-                      <span className={`text-3xl font-bold ${config.highlight ? 'text-primary' : 'text-green-600'}`}>
-                        {roi.toFixed(0)}%
-                      </span>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Target className={`w-5 h-5 ${config.highlight ? 'text-primary' : 'text-green-600'}`} />
                     </div>
-                    <p className="text-xs text-center text-muted-foreground">
-                      Retorno sobre Investimento
+                    <p className="text-xs text-center text-muted-foreground mb-1">
+                      Teto total do contrato
                     </p>
-                    <p className="text-sm text-center font-medium mt-1">
-                      Receba até {formatCurrency(plan.total_cap)}
+                    <p className={`text-2xl text-center font-bold ${config.highlight ? 'text-primary' : 'text-green-600'}`}>
+                      Até {formatCurrency(plan.total_cap)}
+                    </p>
+                    <p className="text-xs text-center text-muted-foreground mt-1">
+                      conforme regras da plataforma
                     </p>
                   </div>
 
@@ -243,11 +238,11 @@ export const PlanComparison = () => {
           })}
         </div>
 
-        {/* ROI Comparison Note */}
+        {/* Legal Disclaimer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-            <strong className="text-foreground">💡 Dica:</strong> O ROI (Retorno sobre Investimento) 
-            aumenta progressivamente conforme o plano. O Elite oferece o dobro do retorno percentual do Start!
+            Os valores apresentados representam limites contratuais. 
+            Os repasses são proporcionais ao desempenho da plataforma e não possuem garantia de valor mínimo ou prazo.
           </p>
         </div>
       </div>
