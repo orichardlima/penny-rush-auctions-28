@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Coins, ShoppingCart, User, Menu, Gavel, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Bell, Briefcase } from "lucide-react";
+import { Coins, ShoppingCart, User, Menu, Gavel, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Bell, Briefcase, Users2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -150,6 +150,12 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
             <Link to="/vencedores" className="text-foreground hover:text-primary transition-colors">
               Vencedores
             </Link>
+            {profile?.is_admin && (
+              <Link to="/admin/parceiros" className="text-foreground hover:text-primary transition-colors flex items-center gap-1.5">
+                <Users2 className="w-4 h-4" />
+                Gestão Parceiros
+              </Link>
+            )}
           </nav>
 
           {/* User Actions */}
@@ -323,6 +329,12 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <Trophy className="w-5 h-5" />
                         <span>Vencedores</span>
                       </Link>
+                      {profile?.is_admin && (
+                        <Link to="/admin/parceiros" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-base font-medium ${location.pathname === '/admin/parceiros' ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}>
+                          <Users2 className="w-5 h-5" />
+                          <span>Gestão Parceiros</span>
+                        </Link>
+                      )}
                     </div>
                   </div>
                   
