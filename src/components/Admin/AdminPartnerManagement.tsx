@@ -339,11 +339,11 @@ const AdminPartnerManagement = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="contracts" className="space-y-4">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="contracts">Contratos</TabsTrigger>
-          <TabsTrigger value="plans">Planos</TabsTrigger>
-          <TabsTrigger value="payouts">Repasses</TabsTrigger>
-          <TabsTrigger value="withdrawals">
+        <TabsList className="h-auto flex flex-wrap gap-1 p-2">
+          <TabsTrigger value="contracts" className="shrink-0">Contratos</TabsTrigger>
+          <TabsTrigger value="plans" className="shrink-0">Planos</TabsTrigger>
+          <TabsTrigger value="payouts" className="shrink-0">Repasses</TabsTrigger>
+          <TabsTrigger value="withdrawals" className="shrink-0">
             Saques
             {stats.pendingWithdrawals > 0 && (
               <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 text-xs flex items-center justify-center">
@@ -351,7 +351,7 @@ const AdminPartnerManagement = () => {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="terminations">
+          <TabsTrigger value="terminations" className="shrink-0">
             Encerramentos
             {stats.pendingTerminations > 0 && (
               <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 text-xs flex items-center justify-center">
@@ -359,13 +359,13 @@ const AdminPartnerManagement = () => {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="levels">Níveis de Indicação</TabsTrigger>
-          <TabsTrigger value="graduations">
-            <Trophy className="h-4 w-4 mr-2" />
+          <TabsTrigger value="levels" className="shrink-0">Níveis</TabsTrigger>
+          <TabsTrigger value="graduations" className="shrink-0">
+            <Trophy className="h-4 w-4 mr-1" />
             Graduações
           </TabsTrigger>
-          <TabsTrigger value="reports">Relatórios</TabsTrigger>
-          <TabsTrigger value="process">Processar Semana</TabsTrigger>
+          <TabsTrigger value="reports" className="shrink-0">Relatórios</TabsTrigger>
+          <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
         </TabsList>
 
         {/* Níveis de Indicação Tab */}
@@ -381,7 +381,7 @@ const AdminPartnerManagement = () => {
         {/* Contratos Tab */}
         <TabsContent value="contracts" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Todos os Contratos</CardTitle>
                 <CardDescription>Lista de todos os contratos de parceiros</CardDescription>
@@ -391,16 +391,16 @@ const AdminPartnerManagement = () => {
                 Exportar CSV
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Parceiro</TableHead>
-                    <TableHead>Plano</TableHead>
+                    <TableHead className="hidden md:table-cell">Plano</TableHead>
                     <TableHead>Aporte</TableHead>
-                    <TableHead>Recebido</TableHead>
-                    <TableHead>Teto</TableHead>
-                    <TableHead>Progresso</TableHead>
+                    <TableHead className="hidden sm:table-cell">Recebido</TableHead>
+                    <TableHead className="hidden lg:table-cell">Teto</TableHead>
+                    <TableHead className="hidden lg:table-cell">Progresso</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -416,11 +416,11 @@ const AdminPartnerManagement = () => {
                             <p className="text-xs text-muted-foreground">{contract.user_email}</p>
                           </div>
                         </TableCell>
-                        <TableCell>{contract.plan_name}</TableCell>
+                        <TableCell className="hidden md:table-cell">{contract.plan_name}</TableCell>
                         <TableCell>{formatPrice(contract.aporte_value)}</TableCell>
-                        <TableCell className="text-green-600 font-medium">{formatPrice(contract.total_received)}</TableCell>
-                        <TableCell>{formatPrice(contract.total_cap)}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-green-600 font-medium hidden sm:table-cell">{formatPrice(contract.total_received)}</TableCell>
+                        <TableCell className="hidden lg:table-cell">{formatPrice(contract.total_cap)}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
                           <div className="flex items-center gap-2">
                             <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                               <div 
@@ -902,16 +902,16 @@ const AdminPartnerManagement = () => {
               <CardTitle>Solicitações de Saque</CardTitle>
               <CardDescription>Gerencie as solicitações de saque dos parceiros</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Parceiro</TableHead>
-                    <TableHead>Plano</TableHead>
+                    <TableHead className="hidden md:table-cell">Plano</TableHead>
                     <TableHead>Valor</TableHead>
-                    <TableHead>PIX</TableHead>
+                    <TableHead className="hidden lg:table-cell">PIX</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead className="hidden sm:table-cell">Data</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -924,9 +924,9 @@ const AdminPartnerManagement = () => {
                           <p className="text-xs text-muted-foreground">{withdrawal.user_email}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{withdrawal.plan_name}</TableCell>
+                      <TableCell className="hidden md:table-cell">{withdrawal.plan_name}</TableCell>
                       <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <div className="text-sm">
                           <p>{withdrawal.payment_details?.pix_key || '-'}</p>
                           <p className="text-xs text-muted-foreground capitalize">{withdrawal.payment_details?.pix_key_type || '-'}</p>
@@ -943,7 +943,7 @@ const AdminPartnerManagement = () => {
                           <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Rejeitado</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
+                      <TableCell className="text-sm hidden sm:table-cell">{formatDate(withdrawal.requested_at)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           {withdrawal.status === 'APPROVED' && (
