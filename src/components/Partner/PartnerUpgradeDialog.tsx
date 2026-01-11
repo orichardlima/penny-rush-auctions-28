@@ -159,7 +159,7 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Teto: {formatPrice(plan.total_cap)} | Semanal: {formatPrice(plan.monthly_cap)}
+                            Teto: {formatPrice(plan.total_cap)} | Semanal: {formatPrice(plan.weekly_cap)}
                           </p>
                         </div>
                         <div className="text-right">
@@ -214,7 +214,7 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Novo limite semanal:</span>
-                    <span>{formatPrice(selectedPlan.monthly_cap)}</span>
+                    <span>{formatPrice(selectedPlan.weekly_cap)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-medium border-t pt-2">
                     <span>Novo restante até o teto:</span>

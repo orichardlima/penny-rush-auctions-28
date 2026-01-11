@@ -170,7 +170,7 @@ export const PlanComparison = () => {
                     <div className="flex justify-between items-center py-2 border-b border-border">
                       <span className="text-muted-foreground text-sm">Limite Semanal</span>
                       <span className="font-semibold">
-                        {formatCurrency(plan.monthly_cap / 4)}
+                        {formatCurrency(plan.weekly_cap)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">

@@ -74,7 +74,7 @@ const AdminPartnerManagement = () => {
   
   // Manual mode state
   const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual'>('automatic');
-  const [manualBase, setManualBase] = useState<'aporte' | 'monthly_cap'>('aporte');
+  const [manualBase, setManualBase] = useState<'aporte' | 'weekly_cap'>('aporte');
   const [manualPercentage, setManualPercentage] = useState(5);
   const [manualDescription, setManualDescription] = useState('');
   
@@ -84,7 +84,7 @@ const AdminPartnerManagement = () => {
     name: '',
     display_name: '',
     aporte_value: 0,
-    monthly_cap: 0,
+    weekly_cap: 0,
     total_cap: 0,
     is_active: true,
     sort_order: 0,
@@ -98,15 +98,15 @@ const AdminPartnerManagement = () => {
     
     return activeContracts.map(contract => {
       const eligibility = isContractEligibleForWeek(contract.created_at, selectedWeek);
-      const baseValue = manualBase === 'aporte' ? contract.aporte_value : contract.monthly_cap;
+      const baseValue = manualBase === 'aporte' ? contract.aporte_value : contract.weekly_cap;
       let calculatedAmount = 0;
       
       if (eligibility.eligible && calculationMode === 'manual') {
         calculatedAmount = baseValue * (manualPercentage / 100);
         
-        // Apply monthly cap if base is aporte
-        if (manualBase === 'aporte' && calculatedAmount > contract.monthly_cap) {
-          calculatedAmount = contract.monthly_cap;
+        // Apply weekly cap if base is aporte
+        if (manualBase === 'aporte' && calculatedAmount > contract.weekly_cap) {
+          calculatedAmount = contract.weekly_cap;
         }
         
         // Apply total cap
@@ -136,12 +136,12 @@ const AdminPartnerManagement = () => {
     
     const planStats = activePlans.map(plan => {
       const contractsForPlan = eligibleContracts.filter(c => c.plan_name === plan.name);
-      const baseValue = manualBase === 'aporte' ? plan.aporte_value : plan.monthly_cap;
+      const baseValue = manualBase === 'aporte' ? plan.aporte_value : plan.weekly_cap;
       const rawCalculated = baseValue * (manualPercentage / 100);
       
-      // Verifica se ultrapassa o cap mensal
-      const isCapped = manualBase === 'aporte' && rawCalculated > plan.monthly_cap;
-      const finalValuePerContract = isCapped ? plan.monthly_cap : rawCalculated;
+      // Verifica se ultrapassa o cap semanal
+      const isCapped = manualBase === 'aporte' && rawCalculated > plan.weekly_cap;
+      const finalValuePerContract = isCapped ? plan.weekly_cap : rawCalculated;
       
       const totalForPlan = finalValuePerContract * contractsForPlan.length;
       
@@ -150,7 +150,7 @@ const AdminPartnerManagement = () => {
         name: plan.name,
         displayName: plan.display_name,
         aporteValue: plan.aporte_value,
-        monthlyCap: plan.monthly_cap,
+        weeklyCap: plan.weekly_cap,
         totalCap: plan.total_cap,
         contractCount: contractsForPlan.length,
         baseValue,
@@ -229,7 +229,7 @@ const AdminPartnerManagement = () => {
       name: '',
       display_name: '',
       aporte_value: 0,
-      monthly_cap: 0,
+      weekly_cap: 0,
       total_cap: 0,
       is_active: true,
       sort_order: plans.length,
@@ -586,11 +586,11 @@ const AdminPartnerManagement = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Limite Mensal (R$)</Label>
+                        <Label>Limite Semanal (R$)</Label>
                         <Input 
                           type="number"
-                          value={newPlan.monthly_cap}
-                          onChange={(e) => setNewPlan({...newPlan, monthly_cap: Number(e.target.value)})}
+                          value={newPlan.weekly_cap}
+                          onChange={(e) => setNewPlan({...newPlan, weekly_cap: Number(e.target.value)})}
                         />
                       </div>
                       <div className="space-y-2">
@@ -657,7 +657,7 @@ const AdminPartnerManagement = () => {
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Aporte</TableHead>
-                    <TableHead>Limite Mensal</TableHead>
+                    <TableHead>Limite Semanal</TableHead>
                     <TableHead>Teto Total</TableHead>
                     <TableHead>Retorno</TableHead>
                     <TableHead>Bônus Ind.</TableHead>
@@ -670,7 +670,7 @@ const AdminPartnerManagement = () => {
                     <TableRow key={plan.id}>
                       <TableCell className="font-medium">{plan.display_name}</TableCell>
                       <TableCell>{formatPrice(plan.aporte_value)}</TableCell>
-                      <TableCell>{formatPrice(plan.monthly_cap)}</TableCell>
+                      <TableCell>{formatPrice(plan.weekly_cap)}</TableCell>
                       <TableCell>{formatPrice(plan.total_cap)}</TableCell>
                       <TableCell className="text-green-600">
                         {((plan.total_cap / plan.aporte_value) * 100).toFixed(0)}%
@@ -718,11 +718,11 @@ const AdminPartnerManagement = () => {
                                       />
                                     </div>
                                     <div className="space-y-2">
-                                      <Label>Limite Mensal (R$)</Label>
+                                      <Label>Limite Semanal (R$)</Label>
                                       <Input 
                                         type="number"
-                                        value={editingPlan.monthly_cap}
-                                        onChange={(e) => setEditingPlan({...editingPlan, monthly_cap: Number(e.target.value)})}
+                                        value={editingPlan.weekly_cap}
+                                        onChange={(e) => setEditingPlan({...editingPlan, weekly_cap: Number(e.target.value)})}
                                       />
                                     </div>
                                     <div className="space-y-2">
@@ -1169,7 +1169,7 @@ const AdminPartnerManagement = () => {
                       <RadioGroupItem value="manual" id="manual" />
                       <Label htmlFor="manual" className="flex-1 cursor-pointer">
                         <span className="font-medium">Manual por Porcentagem</span>
-                        <p className="text-xs text-muted-foreground">Definir % sobre aporte ou limite mensal</p>
+                        <p className="text-xs text-muted-foreground">Definir % sobre aporte ou limite semanal</p>
                       </Label>
                     </div>
                   </RadioGroup>
@@ -1198,7 +1198,7 @@ const AdminPartnerManagement = () => {
                       <Label className="font-medium">Base de Cálculo</Label>
                       <RadioGroup 
                         value={manualBase} 
-                        onValueChange={(v) => setManualBase(v as 'aporte' | 'monthly_cap')}
+                        onValueChange={(v) => setManualBase(v as 'aporte' | 'weekly_cap')}
                         className="grid grid-cols-2 gap-2"
                       >
                         <div className="flex items-center space-x-2 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
@@ -1209,10 +1209,10 @@ const AdminPartnerManagement = () => {
                           </Label>
                         </div>
                         <div className="flex items-center space-x-2 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
-                          <RadioGroupItem value="monthly_cap" id="base-cap" />
+                          <RadioGroupItem value="weekly_cap" id="base-cap" />
                           <Label htmlFor="base-cap" className="cursor-pointer">
-                            <span className="font-medium text-sm">Limite Mensal</span>
-                            <p className="text-xs text-muted-foreground">Monthly cap</p>
+                            <span className="font-medium text-sm">Limite Semanal</span>
+                            <p className="text-xs text-muted-foreground">Weekly cap</p>
                           </Label>
                         </div>
                       </RadioGroup>
@@ -1281,7 +1281,7 @@ const AdminPartnerManagement = () => {
                     {planSimulation.hasAnyCapped && (
                       <div className="flex items-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-700">
                         <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>Alguns planos serão limitados pelo cap mensal</span>
+                        <span>Alguns planos serão limitados pelo cap semanal</span>
                       </div>
                     )}
 
@@ -1307,7 +1307,7 @@ const AdminPartnerManagement = () => {
                                 {formatPrice(plan.aporteValue)}
                               </TableCell>
                               <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
-                                {formatPrice(plan.monthlyCap)}
+                                {formatPrice(plan.weeklyCap)}
                               </TableCell>
                               <TableCell className="text-right">
                                 {plan.isCapped ? (
@@ -1390,7 +1390,7 @@ const AdminPartnerManagement = () => {
                     Preview da Distribuição
                   </CardTitle>
                   <CardDescription>
-                    {calculationMode === 'manual' && ` ${manualPercentage}% sobre ${manualBase === 'aporte' ? 'o aporte' : 'o limite mensal'}`}
+                    {calculationMode === 'manual' && ` ${manualPercentage}% sobre ${manualBase === 'aporte' ? 'o aporte' : 'o limite semanal'}`}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

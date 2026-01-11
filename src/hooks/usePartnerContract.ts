@@ -8,7 +8,7 @@ export interface PartnerPlan {
   name: string;
   display_name: string;
   aporte_value: number;
-  monthly_cap: number;
+  weekly_cap: number;
   total_cap: number;
   is_active: boolean;
   sort_order: number;
@@ -20,7 +20,7 @@ export interface PartnerContract {
   user_id: string;
   plan_name: string;
   aporte_value: number;
-  monthly_cap: number;
+  weekly_cap: number;
   total_cap: number;
   total_received: number;
   status: 'ACTIVE' | 'CLOSED' | 'SUSPENDED';
@@ -38,7 +38,7 @@ export interface PartnerPayout {
   calculated_amount: number;
   amount: number;
   status: 'PENDING' | 'PAID' | 'CANCELLED';
-  monthly_cap_applied: boolean;
+  weekly_cap_applied: boolean;
   total_cap_applied: boolean;
   paid_at: string | null;
   created_at: string;
@@ -49,11 +49,11 @@ export interface PartnerUpgrade {
   partner_contract_id: string;
   previous_plan_name: string;
   previous_aporte_value: number;
-  previous_monthly_cap: number;
+  previous_weekly_cap: number;
   previous_total_cap: number;
   new_plan_name: string;
   new_aporte_value: number;
-  new_monthly_cap: number;
+  new_weekly_cap: number;
   new_total_cap: number;
   total_received_at_upgrade: number;
   difference_paid: number;
@@ -198,7 +198,7 @@ export const usePartnerContract = () => {
           user_id: profile.user_id,
           plan_name: plan.name,
           aporte_value: plan.aporte_value,
-          monthly_cap: plan.monthly_cap,
+          weekly_cap: plan.weekly_cap,
           total_cap: plan.total_cap,
           status: 'ACTIVE',
           referred_by_user_id: referredByUserId,
@@ -286,11 +286,11 @@ export const usePartnerContract = () => {
           partner_contract_id: contract.id,
           previous_plan_name: contract.plan_name,
           previous_aporte_value: contract.aporte_value,
-          previous_monthly_cap: contract.monthly_cap,
+          previous_weekly_cap: contract.weekly_cap,
           previous_total_cap: contract.total_cap,
           new_plan_name: newPlan.name,
           new_aporte_value: newPlan.aporte_value,
-          new_monthly_cap: newPlan.monthly_cap,
+          new_weekly_cap: newPlan.weekly_cap,
           new_total_cap: newPlan.total_cap,
           total_received_at_upgrade: contract.total_received,
           difference_paid: differenceToPay
@@ -305,7 +305,7 @@ export const usePartnerContract = () => {
         .update({
           plan_name: newPlan.name,
           aporte_value: newPlan.aporte_value,
-          monthly_cap: newPlan.monthly_cap,
+          weekly_cap: newPlan.weekly_cap,
           total_cap: newPlan.total_cap,
           updated_at: new Date().toISOString()
         })
