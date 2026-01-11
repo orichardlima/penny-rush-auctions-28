@@ -312,8 +312,7 @@ const PartnerDashboard = () => {
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">Plano Contratado</p>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl font-bold">{contract.plan_name}</span>
-                  <PartnerBadge planName={contract.plan_name} size="sm" showLabel={false} />
+                  <PartnerBadge planName={contract.plan_name} size="md" />
                 </div>
                 <div className="text-sm text-muted-foreground space-y-0.5">
                   <p>Aporte: <span className="font-medium text-foreground">{formatPrice(contract.aporte_value)}</span></p>
