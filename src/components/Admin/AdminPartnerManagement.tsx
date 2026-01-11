@@ -14,6 +14,7 @@ import { useAdminPartners, ManualPayoutOptions, isContractEligibleForWeek, getWe
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
+import PartnerGraduationManager from './PartnerGraduationManager';
 import { 
   Users, 
   DollarSign, 
@@ -32,7 +33,8 @@ import {
   Trash2,
   Download,
   BarChart3,
-  Calculator
+  Calculator,
+  Trophy
 } from 'lucide-react';
 
 const AdminPartnerManagement = () => {
@@ -358,6 +360,10 @@ const AdminPartnerManagement = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="levels">Níveis de Indicação</TabsTrigger>
+          <TabsTrigger value="graduations">
+            <Trophy className="h-4 w-4 mr-2" />
+            Graduações
+          </TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
           <TabsTrigger value="process">Processar Semana</TabsTrigger>
         </TabsList>
@@ -365,6 +371,11 @@ const AdminPartnerManagement = () => {
         {/* Níveis de Indicação Tab */}
         <TabsContent value="levels">
           <ReferralLevelConfigManager />
+        </TabsContent>
+
+        {/* Graduações Tab */}
+        <TabsContent value="graduations">
+          <PartnerGraduationManager />
         </TabsContent>
 
         {/* Contratos Tab */}
