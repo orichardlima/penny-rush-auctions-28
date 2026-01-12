@@ -1,9 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Check, X, Crown, Target, Medal, Award, Trophy, Sparkles } from "lucide-react";
+import { Check, X, Crown, Target, Medal, Award, Trophy, Sparkles, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const PlanComparison = () => {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export const PlanComparison = () => {
   }
 
   return (
+    <TooltipProvider>
     <section id="plans" className="py-16 sm:py-24 bg-muted/30">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="text-center mb-12">
@@ -149,27 +151,42 @@ export const PlanComparison = () => {
                     <p className={`text-2xl text-center font-bold ${config.highlight ? 'text-primary' : 'text-green-600'}`}>
                       Até {formatCurrency(plan.total_cap)}
                     </p>
-                    <p className="text-xs text-center text-muted-foreground mt-1">
-                      conforme regras da plataforma
+                    <p className="text-xs text-center text-muted-foreground mt-1 leading-relaxed">
+                      Valor máximo acumulado conforme desempenho da plataforma e limites semanais. 
+                      Não representa garantia de recebimento.
                     </p>
                   </div>
 
                   {/* Plan Details */}
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground text-sm">Teto Total</span>
-                      <span className="font-semibold text-green-600">
-                        {formatCurrency(plan.total_cap)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground text-sm">Limite Semanal</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground text-sm">Limite Semanal</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[220px] text-center">
+                            <p>O limite semanal pode ou não ser atingido, dependendo do faturamento da plataforma.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <span className="font-semibold">
                         {formatCurrency(plan.weekly_cap)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border">
-                      <span className="text-muted-foreground text-sm">Bônus Indicação</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground text-sm">Bônus Indicação</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[220px] text-center">
+                            <p>Independente do contrato de participação e não interfere no teto total.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <span className="font-semibold text-primary">
                         {plan.referral_bonus_percentage || 10}%
                       </span>
@@ -247,5 +264,6 @@ export const PlanComparison = () => {
         </div>
       </div>
     </section>
+    </TooltipProvider>
   );
 };
