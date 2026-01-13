@@ -385,6 +385,7 @@ const Auth = () => {
                         value={formData.email}
                         onChange={handleInputChange}
                         className="pl-10"
+                        aria-label="Digite seu email de acesso"
                         required
                       />
                     </div>
@@ -402,12 +403,14 @@ const Auth = () => {
                         value={formData.password}
                         onChange={handleInputChange}
                         className="pl-10 pr-10"
+                        aria-label="Digite sua senha"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -441,6 +444,7 @@ const Auth = () => {
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         className="pl-10"
+                        aria-label="Digite seu email para recuperação de senha"
                         required
                       />
                     </div>
@@ -484,6 +488,7 @@ const Auth = () => {
                         value={formData.fullName}
                         onChange={handleInputChange}
                         className={`pl-10 ${errors.fullName ? "border-destructive" : ""}`}
+                        aria-label="Digite seu nome completo"
                         required
                       />
                     </div>
@@ -503,6 +508,7 @@ const Auth = () => {
                         onBlur={() => debouncedCPFValidation(formData.cpf)}
                         className={errors.cpf ? "border-destructive" : ""}
                         maxLength={14}
+                        aria-label="Digite seu CPF"
                         required
                       />
                       {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
@@ -534,6 +540,7 @@ const Auth = () => {
                         onChange={handleInputChange}
                         className={errors.phone ? "border-destructive" : ""}
                         maxLength={15}
+                        aria-label="Digite seu telefone com DDD"
                         required
                       />
                       {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
@@ -549,6 +556,7 @@ const Auth = () => {
                       value={formData.birthDate}
                       onChange={handleInputChange}
                       className={errors.birthDate ? "border-destructive" : ""}
+                      aria-label="Selecione sua data de nascimento"
                       required
                     />
                     {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate}</p>}
@@ -576,6 +584,7 @@ const Auth = () => {
                       onBlur={handleCEPBlur}
                       className={errors.cep ? "border-destructive" : ""}
                       maxLength={9}
+                      aria-label="Digite seu CEP"
                       required
                     />
                     {errors.cep && <p className="text-sm text-destructive">{errors.cep}</p>}
@@ -593,6 +602,7 @@ const Auth = () => {
                         value={formData.street}
                         onChange={handleInputChange}
                         className={errors.street ? "border-destructive" : ""}
+                        aria-label="Digite sua rua ou avenida"
                         required
                       />
                       {errors.street && <p className="text-sm text-destructive">{errors.street}</p>}
@@ -608,6 +618,7 @@ const Auth = () => {
                         value={formData.number}
                         onChange={handleInputChange}
                         className={errors.number ? "border-destructive" : ""}
+                        aria-label="Digite o número do endereço"
                         required
                       />
                       {errors.number && <p className="text-sm text-destructive">{errors.number}</p>}
@@ -623,6 +634,7 @@ const Auth = () => {
                       placeholder="Apartamento, bloco, etc. (opcional)"
                       value={formData.complement}
                       onChange={handleInputChange}
+                      aria-label="Digite o complemento (opcional)"
                     />
                   </div>
 
@@ -637,6 +649,7 @@ const Auth = () => {
                         value={formData.neighborhood}
                         onChange={handleInputChange}
                         className={errors.neighborhood ? "border-destructive" : ""}
+                        aria-label="Digite seu bairro"
                         required
                       />
                       {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood}</p>}
@@ -652,6 +665,7 @@ const Auth = () => {
                         value={formData.city}
                         onChange={handleInputChange}
                         className={errors.city ? "border-destructive" : ""}
+                        aria-label="Digite sua cidade"
                         required
                       />
                       {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
@@ -668,6 +682,7 @@ const Auth = () => {
                         onChange={handleInputChange}
                         className={errors.state ? "border-destructive" : ""}
                         maxLength={2}
+                        aria-label="Digite seu estado (UF)"
                         required
                       />
                       {errors.state && <p className="text-sm text-destructive">{errors.state}</p>}
@@ -694,6 +709,7 @@ const Auth = () => {
                          onChange={handleInputChange}
                          onBlur={() => debouncedEmailValidation(formData.email)}
                          className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
+                         aria-label="Digite seu email para criar a conta"
                          required
                        />
                      </div>
@@ -727,12 +743,14 @@ const Auth = () => {
                         value={formData.password}
                         onChange={handleInputChange}
                         className={`pl-10 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                        aria-label="Crie uma senha segura com no mínimo 6 caracteres"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>

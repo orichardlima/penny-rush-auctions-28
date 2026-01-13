@@ -76,6 +76,7 @@ import { AuctionHistory } from '@/components/AuctionHistory';
 import { AdminAffiliateManagement } from '@/components/AdminAffiliateManagement';
 import { ProductTemplatesManager } from '@/components/Admin/ProductTemplatesManager';
 import AdminPartnerManagement from '@/components/Admin/AdminPartnerManagement';
+import { Footer } from '@/components/Footer';
 import { Handshake, LayoutTemplate, Wallet } from 'lucide-react';
 
 interface Auction {
@@ -1586,6 +1587,8 @@ const AdminDashboard = () => {
           onSuccess={handlePackageSuccess}
         />
       </div>
+      
+      <Footer />
     </div>
   );
 };
