@@ -51,19 +51,31 @@ export const useAuctionFilters = (auctions: Auction[]) => {
       auction.currentPrice <= filters.priceRange[1]
     );
 
-    // Ordenação
+    // Ordenação com desempate por ID para estabilidade
     switch (filters.sortBy) {
       case 'newest':
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => {
+          const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
+        });
         break;
       case 'oldest':
-        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        result.sort((a, b) => {
+          const dateCompare = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
+        });
         break;
       case 'price_low':
-        result.sort((a, b) => a.currentPrice - b.currentPrice);
+        result.sort((a, b) => {
+          const priceCompare = a.currentPrice - b.currentPrice;
+          return priceCompare !== 0 ? priceCompare : a.id.localeCompare(b.id);
+        });
         break;
       case 'price_high':
-        result.sort((a, b) => b.currentPrice - a.currentPrice);
+        result.sort((a, b) => {
+          const priceCompare = b.currentPrice - a.currentPrice;
+          return priceCompare !== 0 ? priceCompare : a.id.localeCompare(b.id);
+        });
         break;
       case 'ending_soon':
         result.sort((a, b) => {
@@ -71,12 +83,14 @@ export const useAuctionFilters = (auctions: Auction[]) => {
           if (a.auctionStatus === 'active' && b.auctionStatus !== 'active') return -1;
           if (a.auctionStatus !== 'active' && b.auctionStatus === 'active') return 1;
           if (a.auctionStatus === 'active' && b.auctionStatus === 'active') {
-            return a.timeLeft - b.timeLeft;
+            const timeCompare = a.timeLeft - b.timeLeft;
+            return timeCompare !== 0 ? timeCompare : a.id.localeCompare(b.id);
           }
           // Para não ativos, ordenar por status (waiting antes de finished)
           const statusOrder = { waiting: 1, finished: 2 };
-          return (statusOrder[a.auctionStatus as keyof typeof statusOrder] || 3) - 
+          const statusCompare = (statusOrder[a.auctionStatus as keyof typeof statusOrder] || 3) - 
                  (statusOrder[b.auctionStatus as keyof typeof statusOrder] || 3);
+          return statusCompare !== 0 ? statusCompare : a.id.localeCompare(b.id);
         });
         break;
     }

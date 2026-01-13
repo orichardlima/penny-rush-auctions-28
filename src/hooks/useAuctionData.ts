@@ -164,14 +164,21 @@ export const useAuctionData = () => {
         return;
       }
 
+      // Processar em paralelo mas preservar ordem original do banco
       const auctionsWithBidders = await Promise.all(
-        (data || []).map(async (auction) => {
+        (data || []).map(async (auction, index) => {
           const recentBidders = await fetchRecentBidders(auction.id);
-          return await transformAuctionData({ ...auction, recentBidders });
+          const transformed = await transformAuctionData({ ...auction, recentBidders });
+          return { ...transformed, _originalIndex: index };
         })
       );
 
-      setAuctions(auctionsWithBidders);
+      // Ordenar pela ordem original do banco antes de setar o state
+      auctionsWithBidders.sort((a, b) => a._originalIndex - b._originalIndex);
+      
+      // Remover o campo auxiliar e setar o state
+      const cleanAuctions = auctionsWithBidders.map(({ _originalIndex, ...auction }) => auction) as AuctionData[];
+      setAuctions(cleanAuctions);
     } catch (error) {
       toast(getErrorToast(error));
     } finally {
