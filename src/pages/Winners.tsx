@@ -1,5 +1,6 @@
 import { Header } from "@/components/Header";
 import { RecentWinners } from "@/components/RecentWinners";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,10 +13,10 @@ const Winners = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header userBids={25} onBuyBids={handleBuyBids} />
       
-      <main className="py-8">
+      <main className="py-8 flex-1">
         <div className="container mx-auto px-4">
           <Link to="/">
             <Button variant="ghost" className="mb-6">
@@ -35,6 +36,8 @@ const Winners = () => {
           </Link>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 };

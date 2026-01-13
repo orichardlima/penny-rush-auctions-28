@@ -2,16 +2,15 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { BidPackages as BidPackagesComponent } from "@/components/BidPackages";
 import { PixPaymentModal } from "@/components/PixPaymentModal";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { usePurchaseProcessor } from "@/hooks/usePurchaseProcessor";
 import { useAuth } from "@/contexts/AuthContext";
 
 const BidPackagesPage = () => {
-  const { toast } = useToast();
-  const { processPurchase, processing } = usePurchaseProcessor();
+  const { processPurchase } = usePurchaseProcessor();
   const { refreshProfile } = useAuth();
   const [paymentModal, setPaymentModal] = useState<{
     open: boolean;
@@ -42,10 +41,10 @@ const BidPackagesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header onBuyBids={handleBuyBids} />
       
-      <main className="py-8">
+      <main className="py-8 flex-1">
         <div className="container mx-auto px-4">
           <Link to="/">
             <Button variant="ghost" className="mb-6">
@@ -76,6 +75,8 @@ const BidPackagesPage = () => {
           </Link>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 };
