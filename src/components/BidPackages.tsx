@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { calculateBidBreakdown, generateCompleteFeatures } from "@/utils/bidCalculations";
 import { usePromotion } from "@/hooks/usePromotion";
+import { getErrorToast } from "@/utils/errorHandler";
 
 interface BidPackage {
   id: string;
@@ -25,12 +26,12 @@ interface BidPackagesProps {
 
 const getIcon = (iconName: string) => {
   const icons = {
-    Star: <Star className="w-6 h-6" />,
-    Zap: <Zap className="w-6 h-6" />,
-    Crown: <Crown className="w-6 h-6" />,
-    Diamond: <Diamond className="w-6 h-6" />
+    Star: <Star className="w-6 h-6" aria-hidden="true" />,
+    Zap: <Zap className="w-6 h-6" aria-hidden="true" />,
+    Crown: <Crown className="w-6 h-6" aria-hidden="true" />,
+    Diamond: <Diamond className="w-6 h-6" aria-hidden="true" />
   };
-  return icons[iconName as keyof typeof icons] || <Star className="w-6 h-6" />;
+  return icons[iconName as keyof typeof icons] || <Star className="w-6 h-6" aria-hidden="true" />;
 };
 
 export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
@@ -54,13 +55,8 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
       if (error) throw error;
       setPackages(data || []);
     } catch (err) {
-      console.error('Error fetching packages:', err);
       setError('Erro ao carregar pacotes');
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os pacotes de lances.",
-        variant: "destructive"
-      });
+      toast(getErrorToast(err));
     } finally {
       setLoading(false);
     }
@@ -85,18 +81,12 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
     
     switch (mode) {
       case 'base':
-        // Multiplica apenas o preço base
         return Math.floor(baseBids * multiplier);
-      
       case 'total':
-        // Multiplica o total do pacote
         return Math.floor(bidsCount * multiplier);
-      
       case 'bonus':
-        // Total + (base × (multiplicador - 1))
         const bonusBids = Math.floor(baseBids * (multiplier - 1));
         return bidsCount + bonusBids;
-      
       default:
         return Math.floor(baseBids * multiplier);
     }
@@ -104,10 +94,10 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
 
   if (loading) {
     return (
-      <section className="py-16 bg-muted/30" id="pacotes">
+      <section className="py-16 bg-muted/30" id="pacotes" aria-labelledby="packages-title">
         <div className="container mx-auto px-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="text-center" role="status" aria-live="polite">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" aria-hidden="true"></div>
             <p className="text-muted-foreground">Carregando pacotes...</p>
           </div>
         </div>
@@ -117,15 +107,16 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
 
   if (error) {
     return (
-      <section className="py-16 bg-muted/30" id="pacotes">
+      <section className="py-16 bg-muted/30" id="pacotes" aria-labelledby="packages-title">
         <div className="container mx-auto px-4">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <div className="text-center" role="alert">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" aria-hidden="true" />
             <p className="text-destructive">Erro ao carregar pacotes de lances</p>
             <Button 
               variant="outline" 
               onClick={fetchPackages}
               className="mt-4"
+              aria-label="Tentar carregar pacotes novamente"
             >
               Tentar Novamente
             </Button>
@@ -136,13 +127,17 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
   }
 
   return (
-    <section className="py-16 bg-muted/30" id="pacotes">
+    <section className="py-16 bg-muted/30" id="pacotes" aria-labelledby="packages-title">
       <div className="container mx-auto px-4">
         {/* Promotional Banner */}
         {promoData?.isValid && (
-          <div className="mb-8 p-6 rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-center shadow-lg animate-pulse-slow relative overflow-hidden">
+          <div 
+            className="mb-8 p-6 rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-center shadow-lg animate-pulse-slow relative overflow-hidden"
+            role="alert"
+            aria-live="polite"
+          >
             {/* Background sparkles effect */}
-            <div className="absolute inset-0 opacity-20">
+            <div className="absolute inset-0 opacity-20" aria-hidden="true">
               <div className="absolute top-2 left-10 w-2 h-2 bg-white rounded-full animate-ping"></div>
               <div className="absolute top-4 right-20 w-1 h-1 bg-white rounded-full animate-ping delay-100"></div>
               <div className="absolute bottom-3 left-1/4 w-1.5 h-1.5 bg-white rounded-full animate-ping delay-200"></div>
@@ -151,18 +146,18 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
             
             <div className="relative z-10">
               <div className="flex items-center justify-center gap-3 mb-2">
-                <Sparkles className="h-8 w-8 animate-bounce" />
+                <Sparkles className="h-8 w-8 animate-bounce" aria-hidden="true" />
                 <h3 className="text-2xl md:text-3xl font-black tracking-wide">
                   {promoData.label}
                 </h3>
-                <Sparkles className="h-8 w-8 animate-bounce" />
+                <Sparkles className="h-8 w-8 animate-bounce" aria-hidden="true" />
               </div>
               <p className="text-sm md:text-base opacity-90 mb-3">
                 Compre agora e receba <span className="font-bold text-lg">{promoData.multiplier}x</span> mais lances!
               </p>
               {promoData.timeRemaining && (
                 <div className="inline-flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full text-sm font-medium">
-                  <Clock className="h-4 w-4" />
+                  <Clock className="h-4 w-4" aria-hidden="true" />
                   <span>Termina em: {promoData.timeRemaining.formatted}</span>
                 </div>
               )}
@@ -171,7 +166,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
         )}
 
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
+          <h2 id="packages-title" className="text-3xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
             Escolha Seu Pacote de Lances
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -180,7 +175,11 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+          role="list"
+          aria-label="Lista de pacotes de lances disponíveis"
+        >
           {packages.map((pkg) => {
             const promotedBids = getPromotedBids(pkg.price, pkg.bids_count);
             const hasPromo = promoData?.isValid && promotedBids > pkg.bids_count;
@@ -191,10 +190,11 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                 className={`relative overflow-hidden transition-all duration-300 hover:shadow-elegant hover:-translate-y-1 ${
                   pkg.is_popular ? 'ring-2 ring-primary shadow-glow' : ''
                 } ${hasPromo ? 'ring-2 ring-orange-500' : ''}`}
+                role="listitem"
               >
                 {/* Promo multiplier badge */}
                 {hasPromo && (
-                  <div className="absolute -top-1 -right-1 z-20">
+                  <div className="absolute -top-1 -right-1 z-20" aria-hidden="true">
                     <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-bl-lg rounded-tr-md shadow-lg animate-bounce">
                       {promoData?.multiplier}X
                     </div>
@@ -244,16 +244,16 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                     )}
                   </div>
 
-                  <ul className="space-y-2 mb-6">
+                  <ul className="space-y-2 mb-6" aria-label={`Benefícios do pacote ${pkg.name}`}>
                     {generateCompleteFeatures(pkg.price, pkg.bids_count, pkg.features).map((feature, index) => (
                       <li key={index} className="flex items-center text-sm">
-                        <div className="w-2 h-2 bg-accent rounded-full mr-3"></div>
+                        <div className="w-2 h-2 bg-accent rounded-full mr-3" aria-hidden="true"></div>
                         {feature}
                       </li>
                     ))}
                     {hasPromo && (
                       <li className="flex items-center text-sm text-orange-600 font-medium">
-                        <Sparkles className="w-4 h-4 mr-2" />
+                        <Sparkles className="w-4 h-4 mr-2" aria-hidden="true" />
                         {promoData?.multiplier}x mais lances na promoção!
                       </li>
                     )}
@@ -264,6 +264,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                     variant={pkg.is_popular ? "default" : "outline"}
                     size="lg"
                     className={`w-full ${hasPromo ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0' : ''}`}
+                    aria-label={`Comprar pacote ${pkg.name} com ${promotedBids} lances por ${formatPrice(pkg.price)}`}
                   >
                     {hasPromo ? '🔥 Comprar com Bônus!' : 'Comprar Agora'}
                   </Button>
