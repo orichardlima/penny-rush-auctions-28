@@ -16,7 +16,7 @@ import { AffiliateLevels } from '@/components/Affiliate/AffiliateLevels';
 import { PerformanceChart } from '@/components/Affiliate/PerformanceChart';
 import { ConversionPieChart } from '@/components/Affiliate/ConversionPieChart';
 import { QRCodeModal } from '@/components/Affiliate/QRCodeModal';
-
+import { SEOHead } from '@/components/SEOHead';
 import { CPAGoalProgress } from '@/components/Affiliate/CPAGoalProgress';
 import { ConversionFunnel } from '@/components/Affiliate/ConversionFunnel';
 import { AffiliateReferralsList } from '@/components/Affiliate/AffiliateReferralsList';
@@ -137,9 +137,17 @@ export default function AffiliateDashboard() {
     }
   };
 
+  const seoHead = (
+    <SEOHead 
+      title="Painel do Afiliado" 
+      description="Gerencie suas indicações, acompanhe suas comissões e maximize seus ganhos como afiliado do Show de Lances."
+    />
+  );
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
+        {seoHead}
         <Header />
         <div className="container mx-auto px-4 py-12 flex justify-center">
           <div className="animate-pulse text-center">
@@ -155,6 +163,7 @@ export default function AffiliateDashboard() {
   if (!affiliateData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
+        {seoHead}
         <Header />
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-4xl mx-auto space-y-8">
@@ -309,6 +318,7 @@ export default function AffiliateDashboard() {
   if (affiliateData.status !== 'active') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
+        {seoHead}
         <Header />
         <div className="container mx-auto px-4 py-12">
           <Card className="max-w-2xl mx-auto">
@@ -335,6 +345,7 @@ export default function AffiliateDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
+      {seoHead}
       <Header />
       
       <div className="container mx-auto px-4 py-8">

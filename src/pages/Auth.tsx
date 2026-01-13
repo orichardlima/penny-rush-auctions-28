@@ -13,6 +13,7 @@ import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 import { getReferralCode, clearReferralTracking } from '@/hooks/useReferralTracking';
+import { SEOHead } from '@/components/SEOHead';
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -347,7 +348,12 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 p-4">
+    <>
+      <SEOHead 
+        title="Entrar ou Cadastrar" 
+        description="Acesse sua conta ou crie uma nova no Show de Lances. Participe de leilões de centavos e ganhe produtos incríveis com descontos de até 99%."
+      />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -748,6 +754,7 @@ const Auth = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 };
 
