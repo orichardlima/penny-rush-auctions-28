@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
-import { differenceInHours } from 'date-fns';
-import { Clock, Users, TrendingUp, Gavel, Trophy } from 'lucide-react';
+import { Clock, Gavel, TrendingUp, Trophy } from 'lucide-react';
 import { useBackendTimer } from '@/hooks/useIndependentTimer';
-import { getDisplayParticipants } from '@/lib/utils';
+
 interface AuctionCardProps {
   id: string;
   title: string;
@@ -33,6 +29,7 @@ interface AuctionCardProps {
   winnerId?: string;
   winnerName?: string;
 }
+
 export const AuctionCard = ({
   id,
   title,
@@ -79,7 +76,7 @@ export const AuctionCard = ({
   const displayStatus = isInitialized ? backendStatus : auctionStatus;
   const displayRecentBidders = isInitialized && hookRecentBidders.length > 0 ? hookRecentBidders : recentBidders;
 
-  // Função para formatar preços em reais (agora tudo está em reais)
+  // Função para formatar preços em reais
   const formatPrice = (priceInReais: number) => {
     const safePriceInReais = priceInReais || 0;
     return new Intl.NumberFormat('pt-BR', {
@@ -89,25 +86,21 @@ export const AuctionCard = ({
       maximumFractionDigits: 2
     }).format(safePriceInReais);
   };
-  console.log(`⏰ [${id}] Backend Timer: ${displayTimeLeft}s | Verificando: ${isVerifying} | Status: ${displayStatus}`);
-
-  // Lógica de proteção removida - agora é gerenciada inteiramente pelo backend via cron job
 
   // Get auth context for user bids
-  const {
-    profile
-  } = useAuth();
+  const { profile } = useAuth();
   const actualUserBids = profile?.bids_balance ?? userBids;
+
   const handleBid = async () => {
     if (actualUserBids <= 0 || isBidding) return;
     setIsBidding(true);
     try {
       await onBid(id);
-      // Não forçar timer aqui - deixar o realtime atualizar
     } finally {
       setIsBidding(false);
     }
   };
+
   const getTimerClasses = () => {
     if (displayTimeLeft > 10) {
       return {
@@ -129,6 +122,7 @@ export const AuctionCard = ({
       animation: "animate-countdown"
     };
   };
+
   const formatDateTime = (dateString: string) => {
     const brazilTimezone = 'America/Sao_Paulo';
     const utcDate = new Date(dateString);
@@ -137,22 +131,16 @@ export const AuctionCard = ({
       timeZone: brazilTimezone
     });
   };
+
   const brazilTimezone = 'America/Sao_Paulo';
   const nowInBrazil = toZonedTime(new Date(), brazilTimezone);
   const startsAtInBrazil = starts_at ? toZonedTime(new Date(starts_at), brazilTimezone) : null;
 
-  // Corrigir comparação de fuso horário
-  const isAuctionStarted = !startsAtInBrazil || startsAtInBrazil <= nowInBrazil;
-  console.log(`🕒 [AUCTION-CARD] ${title}:`);
-  console.log(`   starts_at UTC: ${starts_at}`);
-  console.log(`   starts_at BR: ${startsAtInBrazil?.toISOString()}`);
-  console.log(`   now BR: ${nowInBrazil.toISOString()}`);
-  console.log(`   isAuctionStarted: ${isAuctionStarted}`);
   const calculateDiscount = () => {
-    // Agora ambos estão em reais
     const discount = (originalPrice - displayCurrentPrice) / originalPrice * 100;
     return Math.round(discount);
   };
+
   const getActiveTime = () => {
     if (!starts_at) return null;
     
@@ -181,74 +169,112 @@ export const AuctionCard = ({
       return `${minutes}min`;
     }
   };
+
   return (
-    <Card className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full">
+    <Card 
+      className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full"
+      role="article"
+      aria-labelledby={`auction-title-${id}`}
+    >
       <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/10 to-muted/30">
-        <img src={image} alt={title} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" onError={e => {
-        console.warn('❌ Erro ao carregar imagem:', image);
-        const target = e.target as HTMLImageElement;
-        target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3e%3ccircle cx='12' cy='13' r='3'/%3e%3c/svg%3e";
-        target.style.opacity = '0.3';
-        target.style.backgroundColor = 'hsl(var(--muted))';
-      }} onLoad={() => {
-        console.log('✅ Imagem carregada:', image);
-      }} />
+        <img 
+          src={image} 
+          alt={`Imagem do produto: ${title}`}
+          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" 
+          onError={e => {
+            const target = e.target as HTMLImageElement;
+            target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3e%3ccircle cx='12' cy='13' r='3'/%3e%3c/svg%3e";
+            target.style.opacity = '0.3';
+            target.style.backgroundColor = 'hsl(var(--muted))';
+          }}
+        />
         <div className="absolute top-3 right-3 flex flex-col gap-2">
-          <Badge variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"} className="shadow-md">
+          <Badge 
+            variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"}
+            aria-label={`Status do leilão: ${displayStatus === 'waiting' ? 'Aguardando início' : displayStatus === 'active' ? 'Ativo' : 'Finalizado'}`}
+          >
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
           </Badge>
-          {/* Debug badge */}
-          
         </div>
-        {displayStatus === 'active' && <div className="absolute top-3 left-3">
+        {displayStatus === 'active' && (
+          <div className="absolute top-3 left-3">
             <div className="flex flex-col gap-2">
-              {!isVerifying ? <div className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}>
+              {!isVerifying ? (
+                <div 
+                  className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}
+                  role="timer"
+                  aria-live="polite"
+                  aria-label={`Tempo restante: ${displayTimeLeft} segundos`}
+                >
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`} aria-hidden="true"></div>
                     <div className="flex items-center gap-1">
-                      <Clock className="w-5 h-5" />
+                      <Clock className="w-5 h-5" aria-hidden="true" />
                       <span className={`font-mono font-bold text-xl ${getTimerClasses().animation}`}>
                         {displayTimeLeft}s
                       </span>
                     </div>
                   </div>
-                </div> : <div className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg">
+                </div>
+              ) : (
+                <div 
+                  className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg"
+                  aria-live="polite"
+                >
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" aria-hidden="true"></div>
                     <div className="flex items-center gap-1">
-                      <Clock className="w-5 h-5" />
+                      <Clock className="w-5 h-5" aria-hidden="true" />
                       <span className="font-medium text-sm">
                         Verificando lances válidos
                       </span>
                     </div>
                   </div>
-                </div>}
+                </div>
+              )}
             </div>
-          </div>}
+          </div>
+        )}
       </div>
       
       <div className="p-3 sm:p-6">
-        <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">{title}</h3>
+        <h3 
+          id={`auction-title-${id}`}
+          className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground"
+        >
+          {title}
+        </h3>
         
-        {description && <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
+        {description && (
+          <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
             {description}
-          </p>}
+          </p>
+        )}
         
-        {displayStatus === 'waiting' && starts_at && <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800 text-sm font-medium">
+        {displayStatus === 'waiting' && starts_at && (
+          <div 
+            className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+            role="alert"
+          >
+            <p className="text-yellow-800 dark:text-yellow-200 text-sm font-medium">
               🕒 Leilão inicia em: {formatDateTime(starts_at)}
             </p>
-          </div>}
+          </div>
+        )}
         
         <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm sm:text-base">Preço atual:</span>
-            <span className="text-xl sm:text-2xl font-bold text-primary">{formatPrice(displayCurrentPrice)}</span>
+            <span className="text-xl sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
+              {formatPrice(displayCurrentPrice)}
+            </span>
           </div>
 
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-sm sm:text-lg font-semibold line-through text-muted-foreground">{formatPrice(originalPrice)}</span>
+            <span className="text-sm sm:text-lg font-semibold line-through text-muted-foreground">
+              {formatPrice(originalPrice)}
+            </span>
           </div>
 
           <div className="flex justify-between items-center">
@@ -258,27 +284,26 @@ export const AuctionCard = ({
           
           <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
             <div className="flex items-center text-muted-foreground">
-              <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              {displayTotalBids} lances
+              <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
+              <span aria-label={`Total de ${displayTotalBids} lances`}>{displayTotalBids} lances</span>
             </div>
-            
           </div>
 
           {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
             displayStatus === 'active' ? (
               <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                 Ativo há {getActiveTime()}
               </div>
             ) : (
               <div className="space-y-1">
                 <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                   Duração total: {getActiveTime()}
                 </div>
                 {finished_at && (
                   <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                     Encerrado às {formatDateTime(finished_at)}
                   </div>
                 )}
@@ -286,21 +311,33 @@ export const AuctionCard = ({
             )
           )}
 
-
-          {displayRecentBidders.length > 0 && <div className="pt-2 border-t border-border">
+          {displayRecentBidders.length > 0 && (
+            <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Últimos lances:</p>
-              <div className="flex flex-wrap gap-1">
-                {displayRecentBidders.slice(0, 3).map((bidder, index) => <span key={index} className="text-xs bg-muted px-2 py-1 rounded-full">
+              <div className="flex flex-wrap gap-1" role="list" aria-label="Últimos participantes">
+                {displayRecentBidders.slice(0, 3).map((bidder, index) => (
+                  <span 
+                    key={index} 
+                    className="text-xs bg-muted px-2 py-1 rounded-full"
+                    role="listitem"
+                  >
                     {bidder}
-                  </span>)}
+                  </span>
+                ))}
               </div>
-            </div>}
+            </div>
+          )}
         </div>
 
         {/* Winner Section - Only show for finished auctions */}
-        {displayStatus === 'finished' && displayWinnerName && <div className="mb-4 bg-gradient-to-r from-yellow-400/20 to-amber-400/20 border-2 border-yellow-400/30 rounded-lg p-4 text-center">
+        {displayStatus === 'finished' && displayWinnerName && (
+          <div 
+            className="mb-4 bg-gradient-to-r from-yellow-400/20 to-amber-400/20 border-2 border-yellow-400/30 rounded-lg p-4 text-center"
+            role="alert"
+            aria-label={`Ganhador: ${displayWinnerName}`}
+          >
             <div className="flex items-center justify-center space-x-2 mb-2">
-              <Trophy className="h-6 w-6 text-yellow-600" />
+              <Trophy className="h-6 w-6 text-yellow-600" aria-hidden="true" />
               <span className="font-bold text-lg text-yellow-800 dark:text-yellow-200">
                 Ganhador
               </span>
@@ -311,28 +348,54 @@ export const AuctionCard = ({
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
               Parabéns! Produto arrematado por {formatPrice(displayCurrentPrice)}
             </p>
-          </div>}
+          </div>
+        )}
 
-        {displayStatus === 'active' && <Button onClick={handleBid} disabled={actualUserBids <= 0 || isBidding} variant={isBidding ? "success" : "bid"} size="lg" className="w-full">
-            <TrendingUp className="w-4 h-4 mr-2" />
+        {displayStatus === 'active' && (
+          <Button 
+            onClick={handleBid} 
+            disabled={actualUserBids <= 0 || isBidding} 
+            variant={isBidding ? "success" : "bid"} 
+            size="lg" 
+            className="w-full"
+            aria-label={isBidding ? "Processando lance..." : `Dar lance de R$ 1,00 no leilão ${title}`}
+            aria-busy={isBidding}
+          >
+            <TrendingUp className="w-4 h-4 mr-2" aria-hidden="true" />
             {isBidding ? "PROCESSANDO..." : "DAR LANCE (R$ 1,00)"}
-          </Button>}
+          </Button>
+        )}
 
-        {displayStatus === 'waiting' && <Button disabled variant="outline" size="lg" className="w-full">
-            <Clock className="w-4 h-4 mr-2" />
+        {displayStatus === 'waiting' && (
+          <Button 
+            disabled 
+            variant="outline" 
+            size="lg" 
+            className="w-full"
+            aria-label="Leilão aguardando início"
+          >
+            <Clock className="w-4 h-4 mr-2" aria-hidden="true" />
             AGUARDANDO INÍCIO
-          </Button>}
+          </Button>
+        )}
 
-        {displayStatus === 'finished' && <div className="text-center">
-            <div className="bg-muted/50 text-muted-foreground py-3 px-4 rounded-lg border">
-              <Trophy className="w-5 h-5 mx-auto mb-1" />
+        {displayStatus === 'finished' && (
+          <div className="text-center">
+            <div 
+              className="bg-muted/50 text-muted-foreground py-3 px-4 rounded-lg border"
+              aria-label="Leilão finalizado"
+            >
+              <Trophy className="w-5 h-5 mx-auto mb-1" aria-hidden="true" />
               <span className="text-sm font-medium">LEILÃO FINALIZADO</span>
             </div>
-          </div>}
+          </div>
+        )}
 
-        {actualUserBids <= 0 && displayStatus === 'active' && <p className="text-center text-destructive text-sm mt-2">
+        {actualUserBids <= 0 && displayStatus === 'active' && (
+          <p className="text-center text-destructive text-sm mt-2" role="alert">
             Você precisa comprar lances para participar!
-          </p>}
+          </p>
+        )}
       </div>
     </Card>
   );
