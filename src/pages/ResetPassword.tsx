@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Lock } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -65,7 +66,12 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 p-4">
+    <>
+      <SEOHead 
+        title="Redefinir Senha" 
+        description="Redefina sua senha de acesso ao Show de Lances de forma segura e rápida."
+      />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -147,6 +153,7 @@ const ResetPassword = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 };
 
