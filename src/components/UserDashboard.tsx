@@ -30,6 +30,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { BidPackages } from '@/components/BidPackages';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { AuctionHistory } from '@/components/AuctionHistory';
@@ -176,7 +177,7 @@ const UserDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-muted/50">
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       
       <div className="container mx-auto px-4 py-8 space-y-8">
@@ -613,6 +614,8 @@ const UserDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <Footer />
     </div>
   );
 };
