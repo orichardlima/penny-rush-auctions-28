@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
+import { SEOHead } from '@/components/SEOHead';
 import AdminPartnerManagement from '@/components/Admin/AdminPartnerManagement';
 import { ChevronRight, LayoutDashboard, Users2 } from 'lucide-react';
 import {
@@ -46,10 +48,14 @@ const AdminParceiros = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex flex-col">
+      <SEOHead 
+        title="Gestão de Parceiros" 
+        description="Administração de parceiros e contratos de investimento da plataforma."
+      />
       <Header />
       
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 flex-1">
         {/* Breadcrumb */}
         <Breadcrumb className="mb-6">
           <BreadcrumbList>
@@ -76,6 +82,8 @@ const AdminParceiros = () => {
         {/* Partner Management Component */}
         <AdminPartnerManagement />
       </div>
+      
+      <Footer />
     </div>
   );
 };

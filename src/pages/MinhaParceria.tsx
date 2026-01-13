@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
+import { SEOHead } from '@/components/SEOHead';
 import PartnerDashboard from '@/components/Partner/PartnerDashboard';
 
 const MinhaParceria = () => {
@@ -50,12 +52,18 @@ const MinhaParceria = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex flex-col">
+      <SEOHead 
+        title="Minha Parceria" 
+        description="Acompanhe seu investimento, rendimentos semanais e gerencie sua parceria no Show de Lances."
+      />
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 flex-1">
         <PartnerDashboard />
       </div>
+      
+      <Footer />
     </div>
   );
 };

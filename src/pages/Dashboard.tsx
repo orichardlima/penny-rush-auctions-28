@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { SEOHead } from '@/components/SEOHead';
 import UserDashboard from '@/components/UserDashboard';
 import AdminDashboard from '@/components/AdminDashboard';
 
@@ -57,7 +58,15 @@ const Dashboard = () => {
 
   console.log('Dashboard: Renderizando dashboard para:', profile.is_admin ? 'Admin' : 'User');
   
-  return profile.is_admin ? <AdminDashboard /> : <UserDashboard />;
+  return (
+    <>
+      <SEOHead 
+        title={profile.is_admin ? "Painel Administrativo" : "Meu Painel"} 
+        description={profile.is_admin ? "Gerencie leilões, usuários e configurações da plataforma." : "Gerencie sua conta, veja seu histórico de lances e acompanhe seus leilões."}
+      />
+      {profile.is_admin ? <AdminDashboard /> : <UserDashboard />}
+    </>
+  );
 };
 
 export default Dashboard;

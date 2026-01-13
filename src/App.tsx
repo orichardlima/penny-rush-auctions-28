@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,14 +13,30 @@ import BidPackagesPage from "./pages/BidPackages";
 import Winners from "./pages/Winners";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import ResetPassword from "./pages/ResetPassword";
-import AffiliateDashboard from "./pages/AffiliateDashboard";
-import PartnerLanding from "./pages/PartnerLanding";
-import MinhaParceria from "./pages/MinhaParceria";
-import AdminParceiros from "./pages/AdminParceiros";
 import NotFound from "./pages/NotFound";
 
+// Lazy loaded pages for better performance
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AffiliateDashboard = lazy(() => import("./pages/AffiliateDashboard"));
+const PartnerLanding = lazy(() => import("./pages/PartnerLanding"));
+const MinhaParceria = lazy(() => import("./pages/MinhaParceria"));
+const AdminParceiros = lazy(() => import("./pages/AdminParceiros"));
+const TermosDeUso = lazy(() => import("./pages/TermosDeUso"));
+const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const Contato = lazy(() => import("./pages/Contato"));
+
 const queryClient = new QueryClient();
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <p className="text-muted-foreground">Carregando...</p>
+    </div>
+  </div>
+);
 
 const AppContent = () => {
   useReferralTracking();
@@ -33,12 +50,16 @@ const AppContent = () => {
       <Route path="/vencedores" element={<Winners />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/afiliado" element={<AffiliateDashboard />} />
-      <Route path="/parceiro" element={<PartnerLanding />} />
+      <Route path="/afiliado" element={<Suspense fallback={<PageLoader />}><AffiliateDashboard /></Suspense>} />
+      <Route path="/parceiro" element={<Suspense fallback={<PageLoader />}><PartnerLanding /></Suspense>} />
       <Route path="/investir" element={<Navigate to="/parceiro" replace />} />
-      <Route path="/minha-parceria" element={<MinhaParceria />} />
-      <Route path="/admin/parceiros" element={<AdminParceiros />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/minha-parceria" element={<Suspense fallback={<PageLoader />}><MinhaParceria /></Suspense>} />
+      <Route path="/admin/parceiros" element={<Suspense fallback={<PageLoader />}><AdminParceiros /></Suspense>} />
+      <Route path="/reset-password" element={<Suspense fallback={<PageLoader />}><ResetPassword /></Suspense>} />
+      <Route path="/termos" element={<Suspense fallback={<PageLoader />}><TermosDeUso /></Suspense>} />
+      <Route path="/privacidade" element={<Suspense fallback={<PageLoader />}><PoliticaPrivacidade /></Suspense>} />
+      <Route path="/faq" element={<Suspense fallback={<PageLoader />}><FAQ /></Suspense>} />
+      <Route path="/contato" element={<Suspense fallback={<PageLoader />}><Contato /></Suspense>} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
