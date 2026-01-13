@@ -191,11 +191,29 @@ const Index = () => {
   };
 
   const sortedAuctions = [...auctions].sort((a, b) => {
+    // Primeiro: agrupar por status (active > waiting > finished)
     const statusOrder = { active: 1, waiting: 2, finished: 3 };
     if (statusOrder[a.auctionStatus] !== statusOrder[b.auctionStatus]) {
       return statusOrder[a.auctionStatus] - statusOrder[b.auctionStatus];
     }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    
+    // Segundo: ordenar por starts_at decrescente (mais recente primeiro)
+    // Leilões sem starts_at vão para o final
+    const dateA = a.starts_at ? new Date(a.starts_at).getTime() : 0;
+    const dateB = b.starts_at ? new Date(b.starts_at).getTime() : 0;
+    
+    // Se ambos não têm starts_at, desempatar por id
+    if (dateA === 0 && dateB === 0) {
+      return a.id.localeCompare(b.id);
+    }
+    // Se apenas A não tem starts_at, vai pro final
+    if (dateA === 0) return 1;
+    // Se apenas B não tem starts_at, vai pro final
+    if (dateB === 0) return -1;
+    
+    // Ordenar decrescente (mais recente primeiro) com desempate por id
+    const dateCompare = dateB - dateA;
+    return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
   });
 
   return (

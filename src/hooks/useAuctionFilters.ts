@@ -11,12 +11,12 @@ interface Auction {
   auctionStatus: string;
   timeLeft: number;
   created_at: string;
+  starts_at?: string;
   image: string;
   recentBidders: string[];
   currentRevenue: number;
   isActive: boolean;
   ends_at?: string;
-  starts_at?: string;
   winnerId?: string;
   winnerName?: string;
 }
@@ -55,13 +55,24 @@ export const useAuctionFilters = (auctions: Auction[]) => {
     switch (filters.sortBy) {
       case 'newest':
         result.sort((a, b) => {
-          const dateCompare = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          // Usar starts_at em vez de created_at - sem starts_at vai para o final
+          const dateA = a.starts_at ? new Date(a.starts_at).getTime() : 0;
+          const dateB = b.starts_at ? new Date(b.starts_at).getTime() : 0;
+          if (dateA === 0 && dateB === 0) return a.id.localeCompare(b.id);
+          if (dateA === 0) return 1;
+          if (dateB === 0) return -1;
+          const dateCompare = dateB - dateA;
           return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
         });
         break;
       case 'oldest':
         result.sort((a, b) => {
-          const dateCompare = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          const dateA = a.starts_at ? new Date(a.starts_at).getTime() : 0;
+          const dateB = b.starts_at ? new Date(b.starts_at).getTime() : 0;
+          if (dateA === 0 && dateB === 0) return a.id.localeCompare(b.id);
+          if (dateA === 0) return 1;
+          if (dateB === 0) return -1;
+          const dateCompare = dateA - dateB;
           return dateCompare !== 0 ? dateCompare : a.id.localeCompare(b.id);
         });
         break;
