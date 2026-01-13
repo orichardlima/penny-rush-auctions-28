@@ -157,7 +157,7 @@ export const useAuctionData = () => {
         query = query.in('status', ['active', 'waiting']);
       }
       
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('starts_at', { ascending: false, nullsFirst: false });
 
       if (error) {
         toast(getErrorToast(error));

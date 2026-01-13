@@ -37,7 +37,7 @@ export const useAuctionRealtime = () => {
       const { data, error } = await supabase
         .from('auctions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('starts_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
 
