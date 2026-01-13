@@ -8,6 +8,7 @@ import { RecentWinners } from "@/components/RecentWinners";
 import { Footer } from "@/components/Footer";
 import { EmptyState } from "@/components/EmptyState";
 import { AuctionGridSkeleton } from "@/components/SkeletonLoading";
+import { SEOHead } from "@/components/SEOHead";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
@@ -199,6 +200,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead 
+        title="Ganhe Produtos Incríveis por Centavos"
+        description="Participe dos leilões mais emocionantes do Brasil. Cada lance custa R$ 1 e pode te dar produtos de até R$ 10.000!"
+      />
       <Header onBuyBids={handleBuyBids} />
       
       <main>

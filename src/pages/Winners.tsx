@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { RecentWinners } from "@/components/RecentWinners";
 import { Footer } from "@/components/Footer";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -14,6 +15,10 @@ const Winners = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEOHead 
+        title="Vencedores"
+        description="Veja quem já ganhou produtos incríveis no Show de Lances. Você pode ser o próximo!"
+      />
       <Header userBids={25} onBuyBids={handleBuyBids} />
       
       <main className="py-8 flex-1">

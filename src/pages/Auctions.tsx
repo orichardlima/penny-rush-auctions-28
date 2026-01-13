@@ -5,6 +5,7 @@ import { AuctionFilters } from "@/components/AuctionFilters";
 import { Footer } from "@/components/Footer";
 import { EmptyState } from "@/components/EmptyState";
 import { AuctionGridSkeleton } from "@/components/SkeletonLoading";
+import { SEOHead } from "@/components/SEOHead";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useAuctionFilters } from "@/hooks/useAuctionFilters";
@@ -184,6 +185,10 @@ const Auctions = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEOHead 
+        title="Leilões Ativos"
+        description="Veja todos os leilões ativos do Show de Lances. Ganhe produtos incríveis com lances a partir de R$ 1."
+      />
       <Header onBuyBids={handleBuyBids} />
       
       <AuctionFilters 
