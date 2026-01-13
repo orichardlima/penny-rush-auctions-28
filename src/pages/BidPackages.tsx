@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { BidPackages as BidPackagesComponent } from "@/components/BidPackages";
 import { PixPaymentModal } from "@/components/PixPaymentModal";
 import { Footer } from "@/components/Footer";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -42,6 +43,10 @@ const BidPackagesPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEOHead 
+        title="Pacotes de Lances" 
+        description="Compre pacotes de lances com os melhores preços. Quanto mais lances, maior seu desconto. Pagamento seguro via PIX."
+      />
       <Header onBuyBids={handleBuyBids} />
       
       <main className="py-8 flex-1">

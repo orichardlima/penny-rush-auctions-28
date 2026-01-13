@@ -57,13 +57,24 @@ export const Footer = () => {
                 </Link>
               </li>
               <li>
-                <span className="cursor-default">FAQ</span>
+                <Link to="/faq" className="hover:opacity-100 transition-opacity">
+                  FAQ
+                </Link>
               </li>
               <li>
-                <span className="cursor-default">Contato</span>
+                <Link to="/contato" className="hover:opacity-100 transition-opacity">
+                  Contato
+                </Link>
               </li>
               <li>
-                <span className="cursor-default">Termos de Uso</span>
+                <Link to="/termos" className="hover:opacity-100 transition-opacity">
+                  Termos de Uso
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacidade" className="hover:opacity-100 transition-opacity">
+                  Política de Privacidade
+                </Link>
               </li>
             </ul>
           </div>

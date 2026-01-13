@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { HowItWorks as HowItWorksComponent } from "@/components/HowItWorks";
 import { Footer } from "@/components/Footer";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -14,6 +15,10 @@ const HowItWorksPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEOHead 
+        title="Como Funciona" 
+        description="Aprenda como participar dos leilões de centavos do Show de Lances. Entenda as regras, dicas e estratégias para ganhar."
+      />
       <Header userBids={25} onBuyBids={handleBuyBids} />
       
       <main className="py-8 flex-1">
