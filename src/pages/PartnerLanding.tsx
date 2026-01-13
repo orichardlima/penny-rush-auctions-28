@@ -14,6 +14,7 @@ import { PlanComparison } from "@/components/Investir/PlanComparison";
 import { InvestmentFAQ } from "@/components/Investir/InvestmentFAQ";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
+import { Footer } from "@/components/Footer";
 
 const PartnerLanding = () => {
   const navigate = useNavigate();
@@ -137,13 +138,7 @@ const PartnerLanding = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-6 border-t border-border">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Show de Lances. Todos os direitos reservados.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
