@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
+import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Shield, ArrowRight, CheckCircle } from "lucide-react";
 import { InvestmentHero } from "@/components/Investir/InvestmentHero";
@@ -35,6 +36,10 @@ const PartnerLanding = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead 
+        title="Seja Parceiro"
+        description="Participe do crescimento do Show de Lances. Programa de parceria com rendimentos semanais, teto garantido e transparência total."
+      />
       <Header onBuyBids={handleBuyBids} />
 
       {/* Banner for existing partners */}
