@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
+import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import Auctions from "./pages/Auctions";
 import HowItWorksPage from "./pages/HowItWorks";
@@ -74,6 +75,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AppContent />
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
