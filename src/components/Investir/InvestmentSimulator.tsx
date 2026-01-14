@@ -5,10 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Calendar, Wallet, Target, ArrowRight, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export const InvestmentSimulator = () => {
   const navigate = useNavigate();
-  const { plans, loading } = usePartnerContract();
+  const { user } = useAuth();
+  const { plans, loading, contract } = usePartnerContract();
+  const { toast } = useToast();
   const [selectedPlanIndex, setSelectedPlanIndex] = useState(1); // Default to PRO
 
   const selectedPlan = plans[selectedPlanIndex];
@@ -23,9 +27,26 @@ export const InvestmentSimulator = () => {
     : 0;
 
   const handleSelectPlan = () => {
-    if (selectedPlan) {
-      navigate(`/parceiro?plan=${selectedPlan.id}`);
+    if (!selectedPlan) return;
+    
+    if (!user) {
+      // Usuário não logado - redirecionar para auth com redirect
+      navigate(`/auth?redirect=/minha-parceria&plan=${selectedPlan.id}`);
+      return;
     }
+    
+    if (contract) {
+      // Usuário já tem contrato ativo
+      toast({
+        title: "Você já é parceiro!",
+        description: `Seu contrato ${contract.plan_name} está ativo. Acesse seu dashboard para mais detalhes.`,
+      });
+      navigate('/minha-parceria');
+      return;
+    }
+    
+    // Usuário logado sem contrato - ir para minha-parceria com o plano
+    navigate(`/minha-parceria?plan=${selectedPlan.id}`);
   };
 
   if (loading) {

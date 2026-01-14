@@ -5,17 +5,38 @@ import { Check, X, Crown, Target, Medal, Award, Trophy, Sparkles, Info } from "l
 import { useNavigate } from "react-router-dom";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export const PlanComparison = () => {
   const navigate = useNavigate();
-  const { plans, loading } = usePartnerContract();
+  const { user } = useAuth();
+  const { plans, loading, contract } = usePartnerContract();
+  const { toast } = useToast();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const handleSelectPlan = (planId: string) => {
-    navigate(`/parceiro?plan=${planId}`);
+    if (!user) {
+      // Usuário não logado - redirecionar para auth com redirect
+      navigate(`/auth?redirect=/minha-parceria&plan=${planId}`);
+      return;
+    }
+    
+    if (contract) {
+      // Usuário já tem contrato ativo
+      toast({
+        title: "Você já é parceiro!",
+        description: `Seu contrato ${contract.plan_name} está ativo. Acesse seu dashboard para mais detalhes.`,
+      });
+      navigate('/minha-parceria');
+      return;
+    }
+    
+    // Usuário logado sem contrato - ir para minha-parceria com o plano
+    navigate(`/minha-parceria?plan=${planId}`);
   };
 
   const getPlanConfig = (planName: string) => {

@@ -42,7 +42,11 @@ import BinaryPositionSelector from './BinaryPositionSelector';
 import BinaryBonusHistory from './BinaryBonusHistory';
 import { useBinaryPositioning } from '@/hooks/useBinaryPositioning';
 
-const PartnerDashboard = () => {
+interface PartnerDashboardProps {
+  preselectedPlanId?: string | null;
+}
+
+const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }) => {
   const { 
     contract, 
     payouts, 
@@ -67,6 +71,20 @@ const PartnerDashboard = () => {
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [creatingContract, setCreatingContract] = useState(false);
+
+  // Auto-criar contrato se tem plano pré-selecionado e não tem contrato
+  React.useEffect(() => {
+    if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract) {
+      const selectedPlan = plans.find(p => p.id === preselectedPlanId);
+      if (selectedPlan) {
+        setCreatingContract(true);
+        createContract(preselectedPlanId).finally(() => {
+          setCreatingContract(false);
+        });
+      }
+    }
+  }, [loading, contract, preselectedPlanId, plans, createContract, creatingContract]);
   
   const getDayName = (day: number) => {
     const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,13 +43,24 @@ const Auth = () => {
   const { signIn, signUp, user, resetPassword } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { validationState, isValidating, validateEmail, validateCPF: validateCPFAvailability, clearValidation } = useFieldValidation();
+
+  // Obter redirect e plan da URL
+  const redirectUrl = useMemo(() => {
+    const redirect = searchParams.get('redirect') || '/dashboard';
+    const plan = searchParams.get('plan');
+    if (plan) {
+      return `${redirect}${redirect.includes('?') ? '&' : '?'}plan=${plan}`;
+    }
+    return redirect;
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate(redirectUrl);
     }
-  }, [user, navigate]);
+  }, [user, navigate, redirectUrl]);
 
   // Debounced validation
   const debounceTimeout = React.useRef<NodeJS.Timeout>();
@@ -200,7 +211,7 @@ const Auth = () => {
           title: 'Login realizado com sucesso!',
           description: 'Bem-vindo de volta!',
         });
-        navigate('/');
+        navigate(redirectUrl);
       }
     } catch (error) {
       toast({
