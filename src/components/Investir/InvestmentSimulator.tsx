@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 
 export const InvestmentSimulator = () => {
   const navigate = useNavigate();
@@ -14,6 +15,9 @@ export const InvestmentSimulator = () => {
   const { plans, loading, contract } = usePartnerContract();
   const { toast } = useToast();
   const [selectedPlanIndex, setSelectedPlanIndex] = useState(1); // Default to PRO
+  
+  // Capturar código de indicação da URL
+  usePartnerReferralTracking();
 
   const selectedPlan = plans[selectedPlanIndex];
 

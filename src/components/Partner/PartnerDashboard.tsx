@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { getPartnerReferralCode, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { 
   Wallet, 
   TrendingUp, 
@@ -79,9 +80,20 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       const selectedPlan = plans.find(p => p.id === preselectedPlanId);
       if (selectedPlan) {
         setCreatingContract(true);
-        createContract(preselectedPlanId).finally(() => {
-          setCreatingContract(false);
-        });
+        // Obter código de indicação do localStorage
+        const referralCode = getPartnerReferralCode();
+        console.log('[PartnerDashboard] Criando contrato com referral:', referralCode);
+        
+        createContract(preselectedPlanId, referralCode || undefined)
+          .then((result) => {
+            if (result.success) {
+              // Limpar código de indicação após uso bem-sucedido
+              clearPartnerReferralTracking();
+            }
+          })
+          .finally(() => {
+            setCreatingContract(false);
+          });
       }
     }
   }, [loading, contract, preselectedPlanId, plans, createContract, creatingContract]);
@@ -239,7 +251,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <PartnerPlanCard
               key={plan.id}
               plan={plan}
-              onSelect={createContract}
+              onSelect={(planId) => {
+                const referralCode = getPartnerReferralCode();
+                console.log('[PartnerDashboard] Selecionando plano com referral:', referralCode);
+                createContract(planId, referralCode || undefined).then((result) => {
+                  if (result.success) {
+                    clearPartnerReferralTracking();
+                  }
+                });
+              }}
               loading={submitting}
             />
           ))}
