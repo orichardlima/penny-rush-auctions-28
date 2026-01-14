@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart } from 'lucide-react';
 import { UserBidHistoryModal } from '@/components/Admin/UserBidHistoryModal';
+import { UserPurchaseHistoryModal } from '@/components/Admin/UserPurchaseHistoryModal';
 
 interface AdminUserActionsProps {
   user: {
@@ -27,6 +28,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
   const [isBidHistoryOpen, setIsBidHistoryOpen] = useState(false);
+  const [isPurchaseHistoryOpen, setIsPurchaseHistoryOpen] = useState(false);
   const [newBalance, setNewBalance] = useState(user.bids_balance.toString());
   const [blockReason, setBlockReason] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -293,6 +295,23 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         userName={user.full_name || user.email}
         isOpen={isBidHistoryOpen}
         onClose={() => setIsBidHistoryOpen(false)}
+      />
+
+      {/* Purchase History */}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        title="Ver histórico de compras"
+        onClick={() => setIsPurchaseHistoryOpen(true)}
+      >
+        <ShoppingCart className="h-4 w-4" />
+      </Button>
+      
+      <UserPurchaseHistoryModal
+        userId={user.user_id}
+        userName={user.full_name || user.email}
+        isOpen={isPurchaseHistoryOpen}
+        onClose={() => setIsPurchaseHistoryOpen(false)}
       />
 
       {/* Edit Balance */}
