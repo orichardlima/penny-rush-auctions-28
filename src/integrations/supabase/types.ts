@@ -522,6 +522,159 @@ export type Database = {
           },
         ]
       }
+      binary_bonuses: {
+        Row: {
+          available_at: string | null
+          bonus_percentage: number
+          bonus_value: number
+          created_at: string
+          cycle_closure_id: string
+          id: string
+          left_points_before: number
+          left_points_remaining: number
+          matched_points: number
+          paid_at: string | null
+          partner_contract_id: string
+          point_value: number
+          right_points_before: number
+          right_points_remaining: number
+          status: string
+        }
+        Insert: {
+          available_at?: string | null
+          bonus_percentage: number
+          bonus_value: number
+          created_at?: string
+          cycle_closure_id: string
+          id?: string
+          left_points_before: number
+          left_points_remaining: number
+          matched_points: number
+          paid_at?: string | null
+          partner_contract_id: string
+          point_value: number
+          right_points_before: number
+          right_points_remaining: number
+          status?: string
+        }
+        Update: {
+          available_at?: string | null
+          bonus_percentage?: number
+          bonus_value?: number
+          created_at?: string
+          cycle_closure_id?: string
+          id?: string
+          left_points_before?: number
+          left_points_remaining?: number
+          matched_points?: number
+          paid_at?: string | null
+          partner_contract_id?: string
+          point_value?: number
+          right_points_before?: number
+          right_points_remaining?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binary_bonuses_cycle_closure_id_fkey"
+            columns: ["cycle_closure_id"]
+            isOneToOne: false
+            referencedRelation: "binary_cycle_closures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "binary_bonuses_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      binary_cycle_closures: {
+        Row: {
+          bonus_percentage: number
+          closed_by: string
+          created_at: string
+          cycle_number: number
+          id: string
+          notes: string | null
+          partners_count: number
+          point_value: number
+          total_bonus_distributed: number
+          total_points_matched: number
+        }
+        Insert: {
+          bonus_percentage: number
+          closed_by: string
+          created_at?: string
+          cycle_number: number
+          id?: string
+          notes?: string | null
+          partners_count?: number
+          point_value?: number
+          total_bonus_distributed?: number
+          total_points_matched?: number
+        }
+        Update: {
+          bonus_percentage?: number
+          closed_by?: string
+          created_at?: string
+          cycle_number?: number
+          id?: string
+          notes?: string | null
+          partners_count?: number
+          point_value?: number
+          total_bonus_distributed?: number
+          total_points_matched?: number
+        }
+        Relationships: []
+      }
+      binary_points_log: {
+        Row: {
+          created_at: string
+          id: string
+          partner_contract_id: string
+          points_added: number
+          position: string
+          reason: string
+          source_contract_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          partner_contract_id: string
+          points_added: number
+          position: string
+          reason: string
+          source_contract_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          partner_contract_id?: string
+          points_added?: number
+          position?: string
+          reason?: string
+          source_contract_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binary_points_log_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "binary_points_log_source_contract_id_fkey"
+            columns: ["source_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_webhook_logs: {
         Row: {
           auction_id: string
@@ -650,6 +803,103 @@ export type Database = {
           winner_id?: string
         }
         Relationships: []
+      }
+      partner_binary_positions: {
+        Row: {
+          created_at: string
+          id: string
+          left_child_id: string | null
+          left_points: number
+          parent_contract_id: string | null
+          partner_contract_id: string
+          pending_position_expires_at: string | null
+          pending_position_for: string | null
+          position: string | null
+          right_child_id: string | null
+          right_points: number
+          sponsor_contract_id: string | null
+          total_left_points: number
+          total_right_points: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          left_child_id?: string | null
+          left_points?: number
+          parent_contract_id?: string | null
+          partner_contract_id: string
+          pending_position_expires_at?: string | null
+          pending_position_for?: string | null
+          position?: string | null
+          right_child_id?: string | null
+          right_points?: number
+          sponsor_contract_id?: string | null
+          total_left_points?: number
+          total_right_points?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          left_child_id?: string | null
+          left_points?: number
+          parent_contract_id?: string | null
+          partner_contract_id?: string
+          pending_position_expires_at?: string | null
+          pending_position_for?: string | null
+          position?: string | null
+          right_child_id?: string | null
+          right_points?: number
+          sponsor_contract_id?: string | null
+          total_left_points?: number
+          total_right_points?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_binary_positions_left_child_id_fkey"
+            columns: ["left_child_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_binary_positions_parent_contract_id_fkey"
+            columns: ["parent_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_binary_positions_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: true
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_binary_positions_pending_position_for_fkey"
+            columns: ["pending_position_for"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_binary_positions_right_child_id_fkey"
+            columns: ["right_child_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_binary_positions_sponsor_contract_id_fkey"
+            columns: ["sponsor_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_contracts: {
         Row: {
@@ -1463,6 +1713,10 @@ export type Database = {
         Args: { code_to_check: string }
         Returns: boolean
       }
+      close_binary_cycle: {
+        Args: { p_admin_id: string; p_notes?: string }
+        Returns: Json
+      }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
       get_admin_audit_log: {
@@ -1513,6 +1767,10 @@ export type Database = {
       }
       get_auction_revenue: { Args: { auction_uuid: string }; Returns: number }
       get_auction_time_left: { Args: { auction_uuid: string }; Returns: number }
+      get_binary_tree: {
+        Args: { p_contract_id: string; p_depth?: number }
+        Returns: Json
+      }
       get_conversion_funnel: {
         Args: never
         Returns: {
@@ -1642,6 +1900,23 @@ export type Database = {
           p_target_type: string
         }
         Returns: undefined
+      }
+      position_partner_binary: {
+        Args: {
+          p_contract_id: string
+          p_position: string
+          p_sponsor_contract_id: string
+        }
+        Returns: Json
+      }
+      preview_binary_cycle_closure: { Args: never; Returns: Json }
+      propagate_binary_points: {
+        Args: {
+          p_points: number
+          p_reason?: string
+          p_source_contract_id: string
+        }
+        Returns: number
       }
     }
     Enums: {
