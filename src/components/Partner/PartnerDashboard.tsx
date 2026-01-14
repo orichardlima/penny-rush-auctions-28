@@ -36,7 +36,11 @@ import { PartnerBadge } from './PartnerBadge';
 import { GraduationBadge } from './GraduationBadge';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerLevels } from '@/hooks/usePartnerLevels';
-import { FileText, GraduationCap } from 'lucide-react';
+import { FileText, GraduationCap, GitBranch } from 'lucide-react';
+import BinaryNetworkTree from './BinaryNetworkTree';
+import BinaryPositionSelector from './BinaryPositionSelector';
+import BinaryBonusHistory from './BinaryBonusHistory';
+import { useBinaryPositioning } from '@/hooks/useBinaryPositioning';
 
 const PartnerDashboard = () => {
   const { 
@@ -57,6 +61,9 @@ const PartnerDashboard = () => {
   const { fetchPendingRequest } = usePartnerEarlyTermination();
   const { totalPoints, loading: referralLoading } = usePartnerReferrals();
   const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(totalPoints);
+  
+  // Binary system - get pending positions for this sponsor
+  const { pendingPositions, loading: binaryLoading, fetchPendingPositions } = useBinaryPositioning(contract?.id || null);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -447,6 +454,15 @@ const PartnerDashboard = () => {
             <Users className="h-4 w-4" />
             Indicações
           </TabsTrigger>
+          <TabsTrigger value="binary" className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4" />
+            Rede Binária
+            {pendingPositions.length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
+                {pendingPositions.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab de Repasses */}
@@ -718,6 +734,36 @@ const PartnerDashboard = () => {
         {/* Tab de Indicações */}
         <TabsContent value="referrals">
           <PartnerReferralSection planName={contract.plan_name} />
+        </TabsContent>
+
+        {/* Tab de Rede Binária */}
+        <TabsContent value="binary" className="space-y-6">
+          {/* Alerta de posicionamento pendente */}
+          {pendingPositions.length > 0 && (
+            <Alert className="border-orange-500/30 bg-orange-500/10">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-700">
+                Você tem <strong>{pendingPositions.length}</strong> indicado(s) aguardando posicionamento na sua rede binária!
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Seletor de posição (se houver pendentes) */}
+          {pendingPositions.length > 0 && (
+            <BinaryPositionSelector 
+              sponsorContractId={contract.id} 
+              onPositionComplete={() => {
+                fetchPendingPositions();
+                refreshData();
+              }} 
+            />
+          )}
+          
+          {/* Árvore binária */}
+          <BinaryNetworkTree />
+          
+          {/* Histórico de bônus */}
+          <BinaryBonusHistory />
         </TabsContent>
       </Tabs>
 

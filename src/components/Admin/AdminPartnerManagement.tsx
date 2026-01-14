@@ -37,8 +37,10 @@ import {
   BarChart3,
   Calculator,
   Trophy,
-  Receipt
+  Receipt,
+  GitBranch
 } from 'lucide-react';
+import BinaryNetworkManager from './BinaryNetworkManager';
 
 const AdminPartnerManagement = () => {
   const { 
@@ -417,6 +419,10 @@ const AdminPartnerManagement = () => {
           </TabsTrigger>
           <TabsTrigger value="reports" className="shrink-0">Relatórios</TabsTrigger>
           <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
+          <TabsTrigger value="binary" className="shrink-0">
+            <GitBranch className="h-4 w-4 mr-1" />
+            Binário
+          </TabsTrigger>
         </TabsList>
 
         {/* Níveis de Indicação Tab */}
@@ -427,6 +433,11 @@ const AdminPartnerManagement = () => {
         {/* Graduações Tab */}
         <TabsContent value="graduations">
           <PartnerGraduationManager />
+        </TabsContent>
+
+        {/* Sistema Binário Tab */}
+        <TabsContent value="binary">
+          <BinaryNetworkManager />
         </TabsContent>
 
         {/* Projeções Tab */}
