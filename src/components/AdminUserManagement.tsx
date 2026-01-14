@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History } from 'lucide-react';
+import { UserBidHistoryModal } from '@/components/Admin/UserBidHistoryModal';
 
 interface AdminUserActionsProps {
   user: {
@@ -25,6 +26,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [isBalanceDialogOpen, setIsBalanceDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
+  const [isBidHistoryOpen, setIsBidHistoryOpen] = useState(false);
   const [newBalance, setNewBalance] = useState(user.bids_balance.toString());
   const [blockReason, setBlockReason] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -276,6 +278,23 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
 
   return (
     <div className="flex gap-2">
+      {/* Bid History */}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        title="Ver histórico de lances"
+        onClick={() => setIsBidHistoryOpen(true)}
+      >
+        <History className="h-4 w-4" />
+      </Button>
+      
+      <UserBidHistoryModal
+        userId={user.user_id}
+        userName={user.full_name || user.email}
+        isOpen={isBidHistoryOpen}
+        onClose={() => setIsBidHistoryOpen(false)}
+      />
+
       {/* Edit Balance */}
       <Dialog open={isBalanceDialogOpen} onOpenChange={setIsBalanceDialogOpen}>
         <DialogTrigger asChild>
