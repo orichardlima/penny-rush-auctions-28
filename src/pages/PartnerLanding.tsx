@@ -14,6 +14,7 @@ import { PlanComparison } from "@/components/Investir/PlanComparison";
 import { InvestmentFAQ } from "@/components/Investir/InvestmentFAQ";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
+import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 import { Footer } from "@/components/Footer";
 
 const PartnerLanding = () => {
@@ -22,6 +23,9 @@ const PartnerLanding = () => {
   const { contract } = usePartnerContract();
   const simulatorRef = useRef<HTMLDivElement>(null);
   const plansRef = useRef<HTMLDivElement>(null);
+  
+  // Capturar código de indicação da URL
+  usePartnerReferralTracking();
 
   const scrollToSimulator = () => {
     simulatorRef.current?.scrollIntoView({ behavior: 'smooth' });

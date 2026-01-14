@@ -7,12 +7,16 @@ import { usePartnerContract } from "@/hooks/usePartnerContract";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 
 export const PlanComparison = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { plans, loading, contract } = usePartnerContract();
   const { toast } = useToast();
+  
+  // Capturar código de indicação da URL
+  usePartnerReferralTracking();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
