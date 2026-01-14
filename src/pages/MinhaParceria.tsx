@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { Header } from '@/components/Header';
@@ -10,21 +10,23 @@ import PartnerDashboard from '@/components/Partner/PartnerDashboard';
 const MinhaParceria = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { contract, loading: contractLoading } = usePartnerContract();
+  
+  const preselectedPlanId = searchParams.get('plan');
 
   useEffect(() => {
     // Redirecionar para login se não autenticado
     if (!authLoading && !user) {
-      navigate('/auth?redirect=/minha-parceria');
+      const redirectUrl = preselectedPlanId 
+        ? `/auth?redirect=/minha-parceria&plan=${preselectedPlanId}`
+        : '/auth?redirect=/minha-parceria';
+      navigate(redirectUrl);
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, preselectedPlanId]);
 
-  useEffect(() => {
-    // Redirecionar para landing se não tem contrato
-    if (!authLoading && !contractLoading && user && !contract) {
-      navigate('/parceiro');
-    }
-  }, [user, authLoading, contract, contractLoading, navigate]);
+  // NÃO redirecionar mais para /parceiro se não tem contrato
+  // O PartnerDashboard vai exibir os planos disponíveis
 
   // Loading state
   if (authLoading || contractLoading) {
@@ -46,11 +48,6 @@ const MinhaParceria = () => {
     return null;
   }
 
-  // No contract
-  if (!contract) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex flex-col">
       <SEOHead 
@@ -60,7 +57,7 @@ const MinhaParceria = () => {
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       
       <div className="container mx-auto px-4 py-8 flex-1">
-        <PartnerDashboard />
+        <PartnerDashboard preselectedPlanId={preselectedPlanId} />
       </div>
       
       <Footer />
