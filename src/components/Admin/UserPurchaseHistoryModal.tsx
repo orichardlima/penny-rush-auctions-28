@@ -112,7 +112,7 @@ export const UserPurchaseHistoryModal: React.FC<UserPurchaseHistoryModalProps> =
       }));
 
       // Calculate summary (only for approved purchases for totals)
-      const approvedPurchases = transformedPurchases.filter(p => p.payment_status === 'approved');
+      const approvedPurchases = transformedPurchases.filter(p => p.payment_status === 'completed');
       
       setSummary({
         totalPurchases: transformedPurchases.length,
@@ -156,9 +156,9 @@ export const UserPurchaseHistoryModal: React.FC<UserPurchaseHistoryModalProps> =
 
   const getStatusBadge = (status: string | null) => {
     const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      'approved': { label: 'Aprovado', variant: 'default' },
+      'completed': { label: 'Aprovado', variant: 'default' },
       'pending': { label: 'Pendente', variant: 'outline' },
-      'rejected': { label: 'Rejeitado', variant: 'destructive' },
+      'failed': { label: 'Rejeitado', variant: 'destructive' },
       'cancelled': { label: 'Cancelado', variant: 'secondary' }
     };
     const config = statusConfig[status || 'pending'] || { label: status || 'Desconhecido', variant: 'outline' };
@@ -228,9 +228,9 @@ export const UserPurchaseHistoryModal: React.FC<UserPurchaseHistoryModalProps> =
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="approved">Aprovados</SelectItem>
+              <SelectItem value="completed">Aprovados</SelectItem>
               <SelectItem value="pending">Pendentes</SelectItem>
-              <SelectItem value="rejected">Rejeitados</SelectItem>
+              <SelectItem value="failed">Rejeitados</SelectItem>
             </SelectContent>
           </Select>
         </div>
