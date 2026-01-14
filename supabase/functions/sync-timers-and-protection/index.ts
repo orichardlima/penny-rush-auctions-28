@@ -5,6 +5,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função para gerar delay aleatório em ms
+function getRandomDelay(minMs: number, maxMs: number): number {
+  return Math.floor(Math.random() * (maxMs - minMs + 1) + minMs);
+}
+
+// Função sleep
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -65,7 +75,18 @@ Deno.serve(async (req) => {
   let botBidsAdded = 0;
 
   if (activeAuctions && activeAuctions.length > 0) {
-    for (const auction of activeAuctions) {
+    // Embaralhar ordem para variar qual leilão é processado primeiro
+    const shuffledAuctions = [...activeAuctions].sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < shuffledAuctions.length; i++) {
+      const auction = shuffledAuctions[i];
+      
+      // A partir do segundo leilão, adicionar delay aleatório de 2-6 segundos
+      if (i > 0) {
+        const randomDelay = getRandomDelay(2000, 6000);
+        console.log(`⏳ [DELAY] Aguardando ${(randomDelay/1000).toFixed(1)}s antes de processar "${auction.title}"`);
+        await sleep(randomDelay);
+      }
       // Calcular tempo desde último lance
       const lastBidTime = new Date(auction.last_bid_at).getTime();
       const currentTime = Date.now();
