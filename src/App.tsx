@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
+import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
 import Auctions from "./pages/Auctions";
@@ -41,6 +42,8 @@ const PageLoader = () => (
 
 const AppContent = () => {
   useReferralTracking();
+  // Tracking global de referral de parceiro (captura ?ref=... em qualquer rota)
+  usePartnerReferralTracking();
   
   return (
     <Routes>

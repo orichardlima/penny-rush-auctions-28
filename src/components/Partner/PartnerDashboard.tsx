@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
-import { getPartnerReferralCode, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
+import { getPartnerReferralCodeFromUrlOrStorage, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { 
   Wallet, 
   TrendingUp, 
@@ -80,15 +80,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       const selectedPlan = plans.find(p => p.id === preselectedPlanId);
       if (selectedPlan) {
         setCreatingContract(true);
-        // Obter código de indicação do localStorage
-        const referralCode = getPartnerReferralCode();
-        console.log('[PartnerDashboard] Criando contrato com referral:', referralCode);
+        // Prioridade: URL atual > localStorage
+        const referralCode = getPartnerReferralCodeFromUrlOrStorage();
+        console.log('[PartnerDashboard] Auto-criando contrato com referral:', referralCode);
         
         createContract(preselectedPlanId, referralCode || undefined)
           .then((result) => {
             if (result.success) {
               // Limpar código de indicação após uso bem-sucedido
               clearPartnerReferralTracking();
+              console.log('[PartnerDashboard] Contrato criado com sucesso, referral limpo');
             }
           })
           .finally(() => {
@@ -252,11 +253,13 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               key={plan.id}
               plan={plan}
               onSelect={(planId) => {
-                const referralCode = getPartnerReferralCode();
-                console.log('[PartnerDashboard] Selecionando plano com referral:', referralCode);
+                // Prioridade: URL atual > localStorage
+                const referralCode = getPartnerReferralCodeFromUrlOrStorage();
+                console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode);
                 createContract(planId, referralCode || undefined).then((result) => {
                   if (result.success) {
                     clearPartnerReferralTracking();
+                    console.log('[PartnerDashboard] Contrato criado, referral limpo');
                   }
                 });
               }}

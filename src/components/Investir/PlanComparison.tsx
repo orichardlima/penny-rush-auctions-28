@@ -7,25 +7,26 @@ import { usePartnerContract } from "@/hooks/usePartnerContract";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
+import { getPartnerReferralCode } from "@/hooks/usePartnerReferralTracking";
 
 export const PlanComparison = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { plans, loading, contract } = usePartnerContract();
   const { toast } = useToast();
-  
-  // Capturar código de indicação da URL
-  usePartnerReferralTracking();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const handleSelectPlan = (planId: string) => {
+    // Obter código de referral para propagar nos redirects
+    const refCode = getPartnerReferralCode();
+    const refParam = refCode ? `&ref=${refCode}` : '';
+    
     if (!user) {
-      // Usuário não logado - redirecionar para auth com redirect
-      navigate(`/auth?redirect=/minha-parceria&plan=${planId}`);
+      // Usuário não logado - redirecionar para auth com redirect (preservando ref)
+      navigate(`/auth?redirect=/minha-parceria&plan=${planId}${refParam}`);
       return;
     }
     
@@ -39,8 +40,8 @@ export const PlanComparison = () => {
       return;
     }
     
-    // Usuário logado sem contrato - ir para minha-parceria com o plano
-    navigate(`/minha-parceria?plan=${planId}`);
+    // Usuário logado sem contrato - ir para minha-parceria com o plano (preservando ref)
+    navigate(`/minha-parceria?plan=${planId}${refParam}`);
   };
 
   const getPlanConfig = (planName: string) => {

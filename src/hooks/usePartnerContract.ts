@@ -178,22 +178,40 @@ export const usePartnerContract = () => {
       let referrerContractId: string | null = null;
       
       if (referralCode) {
-        const { data: referrerContract } = await supabase
+        const normalizedCode = referralCode.trim().toUpperCase();
+        console.log('[usePartnerContract] Buscando referrer com código:', normalizedCode);
+        
+        const { data: referrerContract, error: referrerError } = await supabase
           .from('partner_contracts')
-          .select('id, user_id')
-          .eq('referral_code', referralCode.toUpperCase())
+          .select('id, user_id, referral_code')
+          .eq('referral_code', normalizedCode)
           .eq('status', 'ACTIVE')
           .maybeSingle();
 
-        if (referrerContract && referrerContract.user_id !== profile.user_id) {
-          referredByUserId = referrerContract.user_id;
-          referrerContractId = referrerContract.id;
+        if (referrerError) {
+          console.warn('[usePartnerContract] Erro ao buscar referrer:', referrerError);
+        } else if (referrerContract) {
+          if (referrerContract.user_id !== profile.user_id) {
+            referredByUserId = referrerContract.user_id;
+            referrerContractId = referrerContract.id;
+            console.log('[usePartnerContract] Referrer encontrado:', {
+              referrerContractId,
+              referredByUserId,
+              referralCode: referrerContract.referral_code
+            });
+          } else {
+            console.warn('[usePartnerContract] Usuário tentando usar próprio código de referral');
+          }
+        } else {
+          console.warn('[usePartnerContract] Nenhum contrato ativo encontrado com código:', normalizedCode);
         }
       }
 
       // Gerar código de indicação único
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
+      console.log('[usePartnerContract] Inserindo contrato com referred_by_user_id:', referredByUserId);
+      
       const { data, error } = await supabase
         .from('partner_contracts')
         .insert({
@@ -210,6 +228,12 @@ export const usePartnerContract = () => {
         .single();
 
       if (error) throw error;
+
+      console.log('[usePartnerContract] Contrato criado:', {
+        contractId: data.id,
+        referredByUserId: data.referred_by_user_id,
+        planName: data.plan_name
+      });
 
       // NOTA: Os bônus de indicação em cascata (até 3 níveis) são criados
       // automaticamente pelo trigger create_cascade_referral_bonuses no banco de dados
