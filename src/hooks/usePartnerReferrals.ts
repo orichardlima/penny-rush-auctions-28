@@ -29,6 +29,12 @@ export interface ReferralLevelConfig {
   description: string | null;
 }
 
+export interface BinaryPoints {
+  leftPoints: number;
+  rightPoints: number;
+  weakerLegPoints: number;
+}
+
 export const usePartnerReferrals = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -36,6 +42,11 @@ export const usePartnerReferrals = () => {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [contractId, setContractId] = useState<string | null>(null);
   const [totalPoints, setTotalPoints] = useState(0);
+  const [binaryPoints, setBinaryPoints] = useState<BinaryPoints>({
+    leftPoints: 0,
+    rightPoints: 0,
+    weakerLegPoints: 0
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchReferralData = useCallback(async () => {
@@ -56,6 +67,28 @@ export const usePartnerReferrals = () => {
         setContractId(contractData.id);
         setReferralCode(contractData.referral_code);
         setTotalPoints(contractData.total_referral_points || 0);
+
+        // Fetch binary position points for graduation calculation
+        const { data: binaryData } = await supabase
+          .from('partner_binary_positions')
+          .select('left_points, right_points')
+          .eq('partner_contract_id', contractData.id)
+          .maybeSingle();
+
+        if (binaryData) {
+          const weakerLeg = Math.min(binaryData.left_points || 0, binaryData.right_points || 0);
+          setBinaryPoints({
+            leftPoints: binaryData.left_points || 0,
+            rightPoints: binaryData.right_points || 0,
+            weakerLegPoints: weakerLeg
+          });
+        } else {
+          setBinaryPoints({
+            leftPoints: 0,
+            rightPoints: 0,
+            weakerLegPoints: 0
+          });
+        }
 
         // Fetch referral bonuses
         const { data: bonusesData, error: bonusesError } = await supabase
@@ -230,6 +263,7 @@ export const usePartnerReferrals = () => {
     referralCode,
     contractId,
     totalPoints,
+    binaryPoints,
     stats,
     loading,
     getReferralLink,
