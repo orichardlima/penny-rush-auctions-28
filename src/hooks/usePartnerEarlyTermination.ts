@@ -95,8 +95,39 @@ export const usePartnerEarlyTermination = () => {
   ) => {
     if (!profile?.user_id) return { success: false };
 
+    // Validar se contrato já está fechado
+    if (contract.status === 'CLOSED') {
+      toast({
+        variant: "destructive",
+        title: "Contrato já encerrado",
+        description: "Este contrato já foi encerrado anteriormente."
+      });
+      return { success: false };
+    }
+
     setSubmitting(true);
     try {
+      // Verificar se já existe solicitação pendente ou completada
+      const { data: existingRequest } = await supabase
+        .from('partner_early_terminations')
+        .select('id, status')
+        .eq('partner_contract_id', contract.id)
+        .in('status', ['PENDING', 'APPROVED', 'COMPLETED'])
+        .limit(1)
+        .maybeSingle();
+
+      if (existingRequest) {
+        toast({
+          variant: "destructive",
+          title: "Solicitação já existe",
+          description: existingRequest.status === 'COMPLETED' 
+            ? "Este contrato já foi encerrado." 
+            : "Já existe uma solicitação pendente para este contrato."
+        });
+        setSubmitting(false);
+        return { success: false };
+      }
+
       const proposal = calculateLiquidationProposal(contract);
 
       const terminationData = {
