@@ -7,10 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useAdminPartners, ManualPayoutOptions, isContractEligibleForWeek, getWeekOptions, formatWeekRange } from '@/hooks/useAdminPartners';
+import { useAdminPartners, ManualPayoutOptions, isContractEligibleForWeek, getWeeksGroupedByMonth, formatWeekRange } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
@@ -70,8 +70,9 @@ const AdminPartnerManagement = () => {
 
   const { getSettingValue, updateSetting } = useSystemSettings();
 
-  const weekOptions = getWeekOptions(12);
-  const [selectedWeek, setSelectedWeek] = useState(() => weekOptions[0]?.value || '');
+  const weeksGroupedByMonth = getWeeksGroupedByMonth(12);
+  const allWeeks = weeksGroupedByMonth.flatMap(m => m.weeks);
+  const [selectedWeek, setSelectedWeek] = useState(() => allWeeks[0]?.value || '');
   const [fundPercentage, setFundPercentage] = useState(getSettingValue('partner_fund_percentage', 20));
   const paymentDay = getSettingValue('partner_payment_day', 20);
   const [editingPlan, setEditingPlan] = useState<any>(null);
@@ -1344,21 +1345,28 @@ const AdminPartnerManagement = () => {
                       <SelectValue placeholder="Selecione a semana" />
                     </SelectTrigger>
                     <SelectContent>
-                      {weekOptions.map((week) => (
-                        <SelectItem 
-                          key={week.value} 
-                          value={week.value}
-                          className={week.isCurrentWeek ? "bg-primary/10 text-primary font-medium" : ""}
-                        >
-                          <span className="flex items-center gap-2">
-                            {week.label}
-                            {week.isCurrentWeek && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 bg-primary text-primary-foreground">
-                                Atual
-                              </Badge>
-                            )}
-                          </span>
-                        </SelectItem>
+                      {weeksGroupedByMonth.map((monthGroup) => (
+                        <SelectGroup key={monthGroup.monthKey}>
+                          <SelectLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1.5">
+                            {monthGroup.monthLabel}
+                          </SelectLabel>
+                          {monthGroup.weeks.map((week) => (
+                            <SelectItem 
+                              key={week.value} 
+                              value={week.value}
+                              className={week.isCurrentWeek ? "bg-primary/10 text-primary font-medium" : ""}
+                            >
+                              <span className="flex items-center gap-2">
+                                {week.label}
+                                {week.isCurrentWeek && (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 bg-primary text-primary-foreground">
+                                    Atual
+                                  </Badge>
+                                )}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                   </Select>

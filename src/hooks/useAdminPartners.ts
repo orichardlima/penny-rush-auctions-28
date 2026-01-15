@@ -78,9 +78,24 @@ export const formatWeekRange = (periodStart: string, periodEnd?: string | null):
   return `${formatDate(start)} - ${formatDate(end)}/${year}`;
 };
 
+export type WeekOption = { 
+  value: string; 
+  label: string; 
+  start: Date; 
+  end: Date; 
+  isCurrentWeek: boolean;
+  monthKey: string;
+};
+
+export type WeeksByMonth = {
+  monthKey: string;
+  monthLabel: string;
+  weeks: WeekOption[];
+};
+
 // Helper: Get list of weeks for selection (last N weeks)
-export const getWeekOptions = (numWeeks: number = 12): { value: string; label: string; start: Date; end: Date; isCurrentWeek: boolean }[] => {
-  const weeks: { value: string; label: string; start: Date; end: Date; isCurrentWeek: boolean }[] = [];
+export const getWeekOptions = (numWeeks: number = 12): WeekOption[] => {
+  const weeks: WeekOption[] = [];
   const today = new Date();
   
   for (let i = 0; i < numWeeks; i++) {
@@ -91,11 +106,34 @@ export const getWeekOptions = (numWeeks: number = 12): { value: string; label: s
     
     const value = weekStart.toISOString().split('T')[0];
     const label = formatWeekRange(value, weekEnd.toISOString().split('T')[0]);
+    const monthKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}`;
     
-    weeks.push({ value, label, start: weekStart, end: weekEnd, isCurrentWeek: i === 0 });
+    weeks.push({ value, label, start: weekStart, end: weekEnd, isCurrentWeek: i === 0, monthKey });
   }
   
   return weeks;
+};
+
+// Helper: Group weeks by month
+export const getWeeksGroupedByMonth = (numWeeks: number = 12): WeeksByMonth[] => {
+  const weeks = getWeekOptions(numWeeks);
+  const monthsMap = new Map<string, WeeksByMonth>();
+  
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  
+  for (const week of weeks) {
+    if (!monthsMap.has(week.monthKey)) {
+      const [year, month] = week.monthKey.split('-');
+      const monthLabel = `${monthNames[parseInt(month) - 1]} ${year}`;
+      monthsMap.set(week.monthKey, { monthKey: week.monthKey, monthLabel, weeks: [] });
+    }
+    monthsMap.get(week.monthKey)!.weeks.push(week);
+  }
+  
+  return Array.from(monthsMap.values());
 };
 
 export interface ManualPayoutOptions {
