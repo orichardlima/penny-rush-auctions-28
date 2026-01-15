@@ -1719,6 +1719,10 @@ export type Database = {
       }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
+      fix_partner_referral: {
+        Args: { p_referral_code: string; p_referred_contract_id: string }
+        Returns: Json
+      }
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
@@ -1910,6 +1914,10 @@ export type Database = {
         Returns: Json
       }
       preview_binary_cycle_closure: { Args: never; Returns: Json }
+      process_partner_referral_bonus: {
+        Args: { p_referred_contract_id: string; p_referrer_user_id: string }
+        Returns: Json
+      }
       propagate_binary_points: {
         Args: {
           p_points: number
