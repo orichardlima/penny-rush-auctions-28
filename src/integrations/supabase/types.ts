@@ -1252,7 +1252,7 @@ export type Database = {
           {
             foreignKeyName: "partner_referral_bonuses_referred_contract_id_fkey"
             columns: ["referred_contract_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "partner_contracts"
             referencedColumns: ["id"]
           },
