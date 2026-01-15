@@ -123,7 +123,7 @@ const UserDashboard = () => {
         .from('partner_contracts')
         .select('id, status')
         .eq('user_id', profile.user_id)
-        .in('status', ['active', 'pending'])
+        .in('status', ['ACTIVE', 'PENDING'])
         .maybeSingle();
 
       setIsAffiliate(!!affiliateData);
