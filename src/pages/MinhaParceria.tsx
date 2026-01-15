@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SEOHead } from '@/components/SEOHead';
 import PartnerDashboard from '@/components/Partner/PartnerDashboard';
+import { getPartnerReferralCode } from '@/hooks/usePartnerReferralTracking';
 
 const MinhaParceria = () => {
   const { user, profile, loading: authLoading } = useAuth();
@@ -18,12 +19,16 @@ const MinhaParceria = () => {
   useEffect(() => {
     // Redirecionar para login se não autenticado
     if (!authLoading && !user) {
+      // Preservar código de referral no redirect
+      const refCode = searchParams.get('ref') || getPartnerReferralCode();
+      const refParam = refCode ? `&ref=${refCode}` : '';
       const redirectUrl = preselectedPlanId 
-        ? `/auth?redirect=/minha-parceria&plan=${preselectedPlanId}`
-        : '/auth?redirect=/minha-parceria';
+        ? `/auth?redirect=/minha-parceria&plan=${preselectedPlanId}${refParam}`
+        : `/auth?redirect=/minha-parceria${refParam}`;
+      console.log('[MinhaParceria] Redirecionando para auth com ref:', refCode || 'NENHUM');
       navigate(redirectUrl);
     }
-  }, [user, authLoading, navigate, preselectedPlanId]);
+  }, [user, authLoading, navigate, preselectedPlanId, searchParams]);
 
   // NÃO redirecionar mais para /parceiro se não tem contrato
   // O PartnerDashboard vai exibir os planos disponíveis

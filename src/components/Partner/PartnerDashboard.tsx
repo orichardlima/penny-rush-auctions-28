@@ -82,7 +82,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         setCreatingContract(true);
         // Prioridade: URL atual > localStorage
         const referralCode = getPartnerReferralCodeFromUrlOrStorage();
-        console.log('[PartnerDashboard] Auto-criando contrato com referral:', referralCode);
+        
+        // Log detalhado para debug
+        console.log('[PartnerDashboard] Iniciando criação de contrato:', {
+          planId: preselectedPlanId,
+          planName: selectedPlan.name,
+          referralCode: referralCode || 'NENHUM',
+          urlSearch: window.location.search,
+          localStorage: localStorage.getItem('partner_referral') || 'VAZIO'
+        });
         
         createContract(preselectedPlanId, referralCode || undefined)
           .then((result) => {
@@ -90,6 +98,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               // Limpar código de indicação após uso bem-sucedido
               clearPartnerReferralTracking();
               console.log('[PartnerDashboard] Contrato criado com sucesso, referral limpo');
+            } else {
+              console.error('[PartnerDashboard] Falha ao criar contrato');
             }
           })
           .finally(() => {
