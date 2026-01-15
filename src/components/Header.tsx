@@ -53,7 +53,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
         .from('partner_contracts')
         .select('id')
         .eq('user_id', profile.user_id)
-        .in('status', ['active', 'pending'])
+        .in('status', ['ACTIVE', 'PENDING'])
         .maybeSingle();
       
       setHasPartnerContract(!!data);
