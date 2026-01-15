@@ -1,9 +1,35 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Briefcase, Shield, Clock, Award } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export const HeroSection = () => {
+  const { profile } = useAuth();
+  const [hasPartnerContract, setHasPartnerContract] = useState(false);
+
+  useEffect(() => {
+    const checkPartnerContract = async () => {
+      if (!profile?.user_id) {
+        setHasPartnerContract(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('partner_contracts')
+        .select('id')
+        .eq('user_id', profile.user_id)
+        .in('status', ['ACTIVE', 'PENDING'])
+        .maybeSingle();
+      
+      setHasPartnerContract(!!data);
+    };
+
+    checkPartnerContract();
+  }, [profile?.user_id]);
+
   return (
     <section 
       className="py-10 sm:py-16 lg:py-20 bg-gradient-hero text-center relative overflow-hidden min-h-[70vh] sm:min-h-[80vh] flex items-center"
@@ -46,14 +72,14 @@ export const HeroSection = () => {
                 Ver Leilões Ativos
               </Button>
             </Link>
-            <Link to="/investir" className="w-full sm:w-auto">
+            <Link to={hasPartnerContract ? "/minha-parceria" : "/investir"} className="w-full sm:w-auto">
               <Button 
                 size="xl" 
                 className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0"
-                aria-label="Conheça o programa de parceiros"
+                aria-label={hasPartnerContract ? "Acessar minha parceria" : "Conheça o programa de parceiros"}
               >
                 <Briefcase className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
-                Seja um Parceiro
+                {hasPartnerContract ? "Minha Parceria" : "Seja um Parceiro"}
               </Button>
             </Link>
           </div>
