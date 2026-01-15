@@ -8,11 +8,15 @@ import { Trophy, Star, TrendingUp } from 'lucide-react';
 interface PartnerLevelProgressProps {
   totalPoints: number;
   planName?: string;
+  leftPoints?: number;
+  rightPoints?: number;
 }
 
 const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({ 
   totalPoints,
-  planName 
+  planName,
+  leftPoints = 0,
+  rightPoints = 0
 }) => {
   const { 
     levels, 
@@ -68,8 +72,18 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
             </div>
             <p className="text-sm text-muted-foreground">
               <Star className="h-4 w-4 inline mr-1" />
-              {totalPoints} pontos acumulados
+              {totalPoints} pontos (perna menor)
             </p>
+            {(leftPoints > 0 || rightPoints > 0) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                E: {leftPoints} pts | D: {rightPoints} pts
+                {leftPoints !== rightPoints && (
+                  <span className="ml-2 text-primary">
+                    ({leftPoints < rightPoints ? 'Esquerda menor' : 'Direita menor'})
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         </div>
 

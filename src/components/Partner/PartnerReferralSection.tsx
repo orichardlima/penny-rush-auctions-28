@@ -29,7 +29,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
   const { 
     bonuses, 
     referralCode,
-    totalPoints,
+    binaryPoints,
     stats, 
     loading,
     getReferralLink,
@@ -79,8 +79,13 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
   return (
     <div className="space-y-6">
-      {/* Graduação / Nível do Parceiro */}
-      <PartnerLevelProgress totalPoints={totalPoints} planName={planName} />
+      {/* Graduação / Nível do Parceiro - baseado na perna menor do binário */}
+      <PartnerLevelProgress 
+        totalPoints={binaryPoints.weakerLegPoints} 
+        planName={planName}
+        leftPoints={binaryPoints.leftPoints}
+        rightPoints={binaryPoints.rightPoints}
+      />
 
       {/* Link de Indicação */}
       <Card>
