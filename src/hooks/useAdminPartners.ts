@@ -956,6 +956,86 @@ export const useAdminPartners = () => {
     pendingWithdrawals: withdrawals.filter(w => w.status === 'APPROVED').length
   };
 
+  // Corrigir bônus de lances não expirados para contratos já encerrados
+  const correctBonusBids = async (contract: PartnerContractWithUser): Promise<boolean> => {
+    if (contract.status !== 'CLOSED') {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Apenas contratos encerrados podem ter o bônus corrigido.'
+      });
+      return false;
+    }
+
+    const bonusToDeduct = contract.bonus_bids_received || 0;
+    if (bonusToDeduct === 0) {
+      toast({
+        title: 'Nenhuma correção necessária',
+        description: 'Este contrato não tem bônus de lances pendente.'
+      });
+      return false;
+    }
+
+    setProcessing(true);
+    try {
+      // Buscar saldo atual do usuário
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('bids_balance, full_name')
+        .eq('user_id', contract.user_id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const currentBalance = profile?.bids_balance || 0;
+      const newBalance = Math.max(0, currentBalance - bonusToDeduct);
+
+      // Atualizar saldo de lances
+      const { error: updateProfileError } = await supabase
+        .from('profiles')
+        .update({ bids_balance: newBalance })
+        .eq('user_id', contract.user_id);
+
+      if (updateProfileError) throw updateProfileError;
+
+      // Zerar bonus_bids_received para indicar que foi corrigido
+      const { error: updateContractError } = await supabase
+        .from('partner_contracts')
+        .update({ bonus_bids_received: 0 })
+        .eq('id', contract.id);
+
+      if (updateContractError) throw updateContractError;
+
+      // Registrar na auditoria
+      await supabase.rpc('log_admin_action', {
+        p_action_type: 'bonus_correction',
+        p_target_type: 'partner_contract',
+        p_target_id: contract.id,
+        p_description: `Correção retroativa de ${bonusToDeduct} lances bônus do contrato ${contract.plan_name}`,
+        p_old_values: { bids_balance: currentBalance, bonus_bids_received: bonusToDeduct },
+        p_new_values: { bids_balance: newBalance, bonus_bids_received: 0 }
+      });
+
+      toast({
+        title: 'Bônus corrigido com sucesso',
+        description: `Descontados ${bonusToDeduct} lances. Novo saldo: ${newBalance} lances.`
+      });
+
+      await fetchContracts();
+      return true;
+    } catch (error: any) {
+      console.error('Erro ao corrigir bônus:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao corrigir bônus',
+        description: error.message
+      });
+      return false;
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return {
     contracts,
     plans,
@@ -976,6 +1056,7 @@ export const useAdminPartners = () => {
     processTermination,
     rejectWithdrawal,
     markWithdrawalAsPaid,
+    correctBonusBids,
     refreshData: async () => {
       await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations(), fetchWithdrawals()]);
     }
