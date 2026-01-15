@@ -37,7 +37,8 @@ import { PartnerBadge } from './PartnerBadge';
 import { GraduationBadge } from './GraduationBadge';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerLevels } from '@/hooks/usePartnerLevels';
-import { FileText, GraduationCap, GitBranch } from 'lucide-react';
+import { FileText, GraduationCap, GitBranch, HelpCircle } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryPositionSelector from './BinaryPositionSelector';
 import BinaryBonusHistory from './BinaryBonusHistory';
@@ -607,7 +608,40 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                     <CalendarDays className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Próximo Repasse</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">Próximo Repasse</p>
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <button className="text-muted-foreground hover:text-primary transition-colors">
+                            <HelpCircle className="h-4 w-4" />
+                          </button>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-80" side="right">
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-semibold">📅 Como funciona o ciclo de repasses?</h4>
+                            <div className="text-xs space-y-2 text-muted-foreground">
+                              <div className="flex items-start gap-2">
+                                <span className="font-bold text-primary">1.</span>
+                                <p><strong>Semana contabiliza:</strong> Segunda a Domingo</p>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="font-bold text-primary">2.</span>
+                                <p><strong>Processamento:</strong> Seg a Qui (semana seguinte)</p>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="font-bold text-primary">3.</span>
+                                <p><strong>Pagamento:</strong> {getDayName(weeklyPaymentDay)} da semana seguinte</p>
+                              </div>
+                            </div>
+                            <div className="pt-2 border-t">
+                              <p className="text-xs text-muted-foreground">
+                                <strong>Exemplo:</strong> Ganhos de 06/01 (seg) a 12/01 (dom) são pagos em 17/01 (sex).
+                              </p>
+                            </div>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    </div>
                     <p className="text-lg font-bold capitalize">{getNextPaymentInfo.formatted}</p>
                     <p className="text-xs text-muted-foreground">
                       Faltam <strong>{getNextPaymentInfo.daysUntil}</strong> {getNextPaymentInfo.daysUntil === 1 ? 'dia' : 'dias'}
