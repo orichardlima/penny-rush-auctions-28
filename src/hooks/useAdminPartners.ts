@@ -79,8 +79,8 @@ export const formatWeekRange = (periodStart: string, periodEnd?: string | null):
 };
 
 // Helper: Get list of weeks for selection (last N weeks)
-export const getWeekOptions = (numWeeks: number = 12): { value: string; label: string; start: Date; end: Date }[] => {
-  const weeks: { value: string; label: string; start: Date; end: Date }[] = [];
+export const getWeekOptions = (numWeeks: number = 12): { value: string; label: string; start: Date; end: Date; isCurrentWeek: boolean }[] => {
+  const weeks: { value: string; label: string; start: Date; end: Date; isCurrentWeek: boolean }[] = [];
   const today = new Date();
   
   for (let i = 0; i < numWeeks; i++) {
@@ -92,7 +92,7 @@ export const getWeekOptions = (numWeeks: number = 12): { value: string; label: s
     const value = weekStart.toISOString().split('T')[0];
     const label = formatWeekRange(value, weekEnd.toISOString().split('T')[0]);
     
-    weeks.push({ value, label, start: weekStart, end: weekEnd });
+    weeks.push({ value, label, start: weekStart, end: weekEnd, isCurrentWeek: i === 0 });
   }
   
   return weeks;
