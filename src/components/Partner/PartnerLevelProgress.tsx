@@ -54,7 +54,7 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
           Sua Graduação
         </CardTitle>
         <CardDescription>
-          Indique parceiros e suba de nível para ganhar mais bônus
+          Indique parceiros e suba de nível para conquistar premiações incríveis!
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -64,9 +64,9 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-xl font-bold">{currentLevel.display_name}</h3>
-              {currentLevel.bonus_percentage_increase > 0 && (
+              {currentLevel.reward_type && currentLevel.reward_type !== 'none' && (
                 <Badge variant="secondary" className="text-xs">
-                  +{currentLevel.bonus_percentage_increase}% bônus extra
+                  {currentLevel.reward_icon} Premiação
                 </Badge>
               )}
             </div>
@@ -166,9 +166,10 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
                       <p className="text-xs text-muted-foreground">{level.min_points} pts</p>
                     </div>
                   </div>
-                  {level.bonus_percentage_increase > 0 && (
-                    <p className="text-xs text-green-600 mt-1">
-                      +{level.bonus_percentage_increase}% bônus
+                  {level.reward_type && level.reward_type !== 'none' && (
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1 truncate">
+                      <span>{level.reward_icon}</span>
+                      <span className="truncate">{level.reward_description || 'Premiação'}</span>
                     </p>
                   )}
                 </div>

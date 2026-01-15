@@ -1079,6 +1079,10 @@ export type Database = {
           is_active: boolean
           min_points: number
           name: string
+          reward_description: string | null
+          reward_icon: string | null
+          reward_type: string | null
+          reward_value: number | null
           sort_order: number
           updated_at: string
         }
@@ -1092,6 +1096,10 @@ export type Database = {
           is_active?: boolean
           min_points?: number
           name: string
+          reward_description?: string | null
+          reward_icon?: string | null
+          reward_type?: string | null
+          reward_value?: number | null
           sort_order?: number
           updated_at?: string
         }
@@ -1105,6 +1113,10 @@ export type Database = {
           is_active?: boolean
           min_points?: number
           name?: string
+          reward_description?: string | null
+          reward_icon?: string | null
+          reward_type?: string | null
+          reward_value?: number | null
           sort_order?: number
           updated_at?: string
         }

@@ -11,6 +11,10 @@ export interface PartnerLevel {
   bonus_percentage_increase: number;
   sort_order: number;
   is_active: boolean;
+  reward_type: string | null;
+  reward_description: string | null;
+  reward_value: number | null;
+  reward_icon: string;
 }
 
 export interface PartnerLevelPoints {
