@@ -1166,7 +1166,7 @@ const AdminPartnerManagement = () => {
                         </TableCell>
                         <TableCell>{formatDate(term.created_at)}</TableCell>
                         <TableCell>
-                          {term.status === 'PENDING' && (
+                          {term.status === 'PENDING' && contract?.status !== 'CLOSED' && (
                             <div className="flex gap-2">
                               <Button size="sm" onClick={() => processTermination(term.id, 'approve')} disabled={processing}>
                                 <CheckCircle className="h-4 w-4" />
@@ -1175,6 +1175,9 @@ const AdminPartnerManagement = () => {
                                 <XCircle className="h-4 w-4" />
                               </Button>
                             </div>
+                          )}
+                          {term.status === 'PENDING' && contract?.status === 'CLOSED' && (
+                            <span className="text-muted-foreground text-sm">Contrato já encerrado</span>
                           )}
                         </TableCell>
                       </TableRow>

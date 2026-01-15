@@ -872,6 +872,25 @@ export const useAdminPartners = () => {
         const contract = contracts.find(c => c.id === termination.partner_contract_id);
         if (!contract) throw new Error('Contrato não encontrado');
 
+        // Validar se contrato já está fechado
+        if (contract.status === 'CLOSED') {
+          throw new Error('Este contrato já foi encerrado anteriormente. A solicitação será rejeitada automaticamente.');
+        }
+
+        // Verificar se já existe solicitação COMPLETED para este contrato
+        const { data: existingCompleted } = await supabase
+          .from('partner_early_terminations')
+          .select('id')
+          .eq('partner_contract_id', termination.partner_contract_id)
+          .eq('status', 'COMPLETED')
+          .neq('id', terminationId)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingCompleted) {
+          throw new Error('Já existe um encerramento processado para este contrato.');
+        }
+
         // Buscar saldo atual de lances do usuário
         const { data: profileData } = await supabase
           .from('profiles')
