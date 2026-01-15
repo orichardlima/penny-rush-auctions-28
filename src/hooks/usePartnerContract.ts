@@ -30,6 +30,11 @@ export interface PartnerContract {
   created_at: string;
   updated_at: string;
   bonus_bids_received: number;
+  referred_by_user_id: string | null;
+  referral_code: string | null;
+  // Campos extras para exibição do patrocinador
+  sponsor_name?: string | null;
+  sponsor_plan_name?: string | null;
 }
 
 export interface PartnerPayout {
@@ -101,7 +106,58 @@ export const usePartnerContract = () => {
         .maybeSingle();
 
       if (error) throw error;
-      setContract(data as PartnerContract | null);
+      
+      if (!data) {
+        setContract(null);
+        return;
+      }
+      
+      // Se tem patrocinador, buscar nome e plano dele
+      let sponsorName: string | null = null;
+      let sponsorPlanName: string | null = null;
+      
+      if (data.referred_by_user_id) {
+        // Buscar perfil do patrocinador
+        const { data: sponsorProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', data.referred_by_user_id)
+          .maybeSingle();
+        
+        // Buscar contrato do patrocinador para pegar o plano
+        const { data: sponsorContract } = await supabase
+          .from('partner_contracts')
+          .select('plan_name')
+          .eq('user_id', data.referred_by_user_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        sponsorName = sponsorProfile?.full_name || null;
+        sponsorPlanName = sponsorContract?.plan_name || null;
+      }
+      
+      const contractWithSponsor: PartnerContract = {
+        id: data.id,
+        user_id: data.user_id,
+        plan_name: data.plan_name,
+        aporte_value: data.aporte_value,
+        weekly_cap: data.weekly_cap,
+        total_cap: data.total_cap,
+        total_received: data.total_received,
+        status: data.status as 'ACTIVE' | 'CLOSED' | 'SUSPENDED',
+        closed_at: data.closed_at,
+        closed_reason: data.closed_reason,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        bonus_bids_received: data.bonus_bids_received || 0,
+        referred_by_user_id: data.referred_by_user_id,
+        referral_code: data.referral_code,
+        sponsor_name: sponsorName,
+        sponsor_plan_name: sponsorPlanName
+      };
+      
+      setContract(contractWithSponsor);
     } catch (error) {
       console.error('Error fetching partner contract:', error);
     }

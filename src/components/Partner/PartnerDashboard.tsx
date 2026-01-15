@@ -345,10 +345,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </div>
       </div>
 
-      {/* Card de Resumo: Plano + Graduação */}
+      {/* Card de Resumo: Plano + Graduação + Patrocinador */}
       <Card className="bg-gradient-to-r from-muted/50 to-muted/30">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 gap-4 ${contract.referred_by_user_id ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             {/* Plano Contratado */}
             <div className="flex items-start gap-4 p-4 rounded-lg border bg-background">
               <div className="p-3 bg-amber-500/10 rounded-full">
@@ -358,10 +358,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <p className="text-sm text-muted-foreground mb-1">Plano Contratado</p>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <PartnerBadge planName={contract.plan_name} size="md" />
-                  {(contract as any).bonus_bids_received > 0 && (
+                  {contract.bonus_bids_received > 0 && (
                     <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-500/30">
                       <Zap className="h-3 w-3" />
-                      +{(contract as any).bonus_bids_received} lances
+                      +{contract.bonus_bids_received} lances
                     </Badge>
                   )}
                 </div>
@@ -394,6 +394,26 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 </div>
               </div>
             </div>
+
+            {/* Patrocinador - só exibe se tiver referred_by_user_id */}
+            {contract.referred_by_user_id && (
+              <div className="flex items-start gap-4 p-4 rounded-lg border bg-background">
+                <div className="p-3 bg-blue-500/10 rounded-full">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-1">Seu Patrocinador</p>
+                  <p className="font-semibold text-lg mb-2">
+                    {contract.sponsor_name || 'Patrocinador'}
+                  </p>
+                  {contract.sponsor_plan_name && (
+                    <div className="flex items-center gap-2">
+                      <PartnerBadge planName={contract.sponsor_plan_name} size="sm" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-xs text-muted-foreground text-center mt-4">
