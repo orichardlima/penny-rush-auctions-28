@@ -22,14 +22,13 @@ export const BinaryNetworkManager: React.FC = () => {
   const { cycles, preview, settings, loading, closingCycle, loadingPreview, refresh, fetchPreview, closeCycle, updateSetting } = useAdminBinaryCycle();
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [cycleNotes, setCycleNotes] = useState('');
-  const [localSettings, setLocalSettings] = useState({ bonusPercentage: 10, pointValue: 1, timeoutHours: 24, enabled: true });
+  const [localSettings, setLocalSettings] = useState({ bonusPercentage: 10, pointValue: 1, enabled: true });
 
   useEffect(() => {
     if (settings) {
       setLocalSettings({
         bonusPercentage: settings.binary_bonus_percentage,
         pointValue: settings.binary_point_value,
-        timeoutHours: settings.binary_positioning_timeout_hours,
         enabled: settings.binary_system_enabled
       });
     }
@@ -46,7 +45,6 @@ export const BinaryNetworkManager: React.FC = () => {
   const handleSaveSettings = async () => {
     await updateSetting('binary_bonus_percentage', localSettings.bonusPercentage);
     await updateSetting('binary_point_value', localSettings.pointValue);
-    await updateSetting('binary_positioning_timeout_hours', localSettings.timeoutHours);
     await updateSetting('binary_system_enabled', localSettings.enabled);
   };
 
@@ -155,10 +153,9 @@ export const BinaryNetworkManager: React.FC = () => {
                 <div><Label>Sistema Habilitado</Label><p className="text-sm text-muted-foreground">Ativar/desativar o sistema binário</p></div>
                 <Switch checked={localSettings.enabled} onCheckedChange={(v) => setLocalSettings(p => ({ ...p, enabled: v }))} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><Label>% do Bônus</Label><Input type="number" value={localSettings.bonusPercentage} onChange={(e) => setLocalSettings(p => ({ ...p, bonusPercentage: Number(e.target.value) }))} /></div>
                 <div><Label>Valor por Ponto (R$)</Label><Input type="number" step="0.01" value={localSettings.pointValue} onChange={(e) => setLocalSettings(p => ({ ...p, pointValue: Number(e.target.value) }))} /></div>
-                <div><Label>Timeout Posicionamento (h)</Label><Input type="number" value={localSettings.timeoutHours} onChange={(e) => setLocalSettings(p => ({ ...p, timeoutHours: Number(e.target.value) }))} /></div>
               </div>
               <Button onClick={handleSaveSettings}>Salvar Configurações</Button>
             </CardContent>
