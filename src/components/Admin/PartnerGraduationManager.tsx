@@ -44,6 +44,17 @@ const AVAILABLE_COLORS = [
 
 const AVAILABLE_ICONS = ['🌱', '🥉', '🥈', '🥇', '💫', '💎', '👑', '🏆', '⭐', '🔥', '💰', '🚀'];
 
+const REWARD_TYPES = [
+  { value: 'none', label: 'Sem premiação', icon: '➖' },
+  { value: 'cash', label: 'Prêmio em dinheiro', icon: '💰' },
+  { value: 'travel', label: 'Viagem', icon: '✈️' },
+  { value: 'vehicle', label: 'Veículo', icon: '🚗' },
+  { value: 'experience', label: 'Experiência', icon: '🎯' },
+  { value: 'gift', label: 'Brinde', icon: '🎁' },
+];
+
+const REWARD_ICONS = ['🎁', '💰', '✈️', '🚗', '🏆', '🎯', '💎', '🏠', '📱', '⌚', '🏖️', '🎉'];
+
 const PartnerGraduationManager = () => {
   const {
     levels,
@@ -78,7 +89,11 @@ const PartnerGraduationManager = () => {
     color: 'gray-500',
     bonus_percentage_increase: 0,
     sort_order: 0,
-    is_active: true
+    is_active: true,
+    reward_type: 'none',
+    reward_description: null,
+    reward_value: null,
+    reward_icon: '🎁'
   });
 
   // Get points for each plan
@@ -141,7 +156,11 @@ const PartnerGraduationManager = () => {
         color: 'gray-500',
         bonus_percentage_increase: 0,
         sort_order: 0,
-        is_active: true
+        is_active: true,
+        reward_type: 'none',
+        reward_description: null,
+        reward_value: null,
+        reward_icon: '🎁'
       });
     }
   };
@@ -244,12 +263,12 @@ const PartnerGraduationManager = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bônus Máximo</CardTitle>
+            <CardTitle className="text-sm font-medium">Premiações</CardTitle>
             <Sparkles className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{stats.maxBonus}%</div>
-            <p className="text-xs text-muted-foreground">no maior nível</p>
+            <div className="text-2xl font-bold">{stats.levelsWithRewards}</div>
+            <p className="text-xs text-muted-foreground">níveis com prêmio</p>
           </CardContent>
         </Card>
       </div>
@@ -365,18 +384,80 @@ const PartnerGraduationManager = () => {
                         onChange={(e) => setNewLevel(prev => ({ ...prev, min_points: parseInt(e.target.value) || 0 }))}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Bônus Extra (%)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={newLevel.bonus_percentage_increase}
-                        onChange={(e) => setNewLevel(prev => ({ ...prev, bonus_percentage_increase: parseFloat(e.target.value) || 0 }))}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Porcentagem adicional na comissão de indicação
-                      </p>
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-medium mb-3">Premiação do Nível</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Tipo de Premiação</Label>
+                          <Select
+                            value={newLevel.reward_type || 'none'}
+                            onValueChange={(value) => setNewLevel(prev => ({ 
+                              ...prev, 
+                              reward_type: value,
+                              reward_icon: REWARD_TYPES.find(r => r.value === value)?.icon || '🎁'
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {REWARD_TYPES.map(type => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{type.icon}</span>
+                                    <span>{type.label}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Ícone do Prêmio</Label>
+                          <Select
+                            value={newLevel.reward_icon}
+                            onValueChange={(value) => setNewLevel(prev => ({ ...prev, reward_icon: value }))}
+                            disabled={newLevel.reward_type === 'none'}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {REWARD_ICONS.map(icon => (
+                                <SelectItem key={icon} value={icon}>
+                                  <span className="text-lg">{icon}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {newLevel.reward_type !== 'none' && (
+                        <>
+                          <div className="space-y-2 mt-4">
+                            <Label>Descrição da Premiação</Label>
+                            <Input
+                              value={newLevel.reward_description || ''}
+                              onChange={(e) => setNewLevel(prev => ({ ...prev, reward_description: e.target.value || null }))}
+                              placeholder="Ex: Viagem para Cancún com acompanhante"
+                            />
+                          </div>
+                          <div className="space-y-2 mt-4">
+                            <Label>Valor Estimado (R$) - opcional</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="100"
+                              value={newLevel.reward_value || ''}
+                              onChange={(e) => setNewLevel(prev => ({ ...prev, reward_value: parseFloat(e.target.value) || null }))}
+                              placeholder="Ex: 5000"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Para controle interno apenas
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                   <DialogFooter>
@@ -399,7 +480,7 @@ const PartnerGraduationManager = () => {
                     <TableHead className="w-16">Ícone</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Pontos Mín.</TableHead>
-                    <TableHead>Bônus Extra</TableHead>
+                    <TableHead>Premiação</TableHead>
                     <TableHead>Cor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -443,9 +524,18 @@ const PartnerGraduationManager = () => {
                         <Badge variant="outline">{level.min_points} pts</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
-                          +{level.bonus_percentage_increase}%
-                        </Badge>
+                        {level.reward_type && level.reward_type !== 'none' ? (
+                          <div className="flex items-center gap-1.5">
+                            <span>{level.reward_icon}</span>
+                            <span className="text-sm truncate max-w-[120px]" title={level.reward_description || ''}>
+                              {level.reward_description || REWARD_TYPES.find(r => r.value === level.reward_type)?.label}
+                            </span>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Sem premiação
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className={`w-6 h-6 rounded ${getLevelColorClass(level.color)}`} />
@@ -545,15 +635,77 @@ const PartnerGraduationManager = () => {
                                       onChange={(e) => setEditingLevel(prev => prev ? { ...prev, min_points: parseInt(e.target.value) || 0 } : null)}
                                     />
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label>Bônus Extra (%)</Label>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="0.5"
-                                      value={editingLevel.bonus_percentage_increase}
-                                      onChange={(e) => setEditingLevel(prev => prev ? { ...prev, bonus_percentage_increase: parseFloat(e.target.value) || 0 } : null)}
-                                    />
+                                  <div className="border-t pt-4 mt-4">
+                                    <h4 className="font-medium mb-3">Premiação do Nível</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <Label>Tipo de Premiação</Label>
+                                        <Select
+                                          value={editingLevel.reward_type || 'none'}
+                                          onValueChange={(value) => setEditingLevel(prev => prev ? { 
+                                            ...prev, 
+                                            reward_type: value,
+                                            reward_icon: REWARD_TYPES.find(r => r.value === value)?.icon || prev.reward_icon
+                                          } : null)}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {REWARD_TYPES.map(type => (
+                                              <SelectItem key={type.value} value={type.value}>
+                                                <div className="flex items-center gap-2">
+                                                  <span>{type.icon}</span>
+                                                  <span>{type.label}</span>
+                                                </div>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Ícone do Prêmio</Label>
+                                        <Select
+                                          value={editingLevel.reward_icon}
+                                          onValueChange={(value) => setEditingLevel(prev => prev ? { ...prev, reward_icon: value } : null)}
+                                          disabled={editingLevel.reward_type === 'none'}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {REWARD_ICONS.map(icon => (
+                                              <SelectItem key={icon} value={icon}>
+                                                <span className="text-lg">{icon}</span>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                    {editingLevel.reward_type !== 'none' && (
+                                      <>
+                                        <div className="space-y-2 mt-4">
+                                          <Label>Descrição da Premiação</Label>
+                                          <Input
+                                            value={editingLevel.reward_description || ''}
+                                            onChange={(e) => setEditingLevel(prev => prev ? { ...prev, reward_description: e.target.value || null } : null)}
+                                            placeholder="Ex: Viagem para Cancún com acompanhante"
+                                          />
+                                        </div>
+                                        <div className="space-y-2 mt-4">
+                                          <Label>Valor Estimado (R$)</Label>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            step="100"
+                                            value={editingLevel.reward_value || ''}
+                                            onChange={(e) => setEditingLevel(prev => prev ? { ...prev, reward_value: parseFloat(e.target.value) || null } : null)}
+                                            placeholder="Ex: 5000"
+                                          />
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -778,9 +930,13 @@ const PartnerGraduationManager = () => {
                       <span className="text-4xl">{simulatorResult.currentLevel.icon}</span>
                       <div>
                         <p className="font-semibold text-lg">{simulatorResult.currentLevel.display_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Bônus extra: +{simulatorResult.currentLevel.bonus_percentage_increase}%
-                        </p>
+                        {simulatorResult.currentLevel.reward_type && simulatorResult.currentLevel.reward_type !== 'none' ? (
+                          <p className="text-sm text-amber-600 flex items-center gap-1">
+                            {simulatorResult.currentLevel.reward_icon} {simulatorResult.currentLevel.reward_description || 'Premiação especial'}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Sem premiação neste nível</p>
+                        )}
                       </div>
                     </div>
                   )}

@@ -12,6 +12,10 @@ export interface PartnerLevel {
   bonus_percentage_increase: number;
   sort_order: number;
   is_active: boolean;
+  reward_type: string | null;
+  reward_description: string | null;
+  reward_value: number | null;
+  reward_icon: string;
 }
 
 export interface PartnerLevelPoints {
@@ -29,6 +33,10 @@ export interface NewPartnerLevel {
   bonus_percentage_increase: number;
   sort_order: number;
   is_active: boolean;
+  reward_type: string | null;
+  reward_description: string | null;
+  reward_value: number | null;
+  reward_icon: string;
 }
 
 export const useAdminPartnerLevels = () => {
@@ -250,12 +258,17 @@ export const useAdminPartnerLevels = () => {
   }, [fetchPlanPoints]);
 
   // Get statistics
+  const levelsWithRewards = levels.filter(l => l.reward_type && l.reward_type !== 'none');
+  const totalRewardValue = levelsWithRewards.reduce((sum, l) => sum + (l.reward_value || 0), 0);
+  
   const stats = {
     totalLevels: levels.length,
     activeLevels: levels.filter(l => l.is_active).length,
     maxPoints: Math.max(...levels.map(l => l.min_points), 0),
     maxBonus: Math.max(...levels.map(l => l.bonus_percentage_increase), 0),
-    totalPlansConfigured: planPoints.length
+    totalPlansConfigured: planPoints.length,
+    levelsWithRewards: levelsWithRewards.length,
+    totalRewardValue
   };
 
   return {
