@@ -9,6 +9,7 @@ import { Footer } from "@/components/Footer";
 import { EmptyState } from "@/components/EmptyState";
 import { AuctionGridSkeleton } from "@/components/SkeletonLoading";
 import { SEOHead } from "@/components/SEOHead";
+import { PixPaymentModal } from "@/components/PixPaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
@@ -26,6 +27,12 @@ import { getErrorToast } from "@/utils/errorHandler";
 
 const Index = () => {
   const [bidding, setBidding] = useState<Set<string>>(new Set());
+  const [paymentModal, setPaymentModal] = useState<{
+    open: boolean;
+    paymentData?: any;
+    packageInfo?: any;
+    purchaseId?: string;
+  }>({ open: false });
   const { toast } = useToast();
   const { processPurchase } = usePurchaseProcessor();
   const { profile, refreshProfile } = useAuth();
@@ -178,14 +185,18 @@ const Index = () => {
     navigate("/pacotes");
   };
 
-  const handlePurchasePackage = async (packageId: string, bids: number, price: number) => {
+  const handlePurchasePackage = async (packageId: string, bids: number, price: number, packageName: string) => {
     const result = await processPurchase(packageId, bids, price);
-    if (result.success) {
-      await refreshProfile();
-      toast({
-        title: "Pacote adquirido!",
-        description: `${bids} lances foram adicionados à sua conta.`,
-        variant: "default"
+    if (result.success && result.paymentData) {
+      setPaymentModal({
+        open: true,
+        paymentData: result.paymentData,
+        packageInfo: {
+          name: packageName,
+          price,
+          bidsCount: bids
+        },
+        purchaseId: result.purchaseId
       });
     }
   };
@@ -364,6 +375,17 @@ const Index = () => {
         <BidPackages onPurchase={handlePurchasePackage} />
         <RecentWinners />
       </main>
+
+      {paymentModal.open && paymentModal.paymentData && paymentModal.packageInfo && paymentModal.purchaseId && (
+        <PixPaymentModal
+          open={paymentModal.open}
+          onClose={() => setPaymentModal({ open: false })}
+          paymentData={paymentModal.paymentData}
+          packageInfo={paymentModal.packageInfo}
+          purchaseId={paymentModal.purchaseId}
+          onSuccess={refreshProfile}
+        />
+      )}
 
       <Footer />
     </div>
