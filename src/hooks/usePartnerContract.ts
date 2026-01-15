@@ -317,7 +317,9 @@ export const usePartnerContract = () => {
           .eq('id', data.id);
       }
 
-      setContract(data as PartnerContract);
+      // Recarregar contrato completo com dados do patrocinador
+      await fetchContract();
+      
       toast({
         title: "Contrato criado!",
         description: plan.bonus_bids && plan.bonus_bids > 0 
@@ -422,7 +424,8 @@ export const usePartnerContract = () => {
 
       if (updateError) throw updateError;
 
-      setContract(updatedContract as PartnerContract);
+      // Recarregar contrato completo com dados do patrocinador
+      await fetchContract();
       
       toast({
         title: "Upgrade realizado!",
