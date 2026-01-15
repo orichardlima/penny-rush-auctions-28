@@ -9,6 +9,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { getPartnerReferralCode } from "@/hooks/usePartnerReferralTracking";
 
 interface HeaderProps {
   userBids?: number;
@@ -99,6 +100,12 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   const partnerLabel = hasPartnerContract ? 'Minha Parceria' : 'Seja Parceiro';
 
   const isCurrentPage = (path: string) => location.pathname === path;
+
+  // Gera link de login preservando código de referral se existir
+  const getAuthLink = () => {
+    const refCode = getPartnerReferralCode();
+    return refCode ? `/auth?ref=${refCode}` : '/auth';
+  };
 
   return (
     <header className="bg-background/95 backdrop-blur-sm border-b border-border shadow-sm sticky top-0 z-50">
@@ -287,7 +294,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                 </DropdownMenu>
               </>
             ) : (
-              <Link to="/auth">
+              <Link to={getAuthLink()}>
                 <Button variant="default" size="sm" className="px-2 sm:px-4" aria-label="Fazer login ou cadastrar">
                   <LogIn className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" aria-hidden="true" />
                   <span className="text-xs sm:text-sm">Entrar</span>

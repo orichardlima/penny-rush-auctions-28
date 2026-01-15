@@ -25,18 +25,15 @@ export const usePartnerReferralTracking = () => {
       // Normalizar: trim + toUpperCase
       const normalizedCode = refCode.trim().toUpperCase();
       
-      // Verificar se é diferente do que já está salvo
-      const existingRef = localStorage.getItem(PARTNER_REFERRAL_KEY);
-      
-      if (existingRef !== normalizedCode) {
-        // Salvar no localStorage (sobrescreve mesmo se existir outro)
-        localStorage.setItem(PARTNER_REFERRAL_KEY, normalizedCode);
-        console.log('[PartnerReferral] Código de indicação capturado e salvo:', normalizedCode);
-      } else {
-        console.log('[PartnerReferral] Código já existe no localStorage:', normalizedCode);
-      }
+      // Sempre salvar no localStorage (sobrescreve)
+      localStorage.setItem(PARTNER_REFERRAL_KEY, normalizedCode);
+      console.log('[PartnerReferral] Código de indicação capturado e salvo:', normalizedCode, 'em rota:', location.pathname);
     }
-  }, [location.search]); // Reagir a mudanças na query string
+    
+    // Log do estado atual sempre (para debug)
+    const currentStored = localStorage.getItem(PARTNER_REFERRAL_KEY);
+    console.log('[PartnerReferral] Estado atual - rota:', location.pathname, '| localStorage:', currentStored || 'VAZIO');
+  }, [location.search, location.pathname]); // Reagir também a mudanças de rota
 };
 
 /**
@@ -52,6 +49,7 @@ export const getPartnerReferralCode = (): string | null => {
 /**
  * Obtém o código de referral da URL atual (prioritário) ou do localStorage (fallback).
  * Útil para garantir que temos o ref mais recente disponível.
+ * IMPORTANTE: Se encontrar na URL, também salva no localStorage para persistir.
  */
 export const getPartnerReferralCodeFromUrlOrStorage = (): string | null => {
   // Primeiro: tentar da URL atual
@@ -60,7 +58,9 @@ export const getPartnerReferralCodeFromUrlOrStorage = (): string | null => {
   
   if (urlRef) {
     const normalized = urlRef.trim().toUpperCase();
-    console.log('[PartnerReferral] Código obtido da URL:', normalized);
+    // Também salvar no localStorage para persistir entre navegações
+    localStorage.setItem(PARTNER_REFERRAL_KEY, normalized);
+    console.log('[PartnerReferral] Código obtido da URL e salvo:', normalized);
     return normalized;
   }
   
@@ -68,9 +68,11 @@ export const getPartnerReferralCodeFromUrlOrStorage = (): string | null => {
   const storageRef = getPartnerReferralCode();
   if (storageRef) {
     console.log('[PartnerReferral] Código obtido do localStorage:', storageRef);
+    return storageRef;
   }
   
-  return storageRef;
+  console.warn('[PartnerReferral] Nenhum código de referral encontrado (URL ou localStorage)');
+  return null;
 };
 
 /**
