@@ -10,6 +10,7 @@ export interface PartnerContractWithUser {
   weekly_cap: number;
   total_cap: number;
   total_received: number;
+  bonus_bids_received: number;
   status: string;
   closed_at: string | null;
   closed_reason: string | null;
@@ -868,24 +869,44 @@ export const useAdminPartners = () => {
           .eq('id', terminationId);
       } else {
         // Aprovar e encerrar contrato
+        const contract = contracts.find(c => c.id === termination.partner_contract_id);
+        if (!contract) throw new Error('Contrato não encontrado');
+
+        // Buscar saldo atual de lances do usuário
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('bids_balance')
+          .eq('user_id', contract.user_id)
+          .single();
+
+        const currentBalance = profileData?.bids_balance || 0;
+        const bonusBidsToExpire = contract.bonus_bids_received || 0;
+
+        // Calcular novo saldo: subtrair bônus expirado (não pode ficar negativo)
+        let newBalance = Math.max(0, currentBalance - bonusBidsToExpire);
+
+        // Se liquidação for em BIDS, adicionar os lances da liquidação
+        if (termination.liquidation_type === 'BIDS' && termination.bids_amount > 0) {
+          newBalance += termination.bids_amount;
+        }
+
+        // Atualizar saldo do usuário
+        await supabase
+          .from('profiles')
+          .update({ bids_balance: newBalance })
+          .eq('user_id', contract.user_id);
+
+        // Atualizar status da solicitação de encerramento
         await supabase
           .from('partner_early_terminations')
           .update({ status: 'COMPLETED', admin_notes: notes, processed_at: new Date().toISOString(), final_value: termination.proposed_value })
           .eq('id', terminationId);
 
+        // Encerrar contrato
         await supabase
           .from('partner_contracts')
           .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_reason: 'Encerramento antecipado' })
           .eq('id', termination.partner_contract_id);
-
-        // Creditar lances se aplicável
-        if (termination.liquidation_type === 'BIDS' && termination.bids_amount > 0) {
-          const contract = contracts.find(c => c.id === termination.partner_contract_id);
-          if (contract) {
-            const { data: profile } = await supabase.from('profiles').select('bids_balance').eq('user_id', contract.user_id).single();
-            await supabase.from('profiles').update({ bids_balance: (profile?.bids_balance || 0) + termination.bids_amount }).eq('user_id', contract.user_id);
-          }
-        }
       }
 
       toast({ title: action === 'approve' ? 'Encerramento aprovado' : 'Encerramento rejeitado' });
