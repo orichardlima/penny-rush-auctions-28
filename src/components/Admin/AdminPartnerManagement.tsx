@@ -1345,8 +1345,19 @@ const AdminPartnerManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {weekOptions.map((week) => (
-                        <SelectItem key={week.value} value={week.value}>
-                          {week.label}
+                        <SelectItem 
+                          key={week.value} 
+                          value={week.value}
+                          className={week.isCurrentWeek ? "bg-primary/10 text-primary font-medium" : ""}
+                        >
+                          <span className="flex items-center gap-2">
+                            {week.label}
+                            {week.isCurrentWeek && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 bg-primary text-primary-foreground">
+                                Atual
+                              </Badge>
+                            )}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
