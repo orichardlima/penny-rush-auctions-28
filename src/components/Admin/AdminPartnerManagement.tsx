@@ -64,6 +64,7 @@ const AdminPartnerManagement = () => {
     
     rejectWithdrawal,
     markWithdrawalAsPaid,
+    correctBonusBids,
     refreshData 
   } = useAdminPartners();
 
@@ -554,6 +555,34 @@ const AdminPartnerManagement = () => {
                               >
                                 <CheckCircle className="h-4 w-4" />
                               </Button>
+                            )}
+                            {contract.status === 'CLOSED' && (contract.bonus_bids_received || 0) > 0 && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="text-orange-600 border-orange-300 hover:bg-orange-50">
+                                    <AlertTriangle className="h-4 w-4 mr-1" />
+                                    Corrigir Bônus ({contract.bonus_bids_received})
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Corrigir Lances Bônus</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Este contrato foi encerrado antes da implementação da expiração automática de bônus. 
+                                      Serão descontados <strong>{contract.bonus_bids_received} lances</strong> do saldo de {contract.user_name}.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => correctBonusBids(contract)}
+                                      disabled={processing}
+                                    >
+                                      Confirmar Correção
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
                           </div>
                         </TableCell>
