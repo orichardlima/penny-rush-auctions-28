@@ -10,12 +10,13 @@ import { FieldStatus } from '@/components/ui/field-status';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldValidation } from '@/hooks/useFieldValidation';
-import { Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, MapPin, UserCheck } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 import { getReferralCode, clearReferralTracking } from '@/hooks/useReferralTracking';
 import { SEOHead } from '@/components/SEOHead';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,12 +40,47 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sponsorName, setSponsorName] = useState<string | null>(null);
+  const [loadingSponsor, setLoadingSponsor] = useState(false);
   
   const { signIn, signUp, user, resetPassword } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { validationState, isValidating, validateEmail, validateCPF: validateCPFAvailability, clearValidation } = useFieldValidation();
+
+  // Determinar tab padrão baseado no parâmetro da URL
+  const defaultTab = searchParams.get('tab') === 'signup' ? 'signup' : 'signin';
+
+  // Buscar nome do patrocinador quando tiver ref na URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    
+    if (refCode) {
+      setLoadingSponsor(true);
+      supabase
+        .from('partner_contracts')
+        .select('id, referral_code, user_id')
+        .eq('referral_code', refCode.trim().toUpperCase())
+        .eq('status', 'ACTIVE')
+        .maybeSingle()
+        .then(async ({ data: contract, error }) => {
+          if (contract && !error) {
+            // Buscar nome do usuário
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('user_id', contract.user_id)
+              .maybeSingle();
+            
+            if (profile?.full_name) {
+              setSponsorName(profile.full_name);
+            }
+          }
+          setLoadingSponsor(false);
+        });
+    }
+  }, [searchParams]);
 
   // Obter redirect, plan e ref da URL para preservar após login/cadastro
   const redirectUrl = useMemo(() => {
@@ -389,7 +425,7 @@ const Auth = () => {
           </p>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Entrar</TabsTrigger>
               <TabsTrigger value="signup">Cadastrar</TabsTrigger>
@@ -497,6 +533,33 @@ const Auth = () => {
             
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-6">
+                {/* Banner do Patrocinador */}
+                {sponsorName && (
+                  <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/20 rounded-full">
+                        <UserCheck className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Você foi indicado por</p>
+                        <p className="font-semibold text-lg text-foreground">{sponsorName}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {loadingSponsor && (
+                  <div className="p-4 bg-muted rounded-lg animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-muted-foreground/20 rounded-full" />
+                      <div className="space-y-2">
+                        <div className="h-3 w-24 bg-muted-foreground/20 rounded" />
+                        <div className="h-5 w-36 bg-muted-foreground/20 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Dados Pessoais */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Dados Pessoais</h3>

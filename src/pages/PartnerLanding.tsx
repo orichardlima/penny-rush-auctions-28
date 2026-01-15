@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,21 @@ import { Footer } from "@/components/Footer";
 
 const PartnerLanding = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { contract } = usePartnerContract();
   const simulatorRef = useRef<HTMLDivElement>(null);
   const plansRef = useRef<HTMLDivElement>(null);
+
+  // Auto-redirect para cadastro se tiver código de referral e usuário não logado
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    
+    // Se tem código de referral e usuário NÃO está logado, redirecionar para cadastro
+    if (refCode && !user) {
+      navigate(`/auth?tab=signup&ref=${refCode}&redirect=/minha-parceria`, { replace: true });
+    }
+  }, [searchParams, user, navigate]);
 
   const scrollToSimulator = () => {
     simulatorRef.current?.scrollIntoView({ behavior: 'smooth' });
