@@ -41,7 +41,6 @@ export interface BinaryCycleClosure {
 export interface BinarySettings {
   binary_bonus_percentage: number;
   binary_point_value: number;
-  binary_positioning_timeout_hours: number;
   binary_system_enabled: boolean;
 }
 
@@ -62,7 +61,6 @@ export const useAdminBinaryCycle = () => {
       .in('setting_key', [
         'binary_bonus_percentage',
         'binary_point_value',
-        'binary_positioning_timeout_hours',
         'binary_system_enabled'
       ]);
 
@@ -74,7 +72,6 @@ export const useAdminBinaryCycle = () => {
     const settingsObj: BinarySettings = {
       binary_bonus_percentage: 10,
       binary_point_value: 1,
-      binary_positioning_timeout_hours: 24,
       binary_system_enabled: true
     };
 
