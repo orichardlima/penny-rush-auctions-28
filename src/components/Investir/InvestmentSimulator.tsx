@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
+import { getPartnerReferralCode } from "@/hooks/usePartnerReferralTracking";
 
 export const InvestmentSimulator = () => {
   const navigate = useNavigate();
@@ -15,9 +15,6 @@ export const InvestmentSimulator = () => {
   const { plans, loading, contract } = usePartnerContract();
   const { toast } = useToast();
   const [selectedPlanIndex, setSelectedPlanIndex] = useState(1); // Default to PRO
-  
-  // Capturar código de indicação da URL
-  usePartnerReferralTracking();
 
   const selectedPlan = plans[selectedPlanIndex];
 
@@ -33,9 +30,13 @@ export const InvestmentSimulator = () => {
   const handleSelectPlan = () => {
     if (!selectedPlan) return;
     
+    // Obter código de referral para propagar nos redirects
+    const refCode = getPartnerReferralCode();
+    const refParam = refCode ? `&ref=${refCode}` : '';
+    
     if (!user) {
-      // Usuário não logado - redirecionar para auth com redirect
-      navigate(`/auth?redirect=/minha-parceria&plan=${selectedPlan.id}`);
+      // Usuário não logado - redirecionar para auth com redirect (preservando ref)
+      navigate(`/auth?redirect=/minha-parceria&plan=${selectedPlan.id}${refParam}`);
       return;
     }
     
@@ -49,8 +50,8 @@ export const InvestmentSimulator = () => {
       return;
     }
     
-    // Usuário logado sem contrato - ir para minha-parceria com o plano
-    navigate(`/minha-parceria?plan=${selectedPlan.id}`);
+    // Usuário logado sem contrato - ir para minha-parceria com o plano (preservando ref)
+    navigate(`/minha-parceria?plan=${selectedPlan.id}${refParam}`);
   };
 
   if (loading) {

@@ -46,14 +46,24 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const { validationState, isValidating, validateEmail, validateCPF: validateCPFAvailability, clearValidation } = useFieldValidation();
 
-  // Obter redirect e plan da URL
+  // Obter redirect, plan e ref da URL para preservar após login/cadastro
   const redirectUrl = useMemo(() => {
     const redirect = searchParams.get('redirect') || '/dashboard';
     const plan = searchParams.get('plan');
-    if (plan) {
-      return `${redirect}${redirect.includes('?') ? '&' : '?'}plan=${plan}`;
+    const ref = searchParams.get('ref');
+    
+    let finalUrl = redirect;
+    const params: string[] = [];
+    
+    if (plan) params.push(`plan=${plan}`);
+    if (ref) params.push(`ref=${ref}`);
+    
+    if (params.length > 0) {
+      const separator = redirect.includes('?') ? '&' : '?';
+      finalUrl = `${redirect}${separator}${params.join('&')}`;
     }
-    return redirect;
+    
+    return finalUrl;
   }, [searchParams]);
 
   useEffect(() => {
