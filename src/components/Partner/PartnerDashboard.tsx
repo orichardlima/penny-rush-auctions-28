@@ -153,6 +153,66 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       formatted: `${monday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${sunday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
     };
   }, []);
+
+  // Get the reference period for the next payout (the PREVIOUS completed week)
+  const getPayoutReferencePeriod = React.useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    
+    // Calculate days until next payment day
+    let daysUntilPayment = weeklyPaymentDay - currentDay;
+    if (daysUntilPayment <= 0) daysUntilPayment += 7;
+    
+    // The next payment date
+    const nextPaymentDate = new Date(today);
+    nextPaymentDate.setDate(today.getDate() + daysUntilPayment);
+    
+    // The reference period ends on the Sunday BEFORE the payment week starts
+    // Payment is on Friday, so we go back to the previous Sunday
+    const periodEnd = new Date(nextPaymentDate);
+    // Go back to the Sunday before the payment date
+    const paymentDayOfWeek = nextPaymentDate.getDay();
+    const daysToSunday = paymentDayOfWeek === 0 ? 7 : paymentDayOfWeek;
+    periodEnd.setDate(nextPaymentDate.getDate() - daysToSunday);
+    
+    // Period starts on the Monday of that week (6 days before Sunday)
+    const periodStart = new Date(periodEnd);
+    periodStart.setDate(periodEnd.getDate() - 6);
+    
+    return {
+      start: periodStart,
+      end: periodEnd,
+      formatted: `${periodStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${periodEnd.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+    };
+  }, [weeklyPaymentDay]);
+
+  // Get when the current week will be paid
+  const getCurrentWeekPaymentDate = React.useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    
+    // Find the end of current week (Sunday)
+    const daysToSunday = currentDay === 0 ? 0 : 7 - currentDay;
+    const currentWeekEnd = new Date(today);
+    currentWeekEnd.setDate(today.getDate() + daysToSunday);
+    
+    // Payment will be on the payment day of the FOLLOWING week
+    const paymentDate = new Date(currentWeekEnd);
+    // Go to next Monday first
+    paymentDate.setDate(currentWeekEnd.getDate() + 1);
+    // Then add days to reach payment day
+    const daysToPaymentDay = weeklyPaymentDay === 0 ? 6 : weeklyPaymentDay - 1;
+    paymentDate.setDate(paymentDate.getDate() + daysToPaymentDay);
+    
+    return {
+      date: paymentDate,
+      formatted: paymentDate.toLocaleDateString('pt-BR', { 
+        weekday: 'long', 
+        day: '2-digit', 
+        month: '2-digit' 
+      })
+    };
+  }, [weeklyPaymentDay]);
   
   React.useEffect(() => {
     if (contract?.id) {
@@ -552,6 +612,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                     <p className="text-xs text-muted-foreground">
                       Faltam <strong>{getNextPaymentInfo.daysUntil}</strong> {getNextPaymentInfo.daysUntil === 1 ? 'dia' : 'dias'}
                     </p>
+                    <p className="text-xs text-primary mt-1 font-medium">
+                      📌 Referente à semana: {getPayoutReferencePeriod.formatted}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -584,7 +647,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                O repasse desta semana será processado na próxima <strong>{getDayName(weeklyPaymentDay)}</strong>.
+                💰 <strong>Será pago em:</strong> <span className="capitalize">{getCurrentWeekPaymentDate.formatted}</span>
               </p>
             </CardContent>
           </Card>
