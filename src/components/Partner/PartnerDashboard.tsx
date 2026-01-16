@@ -579,24 +579,25 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
       {/* Tabs de Conteúdo */}
       <Tabs defaultValue="payouts" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="payouts" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
+        <TabsList className="w-full overflow-x-auto flex flex-nowrap h-auto p-1">
+          <TabsTrigger value="payouts" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
+            <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Repasses
           </TabsTrigger>
-          <TabsTrigger value="withdrawals" className="flex items-center gap-2">
-            <ArrowUpRight className="h-4 w-4" />
+          <TabsTrigger value="withdrawals" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
+            <ArrowUpRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Saques
           </TabsTrigger>
-          <TabsTrigger value="referrals" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <TabsTrigger value="referrals" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
+            <Users className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Indicações
           </TabsTrigger>
-          <TabsTrigger value="binary" className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4" />
-            Rede Binária
+          <TabsTrigger value="binary" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
+            <GitBranch className="h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">Rede Binária</span>
+            <span className="sm:hidden">Binária</span>
             {pendingPositions.length > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
+              <Badge variant="destructive" className="ml-1 h-4 w-4 md:h-5 md:w-5 p-0 text-[10px] md:text-xs flex items-center justify-center">
                 {pendingPositions.length}
               </Badge>
             )}
@@ -607,19 +608,19 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         <TabsContent value="payouts" className="space-y-4">
           {/* Card de Próximo Repasse */}
           <Card className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-500/20 rounded-full">
-                    <CalendarDays className="h-6 w-6 text-purple-600" />
+            <CardContent className="p-3 md:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 md:p-3 bg-purple-500/20 rounded-full shrink-0">
+                    <CalendarDays className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="text-sm text-muted-foreground">Próximo Repasse</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Próximo Repasse</p>
                       <HoverCard>
                         <HoverCardTrigger asChild>
                           <button className="text-muted-foreground hover:text-primary transition-colors">
-                            <HelpCircle className="h-4 w-4" />
+                            <HelpCircle className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </button>
                         </HoverCardTrigger>
                         <HoverCardContent className="w-80" side="right">
@@ -648,22 +649,22 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                         </HoverCardContent>
                       </HoverCard>
                     </div>
-                    <p className="text-lg font-bold capitalize">{getNextPaymentInfo.formatted}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-base md:text-lg font-bold capitalize">{getNextPaymentInfo.formatted}</p>
+                    <p className="text-[11px] md:text-xs text-muted-foreground">
                       Faltam <strong>{getNextPaymentInfo.daysUntil}</strong> {getNextPaymentInfo.daysUntil === 1 ? 'dia' : 'dias'}
                     </p>
-                    <p className="text-xs text-primary mt-1 font-medium">
+                    <p className="text-[11px] md:text-xs text-primary mt-1 font-medium">
                       📌 Referente à semana: {getPayoutReferencePeriod.formatted}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Previsão (média)</p>
-                  <p className="text-xl font-semibold text-purple-600">
+                <div className="flex flex-col sm:items-end pl-10 sm:pl-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">Previsão (média)</p>
+                  <p className="text-lg md:text-xl font-semibold text-purple-600">
                     {payoutTotals.averagePayout > 0 ? formatPrice(payoutTotals.averagePayout) : 'Aguardando dados'}
                   </p>
                   {payoutTotals.averagePayout > 0 && contract && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] md:text-xs text-muted-foreground">
                       <span className="text-primary font-medium">
                         {((payoutTotals.averagePayout / contract.aporte_value) * 100).toFixed(2)}%
                       </span>
@@ -757,14 +758,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                       
                       {/* Valor e Porcentagem */}
                       <span className={cn(
-                        "w-28 text-xs text-right shrink-0 tabular-nums",
+                        "w-16 md:w-28 text-[10px] md:text-xs text-right shrink-0 tabular-nums",
                         day.isToday && "text-primary font-bold",
                         !day.isPast && !day.isToday && "text-muted-foreground"
                       )}>
                         {day.isPast || day.isToday ? (
                           <>
                             {day.percentage > 0 && (
-                              <span className="text-muted-foreground mr-1">
+                              <span className="hidden md:inline text-muted-foreground mr-1">
                                 {day.percentage.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
                               </span>
                             )}
@@ -805,18 +806,18 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
           {/* Card de Resumo */}
           <Card className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20">
-            <CardContent className="grid grid-cols-3 gap-4 p-4">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">Total de Semanas</p>
-                <p className="text-2xl font-bold">{payoutTotals.totalWeeks}</p>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 md:p-4">
+              <div className="flex items-center justify-between sm:flex-col sm:text-center py-2 border-b sm:border-b-0 sm:py-0">
+                <p className="text-xs sm:text-sm text-muted-foreground">Total de Semanas</p>
+                <p className="text-lg sm:text-2xl font-bold">{payoutTotals.totalWeeks}</p>
               </div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">Total Pago</p>
-                <p className="text-2xl font-bold text-green-600">{formatPrice(payoutTotals.totalPaid)}</p>
+              <div className="flex items-center justify-between sm:flex-col sm:text-center py-2 border-b sm:border-b-0 sm:py-0">
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Pago</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">{formatPrice(payoutTotals.totalPaid)}</p>
               </div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">Pendente</p>
-                <p className="text-2xl font-bold text-yellow-600">{formatPrice(payoutTotals.totalPending)}</p>
+              <div className="flex items-center justify-between sm:flex-col sm:text-center py-2 sm:py-0">
+                <p className="text-xs sm:text-sm text-muted-foreground">Pendente</p>
+                <p className="text-lg sm:text-2xl font-bold text-yellow-600">{formatPrice(payoutTotals.totalPending)}</p>
               </div>
             </CardContent>
           </Card>
