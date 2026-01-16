@@ -30,7 +30,8 @@ const DailyRevenueConfigManager = () => {
     selectedWeek,
     maxWeeklyPercentage,
     isOverLimit,
-    remainingPercentage
+    remainingPercentage,
+    partnerPlans
   } = useDailyRevenueConfig();
 
   const weeks = getWeeksForDailyConfig(12);
@@ -171,7 +172,7 @@ const DailyRevenueConfigManager = () => {
               <TableRow>
                 <TableHead className="w-[120px]">Dia</TableHead>
                 <TableHead className="w-[140px]">Porcentagem (%)</TableHead>
-                <TableHead>Valor Estimado</TableHead>
+                <TableHead>Exemplos por Plano</TableHead>
                 <TableHead className="w-[130px]">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -201,13 +202,18 @@ const DailyRevenueConfigManager = () => {
                       className={`w-24 ${isOverLimit ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {config.percentage > 0 ? (
-                      <span className="font-medium text-foreground">
-                        ~{formatPrice(config.estimatedValue)}
-                      </span>
+                  <TableCell>
+                    {config.percentage > 0 && partnerPlans.length > 0 ? (
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        {partnerPlans.map(plan => (
+                          <span key={plan.name} className="text-muted-foreground">
+                            <span className="font-medium text-foreground">{plan.display_name}:</span>{' '}
+                            {formatPrice(plan.aporte_value * (config.percentage / 100))}
+                          </span>
+                        ))}
+                      </div>
                     ) : (
-                      '—'
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -221,8 +227,8 @@ const DailyRevenueConfigManager = () => {
 
         {/* Footnote */}
         <p className="text-xs text-muted-foreground">
-          * Valor estimado considerando total de {calculationBase === 'aporte' ? 'aportes' : 'limites semanais'}: {' '}
-          {formatPrice(calculationBase === 'aporte' ? totalAportes : totalWeeklyCaps)}
+          * Cada parceiro recebe proporcional ao seu aporte individual
+          {calculationBase === 'weekly_cap' && ' (limitado ao cap semanal)'}
         </p>
 
         <Separator />
