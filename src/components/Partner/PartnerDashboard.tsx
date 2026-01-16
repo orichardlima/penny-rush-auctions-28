@@ -722,10 +722,13 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                         {/* Barra com animação */}
                         <div 
                           className={cn(
-                            "h-full rounded-full",
-                            (day.isPast || day.isToday) && day.partnerShare > 0
-                              ? "bg-gradient-to-r from-primary to-primary/70" 
-                              : "bg-muted-foreground/20",
+                            "h-full rounded-full transition-all duration-300",
+                            // Dia atual: verde com pulse
+                            day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse",
+                            // Dias passados: rosa/vermelho
+                            day.isPast && !day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
+                            // Dias futuros ou sem valor
+                            ((!day.isPast && !day.isToday) || day.partnerShare === 0) && "bg-muted-foreground/20",
                             currentWeekRevenue.isAnimating && (day.isPast || day.isToday) && "animate-bar-grow"
                           )}
                           style={{ 
@@ -762,7 +765,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                       
                       {/* Badge Hoje */}
                       {day.isToday && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0 bg-primary/10 border-primary/30">
+                        <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0 bg-green-500/20 border-green-500/50 text-green-600 animate-pulse">
                           Hoje
                         </Badge>
                       )}
