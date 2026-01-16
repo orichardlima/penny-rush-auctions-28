@@ -37,8 +37,17 @@ interface DailyConfig {
   calculation_base: string;
 }
 
+interface PartnerUpgrade {
+  previous_aporte_value: number;
+  previous_weekly_cap: number;
+  new_aporte_value: number;
+  new_weekly_cap: number;
+  created_at: string;
+}
+
 export const useCurrentWeekRevenue = (contract: PartnerContract | null): CurrentWeekRevenueData => {
   const [dailyConfigs, setDailyConfigs] = useState<Record<string, DailyConfig>>({});
+  const [upgrades, setUpgrades] = useState<PartnerUpgrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -74,17 +83,24 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         const mondayStr = weekBounds.monday.toISOString().split('T')[0];
         const sundayStr = weekBounds.sunday.toISOString().split('T')[0];
 
-        // Fetch daily revenue configs (admin-configured percentages)
-        const { data: configsData, error: configsError } = await supabase
-          .from('daily_revenue_config')
-          .select('date, percentage, calculation_base')
-          .gte('date', mondayStr)
-          .lte('date', sundayStr);
+        // Fetch daily revenue configs and upgrades in parallel
+        const [configsResult, upgradesResult] = await Promise.all([
+          supabase
+            .from('daily_revenue_config')
+            .select('date, percentage, calculation_base')
+            .gte('date', mondayStr)
+            .lte('date', sundayStr),
+          supabase
+            .from('partner_upgrades')
+            .select('previous_aporte_value, previous_weekly_cap, new_aporte_value, new_weekly_cap, created_at')
+            .eq('partner_contract_id', contract.id)
+            .order('created_at', { ascending: true })
+        ]);
 
-        if (configsError) throw configsError;
+        if (configsResult.error) throw configsResult.error;
 
         const configsMap: Record<string, DailyConfig> = {};
-        configsData?.forEach(config => {
+        configsResult.data?.forEach(config => {
           configsMap[config.date] = {
             date: config.date,
             percentage: Number(config.percentage),
@@ -93,6 +109,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         });
 
         setDailyConfigs(configsMap);
+        setUpgrades(upgradesResult.data || []);
 
         // Trigger animation after data loads
         setTimeout(() => {
@@ -124,6 +141,37 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     };
   }, [contract, weekBounds]);
 
+  // Helper function to get aporte/weekly_cap values at a specific date
+  const getValuesAtDate = (date: Date): { aporte: number; weeklyCap: number } => {
+    if (!contract) {
+      return { aporte: 0, weeklyCap: 0 };
+    }
+    
+    if (upgrades.length === 0) {
+      return { aporte: contract.aporte_value, weeklyCap: contract.weekly_cap };
+    }
+    
+    // Start with the values before the first upgrade
+    let aporte = upgrades[0].previous_aporte_value;
+    let weeklyCap = upgrades[0].previous_weekly_cap;
+    
+    // Check each upgrade to find which values were active on this date
+    for (const upgrade of upgrades) {
+      const upgradeDate = new Date(upgrade.created_at);
+      upgradeDate.setHours(0, 0, 0, 0);
+      
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      
+      if (checkDate >= upgradeDate) {
+        aporte = upgrade.new_aporte_value;
+        weeklyCap = upgrade.new_weekly_cap;
+      }
+    }
+    
+    return { aporte, weeklyCap };
+  };
+
   // Calculate daily data
   const days = useMemo((): DailyRevenue[] => {
     const today = new Date();
@@ -147,16 +195,18 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       const isManualConfig = !!config && percentage > 0;
       
       // Calculate partner share based on configured percentage
+      // Use historical values (aporte/cap at that date) for accurate calculation
       if (contract && config && percentage > 0) {
+        const valuesAtDate = getValuesAtDate(date);
         const baseValue = config.calculation_base === 'weekly_cap' 
-          ? contract.weekly_cap 
-          : contract.aporte_value;
+          ? valuesAtDate.weeklyCap 
+          : valuesAtDate.aporte;
         
         partnerShare = baseValue * (percentage / 100);
         
         // Apply weekly cap if base is aporte
-        if (config.calculation_base === 'aporte' && partnerShare > contract.weekly_cap) {
-          partnerShare = contract.weekly_cap;
+        if (config.calculation_base === 'aporte' && partnerShare > valuesAtDate.weeklyCap) {
+          partnerShare = valuesAtDate.weeklyCap;
         }
         
         // grossRevenue in this context represents the estimated total for display
@@ -181,7 +231,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     }
     
     return result;
-  }, [weekBounds, dailyConfigs, contract]);
+  }, [weekBounds, dailyConfigs, contract, upgrades]);
 
   // Calculate totals
   const totalPartnerShare = useMemo(() => {
