@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSystemSettings } from './useSystemSettings';
 
 interface DailyRevenue {
   date: Date;
@@ -11,6 +10,8 @@ interface DailyRevenue {
   grossRevenue: number;
   isPast: boolean;
   isToday: boolean;
+  percentage: number;
+  isManualConfig: boolean;
 }
 
 interface CurrentWeekRevenueData {
@@ -26,17 +27,20 @@ interface CurrentWeekRevenueData {
 interface PartnerContract {
   id: string;
   aporte_value: number;
+  weekly_cap: number;
   user_id: string;
 }
 
+interface DailyConfig {
+  date: string;
+  percentage: number;
+  calculation_base: string;
+}
+
 export const useCurrentWeekRevenue = (contract: PartnerContract | null): CurrentWeekRevenueData => {
-  const [dailyRevenues, setDailyRevenues] = useState<Record<string, number>>({});
-  const [totalActiveAportes, setTotalActiveAportes] = useState<number>(0);
+  const [dailyConfigs, setDailyConfigs] = useState<Record<string, DailyConfig>>({});
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
-  
-  const { getSettingValue } = useSystemSettings();
-  const partnerFundPercentage = getSettingValue('partner_fund_percentage', 20);
 
   // Get current week bounds (Monday to Sunday)
   const weekBounds = useMemo(() => {
@@ -67,36 +71,28 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       setIsAnimating(false);
 
       try {
-        // Fetch bid purchases for the current week
-        const { data: purchases, error: purchasesError } = await supabase
-          .from('bid_purchases')
-          .select('amount_paid, created_at')
-          .eq('payment_status', 'approved')
-          .gte('created_at', weekBounds.monday.toISOString())
-          .lte('created_at', weekBounds.sunday.toISOString());
+        const mondayStr = weekBounds.monday.toISOString().split('T')[0];
+        const sundayStr = weekBounds.sunday.toISOString().split('T')[0];
 
-        if (purchasesError) throw purchasesError;
+        // Fetch daily revenue configs (admin-configured percentages)
+        const { data: configsData, error: configsError } = await supabase
+          .from('daily_revenue_config')
+          .select('date, percentage, calculation_base')
+          .gte('date', mondayStr)
+          .lte('date', sundayStr);
 
-        // Group by day
-        const revenueByDay: Record<string, number> = {};
-        purchases?.forEach(purchase => {
-          const date = new Date(purchase.created_at);
-          const dayKey = date.toISOString().split('T')[0];
-          revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + (purchase.amount_paid || 0);
+        if (configsError) throw configsError;
+
+        const configsMap: Record<string, DailyConfig> = {};
+        configsData?.forEach(config => {
+          configsMap[config.date] = {
+            date: config.date,
+            percentage: Number(config.percentage),
+            calculation_base: config.calculation_base
+          };
         });
 
-        setDailyRevenues(revenueByDay);
-
-        // Fetch total active aportes
-        const { data: activeContracts, error: contractsError } = await supabase
-          .from('partner_contracts')
-          .select('aporte_value')
-          .eq('status', 'ACTIVE');
-
-        if (contractsError) throw contractsError;
-
-        const totalAportes = activeContracts?.reduce((sum, c) => sum + c.aporte_value, 0) || 0;
-        setTotalActiveAportes(totalAportes);
+        setDailyConfigs(configsMap);
 
         // Trigger animation after data loads
         setTimeout(() => {
@@ -117,7 +113,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'bid_purchases'
+        table: 'daily_revenue_config'
       }, () => {
         fetchData();
       })
@@ -143,13 +139,29 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       date.setDate(weekBounds.monday.getDate() + i);
       
       const dayKey = date.toISOString().split('T')[0];
-      const grossRevenue = dailyRevenues[dayKey] || 0;
+      const config = dailyConfigs[dayKey];
       
-      // Calculate partner share
-      const partnerFund = grossRevenue * (partnerFundPercentage / 100);
-      const partnerShare = totalActiveAportes > 0 && contract
-        ? (contract.aporte_value / totalActiveAportes) * partnerFund
-        : 0;
+      let partnerShare = 0;
+      let grossRevenue = 0;
+      const percentage = config?.percentage || 0;
+      const isManualConfig = !!config && percentage > 0;
+      
+      // Calculate partner share based on configured percentage
+      if (contract && config && percentage > 0) {
+        const baseValue = config.calculation_base === 'weekly_cap' 
+          ? contract.weekly_cap 
+          : contract.aporte_value;
+        
+        partnerShare = baseValue * (percentage / 100);
+        
+        // Apply weekly cap if base is aporte
+        if (config.calculation_base === 'aporte' && partnerShare > contract.weekly_cap) {
+          partnerShare = contract.weekly_cap;
+        }
+        
+        // grossRevenue in this context represents the estimated total for display
+        grossRevenue = partnerShare;
+      }
       
       const dateOnly = new Date(date);
       dateOnly.setHours(0, 0, 0, 0);
@@ -162,12 +174,14 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         partnerShare,
         grossRevenue,
         isPast: dateOnly < today,
-        isToday: dateOnly.getTime() === today.getTime()
+        isToday: dateOnly.getTime() === today.getTime(),
+        percentage,
+        isManualConfig
       });
     }
     
     return result;
-  }, [weekBounds, dailyRevenues, partnerFundPercentage, totalActiveAportes, contract]);
+  }, [weekBounds, dailyConfigs, contract]);
 
   // Calculate totals
   const totalPartnerShare = useMemo(() => {
