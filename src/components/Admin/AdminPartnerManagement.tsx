@@ -15,6 +15,7 @@ import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
 import PartnerGraduationManager from './PartnerGraduationManager';
+import DailyRevenueConfigManager from './DailyRevenueConfigManager';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import { 
@@ -1233,7 +1234,10 @@ const AdminPartnerManagement = () => {
         </TabsContent>
 
         {/* Processar Mês Tab */}
-        <TabsContent value="process" className="space-y-4">
+        <TabsContent value="process" className="space-y-6">
+          {/* Daily Revenue Configuration */}
+          <DailyRevenueConfigManager />
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>

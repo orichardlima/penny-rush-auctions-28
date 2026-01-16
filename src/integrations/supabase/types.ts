@@ -711,6 +711,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_revenue_config: {
+        Row: {
+          calculation_base: string
+          configured_by: string | null
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          percentage: number
+          updated_at: string
+        }
+        Insert: {
+          calculation_base?: string
+          configured_by?: string | null
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          percentage?: number
+          updated_at?: string
+        }
+        Update: {
+          calculation_base?: string
+          configured_by?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          percentage?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           created_at: string
