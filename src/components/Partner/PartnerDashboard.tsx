@@ -742,13 +742,22 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                         />
                       </div>
                       
-                      {/* Valor */}
+                      {/* Valor e Porcentagem */}
                       <span className={cn(
-                        "w-16 text-xs text-right shrink-0 tabular-nums",
+                        "w-28 text-xs text-right shrink-0 tabular-nums",
                         day.isToday && "text-primary font-bold",
                         !day.isPast && !day.isToday && "text-muted-foreground"
                       )}>
-                        {day.isPast || day.isToday ? formatPrice(day.partnerShare) : '-'}
+                        {day.isPast || day.isToday ? (
+                          <>
+                            {day.percentage > 0 && (
+                              <span className="text-muted-foreground mr-1">
+                                {day.percentage.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
+                              </span>
+                            )}
+                            {formatPrice(day.partnerShare)}
+                          </>
+                        ) : '-'}
                       </span>
                       
                       {/* Badge Hoje */}
