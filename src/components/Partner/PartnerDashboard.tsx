@@ -723,8 +723,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                         <div 
                           className={cn(
                             "h-full rounded-full transition-all duration-300",
-                            // Dia atual: verde com pulse
-                            day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse",
+                            // Dia atual: verde com pulse suave
+                            day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
                             // Dias passados: rosa/vermelho
                             day.isPast && !day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
                             // Dias futuros ou sem valor
@@ -743,6 +743,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                             animationDelay: `${index * 100}ms`
                           } as React.CSSProperties}
                         />
+                        
+                        {/* Badge Hoje DENTRO da barra */}
+                        {day.isToday && (
+                          <Badge 
+                            variant="outline" 
+                            className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-green-500/50 text-green-700 font-semibold"
+                          >
+                            Hoje
+                          </Badge>
+                        )}
                       </div>
                       
                       {/* Valor e Porcentagem */}
@@ -763,12 +773,6 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                         ) : '-'}
                       </span>
                       
-                      {/* Badge Hoje */}
-                      {day.isToday && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0 bg-green-500/20 border-green-500/50 text-green-600 animate-pulse">
-                          Hoje
-                        </Badge>
-                      )}
                     </div>
                   ))}
                 </div>
