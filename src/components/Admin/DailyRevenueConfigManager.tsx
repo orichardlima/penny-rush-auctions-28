@@ -7,7 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle, Gauge } from 'lucide-react';
 import { useDailyRevenueConfig, getWeeksForDailyConfig } from '@/hooks/useDailyRevenueConfig';
 
 const DailyRevenueConfigManager = () => {
@@ -25,7 +27,10 @@ const DailyRevenueConfigManager = () => {
     updateDayPercentage,
     saveAllConfigs,
     setSelectedWeek,
-    selectedWeek
+    selectedWeek,
+    maxWeeklyPercentage,
+    isOverLimit,
+    remainingPercentage
   } = useDailyRevenueConfig();
 
   const weeks = getWeeksForDailyConfig(12);
@@ -96,6 +101,18 @@ const DailyRevenueConfigManager = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Max Weekly Limit Info */}
+        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+          <div className="flex items-center gap-2">
+            <Gauge className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm">Limite Máximo Semanal:</span>
+            <span className="font-medium">{maxWeeklyPercentage}%</span>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            Configurável em Sistema
+          </Badge>
+        </div>
+
         {/* Week Selector */}
         <div className="space-y-2">
           <Label className="font-medium flex items-center gap-2">
@@ -181,7 +198,7 @@ const DailyRevenueConfigManager = () => {
                       value={config.percentage || ''}
                       onChange={(e) => updateDayPercentage(config.date, parseFloat(e.target.value) || 0)}
                       placeholder="0.0"
-                      className="w-24"
+                      className={`w-24 ${isOverLimit ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -210,16 +227,44 @@ const DailyRevenueConfigManager = () => {
 
         <Separator />
 
-        {/* Summary */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
-          <div>
-            <p className="font-medium text-lg">
-              Porcentagem Total: {weekTotal.percentage.toFixed(1)}%
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Valor Estimado Total: ~{formatPrice(weekTotal.estimatedValue)}
-            </p>
+        {/* Summary with Progress Bar */}
+        <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <p className="font-medium text-lg">
+                Porcentagem Total: {weekTotal.percentage.toFixed(1)}%
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Valor Estimado Total: ~{formatPrice(weekTotal.estimatedValue)}
+              </p>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Limite: {maxWeeklyPercentage}% | Restante: {remainingPercentage.toFixed(1)}%
+            </div>
           </div>
+          
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <Progress 
+              value={Math.min((weekTotal.percentage / maxWeeklyPercentage) * 100, 100)}
+              className={`h-3 ${isOverLimit ? '[&>div]:bg-destructive' : weekTotal.percentage >= maxWeeklyPercentage * 0.9 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'}`}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0%</span>
+              <span>{maxWeeklyPercentage}%</span>
+            </div>
+          </div>
+
+          {/* Over Limit Alert */}
+          {isOverLimit && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Limite excedido em {(weekTotal.percentage - maxWeeklyPercentage).toFixed(1)}%! 
+                Reduza as porcentagens para poder salvar.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         {/* Description */}
@@ -236,11 +281,11 @@ const DailyRevenueConfigManager = () => {
         {/* Save Button */}
         <Button 
           onClick={saveAllConfigs} 
-          disabled={saving}
+          disabled={saving || isOverLimit}
           className="w-full sm:w-auto"
         >
           <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Salvando...' : 'Salvar Configurações'}
+          {saving ? 'Salvando...' : isOverLimit ? 'Limite Excedido' : 'Salvar Configurações'}
         </Button>
       </CardContent>
     </Card>

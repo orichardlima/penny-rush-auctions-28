@@ -41,6 +41,9 @@ interface UseDailyRevenueConfigResult {
   setSelectedWeek: (weekValue: string) => void;
   selectedWeek: string;
   weekBounds: WeekBounds;
+  maxWeeklyPercentage: number;
+  isOverLimit: boolean;
+  remainingPercentage: number;
 }
 
 // Get weeks grouped by month for selector
@@ -87,6 +90,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   const [totalWeeklyCaps, setTotalWeeklyCaps] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [maxWeeklyPercentage, setMaxWeeklyPercentage] = useState<number>(10);
 
   // Calculate week bounds from selected week
   const weekBounds = useMemo((): WeekBounds => {
@@ -155,6 +159,17 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
         setTotalAportes(totalAportes);
         setTotalWeeklyCaps(totalWeeklyCaps);
 
+        // Fetch max weekly percentage setting
+        const { data: maxPercentageSetting } = await supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'partner_max_weekly_percentage')
+          .single();
+
+        if (maxPercentageSetting) {
+          setMaxWeeklyPercentage(Number(maxPercentageSetting.setting_value) || 10);
+        }
+
       } catch (error) {
         console.error('Error fetching daily revenue config:', error);
         toast.error('Erro ao carregar configurações');
@@ -214,6 +229,15 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     return { percentage, estimatedValue };
   }, [configs]);
 
+  // Calculate limit validation
+  const isOverLimit = useMemo(() => {
+    return weekTotal.percentage > maxWeeklyPercentage;
+  }, [weekTotal.percentage, maxWeeklyPercentage]);
+
+  const remainingPercentage = useMemo(() => {
+    return Math.max(0, maxWeeklyPercentage - weekTotal.percentage);
+  }, [weekTotal.percentage, maxWeeklyPercentage]);
+
   // Update day percentage locally
   const updateDayPercentage = useCallback((date: string, percentage: number) => {
     setLocalConfigs(prev => ({
@@ -225,6 +249,12 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   // Save all configs to database
   const saveAllConfigs = useCallback(async () => {
     if (!user) return;
+    
+    // Validate limit before saving
+    if (isOverLimit) {
+      toast.error(`Limite excedido! Máximo permitido: ${maxWeeklyPercentage}%`);
+      return;
+    }
     
     setSaving(true);
     
@@ -273,7 +303,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     } finally {
       setSaving(false);
     }
-  }, [user, configs, localConfigs, calculationBase, description, dbConfigs]);
+  }, [user, configs, localConfigs, calculationBase, description, dbConfigs, isOverLimit, maxWeeklyPercentage]);
 
   return {
     configs,
@@ -290,6 +320,9 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     saveAllConfigs,
     setSelectedWeek,
     selectedWeek,
-    weekBounds
+    weekBounds,
+    maxWeeklyPercentage,
+    isOverLimit,
+    remainingPercentage
   };
 };
