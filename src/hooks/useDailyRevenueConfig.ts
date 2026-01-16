@@ -22,6 +22,12 @@ interface WeekBounds {
   weekValue: string;
 }
 
+interface PartnerPlan {
+  name: string;
+  display_name: string;
+  aporte_value: number;
+}
+
 interface UseDailyRevenueConfigResult {
   configs: DailyConfig[];
   weekTotal: {
@@ -44,6 +50,7 @@ interface UseDailyRevenueConfigResult {
   maxWeeklyPercentage: number;
   isOverLimit: boolean;
   remainingPercentage: number;
+  partnerPlans: PartnerPlan[];
 }
 
 // Get weeks grouped by month for selector
@@ -91,6 +98,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [maxWeeklyPercentage, setMaxWeeklyPercentage] = useState<number>(10);
+  const [partnerPlans, setPartnerPlans] = useState<PartnerPlan[]>([]);
 
   // Calculate week bounds from selected week
   const weekBounds = useMemo((): WeekBounds => {
@@ -168,6 +176,17 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
 
         if (maxPercentageSetting) {
           setMaxWeeklyPercentage(Number(maxPercentageSetting.setting_value) || 10);
+        }
+
+        // Fetch partner plans for example calculations
+        const { data: plansData } = await supabase
+          .from('partner_plans')
+          .select('name, display_name, aporte_value')
+          .eq('is_active', true)
+          .order('aporte_value', { ascending: true });
+
+        if (plansData) {
+          setPartnerPlans(plansData);
         }
 
       } catch (error) {
@@ -323,6 +342,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     weekBounds,
     maxWeeklyPercentage,
     isOverLimit,
-    remainingPercentage
+    remainingPercentage,
+    partnerPlans
   };
 };
