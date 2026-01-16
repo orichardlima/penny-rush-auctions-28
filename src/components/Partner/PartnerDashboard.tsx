@@ -656,6 +656,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   <p className="text-xl font-semibold text-purple-600">
                     {payoutTotals.averagePayout > 0 ? formatPrice(payoutTotals.averagePayout) : 'Aguardando dados'}
                   </p>
+                  {payoutTotals.averagePayout > 0 && contract && (
+                    <p className="text-xs text-muted-foreground">
+                      <span className="text-primary font-medium">
+                        {((payoutTotals.averagePayout / contract.aporte_value) * 100).toFixed(2)}%
+                      </span>
+                      {' '}do aporte/semana
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
