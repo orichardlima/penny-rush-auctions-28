@@ -145,9 +145,9 @@ const DailyRevenueConfigManager = () => {
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="aporte" id="base-aporte" />
               <Label htmlFor="base-aporte" className="flex flex-col cursor-pointer">
-                <span className="font-medium">Aporte</span>
+                <span className="font-medium">Valor Investido</span>
                 <span className="text-xs text-muted-foreground">
-                  Total: {formatPrice(totalAportes)}
+                  % sobre o aporte de cada parceiro
                 </span>
               </Label>
             </div>
@@ -156,7 +156,7 @@ const DailyRevenueConfigManager = () => {
               <Label htmlFor="base-weekly-cap" className="flex flex-col cursor-pointer">
                 <span className="font-medium">Limite Semanal</span>
                 <span className="text-xs text-muted-foreground">
-                  Total: {formatPrice(totalWeeklyCaps)}
+                  % limitado ao cap semanal de cada parceiro
                 </span>
               </Label>
             </div>
