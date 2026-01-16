@@ -192,12 +192,20 @@ const DailyRevenueConfigManager = () => {
                   </TableCell>
                   <TableCell>
                     <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      value={config.percentage || ''}
-                      onChange={(e) => updateDayPercentage(config.date, parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      value={config.percentage === 0 ? '0' : config.percentage || ''}
+                      onChange={(e) => {
+                        let value = e.target.value.replace(',', '.');
+                        value = value.replace(/[^0-9.]/g, '');
+                        const parts = value.split('.');
+                        if (parts.length > 2) {
+                          value = parts[0] + '.' + parts.slice(1).join('');
+                        }
+                        const numValue = parseFloat(value) || 0;
+                        const clampedValue = Math.min(100, Math.max(0, numValue));
+                        updateDayPercentage(config.date, clampedValue);
+                      }}
                       placeholder="0.0"
                       className={`w-24 ${isOverLimit ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
