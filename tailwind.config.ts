@@ -173,6 +173,16 @@ export default {
 					width: 'var(--bar-width)',
 					opacity: '1'
 				}
+			},
+			'pulse-soft': {
+				'0%, 100%': {
+					opacity: '1',
+					boxShadow: '0 0 0 0 rgba(34, 197, 94, 0)'
+				},
+				'50%': {
+					opacity: '0.92',
+					boxShadow: '0 0 10px 2px rgba(34, 197, 94, 0.35)'
+				}
 			}
 			},
 			animation: {
@@ -183,7 +193,8 @@ export default {
 			'bid-success': 'bid-success 0.6s ease-out',
 			'timer-urgent': 'timer-urgent 0.8s ease-in-out infinite',
 			'timer-warning': 'timer-warning 1s ease-in-out infinite alternate',
-			'bar-grow': 'bar-grow 0.6s ease-out forwards'
+			'bar-grow': 'bar-grow 0.6s ease-out forwards',
+			'pulse-soft': 'pulse-soft 3s ease-in-out infinite'
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
