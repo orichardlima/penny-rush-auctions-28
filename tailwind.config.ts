@@ -156,23 +156,34 @@ export default {
 						boxShadow: '0 0 20px hsl(var(--destructive) / 0.5)'
 					}
 				},
-				'timer-warning': {
-					'0%': {
-						boxShadow: '0 0 15px hsl(var(--warning) / 0.4)'
-					},
-					'100%': {
-						boxShadow: '0 0 25px hsl(var(--warning) / 0.6)'
-					}
+			'timer-warning': {
+				'0%': {
+					boxShadow: '0 0 15px hsl(var(--warning) / 0.4)'
+				},
+				'100%': {
+					boxShadow: '0 0 25px hsl(var(--warning) / 0.6)'
 				}
+			},
+			'bar-grow': {
+				'0%': {
+					width: '0%',
+					opacity: '0.5'
+				},
+				'100%': {
+					width: 'var(--bar-width)',
+					opacity: '1'
+				}
+			}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
 				'countdown': 'countdown 1s ease-in-out infinite',
-				'bid-success': 'bid-success 0.6s ease-out',
-				'timer-urgent': 'timer-urgent 0.8s ease-in-out infinite',
-				'timer-warning': 'timer-warning 1s ease-in-out infinite alternate'
+			'bid-success': 'bid-success 0.6s ease-out',
+			'timer-urgent': 'timer-urgent 0.8s ease-in-out infinite',
+			'timer-warning': 'timer-warning 1s ease-in-out infinite alternate',
+			'bar-grow': 'bar-grow 0.6s ease-out forwards'
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',

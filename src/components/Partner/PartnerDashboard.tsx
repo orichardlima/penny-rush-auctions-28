@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
 import { getPartnerReferralCodeFromUrlOrStorage, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { 
   Wallet, 
@@ -43,6 +44,8 @@ import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryPositionSelector from './BinaryPositionSelector';
 import BinaryBonusHistory from './BinaryBonusHistory';
 import { useBinaryPositioning } from '@/hooks/useBinaryPositioning';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface PartnerDashboardProps {
   preselectedPlanId?: string | null;
@@ -70,6 +73,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   
   // Binary system - get pending positions for this sponsor
   const { pendingPositions, loading: binaryLoading, fetchPendingPositions } = useBinaryPositioning(contract?.id || null);
+  
+  // Current week revenue for animated bars
+  const currentWeekRevenue = useCurrentWeekRevenue(contract);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -669,10 +675,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             </CardContent>
           </Card>
 
-          {/* Card de Semana Atual em Andamento */}
+          {/* Card de Semana Atual em Andamento - com barras animadas */}
           <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Timer className="h-5 w-5 text-primary animate-pulse" />
@@ -688,8 +694,95 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   Contabilizando...
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                💰 <strong>Será pago em:</strong> <span className="capitalize">{getCurrentWeekPaymentDate.formatted}</span>
+
+              {/* Lista de dias com barras animadas */}
+              {currentWeekRevenue.loading ? (
+                <div className="space-y-2">
+                  {[...Array(7)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-2 animate-pulse">
+                      <div className="w-14 h-4 bg-muted rounded" />
+                      <div className="flex-1 h-5 bg-muted rounded-full" />
+                      <div className="w-16 h-4 bg-muted rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {currentWeekRevenue.days.map((day, index) => (
+                    <div key={day.date.toISOString()} className="flex items-center gap-2">
+                      <span className={cn(
+                        "w-14 text-xs font-medium shrink-0",
+                        day.isToday && "text-primary font-bold"
+                      )}>
+                        {day.dayName} {day.dayNumber}
+                      </span>
+                      
+                      {/* Container da barra */}
+                      <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
+                        {/* Barra com animação */}
+                        <div 
+                          className={cn(
+                            "h-full rounded-full",
+                            (day.isPast || day.isToday) && day.partnerShare > 0
+                              ? "bg-gradient-to-r from-primary to-primary/70" 
+                              : "bg-muted-foreground/20",
+                            currentWeekRevenue.isAnimating && (day.isPast || day.isToday) && "animate-bar-grow"
+                          )}
+                          style={{ 
+                            '--bar-width': currentWeekRevenue.maxDailyValue > 0 
+                              ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
+                              : '0%',
+                            width: currentWeekRevenue.isAnimating 
+                              ? undefined 
+                              : currentWeekRevenue.maxDailyValue > 0 
+                                ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
+                                : '0%',
+                            animationDelay: `${index * 100}ms`
+                          } as React.CSSProperties}
+                        />
+                      </div>
+                      
+                      {/* Valor */}
+                      <span className={cn(
+                        "w-16 text-xs text-right shrink-0 tabular-nums",
+                        day.isToday && "text-primary font-bold",
+                        !day.isPast && !day.isToday && "text-muted-foreground"
+                      )}>
+                        {day.isPast || day.isToday ? formatPrice(day.partnerShare) : '-'}
+                      </span>
+                      
+                      {/* Badge Hoje */}
+                      {day.isToday && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0 bg-primary/10 border-primary/30">
+                          Hoje
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Separador e Totalizador */}
+              <Separator className="bg-primary/20" />
+              
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">
+                    💰 Acumulado: <span className="text-primary font-semibold">
+                      {formatPrice(currentWeekRevenue.totalPartnerShare)}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-primary font-medium">
+                      {currentWeekRevenue.percentageOfAporte.toFixed(2)}%
+                    </span>
+                    {' '}do aporte/semana
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                💵 Será pago em: <span className="capitalize font-medium">{getCurrentWeekPaymentDate.formatted}</span>
               </p>
             </CardContent>
           </Card>
