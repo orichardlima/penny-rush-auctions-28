@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,8 @@ import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle, Gauge } fro
 import { useDailyRevenueConfig, getWeeksForDailyConfig } from '@/hooks/useDailyRevenueConfig';
 
 const DailyRevenueConfigManager = () => {
+  // Draft state to preserve typed text (e.g., "0," while typing "0,3")
+  const [percentageDrafts, setPercentageDrafts] = useState<Record<string, string>>({});
   const {
     configs,
     weekTotal,
@@ -77,6 +80,50 @@ const DailyRevenueConfigManager = () => {
       </Badge>
     );
   };
+
+  // Get the display value for the input (draft if exists, otherwise formatted number)
+  const getInputValue = useCallback((date: string, percentage: number): string => {
+    if (percentageDrafts[date] !== undefined) {
+      return percentageDrafts[date];
+    }
+    // Format number with comma for display
+    if (percentage === 0) return '0';
+    return String(percentage).replace('.', ',');
+  }, [percentageDrafts]);
+
+  // Handle input change with draft support
+  const handlePercentageChange = useCallback((date: string, inputValue: string) => {
+    // Normalize: replace comma with dot for internal processing
+    let sanitized = inputValue.replace(',', '.');
+    // Remove non-numeric chars except dot
+    sanitized = sanitized.replace(/[^0-9.]/g, '');
+    // Ensure only one decimal point
+    const parts = sanitized.split('.');
+    if (parts.length > 2) {
+      sanitized = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Store the draft (with comma for display)
+    setPercentageDrafts(prev => ({
+      ...prev,
+      [date]: sanitized.replace('.', ',')
+    }));
+    
+    // Update the numeric value
+    const numValue = parseFloat(sanitized) || 0;
+    const clampedValue = Math.min(100, Math.max(0, numValue));
+    updateDayPercentage(date, clampedValue);
+  }, [updateDayPercentage]);
+
+  // Handle blur to normalize and clear draft
+  const handlePercentageBlur = useCallback((date: string, percentage: number) => {
+    // Clear draft and let the component use the numeric value
+    setPercentageDrafts(prev => {
+      const newDrafts = { ...prev };
+      delete newDrafts[date];
+      return newDrafts;
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -194,19 +241,10 @@ const DailyRevenueConfigManager = () => {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      value={config.percentage === 0 ? '0' : config.percentage || ''}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
-                        if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
-                        }
-                        const numValue = parseFloat(value) || 0;
-                        const clampedValue = Math.min(100, Math.max(0, numValue));
-                        updateDayPercentage(config.date, clampedValue);
-                      }}
-                      placeholder="0.0"
+                      value={getInputValue(config.date, config.percentage)}
+                      onChange={(e) => handlePercentageChange(config.date, e.target.value)}
+                      onBlur={() => handlePercentageBlur(config.date, config.percentage)}
+                      placeholder="0,0"
                       className={`w-24 ${isOverLimit ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
                   </TableCell>
