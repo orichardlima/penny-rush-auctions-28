@@ -17,6 +17,7 @@ import {
   Calendar, 
   DollarSign,
   CheckCircle,
+  CheckCircle2,
   Clock,
   AlertCircle,
   AlertTriangle,
@@ -862,13 +863,57 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 </div>
               )}
               
-              {/* Legenda de Horário de Fechamento */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md p-2 border border-border/50">
-                <Clock className="h-4 w-4 shrink-0 text-primary" />
-                <span>
-                  Os valores de cada dia ficam visíveis após as <strong className="text-foreground">{currentWeekRevenue.closingHour}:00h</strong>
-                </span>
-              </div>
+              {/* Legenda de Horário de Fechamento - Dinâmica */}
+              {(() => {
+                const todayData = currentWeekRevenue.days.find(d => d.isToday);
+                const currentHour = new Date().getHours();
+                const hoursRemaining = todayData && !todayData.isClosed 
+                  ? Math.max(0, currentWeekRevenue.closingHour - currentHour)
+                  : 0;
+                const todayLabel = todayData 
+                  ? `${todayData.dayName} ${todayData.dayNumber}`
+                  : '';
+                const isTodayPending = todayData && !todayData.isClosed;
+                
+                if (isTodayPending) {
+                  return (
+                    <div className="flex items-start gap-3 text-sm bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                      <div className="relative">
+                        <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-pulse" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="font-medium text-blue-800 dark:text-blue-300">
+                          Aguardando fechamento do dia
+                        </p>
+                        <p className="text-xs text-blue-700 dark:text-blue-400">
+                          O valor de <strong>{todayLabel}</strong> ficará visível às{' '}
+                          <strong>{currentWeekRevenue.closingHour}:00h</strong>
+                        </p>
+                        {hoursRemaining > 0 && (
+                          <p className="text-xs text-blue-600/80 dark:text-blue-500">
+                            ≈ {hoursRemaining} hora{hoursRemaining !== 1 ? 's' : ''} restante{hoursRemaining !== 1 ? 's' : ''}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="flex items-start gap-3 text-sm bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-emerald-800 dark:text-emerald-300">
+                        Dia encerrado
+                      </p>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                        Todos os valores até hoje estão visíveis. 
+                        Fechamento diário às <strong>{currentWeekRevenue.closingHour}:00h</strong>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Legenda Pro Rata */}
               {currentWeekRevenue.hasProRata && (
