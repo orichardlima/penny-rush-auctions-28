@@ -13,6 +13,7 @@ interface DailyRevenue {
   percentage: number;
   isManualConfig: boolean;
   isBeforeContract: boolean; // Day is before contract creation (Pro Rata)
+  isClosed: boolean; // Day has "closed" for display purposes (based on closing hour)
 }
 
 interface CurrentWeekRevenueData {
@@ -26,6 +27,7 @@ interface CurrentWeekRevenueData {
   contractStartDate: Date | null; // Contract creation date
   hasProRata: boolean; // Has days excluded by Pro Rata
   eligibleDaysCount: number; // Count of eligible days
+  closingHour: number; // Hour when a day is considered "closed" for display
 }
 
 interface PartnerContract {
@@ -55,6 +57,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
   const [upgrades, setUpgrades] = useState<PartnerUpgrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [closingHour, setClosingHour] = useState(18); // Default to 18:00
 
   // Get current week bounds (Monday to Sunday)
   const weekBounds = useMemo(() => {
@@ -88,8 +91,8 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         const mondayStr = weekBounds.monday.toISOString().split('T')[0];
         const sundayStr = weekBounds.sunday.toISOString().split('T')[0];
 
-        // Fetch daily revenue configs and upgrades in parallel
-        const [configsResult, upgradesResult] = await Promise.all([
+        // Fetch daily revenue configs, upgrades, and closing hour setting in parallel
+        const [configsResult, upgradesResult, closingHourResult] = await Promise.all([
           supabase
             .from('daily_revenue_config')
             .select('date, percentage, calculation_base')
@@ -99,7 +102,12 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
             .from('partner_upgrades')
             .select('previous_aporte_value, previous_weekly_cap, new_aporte_value, new_weekly_cap, created_at')
             .eq('partner_contract_id', contract.id)
-            .order('created_at', { ascending: true })
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('system_settings')
+            .select('setting_value')
+            .eq('setting_key', 'partner_daily_closing_time')
+            .single()
         ]);
 
         if (configsResult.error) throw configsResult.error;
@@ -115,6 +123,11 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
 
         setDailyConfigs(configsMap);
         setUpgrades(upgradesResult.data || []);
+        
+        // Set closing hour from system settings (default to 18 if not found)
+        if (closingHourResult.data?.setting_value) {
+          setClosingHour(parseInt(closingHourResult.data.setting_value) || 18);
+        }
 
         // Trigger animation after data loads
         setTimeout(() => {
@@ -187,8 +200,10 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
 
   // Calculate daily data
   const days = useMemo((): DailyRevenue[] => {
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
+    const currentHour = now.getHours();
     
     const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -234,6 +249,14 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         ? dateOnly < contractStartDate 
         : false;
       
+      const isPast = dateOnly < today;
+      const isToday = dateOnly.getTime() === today.getTime();
+      
+      // A day is "closed" for display if:
+      // 1. It's a past day (before today), OR
+      // 2. It's today AND the current hour >= closing hour
+      const isClosed = isPast || (isToday && currentHour >= closingHour);
+      
       result.push({
         date,
         dayName: dayNames[date.getDay()],
@@ -241,27 +264,28 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         monthShort: monthNames[date.getMonth()],
         partnerShare,
         grossRevenue,
-        isPast: dateOnly < today,
-        isToday: dateOnly.getTime() === today.getTime(),
+        isPast,
+        isToday,
         percentage,
         isManualConfig,
-        isBeforeContract
+        isBeforeContract,
+        isClosed
       });
     }
     
     return result;
-  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate]);
+  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate, closingHour]);
 
-  // Calculate totals
+  // Calculate totals - only include days that are "closed" (past the closing hour)
   const totalPartnerShare = useMemo(() => {
     return days
-      .filter(day => day.isPast || day.isToday)
+      .filter(day => day.isClosed && !day.isBeforeContract)
       .reduce((sum, day) => sum + day.partnerShare, 0);
   }, [days]);
 
   const totalGrossRevenue = useMemo(() => {
     return days
-      .filter(day => day.isPast || day.isToday)
+      .filter(day => day.isClosed && !day.isBeforeContract)
       .reduce((sum, day) => sum + day.grossRevenue, 0);
   }, [days]);
 
@@ -275,14 +299,14 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     return max;
   }, [days]);
 
-  // Check if Pro Rata applies (has days before contract that are past/today)
+  // Check if Pro Rata applies (has days before contract that are closed)
   const hasProRata = useMemo(() => {
-    return days.some(day => day.isBeforeContract && (day.isPast || day.isToday));
+    return days.some(day => day.isBeforeContract && day.isClosed);
   }, [days]);
 
-  // Count eligible days (not before contract and past/today)
+  // Count eligible days (not before contract and closed)
   const eligibleDaysCount = useMemo(() => {
-    return days.filter(day => !day.isBeforeContract && (day.isPast || day.isToday)).length;
+    return days.filter(day => !day.isBeforeContract && day.isClosed).length;
   }, [days]);
 
   return {
@@ -295,6 +319,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     isAnimating,
     contractStartDate,
     hasProRata,
-    eligibleDaysCount
+    eligibleDaysCount,
+    closingHour
   };
 };

@@ -760,7 +760,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               ) : (
                 <div className="space-y-2">
                   {currentWeekRevenue.days.map((day, index) => {
-                    const isProRataDay = day.isBeforeContract && (day.isPast || day.isToday);
+                    const isProRataDay = day.isBeforeContract && day.isClosed;
+                    const showValue = day.isClosed && !isProRataDay;
                     
                     return (
                       <div key={day.date.toISOString()} className="flex items-center gap-2">
@@ -780,15 +781,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                               "h-full rounded-full transition-all duration-300",
                               // Dia Pro Rata (antes do contrato): padrão listrado
                               isProRataDay && "bg-[repeating-linear-gradient(45deg,transparent,transparent_3px,rgba(0,0,0,0.08)_3px,rgba(0,0,0,0.08)_6px)] bg-muted-foreground/20",
-                              // Dia atual: verde com pulse suave
-                              !isProRataDay && day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
-                              // Dias passados: rosa/vermelho
-                              !isProRataDay && day.isPast && !day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
-                              // Dias futuros ou sem valor
-                              !isProRataDay && ((!day.isPast && !day.isToday) || day.partnerShare === 0) && "bg-muted-foreground/20",
-                              !isProRataDay && currentWeekRevenue.isAnimating && (day.isPast || day.isToday) && "animate-bar-grow"
+                              // Dia atual fechado: verde com pulse suave
+                              !isProRataDay && day.isToday && day.isClosed && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
+                              // Dias passados fechados: rosa/vermelho
+                              !isProRataDay && day.isPast && day.isClosed && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
+                              // Dias não fechados ou sem valor
+                              !isProRataDay && (!day.isClosed || day.partnerShare === 0) && "bg-muted-foreground/20",
+                              !isProRataDay && currentWeekRevenue.isAnimating && day.isClosed && "animate-bar-grow"
                             )}
-                            style={isProRataDay ? { width: '100%' } : { 
+                            style={isProRataDay ? { width: '100%' } : !day.isClosed ? { width: '0%' } : { 
                               '--bar-width': currentWeekRevenue.maxDailyValue > 0 
                                 ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
                                 : '0%',
@@ -813,12 +814,23 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                           )}
                           
                           {/* Badge Hoje DENTRO da barra */}
-                          {day.isToday && !isProRataDay && (
+                          {day.isToday && !isProRataDay && day.isClosed && (
                             <Badge 
                               variant="outline" 
                               className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-green-500/50 text-green-700 font-semibold"
                             >
                               Hoje
+                            </Badge>
+                          )}
+                          
+                          {/* Badge Aguardando (dia de hoje não fechado) */}
+                          {day.isToday && !isProRataDay && !day.isClosed && (
+                            <Badge 
+                              variant="outline" 
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-amber-500/50 text-amber-700 font-semibold"
+                            >
+                              <Clock className="h-2.5 w-2.5 mr-0.5" />
+                              às {currentWeekRevenue.closingHour}h
                             </Badge>
                           )}
                         </div>
@@ -832,7 +844,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                         )}>
                           {isProRataDay ? (
                             <span className="text-amber-600">—</span>
-                          ) : day.isPast || day.isToday ? (
+                          ) : showValue ? (
                             <>
                               {day.percentage > 0 && (
                                 <span className="hidden md:inline text-muted-foreground mr-1">

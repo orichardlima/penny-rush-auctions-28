@@ -38,6 +38,7 @@ export const SystemSettings: React.FC = () => {
   const [partnerSystemEnabled, setPartnerSystemEnabled] = useState<boolean>(true);
   const [partnerFundPercentage, setPartnerFundPercentage] = useState<string>('20');
   const [weeklyPaymentDay, setWeeklyPaymentDay] = useState<string>('5');
+  const [dailyClosingTime, setDailyClosingTime] = useState<string>('18');
   const [savingPartner, setSavingPartner] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
@@ -71,6 +72,7 @@ export const SystemSettings: React.FC = () => {
       setPartnerSystemEnabled(getSettingValue('partner_system_enabled', true));
       setPartnerFundPercentage(getSettingValue('partner_fund_percentage', 20).toString());
       setWeeklyPaymentDay(getSettingValue('partner_weekly_payment_day', 5).toString());
+      setDailyClosingTime(getSettingValue('partner_daily_closing_time', 18).toString());
       
       setIsInitialized(true);
     }
@@ -110,7 +112,8 @@ export const SystemSettings: React.FC = () => {
       await Promise.all([
         updateSetting('partner_system_enabled', partnerSystemEnabled.toString()),
         updateSetting('partner_fund_percentage', partnerFundPercentage),
-        updateSetting('partner_weekly_payment_day', weeklyPaymentDay)
+        updateSetting('partner_weekly_payment_day', weeklyPaymentDay),
+        updateSetting('partner_daily_closing_time', dailyClosingTime)
       ]);
       toast({
         title: "Configurações salvas!",
@@ -660,6 +663,35 @@ export const SystemSettings: React.FC = () => {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Define o dia da semana em que os pagamentos semanais devem ser processados.
+                </p>
+              </div>
+              
+              <Separator className="bg-purple-500/20" />
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-purple-600">⏰ Horário de Fechamento do Dia</p>
+                <div className="flex items-center gap-3">
+                  <Select 
+                    value={dailyClosingTime} 
+                    onValueChange={setDailyClosingTime}
+                    disabled={!partnerSystemEnabled}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <SelectItem key={i} value={i.toString()}>
+                          {i.toString().padStart(2, '0')}:00
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Os valores configurados do dia só ficam visíveis para o parceiro após este horário.
+                  <br />
+                  <span className="text-purple-600">Ex:</span> Se definido 18h, o valor de sábado só aparece após 18:00 de sábado.
                 </p>
               </div>
             </div>
