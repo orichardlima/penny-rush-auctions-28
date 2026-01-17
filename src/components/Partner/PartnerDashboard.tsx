@@ -697,17 +697,29 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   </div>
                 </div>
                 <div className="flex flex-col sm:items-end pl-10 sm:pl-0">
-                  <p className="text-xs md:text-sm text-muted-foreground">Previsão (média)</p>
-                  <p className="text-lg md:text-xl font-semibold text-purple-600">
-                    {payoutTotals.averagePayout > 0 ? formatPrice(payoutTotals.averagePayout) : 'Aguardando dados'}
+                  {/* Valor Principal: Acumulado da Semana Atual */}
+                  <p className="text-xs md:text-sm text-muted-foreground">Previsão (semana atual)</p>
+                  <p className="text-lg md:text-xl font-bold text-purple-600">
+                    {currentWeekRevenue.totalPartnerShare > 0 
+                      ? formatPrice(currentWeekRevenue.totalPartnerShare) 
+                      : 'Aguardando dados'}
                   </p>
-                  {payoutTotals.averagePayout > 0 && contract && (
+                  {currentWeekRevenue.totalPartnerShare > 0 && contract && (
                     <p className="text-[11px] md:text-xs text-muted-foreground">
                       <span className="text-primary font-medium">
-                        {((payoutTotals.averagePayout / contract.aporte_value) * 100).toFixed(2)}%
+                        {((currentWeekRevenue.totalPartnerShare / contract.aporte_value) * 100).toFixed(2)}%
                       </span>
-                      {' '}do aporte/semana
+                      {' '}do aporte
                     </p>
+                  )}
+                  
+                  {/* Valor Secundário: Média Histórica */}
+                  {payoutTotals.averagePayout > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground/80">
+                        Média histórica: <span className="font-medium">{formatPrice(payoutTotals.averagePayout)}</span>
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
