@@ -125,15 +125,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   // Generate dynamic example for tooltip based on weeklyPaymentDay
   const getDynamicPayoutExample = React.useMemo(() => {
     // Example week: Monday 06/01 to Sunday 12/01
-    const exampleWeekEnd = new Date(2025, 0, 12); // 12/01 (Sunday)
+    const exampleWeekStart = new Date(2025, 0, 6);  // 06/01 (Monday)
+    const exampleWeekEnd = new Date(2025, 0, 12);   // 12/01 (Sunday)
     
-    // Payment will be on the next occurrence of weeklyPaymentDay after Sunday
-    const paymentDate = new Date(exampleWeekEnd);
-    paymentDate.setDate(paymentDate.getDate() + 1); // Go to Monday (13/01)
+    // Payment is on weeklyPaymentDay of the SAME week
+    const paymentDate = new Date(exampleWeekStart);
     
-    // Advance to the payment day of that week
-    const mondayDay = paymentDate.getDay(); // Should be 1 (Monday)
-    let daysToAdd = weeklyPaymentDay - mondayDay;
+    // Advance to the payment day within the same week
+    let daysToAdd = weeklyPaymentDay - 1; // 1 = Monday
     if (daysToAdd < 0) daysToAdd += 7;
     paymentDate.setDate(paymentDate.getDate() + daysToAdd);
     
@@ -147,12 +146,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     };
   }, [weeklyPaymentDay]);
 
-  // Calculate next payment day
+  // Calculate next payment day (within the CURRENT week)
   const getNextPaymentInfo = React.useMemo(() => {
     const today = new Date();
     const currentDay = today.getDay();
     let daysUntil = weeklyPaymentDay - currentDay;
-    if (daysUntil <= 0) daysUntil += 7;
+    
+    // If the payment day has passed this week, go to next week
+    // If it's today (daysUntil === 0), payment is today
+    if (daysUntil < 0) daysUntil += 7;
     
     const nextPaymentDate = new Date(today);
     nextPaymentDate.setDate(today.getDate() + daysUntil);
@@ -187,30 +189,30 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     };
   }, []);
 
-  // Get the reference period for the next payout (the PREVIOUS completed week)
+  // Get the reference period for the next payout (the CURRENT week - paid on Sunday of same week)
   const getPayoutReferencePeriod = React.useMemo(() => {
     const today = new Date();
     const currentDay = today.getDay();
     
     // Calculate days until next payment day
     let daysUntilPayment = weeklyPaymentDay - currentDay;
-    if (daysUntilPayment <= 0) daysUntilPayment += 7;
+    if (daysUntilPayment < 0) daysUntilPayment += 7;
     
     // The next payment date
     const nextPaymentDate = new Date(today);
     nextPaymentDate.setDate(today.getDate() + daysUntilPayment);
     
-    // The reference period ends on the Sunday BEFORE the payment week starts
-    // Payment day is configurable, so we go back to the previous Sunday
-    const periodEnd = new Date(nextPaymentDate);
-    // Go back to the Sunday before the payment date
+    // The reference period is the SAME week as the payment
+    // Find the Monday of the payment week
     const paymentDayOfWeek = nextPaymentDate.getDay();
-    const daysToSunday = paymentDayOfWeek === 0 ? 7 : paymentDayOfWeek;
-    periodEnd.setDate(nextPaymentDate.getDate() - daysToSunday);
+    const daysToMonday = paymentDayOfWeek === 0 ? 6 : paymentDayOfWeek - 1;
     
-    // Period starts on the Monday of that week (6 days before Sunday)
-    const periodStart = new Date(periodEnd);
-    periodStart.setDate(periodEnd.getDate() - 6);
+    const periodStart = new Date(nextPaymentDate);
+    periodStart.setDate(nextPaymentDate.getDate() - daysToMonday);
+    
+    // Period ends on Sunday of that same week
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodStart.getDate() + 6);
     
     return {
       start: periodStart,
@@ -669,11 +671,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                               </div>
                               <div className="flex items-start gap-2">
                                 <span className="font-bold text-primary">2.</span>
-                                <p><strong>Processamento:</strong> Seg a Qui (semana seguinte)</p>
+                                <p><strong>Processamento:</strong> Segunda a Domingo</p>
                               </div>
                               <div className="flex items-start gap-2">
                                 <span className="font-bold text-primary">3.</span>
-                                <p><strong>Pagamento:</strong> {getDayName(weeklyPaymentDay)} da semana seguinte</p>
+                                <p><strong>Pagamento:</strong> {getDayName(weeklyPaymentDay)} da semana atual</p>
                               </div>
                             </div>
                             <div className="pt-2 border-t">
