@@ -12,6 +12,7 @@ interface DailyRevenue {
   isToday: boolean;
   percentage: number;
   isManualConfig: boolean;
+  isBeforeContract: boolean; // Day is before contract creation (Pro Rata)
 }
 
 interface CurrentWeekRevenueData {
@@ -22,6 +23,9 @@ interface CurrentWeekRevenueData {
   maxDailyValue: number;
   loading: boolean;
   isAnimating: boolean;
+  contractStartDate: Date | null; // Contract creation date
+  hasProRata: boolean; // Has days excluded by Pro Rata
+  eligibleDaysCount: number; // Count of eligible days
 }
 
 interface PartnerContract {
@@ -29,6 +33,7 @@ interface PartnerContract {
   aporte_value: number;
   weekly_cap: number;
   user_id: string;
+  created_at?: string;
 }
 
 interface DailyConfig {
@@ -172,6 +177,14 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     return { aporte, weeklyCap };
   };
 
+  // Contract start date for Pro Rata calculation
+  const contractStartDate = useMemo(() => {
+    if (!contract?.created_at) return null;
+    const date = new Date(contract.created_at);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [contract?.created_at]);
+
   // Calculate daily data
   const days = useMemo((): DailyRevenue[] => {
     const today = new Date();
@@ -216,6 +229,11 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       const dateOnly = new Date(date);
       dateOnly.setHours(0, 0, 0, 0);
       
+      // Check if this day is before the contract was created (Pro Rata)
+      const isBeforeContract = contractStartDate 
+        ? dateOnly < contractStartDate 
+        : false;
+      
       result.push({
         date,
         dayName: dayNames[date.getDay()],
@@ -226,12 +244,13 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         isPast: dateOnly < today,
         isToday: dateOnly.getTime() === today.getTime(),
         percentage,
-        isManualConfig
+        isManualConfig,
+        isBeforeContract
       });
     }
     
     return result;
-  }, [weekBounds, dailyConfigs, contract, upgrades]);
+  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate]);
 
   // Calculate totals
   const totalPartnerShare = useMemo(() => {
@@ -256,6 +275,16 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     return max;
   }, [days]);
 
+  // Check if Pro Rata applies (has days before contract that are past/today)
+  const hasProRata = useMemo(() => {
+    return days.some(day => day.isBeforeContract && (day.isPast || day.isToday));
+  }, [days]);
+
+  // Count eligible days (not before contract and past/today)
+  const eligibleDaysCount = useMemo(() => {
+    return days.filter(day => !day.isBeforeContract && (day.isPast || day.isToday)).length;
+  }, [days]);
+
   return {
     days,
     totalPartnerShare,
@@ -263,6 +292,9 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     percentageOfAporte,
     maxDailyValue,
     loading,
-    isAnimating
+    isAnimating,
+    contractStartDate,
+    hasProRata,
+    eligibleDaysCount
   };
 };
