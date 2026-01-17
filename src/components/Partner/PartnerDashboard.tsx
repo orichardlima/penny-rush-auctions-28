@@ -121,6 +121,31 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     return days[day] || 'Sexta-feira';
   };
 
+  // Generate dynamic example for tooltip based on weeklyPaymentDay
+  const getDynamicPayoutExample = React.useMemo(() => {
+    // Example week: Monday 06/01 to Sunday 12/01
+    const exampleWeekEnd = new Date(2025, 0, 12); // 12/01 (Sunday)
+    
+    // Payment will be on the next occurrence of weeklyPaymentDay after Sunday
+    const paymentDate = new Date(exampleWeekEnd);
+    paymentDate.setDate(paymentDate.getDate() + 1); // Go to Monday (13/01)
+    
+    // Advance to the payment day of that week
+    const mondayDay = paymentDate.getDay(); // Should be 1 (Monday)
+    let daysToAdd = weeklyPaymentDay - mondayDay;
+    if (daysToAdd < 0) daysToAdd += 7;
+    paymentDate.setDate(paymentDate.getDate() + daysToAdd);
+    
+    const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    
+    return {
+      weekStart: '06/01',
+      weekEnd: '12/01',
+      paymentDate: paymentDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      paymentDayName: dayNames[weeklyPaymentDay]
+    };
+  }, [weeklyPaymentDay]);
+
   // Calculate next payment day
   const getNextPaymentInfo = React.useMemo(() => {
     const today = new Date();
@@ -175,7 +200,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     nextPaymentDate.setDate(today.getDate() + daysUntilPayment);
     
     // The reference period ends on the Sunday BEFORE the payment week starts
-    // Payment is on Friday, so we go back to the previous Sunday
+    // Payment day is configurable, so we go back to the previous Sunday
     const periodEnd = new Date(nextPaymentDate);
     // Go back to the Sunday before the payment date
     const paymentDayOfWeek = nextPaymentDate.getDay();
@@ -652,7 +677,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                             </div>
                             <div className="pt-2 border-t">
                               <p className="text-xs text-muted-foreground">
-                                <strong>Exemplo:</strong> Ganhos de 06/01 (seg) a 12/01 (dom) são pagos em 17/01 (sex).
+                                <strong>Exemplo:</strong> Ganhos de {getDynamicPayoutExample.weekStart} (seg) a {getDynamicPayoutExample.weekEnd} (dom) são pagos em {getDynamicPayoutExample.paymentDate} ({getDynamicPayoutExample.paymentDayName}).
                               </p>
                             </div>
                           </div>
