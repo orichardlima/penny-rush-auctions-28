@@ -606,6 +606,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Repasses */}
         <TabsContent value="payouts" className="space-y-4">
+          {/* Alert explicativo sobre Repasses */}
+          <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/50 dark:border-blue-800">
+            <DollarSign className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-sm">
+              <strong>O que são Repasses?</strong> São valores creditados automaticamente em sua conta 
+              com base no rendimento semanal da plataforma. Esses valores ficam disponíveis para 
+              saque via PIX na aba "Saques".
+            </AlertDescription>
+          </Alert>
+
           {/* Card de Próximo Repasse */}
           <Card className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/20">
             <CardContent className="p-3 md:p-4">
@@ -865,9 +875,12 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <BanknoteIcon className="h-5 w-5" />
-                    Histórico Semanal
+                    Histórico de Repasses Creditados
                   </CardTitle>
-                  <CardDescription>Detalhes de cada repasse semanal</CardDescription>
+                  <CardDescription>
+                    Valores calculados e adicionados ao seu saldo com base no rendimento semanal.
+                    Estes valores ficam disponíveis para saque na aba "Saques".
+                  </CardDescription>
                 </div>
                 {payouts.length > 0 && (
                   <div className="flex gap-2 flex-wrap">

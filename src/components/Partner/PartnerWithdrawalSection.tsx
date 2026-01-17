@@ -130,6 +130,34 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
   return (
     <div className="space-y-6">
+      {/* Alert explicativo sobre Saques */}
+      <Alert className="bg-purple-50 border-purple-200 dark:bg-purple-950/50 dark:border-purple-800">
+        <Wallet className="h-4 w-4 text-purple-600" />
+        <AlertDescription className="text-sm">
+          <strong>O que são Saques?</strong> Após seus repasses serem creditados pelo admin, 
+          o valor fica disponível aqui para você transferir para sua conta PIX. 
+          Saques aprovados são processados em até 48h úteis.
+        </AlertDescription>
+      </Alert>
+
+      {/* Fluxo Visual */}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-3 px-4 bg-muted/50 rounded-lg border border-dashed">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+          <span>Repasse Creditado</span>
+        </div>
+        <span className="text-muted-foreground/60">→</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+          <span>Saldo Disponível</span>
+        </div>
+        <span className="text-muted-foreground/60">→</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
+          <span>Saque PIX</span>
+        </div>
+      </div>
+
       {/* Saldo e Ações */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-l-4 border-l-primary">
@@ -142,7 +170,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
           <CardContent>
             <div className="text-3xl font-bold text-primary">{formatPrice(availableBalance)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Baseado nos repasses pagos menos saques realizados
+              = Repasses creditados − Saques já realizados
             </p>
           </CardContent>
         </Card>
