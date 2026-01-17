@@ -102,8 +102,9 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
 
   // Calculate week bounds from selected week
   const weekBounds = useMemo((): WeekBounds => {
-    const monday = new Date(selectedWeek);
-    monday.setHours(0, 0, 0, 0);
+    // Parse the date string as local time (not UTC) to avoid timezone issues
+    const [year, month, day] = selectedWeek.split('-').map(Number);
+    const monday = new Date(year, month - 1, day, 0, 0, 0, 0);
     
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);

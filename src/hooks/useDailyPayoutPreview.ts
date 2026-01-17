@@ -140,13 +140,16 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
 
         // Generate all 7 days of the week
         const allDaysConfigs: DailyConfigForPreview[] = [];
-        const startDate = new Date(selectedWeek);
+        // Parse the date string as local time (not UTC) to avoid timezone issues
+        const [year, month, day] = selectedWeek.split('-').map(Number);
+        const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
         const defaultBase = configsData?.[0]?.calculation_base || 'aporte';
 
         for (let i = 0; i < 7; i++) {
           const dayDate = new Date(startDate);
           dayDate.setDate(startDate.getDate() + i);
-          const dayKey = dayDate.toISOString().split('T')[0];
+          // Format as YYYY-MM-DD using local time
+          const dayKey = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, '0')}-${String(dayDate.getDate()).padStart(2, '0')}`;
           
           // Use existing config or create with 0%
           const existingConfig = configsMap.get(dayKey);
