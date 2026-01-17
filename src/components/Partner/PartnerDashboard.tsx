@@ -862,6 +862,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 </div>
               )}
               
+              {/* Legenda de Horário de Fechamento */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md p-2 border border-border/50">
+                <Clock className="h-4 w-4 shrink-0 text-primary" />
+                <span>
+                  Os valores de cada dia ficam visíveis após as <strong className="text-foreground">{currentWeekRevenue.closingHour}:00h</strong>
+                </span>
+              </div>
+
               {/* Legenda Pro Rata */}
               {currentWeekRevenue.hasProRata && (
                 <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-md p-2 border border-amber-200 dark:border-amber-800">
