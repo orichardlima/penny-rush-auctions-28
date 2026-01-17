@@ -235,11 +235,15 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
 
   // Calculate totals
   const totalPartnerShare = useMemo(() => {
-    return days.reduce((sum, day) => sum + day.partnerShare, 0);
+    return days
+      .filter(day => day.isPast || day.isToday)
+      .reduce((sum, day) => sum + day.partnerShare, 0);
   }, [days]);
 
   const totalGrossRevenue = useMemo(() => {
-    return days.reduce((sum, day) => sum + day.grossRevenue, 0);
+    return days
+      .filter(day => day.isPast || day.isToday)
+      .reduce((sum, day) => sum + day.grossRevenue, 0);
   }, [days]);
 
   const percentageOfAporte = useMemo(() => {
