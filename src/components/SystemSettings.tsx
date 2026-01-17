@@ -617,10 +617,10 @@ export const SystemSettings: React.FC = () => {
               <Separator className="bg-purple-500/20" />
               
               <div className="space-y-2">
-                <p className="text-sm font-medium text-purple-600">✂️ Data de Corte</p>
+                <p className="text-sm font-medium text-purple-600">📊 Pro Rata (Pagamento Proporcional)</p>
                 <p className="text-xs text-muted-foreground">
-                  Contratos criados <strong>antes da segunda-feira</strong> da semana processada são elegíveis para receber o repasse daquela semana.
-                  Contratos criados na segunda-feira ou depois aguardam a próxima semana.
+                  Parceiros que se cadastrarem <strong>durante a semana</strong> recebem pagamento proporcional aos dias em que estiveram ativos.
+                  Por exemplo: cadastro na quinta-feira = recebe quinta + sexta + sábado + domingo (4 de 7 dias).
                 </p>
               </div>
               
