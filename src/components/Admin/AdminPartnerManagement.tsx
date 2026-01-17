@@ -16,6 +16,7 @@ import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
 import PartnerGraduationManager from './PartnerGraduationManager';
 import DailyRevenueConfigManager from './DailyRevenueConfigManager';
+import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import { 
@@ -39,7 +40,8 @@ import {
   Calculator,
   Trophy,
   Receipt,
-  GitBranch
+  GitBranch,
+  Eye
 } from 'lucide-react';
 import BinaryNetworkManager from './BinaryNetworkManager';
 
@@ -1293,18 +1295,27 @@ const AdminPartnerManagement = () => {
 
                 {/* Configurações do Modo */}
                 {calculationMode === 'daily' && (
-                  <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg space-y-3">
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="h-5 w-5" />
-                      <span className="font-medium">Modo Faturamento Diário</span>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg space-y-3">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="font-medium">Modo Faturamento Diário</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        O repasse será calculado usando as porcentagens diárias configuradas na tabela "Configurar Faturamento Diário" acima. 
+                        Isso garante consistência entre a projeção que o parceiro vê e o pagamento real.
+                      </p>
+                      <div className="text-xs text-green-600 bg-green-500/10 p-2 rounded">
+                        <strong>✓ Projeção = Pagamento Real</strong>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      O repasse será calculado usando as porcentagens diárias configuradas na tabela "Configurar Faturamento Diário" acima. 
-                      Isso garante consistência entre a projeção que o parceiro vê e o pagamento real.
-                    </p>
-                    <div className="text-xs text-green-600 bg-green-500/10 p-2 rounded">
-                      <strong>✓ Projeção = Pagamento Real</strong>
+                    
+                    {/* Preview em tempo real */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Eye className="h-4 w-4" />
+                      <span>Preview em tempo real baseado nas configurações da semana selecionada:</span>
                     </div>
+                    <DailyPayoutPreview selectedWeek={selectedWeek} />
                   </div>
                 )}
                 
