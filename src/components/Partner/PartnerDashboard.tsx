@@ -221,23 +221,23 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     };
   }, [weeklyPaymentDay]);
 
-  // Get when the current week will be paid
+  // Get when the current week will be paid (payment is on the SAME week)
   const getCurrentWeekPaymentDate = React.useMemo(() => {
     const today = new Date();
     const currentDay = today.getDay();
     
-    // Find the end of current week (Sunday)
-    const daysToSunday = currentDay === 0 ? 0 : 7 - currentDay;
-    const currentWeekEnd = new Date(today);
-    currentWeekEnd.setDate(today.getDate() + daysToSunday);
+    // Find the Monday of current week
+    const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
     
-    // Payment will be on the payment day of the FOLLOWING week
-    const paymentDate = new Date(currentWeekEnd);
-    // Go to next Monday first
-    paymentDate.setDate(currentWeekEnd.getDate() + 1);
-    // Then add days to reach payment day
-    const daysToPaymentDay = weeklyPaymentDay === 0 ? 6 : weeklyPaymentDay - 1;
-    paymentDate.setDate(paymentDate.getDate() + daysToPaymentDay);
+    // Payment is on weeklyPaymentDay of the SAME week
+    // weeklyPaymentDay: 0 = Sunday, 1 = Monday, etc.
+    const paymentDate = new Date(monday);
+    let daysToAdd = weeklyPaymentDay - 1; // Monday is day 1
+    if (daysToAdd < 0) daysToAdd += 7; // If Sunday (0), add 6 days from Monday
+    paymentDate.setDate(monday.getDate() + daysToAdd);
     
     return {
       date: paymentDate,
