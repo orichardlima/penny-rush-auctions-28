@@ -784,13 +784,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                               isProRataDay && "bg-[repeating-linear-gradient(45deg,transparent,transparent_3px,rgba(0,0,0,0.08)_3px,rgba(0,0,0,0.08)_6px)] bg-muted-foreground/20",
                               // Dia atual fechado: verde com pulse suave
                               !isProRataDay && day.isToday && day.isClosed && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
+                              // Dia atual aguardando fechamento: azul com pulse suave (DESTAQUE)
+                              !isProRataDay && day.isToday && !day.isClosed && "bg-gradient-to-r from-blue-400 to-blue-300 animate-pulse-soft",
                               // Dias passados fechados: rosa/vermelho
                               !isProRataDay && day.isPast && day.isClosed && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
-                              // Dias não fechados ou sem valor
-                              !isProRataDay && (!day.isClosed || day.partnerShare === 0) && "bg-muted-foreground/20",
+                              // Dias futuros ou sem valor
+                              !isProRataDay && !day.isToday && (!day.isClosed || day.partnerShare === 0) && "bg-muted-foreground/20",
                               !isProRataDay && currentWeekRevenue.isAnimating && day.isClosed && "animate-bar-grow"
                             )}
-                            style={isProRataDay ? { width: '100%' } : !day.isClosed ? { width: '0%' } : { 
+                            style={isProRataDay ? { width: '100%' } : !day.isClosed ? { width: day.isToday ? '40%' : '0%' } : { 
                               '--bar-width': currentWeekRevenue.maxDailyValue > 0 
                                 ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
                                 : '0%',
@@ -828,7 +830,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                           {day.isToday && !isProRataDay && !day.isClosed && (
                             <Badge 
                               variant="outline" 
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-amber-500/50 text-amber-700 font-semibold"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-blue-400/50 text-blue-700 font-semibold"
                             >
                               <Clock className="h-2.5 w-2.5 mr-0.5" />
                               às {currentWeekRevenue.closingHour}h
