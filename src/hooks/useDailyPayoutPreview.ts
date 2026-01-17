@@ -128,7 +128,36 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
 
         if (configsError) throw configsError;
         
-        setDailyConfigs(configsData || []);
+        // Create map of existing configs
+        const configsMap = new Map<string, DailyConfigForPreview>();
+        (configsData || []).forEach(c => {
+          configsMap.set(c.date, {
+            date: c.date,
+            percentage: Number(c.percentage),
+            calculation_base: c.calculation_base
+          });
+        });
+
+        // Generate all 7 days of the week
+        const allDaysConfigs: DailyConfigForPreview[] = [];
+        const startDate = new Date(selectedWeek);
+        const defaultBase = configsData?.[0]?.calculation_base || 'aporte';
+
+        for (let i = 0; i < 7; i++) {
+          const dayDate = new Date(startDate);
+          dayDate.setDate(startDate.getDate() + i);
+          const dayKey = dayDate.toISOString().split('T')[0];
+          
+          // Use existing config or create with 0%
+          const existingConfig = configsMap.get(dayKey);
+          allDaysConfigs.push(existingConfig || {
+            date: dayKey,
+            percentage: 0,
+            calculation_base: defaultBase
+          });
+        }
+
+        setDailyConfigs(allDaysConfigs);
 
         // Fetch active contracts
         const { data: contractsData, error: contractsError } = await supabase
