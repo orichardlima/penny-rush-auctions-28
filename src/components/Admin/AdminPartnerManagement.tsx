@@ -81,7 +81,7 @@ const AdminPartnerManagement = () => {
   const [cancelReason, setCancelReason] = useState('');
   
   // Manual mode state
-  const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual'>('automatic');
+  const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual' | 'daily'>('automatic');
   const [manualBase, setManualBase] = useState<'aporte' | 'weekly_cap'>('aporte');
   const [manualPercentage, setManualPercentage] = useState(5);
   const [manualDescription, setManualDescription] = useState('');
@@ -208,7 +208,15 @@ const AdminPartnerManagement = () => {
   const handleProcessPayouts = async () => {
     if (!selectedWeek) return;
     
-    if (calculationMode === 'manual') {
+    if (calculationMode === 'daily') {
+      const options: ManualPayoutOptions = {
+        manualMode: false,
+        manualBase: 'aporte',
+        manualPercentage: 0,
+        useDailyConfig: true
+      };
+      await processWeeklyPayouts(selectedWeek, fundPercentage, options);
+    } else if (calculationMode === 'manual') {
       const options: ManualPayoutOptions = {
         manualMode: true,
         manualBase,
@@ -1255,9 +1263,17 @@ const AdminPartnerManagement = () => {
                   <Label className="text-base font-medium">Modo de Cálculo</Label>
                   <RadioGroup 
                     value={calculationMode} 
-                    onValueChange={(v) => setCalculationMode(v as 'automatic' | 'manual')}
+                    onValueChange={(v) => setCalculationMode(v as 'automatic' | 'manual' | 'daily')}
                     className="space-y-2"
                   >
+                    <div className="flex items-center space-x-2 p-3 rounded-lg border border-green-500/30 bg-green-500/5 hover:bg-green-500/10 transition-colors">
+                      <RadioGroupItem value="daily" id="daily" />
+                      <Label htmlFor="daily" className="flex-1 cursor-pointer">
+                        <span className="font-medium text-green-700">Usar Faturamento Diário Configurado</span>
+                        <p className="text-xs text-muted-foreground">Usa as porcentagens já configuradas na tabela acima</p>
+                      </Label>
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    </div>
                     <div className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
                       <RadioGroupItem value="automatic" id="automatic" />
                       <Label htmlFor="automatic" className="flex-1 cursor-pointer">
@@ -1276,7 +1292,23 @@ const AdminPartnerManagement = () => {
                 </div>
 
                 {/* Configurações do Modo */}
-                {calculationMode === 'automatic' ? (
+                {calculationMode === 'daily' && (
+                  <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Modo Faturamento Diário</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      O repasse será calculado usando as porcentagens diárias configuradas na tabela "Configurar Faturamento Diário" acima. 
+                      Isso garante consistência entre a projeção que o parceiro vê e o pagamento real.
+                    </p>
+                    <div className="text-xs text-green-600 bg-green-500/10 p-2 rounded">
+                      <strong>✓ Projeção = Pagamento Real</strong>
+                    </div>
+                  </div>
+                )}
+                
+                {calculationMode === 'automatic' && (
                   <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
                     <Label>% do Faturamento para Fundo</Label>
                     <div className="flex gap-2">
@@ -1292,7 +1324,9 @@ const AdminPartnerManagement = () => {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                )}
+                
+                {calculationMode === 'manual' && (
                   <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
                     <div className="space-y-3">
                       <Label className="font-medium">Base de Cálculo</Label>

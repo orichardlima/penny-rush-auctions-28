@@ -142,7 +142,44 @@ export interface ManualPayoutOptions {
   manualPercentage: number;
   manualDescription?: string;
   cutoffDay?: number;
+  useDailyConfig?: boolean;
 }
+
+// Helper function to get contract values at a specific date considering upgrades
+export const getValuesAtDate = (
+  contract: { aporte_value: number; weekly_cap: number },
+  upgrades: Array<{
+    previous_aporte_value: number;
+    previous_weekly_cap: number;
+    new_aporte_value: number;
+    new_weekly_cap: number;
+    created_at: string;
+  }>,
+  date: Date
+): { aporte: number; weeklyCap: number } => {
+  if (!upgrades || upgrades.length === 0) {
+    return { aporte: contract.aporte_value, weeklyCap: contract.weekly_cap };
+  }
+  
+  // Start with the first upgrade's previous values (initial contract values)
+  let aporte = upgrades[0].previous_aporte_value;
+  let weeklyCap = upgrades[0].previous_weekly_cap;
+  
+  for (const upgrade of upgrades) {
+    const upgradeDate = new Date(upgrade.created_at);
+    upgradeDate.setHours(0, 0, 0, 0);
+    
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    if (checkDate >= upgradeDate) {
+      aporte = upgrade.new_aporte_value;
+      weeklyCap = upgrade.new_weekly_cap;
+    }
+  }
+  
+  return { aporte, weeklyCap };
+};
 
 // Helper function to check if a contract is eligible for a given week
 export const isContractEligibleForWeek = (
@@ -545,7 +582,84 @@ export const useAdminPartners = () => {
         manual_description: null
       };
 
-      if (options?.manualMode) {
+      // Estrutura para armazenar cálculos por contrato (usado no modo diário)
+      const contractPayouts: Map<string, { calculatedAmount: number; weeklyCapApplied: boolean }> = new Map();
+
+      if (options?.useDailyConfig) {
+        // MODO FATURAMENTO DIÁRIO: usar configurações diárias da tabela daily_revenue_config
+        const { data: dailyConfigs, error: configError } = await supabase
+          .from('daily_revenue_config')
+          .select('date, percentage, calculation_base')
+          .gte('date', weekStart)
+          .lte('date', weekEnd)
+          .order('date', { ascending: true });
+
+        if (configError) throw configError;
+
+        if (!dailyConfigs || dailyConfigs.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "Sem configurações diárias",
+            description: "Configure o faturamento diário para esta semana antes de processar."
+          });
+          setProcessing(false);
+          return;
+        }
+
+        // Calcular porcentagem total da semana e determinar base
+        const totalWeekPercentage = dailyConfigs.reduce((sum, c) => sum + Number(c.percentage || 0), 0);
+        const calculationBase = dailyConfigs[0]?.calculation_base || 'aporte';
+
+        // Processar cada contrato individualmente
+        for (const contract of activeContracts) {
+          // Buscar upgrades do contrato para considerar valores históricos
+          const { data: upgrades } = await supabase
+            .from('partner_upgrades')
+            .select('previous_aporte_value, previous_weekly_cap, new_aporte_value, new_weekly_cap, created_at')
+            .eq('partner_contract_id', contract.id)
+            .order('created_at', { ascending: true });
+
+          let totalCalculated = 0;
+          let wasWeeklyCapApplied = false;
+
+          // Calcular valor para cada dia configurado
+          for (const config of dailyConfigs) {
+            const configDate = new Date(config.date + 'T12:00:00Z');
+            const valuesAtDate = getValuesAtDate(contract, upgrades || [], configDate);
+            const baseValue = config.calculation_base === 'weekly_cap' 
+              ? valuesAtDate.weeklyCap 
+              : valuesAtDate.aporte;
+            
+            let dayValue = baseValue * (Number(config.percentage) / 100);
+            
+            // Aplicar weekly cap se base for aporte
+            if (config.calculation_base === 'aporte' && dayValue > valuesAtDate.weeklyCap) {
+              dayValue = valuesAtDate.weeklyCap;
+              wasWeeklyCapApplied = true;
+            }
+            
+            totalCalculated += dayValue;
+          }
+
+          contractPayouts.set(contract.id, { 
+            calculatedAmount: totalCalculated, 
+            weeklyCapApplied: wasWeeklyCapApplied 
+          });
+          partnerFundValue += totalCalculated;
+        }
+
+        snapshotData = {
+          ...snapshotData,
+          gross_revenue: 0,
+          partner_fund_percentage: 0,
+          partner_fund_value: partnerFundValue,
+          is_manual: true,
+          manual_base: calculationBase,
+          manual_percentage: totalWeekPercentage,
+          manual_description: `Faturamento Diário: ${dailyConfigs.length} dia(s) configurado(s)`
+        };
+
+      } else if (options?.manualMode) {
         // MODO MANUAL: calcular baseado na porcentagem sobre a base escolhida
         partnerFundValue = activeContracts.reduce((sum, contract) => {
           const baseValue = options.manualBase === 'aporte' 
@@ -596,8 +710,14 @@ export const useAdminPartners = () => {
       // 3. Calcular distribuição para cada contrato
       for (const contract of activeContracts) {
         let calculatedAmount = 0;
+        let preCalculatedWeeklyCapApplied = false;
         
-        if (options?.manualMode) {
+        if (options?.useDailyConfig) {
+          // Modo diário: usar valores já calculados
+          const preCalc = contractPayouts.get(contract.id);
+          calculatedAmount = preCalc?.calculatedAmount || 0;
+          preCalculatedWeeklyCapApplied = preCalc?.weeklyCapApplied || false;
+        } else if (options?.manualMode) {
           // Modo manual: aplicar porcentagem diretamente sobre a base
           const baseValue = options.manualBase === 'aporte' 
             ? contract.aporte_value 
@@ -611,11 +731,11 @@ export const useAdminPartners = () => {
         }
 
         let amount = calculatedAmount;
-        let weeklyCapApplied = false;
+        let weeklyCapApplied = preCalculatedWeeklyCapApplied;
         let totalCapApplied = false;
 
-        // Aplicar limite semanal
-        if (amount > contract.weekly_cap) {
+        // Aplicar limite semanal (exceto para modo diário onde já foi aplicado por dia)
+        if (!options?.useDailyConfig && amount > contract.weekly_cap) {
           amount = contract.weekly_cap;
           weeklyCapApplied = true;
         }
