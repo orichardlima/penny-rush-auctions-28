@@ -107,10 +107,18 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
             {dailyConfigs.map((config) => (
               <div 
                 key={config.date}
-                className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-sm"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
+                  config.percentage > 0 ? 'bg-muted' : 'bg-muted/30 opacity-60'
+                }`}
               >
                 <span className="font-medium">{formatDate(config.date)}</span>
-                <Badge variant="secondary" className="bg-green-500/10 text-green-700 border-green-500/30">
+                <Badge 
+                  variant="secondary" 
+                  className={config.percentage > 0 
+                    ? "bg-green-500/10 text-green-700 border-green-500/30"
+                    : "bg-gray-500/10 text-gray-500 border-gray-500/30"
+                  }
+                >
                   {config.percentage}%
                 </Badge>
               </div>
