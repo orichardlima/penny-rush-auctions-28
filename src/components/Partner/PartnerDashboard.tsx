@@ -26,7 +26,8 @@ import {
   CalendarDays,
   BanknoteIcon,
   Timer,
-  Zap
+  Zap,
+  Lock
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { PartnerPlanCard } from './PartnerPlanCard';
@@ -744,76 +745,114 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {currentWeekRevenue.days.map((day, index) => (
-                    <div key={day.date.toISOString()} className="flex items-center gap-2">
-                      <span className={cn(
-                        "w-14 text-xs font-medium shrink-0",
-                        day.isToday && "text-primary font-bold"
-                      )}>
-                        {day.dayName} {day.dayNumber}
-                      </span>
-                      
-                      {/* Container da barra */}
-                      <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
-                        {/* Barra com animação */}
-                        <div 
-                          className={cn(
-                            "h-full rounded-full transition-all duration-300",
-                            // Dia atual: verde com pulse suave
-                            day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
-                            // Dias passados: rosa/vermelho
-                            day.isPast && !day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
-                            // Dias futuros ou sem valor
-                            ((!day.isPast && !day.isToday) || day.partnerShare === 0) && "bg-muted-foreground/20",
-                            currentWeekRevenue.isAnimating && (day.isPast || day.isToday) && "animate-bar-grow"
-                          )}
-                          style={{ 
-                            '--bar-width': currentWeekRevenue.maxDailyValue > 0 
-                              ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
-                              : '0%',
-                            width: currentWeekRevenue.isAnimating 
-                              ? undefined 
-                              : currentWeekRevenue.maxDailyValue > 0 
+                  {currentWeekRevenue.days.map((day, index) => {
+                    const isProRataDay = day.isBeforeContract && (day.isPast || day.isToday);
+                    
+                    return (
+                      <div key={day.date.toISOString()} className="flex items-center gap-2">
+                        <span className={cn(
+                          "w-14 text-xs font-medium shrink-0",
+                          day.isToday && "text-primary font-bold",
+                          isProRataDay && "text-muted-foreground/60"
+                        )}>
+                          {day.dayName} {day.dayNumber}
+                        </span>
+                        
+                        {/* Container da barra */}
+                        <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
+                          {/* Barra com animação */}
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all duration-300",
+                              // Dia Pro Rata (antes do contrato): padrão listrado
+                              isProRataDay && "bg-[repeating-linear-gradient(45deg,transparent,transparent_3px,rgba(0,0,0,0.08)_3px,rgba(0,0,0,0.08)_6px)] bg-muted-foreground/20",
+                              // Dia atual: verde com pulse suave
+                              !isProRataDay && day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
+                              // Dias passados: rosa/vermelho
+                              !isProRataDay && day.isPast && !day.isToday && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
+                              // Dias futuros ou sem valor
+                              !isProRataDay && ((!day.isPast && !day.isToday) || day.partnerShare === 0) && "bg-muted-foreground/20",
+                              !isProRataDay && currentWeekRevenue.isAnimating && (day.isPast || day.isToday) && "animate-bar-grow"
+                            )}
+                            style={isProRataDay ? { width: '100%' } : { 
+                              '--bar-width': currentWeekRevenue.maxDailyValue > 0 
                                 ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
                                 : '0%',
-                            animationDelay: `${index * 100}ms`
-                          } as React.CSSProperties}
-                        />
+                              width: currentWeekRevenue.isAnimating 
+                                ? undefined 
+                                : currentWeekRevenue.maxDailyValue > 0 
+                                  ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
+                                  : '0%',
+                              animationDelay: `${index * 100}ms`
+                            } as React.CSSProperties}
+                          />
+                          
+                          {/* Badge Pro Rata DENTRO da barra */}
+                          {isProRataDay && (
+                            <Badge 
+                              variant="outline" 
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-amber-50 border-amber-400/50 text-amber-700 font-semibold"
+                            >
+                              <Lock className="h-2.5 w-2.5 mr-0.5" />
+                              Pré-contrato
+                            </Badge>
+                          )}
+                          
+                          {/* Badge Hoje DENTRO da barra */}
+                          {day.isToday && !isProRataDay && (
+                            <Badge 
+                              variant="outline" 
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-green-500/50 text-green-700 font-semibold"
+                            >
+                              Hoje
+                            </Badge>
+                          )}
+                        </div>
                         
-                        {/* Badge Hoje DENTRO da barra */}
-                        {day.isToday && (
-                          <Badge 
-                            variant="outline" 
-                            className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-green-500/50 text-green-700 font-semibold"
-                          >
-                            Hoje
-                          </Badge>
-                        )}
+                        {/* Valor e Porcentagem */}
+                        <span className={cn(
+                          "w-16 md:w-28 text-[10px] md:text-xs text-right shrink-0 tabular-nums",
+                          day.isToday && !isProRataDay && "text-primary font-bold",
+                          (!day.isPast && !day.isToday) && "text-muted-foreground",
+                          isProRataDay && "text-muted-foreground/50"
+                        )}>
+                          {isProRataDay ? (
+                            <span className="text-amber-600">—</span>
+                          ) : day.isPast || day.isToday ? (
+                            <>
+                              {day.percentage > 0 && (
+                                <span className="hidden md:inline text-muted-foreground mr-1">
+                                  {day.percentage.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
+                                </span>
+                              )}
+                              {formatPrice(day.partnerShare)}
+                            </>
+                          ) : '-'}
+                        </span>
+                        
                       </div>
-                      
-                      {/* Valor e Porcentagem */}
-                      <span className={cn(
-                        "w-16 md:w-28 text-[10px] md:text-xs text-right shrink-0 tabular-nums",
-                        day.isToday && "text-primary font-bold",
-                        !day.isPast && !day.isToday && "text-muted-foreground"
-                      )}>
-                        {day.isPast || day.isToday ? (
-                          <>
-                            {day.percentage > 0 && (
-                              <span className="hidden md:inline text-muted-foreground mr-1">
-                                {day.percentage.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
-                              </span>
-                            )}
-                            {formatPrice(day.partnerShare)}
-                          </>
-                        ) : '-'}
-                      </span>
-                      
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               
+              {/* Legenda Pro Rata */}
+              {currentWeekRevenue.hasProRata && (
+                <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-md p-2 border border-amber-200 dark:border-amber-800">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    <strong>Pro Rata:</strong> Seu contrato iniciou em{' '}
+                    <strong>
+                      {currentWeekRevenue.contractStartDate?.toLocaleDateString('pt-BR', { 
+                        day: '2-digit', 
+                        month: '2-digit' 
+                      })}
+                    </strong>
+                    {' '}— dias anteriores não contam ganhos.
+                  </span>
+                </div>
+              )}
+
               {/* Separador e Totalizador */}
               <Separator className="bg-primary/20" />
               
@@ -828,7 +867,12 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                     <span className="text-primary font-medium">
                       {currentWeekRevenue.percentageOfAporte.toFixed(2)}%
                     </span>
-                    {' '}do aporte/semana
+                    {' '}do aporte
+                    {currentWeekRevenue.hasProRata && (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        {' '}({currentWeekRevenue.eligibleDaysCount} dia{currentWeekRevenue.eligibleDaysCount !== 1 ? 's' : ''} elegível{currentWeekRevenue.eligibleDaysCount !== 1 ? 'eis' : ''})
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
