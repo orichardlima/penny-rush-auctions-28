@@ -53,10 +53,19 @@ interface UseDailyRevenueConfigResult {
   partnerPlans: PartnerPlan[];
 }
 
+// Helper: Format a Date to YYYY-MM-DD string using local time (avoids UTC issues)
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Get weeks grouped by month for selector
 export const getWeeksForDailyConfig = (weeksCount: number = 12) => {
   const weeks: { value: string; label: string; monday: Date; sunday: Date }[] = [];
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const dayOfWeek = today.getDay();
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   
@@ -67,14 +76,16 @@ export const getWeeksForDailyConfig = (weeksCount: number = 12) => {
   for (let i = 0; i < weeksCount; i++) {
     const monday = new Date(currentMonday);
     monday.setDate(currentMonday.getDate() - (i * 7));
+    monday.setHours(0, 0, 0, 0);
     
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(0, 0, 0, 0);
     
     const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     
     weeks.push({
-      value: monday.toISOString().split('T')[0],
+      value: formatLocalDate(monday),
       label: `${formatDate(monday)} - ${formatDate(sunday)}`,
       monday,
       sunday
@@ -119,9 +130,9 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
       setLoading(true);
       
       try {
-        // Fetch existing configs for the week
-        const mondayStr = weekBounds.monday.toISOString().split('T')[0];
-        const sundayStr = weekBounds.sunday.toISOString().split('T')[0];
+        // Fetch existing configs for the week using local date formatting
+        const mondayStr = formatLocalDate(weekBounds.monday);
+        const sundayStr = formatLocalDate(weekBounds.sunday);
         
         const { data: configsData, error: configsError } = await supabase
           .from('daily_revenue_config')
@@ -215,8 +226,9 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(weekBounds.monday);
       date.setDate(weekBounds.monday.getDate() + i);
+      date.setHours(0, 0, 0, 0);
       
-      const dayKey = date.toISOString().split('T')[0];
+      const dayKey = formatLocalDate(date);
       const percentage = localConfigs[dayKey] ?? 0;
       const estimatedValue = baseTotal * (percentage / 100);
       

@@ -51,12 +51,29 @@ export interface WeeklyRevenueSnapshot {
   manual_description?: string | null;
 }
 
+// Helper: Format a Date to YYYY-MM-DD string using local time (avoids UTC issues)
+export const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Helper: Parse YYYY-MM-DD string to local Date (avoids UTC issues)
+export const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
 // Helper: Get the Monday of the week for a given date
 export const getWeekStart = (date: Date): Date => {
   const d = new Date(date);
+  d.setHours(0, 0, 0, 0); // Normalize time to midnight
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  return new Date(d.setDate(diff));
+  const monday = new Date(d.setDate(diff));
+  monday.setHours(0, 0, 0, 0); // Ensure midnight
+  return monday;
 };
 
 // Helper: Get the Sunday of the week for a given date
@@ -64,13 +81,15 @@ export const getWeekEnd = (date: Date): Date => {
   const weekStart = getWeekStart(date);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
+  weekEnd.setHours(0, 0, 0, 0);
   return weekEnd;
 };
 
 // Helper: Format a week range for display
 export const formatWeekRange = (periodStart: string, periodEnd?: string | null): string => {
-  const start = new Date(periodStart);
-  const end = periodEnd ? new Date(periodEnd) : getWeekEnd(start);
+  // Parse as local date to avoid UTC offset issues
+  const start = parseLocalDate(periodStart);
+  const end = periodEnd ? parseLocalDate(periodEnd) : getWeekEnd(start);
   
   const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   const year = start.getFullYear();
@@ -97,6 +116,7 @@ export type WeeksByMonth = {
 export const getWeekOptions = (numWeeks: number = 12): WeekOption[] => {
   const weeks: WeekOption[] = [];
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   
   for (let i = 0; i < numWeeks; i++) {
     const d = new Date(today);
@@ -104,8 +124,9 @@ export const getWeekOptions = (numWeeks: number = 12): WeekOption[] => {
     const weekStart = getWeekStart(d);
     const weekEnd = getWeekEnd(weekStart);
     
-    const value = weekStart.toISOString().split('T')[0];
-    const label = formatWeekRange(value, weekEnd.toISOString().split('T')[0]);
+    // Use local date formatting to avoid UTC shift
+    const value = formatLocalDate(weekStart);
+    const label = formatWeekRange(value, formatLocalDate(weekEnd));
     const monthKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}`;
     
     weeks.push({ value, label, start: weekStart, end: weekEnd, isCurrentWeek: i === 0, monthKey });
@@ -187,7 +208,10 @@ export const isContractEligibleForWeek = (
   weekStart: string
 ): { eligible: boolean; reason: string } => {
   const contractDate = new Date(contractCreatedAt);
-  const weekStartDate = new Date(weekStart);
+  contractDate.setHours(0, 0, 0, 0);
+  
+  // Parse weekStart as local date to avoid UTC issues
+  const weekStartDate = parseLocalDate(weekStart);
   
   // Contract must be created before the start of the processing week
   if (contractDate < weekStartDate) {

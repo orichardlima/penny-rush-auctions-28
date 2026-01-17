@@ -80,13 +80,27 @@ const getValuesAtDate = (
   return { aporte, weeklyCap };
 };
 
+// Helper: Format a Date to YYYY-MM-DD string using local time
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Helper: Parse YYYY-MM-DD string to local Date
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
 // Helper to check if contract is eligible for a specific week
 const isContractEligibleForWeek = (contractCreatedAt: string, weekStart: string): boolean => {
   const createdDate = new Date(contractCreatedAt);
   createdDate.setHours(0, 0, 0, 0);
   
-  const weekStartDate = new Date(weekStart);
-  weekStartDate.setHours(0, 0, 0, 0);
+  // Parse weekStart as local date to avoid UTC issues
+  const weekStartDate = parseLocalDate(weekStart);
   
   // Contract must be created before the week starts
   return createdDate < weekStartDate;
@@ -99,12 +113,12 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
   const [contractUpgrades, setContractUpgrades] = useState<Map<string, any[]>>(new Map());
   const [profiles, setProfiles] = useState<Map<string, any>>(new Map());
 
-  // Calculate week end from week start
+  // Calculate week end from week start using local date parsing
   const weekEnd = useMemo(() => {
-    const startDate = new Date(selectedWeek);
+    const startDate = parseLocalDate(selectedWeek);
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
-    return endDate.toISOString().split('T')[0];
+    return formatLocalDate(endDate);
   }, [selectedWeek]);
 
   // Fetch all data
