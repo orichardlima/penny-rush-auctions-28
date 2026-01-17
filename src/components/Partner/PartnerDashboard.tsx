@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -45,6 +45,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryPositionSelector from './BinaryPositionSelector';
 import BinaryBonusHistory from './BinaryBonusHistory';
+import DailyRevenueBars from './DailyRevenueBars';
 import { useBinaryPositioning } from '@/hooks/useBinaryPositioning';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -759,110 +760,13 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {currentWeekRevenue.days.map((day, index) => {
-                    const isProRataDay = day.isBeforeContract && day.isClosed;
-                    const showValue = day.isClosed && !isProRataDay;
-                    
-                    return (
-                      <div key={day.date.toISOString()} className="flex items-center gap-2">
-                        <span className={cn(
-                          "w-14 text-xs font-medium shrink-0",
-                          day.isToday && "text-primary font-bold",
-                          isProRataDay && "text-muted-foreground/60"
-                        )}>
-                          {day.dayName} {day.dayNumber}
-                        </span>
-                        
-                        {/* Container da barra */}
-                        <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
-                          {/* Barra com animação */}
-                          <div 
-                            className={cn(
-                              "h-full rounded-full transition-all duration-300",
-                              // Dia Pro Rata (antes do contrato): padrão listrado
-                              isProRataDay && "bg-[repeating-linear-gradient(45deg,transparent,transparent_3px,rgba(0,0,0,0.08)_3px,rgba(0,0,0,0.08)_6px)] bg-muted-foreground/20",
-                              // Dia atual fechado: verde com pulse suave
-                              !isProRataDay && day.isToday && day.isClosed && day.partnerShare > 0 && "bg-gradient-to-r from-green-500 to-green-400 animate-pulse-soft",
-                              // Dia atual aguardando fechamento: azul com pulse suave (DESTAQUE)
-                              !isProRataDay && day.isToday && !day.isClosed && "bg-gradient-to-r from-blue-400 to-blue-300 animate-pulse-soft",
-                              // Dias passados fechados: rosa/vermelho
-                              !isProRataDay && day.isPast && day.isClosed && day.partnerShare > 0 && "bg-gradient-to-r from-primary to-primary/70",
-                              // Dias futuros ou sem valor
-                              !isProRataDay && !day.isToday && (!day.isClosed || day.partnerShare === 0) && "bg-muted-foreground/20",
-                              !isProRataDay && currentWeekRevenue.isAnimating && day.isClosed && "animate-bar-grow"
-                            )}
-                            style={isProRataDay ? { width: '100%' } : !day.isClosed ? { width: day.isToday ? '40%' : '0%' } : { 
-                              '--bar-width': currentWeekRevenue.maxDailyValue > 0 
-                                ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
-                                : '0%',
-                              width: currentWeekRevenue.isAnimating 
-                                ? undefined 
-                                : currentWeekRevenue.maxDailyValue > 0 
-                                  ? `${Math.max((day.partnerShare / currentWeekRevenue.maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`
-                                  : '0%',
-                              animationDelay: `${index * 100}ms`
-                            } as React.CSSProperties}
-                          />
-                          
-                          {/* Badge Pro Rata DENTRO da barra */}
-                          {isProRataDay && (
-                            <Badge 
-                              variant="outline" 
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-amber-50 border-amber-400/50 text-amber-700 font-semibold"
-                            >
-                              <Lock className="h-2.5 w-2.5 mr-0.5" />
-                              Pré-contrato
-                            </Badge>
-                          )}
-                          
-                          {/* Badge Hoje DENTRO da barra */}
-                          {day.isToday && !isProRataDay && day.isClosed && (
-                            <Badge 
-                              variant="outline" 
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-green-500/50 text-green-700 font-semibold"
-                            >
-                              Hoje
-                            </Badge>
-                          )}
-                          
-                          {/* Badge Aguardando (dia de hoje não fechado) */}
-                          {day.isToday && !isProRataDay && !day.isClosed && (
-                            <Badge 
-                              variant="outline" 
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-3.5 px-1 bg-white/90 border-blue-400/50 text-blue-700 font-semibold"
-                            >
-                              <Clock className="h-2.5 w-2.5 mr-0.5" />
-                              às {currentWeekRevenue.closingHour}h
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Valor e Porcentagem */}
-                        <span className={cn(
-                          "w-16 md:w-28 text-[10px] md:text-xs text-right shrink-0 tabular-nums",
-                          day.isToday && !isProRataDay && "text-primary font-bold",
-                          (!day.isPast && !day.isToday) && "text-muted-foreground",
-                          isProRataDay && "text-muted-foreground/50"
-                        )}>
-                          {isProRataDay ? (
-                            <span className="text-amber-600">—</span>
-                          ) : showValue ? (
-                            <>
-                              {day.percentage > 0 && (
-                                <span className="hidden md:inline text-muted-foreground mr-1">
-                                  {day.percentage.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
-                                </span>
-                              )}
-                              {formatPrice(day.partnerShare)}
-                            </>
-                          ) : '-'}
-                        </span>
-                        
-                      </div>
-                    );
-                  })}
-                </div>
+                <DailyRevenueBars 
+                  days={currentWeekRevenue.days}
+                  closingHour={currentWeekRevenue.closingHour}
+                  maxDailyValue={currentWeekRevenue.maxDailyValue}
+                  isAnimating={currentWeekRevenue.isAnimating}
+                  formatPrice={formatPrice}
+                />
               )}
               
               {/* Legenda de Horário de Fechamento - Dinâmica */}
