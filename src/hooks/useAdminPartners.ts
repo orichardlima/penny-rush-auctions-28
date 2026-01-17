@@ -162,7 +162,6 @@ export interface ManualPayoutOptions {
   manualBase: 'aporte' | 'weekly_cap';
   manualPercentage: number;
   manualDescription?: string;
-  cutoffDay?: number;
   useDailyConfig?: boolean;
 }
 
@@ -202,23 +201,76 @@ export const getValuesAtDate = (
   return { aporte, weeklyCap };
 };
 
-// Helper function to check if a contract is eligible for a given week
+// PRO RATA: Get eligible days for a contract in a given week
+// Returns the number of days the contract was active and from which date
+export interface ContractEligibility {
+  eligible: boolean;
+  eligibleFrom: Date | null;
+  eligibleDays: number;
+  reason: string;
+  isProRata: boolean;
+}
+
+export const getContractEligibleDays = (
+  contractCreatedAt: string,
+  weekStart: string,
+  weekEnd: string
+): ContractEligibility => {
+  const createdDate = new Date(contractCreatedAt);
+  createdDate.setHours(0, 0, 0, 0);
+  
+  // Parse dates as local to avoid UTC issues
+  const weekStartDate = parseLocalDate(weekStart);
+  const weekEndDate = parseLocalDate(weekEnd);
+  
+  // If created after the week ends = not eligible
+  if (createdDate > weekEndDate) {
+    return { 
+      eligible: false, 
+      eligibleFrom: null, 
+      eligibleDays: 0, 
+      reason: 'Cadastro após a semana',
+      isProRata: false
+    };
+  }
+  
+  // If created before the week starts = full 7 days
+  if (createdDate < weekStartDate) {
+    return { 
+      eligible: true, 
+      eligibleFrom: weekStartDate, 
+      eligibleDays: 7, 
+      reason: 'Semana completa',
+      isProRata: false
+    };
+  }
+  
+  // Created during the week = Pro Rata
+  // Calculate days from creation to end of week (inclusive)
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const eligibleDays = Math.floor((weekEndDate.getTime() - createdDate.getTime()) / msPerDay) + 1;
+  
+  return { 
+    eligible: true, 
+    eligibleFrom: createdDate, 
+    eligibleDays: Math.min(7, Math.max(1, eligibleDays)), 
+    reason: `Pro Rata: ${eligibleDays}/7 dias`,
+    isProRata: true
+  };
+};
+
+// Legacy function for backward compatibility - now uses Pro Rata logic
 export const isContractEligibleForWeek = (
   contractCreatedAt: string,
   weekStart: string
 ): { eligible: boolean; reason: string } => {
-  const contractDate = new Date(contractCreatedAt);
-  contractDate.setHours(0, 0, 0, 0);
-  
-  // Parse weekStart as local date to avoid UTC issues
   const weekStartDate = parseLocalDate(weekStart);
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  const weekEnd = formatLocalDate(weekEndDate);
   
-  // Contract must be created before the start of the processing week
-  if (contractDate < weekStartDate) {
-    return { eligible: true, reason: 'Cadastro anterior à semana' };
-  }
-  
-  return { eligible: false, reason: 'Cadastro durante ou após a semana' };
+  const result = getContractEligibleDays(contractCreatedAt, weekStart, weekEnd);
+  return { eligible: result.eligible, reason: result.reason };
 };
 
 export interface PartnerPayoutWithContract {
@@ -575,11 +627,13 @@ export const useAdminPartners = () => {
         return;
       }
 
-      // Filter contracts by eligibility (must be created before the week)
-      const activeContracts = allActiveContracts.filter(contract => {
-        const { eligible } = isContractEligibleForWeek(contract.created_at, weekStart);
-        return eligible;
+      // PRO RATA: Filter contracts by eligibility (contracts created during week get Pro Rata)
+      const contractsWithEligibility = allActiveContracts.map(contract => {
+        const eligibility = getContractEligibleDays(contract.created_at, weekStart, weekEnd);
+        return { ...contract, eligibility };
       });
+      
+      const activeContracts = contractsWithEligibility.filter(c => c.eligibility.eligible);
 
       if (activeContracts.length === 0) {
         toast({
@@ -590,9 +644,9 @@ export const useAdminPartners = () => {
         return;
       }
 
-      const skippedCount = allActiveContracts.length - activeContracts.length;
-      if (skippedCount > 0) {
-        console.log(`${skippedCount} contrato(s) não elegível(is) para esta semana`);
+      const proRataCount = activeContracts.filter(c => c.eligibility.isProRata).length;
+      if (proRataCount > 0) {
+        console.log(`${proRataCount} contrato(s) com Pro Rata nesta semana`);
       }
 
       let grossRevenue = 0;
@@ -634,7 +688,7 @@ export const useAdminPartners = () => {
         const totalWeekPercentage = dailyConfigs.reduce((sum, c) => sum + Number(c.percentage || 0), 0);
         const calculationBase = dailyConfigs[0]?.calculation_base || 'aporte';
 
-        // Processar cada contrato individualmente
+        // Processar cada contrato individualmente com Pro Rata
         for (const contract of activeContracts) {
           // Buscar upgrades do contrato para considerar valores históricos
           const { data: upgrades } = await supabase
@@ -648,7 +702,13 @@ export const useAdminPartners = () => {
 
           // Calcular valor para cada dia configurado
           for (const config of dailyConfigs) {
-            const configDate = new Date(config.date + 'T12:00:00Z');
+            const configDate = parseLocalDate(config.date);
+            
+            // PRO RATA: Skip days before the contract was created
+            if (contract.eligibility.eligibleFrom && configDate < contract.eligibility.eligibleFrom) {
+              continue;
+            }
+            
             const valuesAtDate = getValuesAtDate(contract, upgrades || [], configDate);
             const baseValue = config.calculation_base === 'weekly_cap' 
               ? valuesAtDate.weeklyCap 
@@ -680,7 +740,7 @@ export const useAdminPartners = () => {
           is_manual: true,
           manual_base: calculationBase,
           manual_percentage: totalWeekPercentage,
-          manual_description: `Faturamento Diário: ${dailyConfigs.length} dia(s) configurado(s)`
+          manual_description: `Faturamento Diário: ${dailyConfigs.length} dia(s) configurado(s)${proRataCount > 0 ? ` • ${proRataCount} Pro Rata` : ''}`
         };
 
       } else if (options?.manualMode) {

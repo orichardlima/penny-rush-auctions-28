@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useAdminPartners, ManualPayoutOptions, isContractEligibleForWeek, getWeeksGroupedByMonth, formatWeekRange } from '@/hooks/useAdminPartners';
+import { useAdminPartners, ManualPayoutOptions, getWeeksGroupedByMonth, formatWeekRange, getContractEligibleDays, formatLocalDate } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
@@ -102,22 +102,31 @@ const AdminPartnerManagement = () => {
     bonus_bids: 0
   });
 
-  // Calculate preview for manual mode with eligibility check
+  // Calculate preview for manual mode with Pro Rata eligibility
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
   const manualPreview = useMemo(() => {
     if (activeContracts.length === 0) return [];
     
+    // Calculate week end from selected week
+    const weekStartDate = new Date(selectedWeek + 'T00:00:00');
+    const weekEndDate = new Date(weekStartDate);
+    weekEndDate.setDate(weekEndDate.getDate() + 6);
+    const weekEnd = formatLocalDate(weekEndDate);
+    
     return activeContracts.map(contract => {
-      const eligibility = isContractEligibleForWeek(contract.created_at, selectedWeek);
+      const eligibility = getContractEligibleDays(contract.created_at, selectedWeek, weekEnd);
       const baseValue = manualBase === 'aporte' ? contract.aporte_value : contract.weekly_cap;
       let calculatedAmount = 0;
       
       if (eligibility.eligible && calculationMode === 'manual') {
-        calculatedAmount = baseValue * (manualPercentage / 100);
+        // Apply Pro Rata: multiply by eligible days / 7
+        const fullWeekAmount = baseValue * (manualPercentage / 100);
+        calculatedAmount = fullWeekAmount * (eligibility.eligibleDays / 7);
         
         // Apply weekly cap if base is aporte
-        if (manualBase === 'aporte' && calculatedAmount > contract.weekly_cap) {
-          calculatedAmount = contract.weekly_cap;
+        const weeklyCap = contract.weekly_cap * (eligibility.eligibleDays / 7);
+        if (manualBase === 'aporte' && calculatedAmount > weeklyCap) {
+          calculatedAmount = weeklyCap;
         }
         
         // Apply total cap
@@ -132,13 +141,15 @@ const AdminPartnerManagement = () => {
         baseValue,
         calculatedAmount,
         eligible: eligibility.eligible,
-        eligibilityReason: eligibility.reason
+        eligibilityReason: eligibility.reason,
+        isProRata: eligibility.isProRata,
+        eligibleDays: eligibility.eligibleDays
       };
     });
   }, [calculationMode, manualBase, manualPercentage, activeContracts, selectedWeek]);
 
   const eligibleContracts = manualPreview.filter(p => p.eligible);
-  const ineligibleContracts = manualPreview.filter(p => !p.eligible);
+  const proRataContracts = eligibleContracts.filter(p => p.isProRata);
   const totalManualDistribution = eligibleContracts.reduce((sum, p) => sum + p.calculatedAmount, 0);
 
   // Simulação por plano para visão didática
@@ -1590,15 +1601,15 @@ const AdminPartnerManagement = () => {
                       </div>
                     )}
 
-                    {/* Contratos não elegíveis */}
-                    {ineligibleContracts.length > 0 && (
+                    {/* Contratos com Pro Rata */}
+                    {proRataContracts.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-sm font-medium text-yellow-600 flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          Aguardando próxima semana ({ineligibleContracts.length})
+                        <p className="text-sm font-medium text-blue-600 flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          Pro Rata - Proporcional ({proRataContracts.length})
                         </p>
-                        {ineligibleContracts.map((preview) => (
-                          <div key={preview.id} className="flex items-center justify-between p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg opacity-75">
+                        {proRataContracts.map((preview) => (
+                          <div key={preview.id} className="flex items-center justify-between p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
                             <div>
                               <p className="font-medium text-sm">{preview.user_name}</p>
                               <p className="text-xs text-muted-foreground">
@@ -1606,7 +1617,10 @@ const AdminPartnerManagement = () => {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs text-yellow-600">Próxima semana</p>
+                              {calculationMode === 'manual' && (
+                                <p className="font-medium text-blue-600">{formatPrice(preview.calculatedAmount)}</p>
+                              )}
+                              <p className="text-xs text-blue-600">{preview.eligibleDays}/7 dias</p>
                             </div>
                           </div>
                         ))}

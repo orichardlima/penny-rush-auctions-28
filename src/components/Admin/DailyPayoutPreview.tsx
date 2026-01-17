@@ -193,7 +193,17 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline">{preview.planName}</Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline">{preview.planName}</Badge>
+                          {preview.proRataApplied && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] px-1 py-0 bg-blue-500/10 text-blue-600 border-blue-500/30"
+                            >
+                              {preview.eligibleDays}/7
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right hidden md:table-cell">
                         {formatPrice(preview.aporteValue)}
@@ -206,6 +216,14 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
                           <span className={`font-medium ${preview.totalCapApplied ? 'text-yellow-600' : 'text-green-600'}`}>
                             {formatPrice(preview.finalAmount)}
                           </span>
+                          {preview.proRataApplied && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] px-1 py-0 bg-blue-500/10 text-blue-600 border-blue-500/30"
+                            >
+                              Pro Rata
+                            </Badge>
+                          )}
                           {(preview.weeklyCapApplied || preview.totalCapApplied) && (
                             <Badge 
                               variant="outline" 
@@ -240,6 +258,13 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
                                 <p className="text-muted-foreground">Restante</p>
                                 <p className="font-medium text-primary">{formatPrice(preview.remainingCap)}</p>
                               </div>
+                              {preview.proRataApplied && (
+                                <div className="p-2 bg-blue-500/10 rounded border border-blue-500/20 col-span-2 sm:col-span-4">
+                                  <p className="text-blue-600 text-xs font-medium">
+                                    📅 Pro Rata: Cadastrado em {preview.eligibleFrom} • Recebe {preview.eligibleDays} de 7 dias
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             
                             <div className="mt-2">
@@ -248,11 +273,21 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
                                 {preview.dailyBreakdown.map((day) => (
                                   <div 
                                     key={day.date}
-                                    className="text-xs px-2 py-1 bg-background rounded border"
+                                    className={`text-xs px-2 py-1 rounded border ${
+                                      day.skipped 
+                                        ? 'bg-muted/30 text-muted-foreground line-through opacity-60' 
+                                        : 'bg-background'
+                                    }`}
                                   >
                                     <span className="text-muted-foreground">{formatDate(day.date)}:</span>
-                                    <span className="ml-1 font-medium">{formatPrice(day.dayValue)}</span>
-                                    <span className="ml-1 text-muted-foreground">({day.percentage}%)</span>
+                                    {day.skipped ? (
+                                      <span className="ml-1 text-muted-foreground">N/A</span>
+                                    ) : (
+                                      <>
+                                        <span className="ml-1 font-medium">{formatPrice(day.dayValue)}</span>
+                                        <span className="ml-1 text-muted-foreground">({day.percentage}%)</span>
+                                      </>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -284,10 +319,13 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
                 <div>
                   <p className="font-semibold">Total a Distribuir</p>
-                  <p className="text-xs text-muted-foreground">
-                    {totals.eligibleContracts} contrato{totals.eligibleContracts !== 1 ? 's' : ''} elegível{totals.eligibleContracts !== 1 ? 'is' : ''}
-                    {totals.contractsWithCap > 0 && ` • ${totals.contractsWithCap} com limite aplicado`}
-                  </p>
+                <p className="text-xs text-muted-foreground">
+                  {totals.eligibleContracts} contrato{totals.eligibleContracts !== 1 ? 's' : ''} elegível{totals.eligibleContracts !== 1 ? 'is' : ''}
+                  {totals.contractsWithProRata > 0 && (
+                    <span className="text-blue-600"> • {totals.contractsWithProRata} Pro Rata</span>
+                  )}
+                  {totals.contractsWithCap > 0 && ` • ${totals.contractsWithCap} com limite aplicado`}
+                </p>
                 </div>
               </div>
               <div className="text-right">
