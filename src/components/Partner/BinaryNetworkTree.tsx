@@ -239,10 +239,10 @@ export const BinaryNetworkTree: React.FC = () => {
 
         {/* Weaker Leg Indicator */}
         {stats && stats.weakerLeg !== 'balanced' && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-6 text-center">
-            <p className="text-sm text-destructive">
-              <strong>Menor Perna:</strong> {stats.weakerLeg === 'left' ? 'Esquerda' : 'Direita'} — 
-              Posicione novos parceiros neste lado para maximizar seu bônus!
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-6 text-center">
+            <p className="text-sm text-blue-700">
+              <strong>Perna Menor:</strong> {stats.weakerLeg === 'left' ? 'Esquerda' : 'Direita'} — 
+              Novos indicados são posicionados automaticamente neste lado.
             </p>
           </div>
         )}
