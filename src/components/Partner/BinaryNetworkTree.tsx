@@ -77,7 +77,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
         {/* Partner info */}
         <div className="flex items-center gap-1 mb-1">
           <User className="w-3 h-3 text-muted-foreground" />
-          <span className="text-xs font-medium truncate flex-1">{node.partner_name?.split(' ')[0] || 'N/A'}</span>
+          <span className="text-xs font-medium truncate flex-1">{node.partner_name?.split(' ').slice(0, 2).join(' ') || 'N/A'}</span>
           {hasChildren && (
             expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />
           )}
