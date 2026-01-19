@@ -39,6 +39,7 @@ export const SystemSettings: React.FC = () => {
   const [partnerFundPercentage, setPartnerFundPercentage] = useState<string>('20');
   const [weeklyPaymentDay, setWeeklyPaymentDay] = useState<string>('5');
   const [dailyClosingTime, setDailyClosingTime] = useState<string>('18');
+  const [maxWeeklyPercentage, setMaxWeeklyPercentage] = useState<string>('10');
   const [savingPartner, setSavingPartner] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
@@ -73,6 +74,7 @@ export const SystemSettings: React.FC = () => {
       setPartnerFundPercentage(getSettingValue('partner_fund_percentage', 20).toString());
       setWeeklyPaymentDay(getSettingValue('partner_weekly_payment_day', 5).toString());
       setDailyClosingTime(getSettingValue('partner_daily_closing_time', 18).toString());
+      setMaxWeeklyPercentage(getSettingValue('partner_max_weekly_percentage', 10).toString());
       
       setIsInitialized(true);
     }
@@ -113,7 +115,8 @@ export const SystemSettings: React.FC = () => {
         updateSetting('partner_system_enabled', partnerSystemEnabled.toString()),
         updateSetting('partner_fund_percentage', partnerFundPercentage),
         updateSetting('partner_weekly_payment_day', weeklyPaymentDay),
-        updateSetting('partner_daily_closing_time', dailyClosingTime)
+        updateSetting('partner_daily_closing_time', dailyClosingTime),
+        updateSetting('partner_max_weekly_percentage', maxWeeklyPercentage)
       ]);
       toast({
         title: "Configurações salvas!",
@@ -597,6 +600,28 @@ export const SystemSettings: React.FC = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Porcentagem do faturamento bruto destinada aos repasses de parceiros
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <Label htmlFor="max-weekly-percentage">Limite Máximo Semanal (%)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="max-weekly-percentage"
+                type="number"
+                min="1"
+                max="100"
+                value={maxWeeklyPercentage}
+                onChange={(e) => setMaxWeeklyPercentage(e.target.value)}
+                className="w-24"
+                disabled={!partnerSystemEnabled}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Limite máximo de porcentagem que pode ser distribuída por semana na configuração de receita diária.
             </p>
           </div>
 
