@@ -71,8 +71,12 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   
   const { getSettingValue } = useSystemSettings();
   const { fetchPendingRequest } = usePartnerEarlyTermination();
-  const { totalPoints, loading: referralLoading } = usePartnerReferrals();
-  const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(totalPoints);
+  const { totalPoints, binaryPoints, loading: referralLoading } = usePartnerReferrals();
+  
+  // Pontos para graduação = perna menor do binário
+  const graduationPoints = binaryPoints.weakerLegPoints;
+  
+  const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(graduationPoints);
   
   // Binary system - get pending positions for this sponsor
   const { pendingPositions, loading: binaryLoading, fetchPendingPositions } = useBinaryPositioning(contract?.id || null);
@@ -487,10 +491,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">Sua Graduação</p>
                 <div className="flex items-center gap-2 mb-2">
-                  <GraduationBadge totalPoints={totalPoints} size="md" showPoints={false} />
+                  <GraduationBadge totalPoints={graduationPoints} size="md" showPoints={false} />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">{totalPoints}</span> pontos acumulados</p>
+                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos (perna menor)</p>
+                  <p className="text-xs opacity-70">E: {binaryPoints.leftPoints} | D: {binaryPoints.rightPoints}</p>
                   {getLevelProgress().nextLevel && (
                     <p className="mt-1">
                       <span className="font-medium text-primary">
