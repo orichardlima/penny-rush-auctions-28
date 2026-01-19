@@ -28,6 +28,20 @@ interface PartnerPlan {
   aporte_value: number;
 }
 
+interface WeekProgress {
+  weekStart: string;
+  weekLabel: string;
+  percentage: number;
+  isCurrent: boolean;
+}
+
+interface MonthlyProgress {
+  limit: number;
+  accumulated: number;
+  remaining: number;
+  weeks: WeekProgress[];
+}
+
 interface UseDailyRevenueConfigResult {
   configs: DailyConfig[];
   weekTotal: {
@@ -51,6 +65,7 @@ interface UseDailyRevenueConfigResult {
   isOverLimit: boolean;
   remainingPercentage: number;
   partnerPlans: PartnerPlan[];
+  monthlyProgress: MonthlyProgress;
 }
 
 // Helper: Format a Date to YYYY-MM-DD string using local time (avoids UTC issues)
@@ -110,6 +125,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   const [saving, setSaving] = useState(false);
   const [maxWeeklyPercentage, setMaxWeeklyPercentage] = useState<number>(10);
   const [partnerPlans, setPartnerPlans] = useState<PartnerPlan[]>([]);
+  const [monthlyWeeksData, setMonthlyWeeksData] = useState<Record<string, number>>({});
 
   // Calculate week bounds from selected week
   const weekBounds = useMemo((): WeekBounds => {
@@ -201,6 +217,38 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
           setPartnerPlans(plansData);
         }
 
+        // Fetch data for last 4 weeks (for monthly progress)
+        const fourWeeksAgo = new Date(weekBounds.monday);
+        fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 21); // 3 weeks back
+        
+        const { data: monthlyConfigsData } = await supabase
+          .from('daily_revenue_config')
+          .select('date, percentage')
+          .gte('date', formatLocalDate(fourWeeksAgo))
+          .lte('date', formatLocalDate(weekBounds.sunday));
+
+        if (monthlyConfigsData) {
+          // Group by week and calculate totals
+          const weekTotals: Record<string, number> = {};
+          
+          monthlyConfigsData.forEach(config => {
+            // Parse date as local
+            const [year, month, day] = config.date.split('-').map(Number);
+            const configDate = new Date(year, month - 1, day);
+            
+            // Find Monday of this config's week
+            const dayOfWeek = configDate.getDay();
+            const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(configDate);
+            monday.setDate(configDate.getDate() + diffToMonday);
+            const weekKey = formatLocalDate(monday);
+            
+            weekTotals[weekKey] = (weekTotals[weekKey] || 0) + Number(config.percentage);
+          });
+          
+          setMonthlyWeeksData(weekTotals);
+        }
+
       } catch (error) {
         console.error('Error fetching daily revenue config:', error);
         toast.error('Erro ao carregar configurações');
@@ -269,6 +317,45 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   const remainingPercentage = useMemo(() => {
     return Math.max(0, maxWeeklyPercentage - weekTotal.percentage);
   }, [weekTotal.percentage, maxWeeklyPercentage]);
+
+  // Calculate monthly progress (last 4 weeks)
+  const monthlyProgress = useMemo((): MonthlyProgress => {
+    const limit = maxWeeklyPercentage * 4;
+    const weeks: WeekProgress[] = [];
+    
+    // Generate last 4 weeks (3 previous + current)
+    for (let i = 3; i >= 0; i--) {
+      const monday = new Date(weekBounds.monday);
+      monday.setDate(weekBounds.monday.getDate() - (i * 7));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      const weekKey = formatLocalDate(monday);
+      const isCurrent = weekKey === selectedWeek;
+      
+      // Use local configs for current week (real-time), db data for others
+      let percentage = 0;
+      if (isCurrent) {
+        percentage = weekTotal.percentage;
+      } else {
+        percentage = monthlyWeeksData[weekKey] || 0;
+      }
+      
+      const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      
+      weeks.push({
+        weekStart: weekKey,
+        weekLabel: `${formatDate(monday)} - ${formatDate(sunday)}`,
+        percentage,
+        isCurrent
+      });
+    }
+    
+    const accumulated = weeks.reduce((sum, w) => sum + w.percentage, 0);
+    const remaining = Math.max(0, limit - accumulated);
+    
+    return { limit, accumulated, remaining, weeks };
+  }, [weekBounds, selectedWeek, weekTotal.percentage, monthlyWeeksData, maxWeeklyPercentage]);
 
   // Update day percentage locally
   const updateDayPercentage = useCallback((date: string, percentage: number) => {
@@ -356,6 +443,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     maxWeeklyPercentage,
     isOverLimit,
     remainingPercentage,
-    partnerPlans
+    partnerPlans,
+    monthlyProgress
   };
 };
