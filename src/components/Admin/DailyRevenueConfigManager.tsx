@@ -10,12 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle, Gauge } from 'lucide-react';
+import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle, Gauge, Sparkles, Shuffle } from 'lucide-react';
 import { useDailyRevenueConfig, getWeeksForDailyConfig } from '@/hooks/useDailyRevenueConfig';
 
 const DailyRevenueConfigManager = () => {
   // Draft state to preserve typed text (e.g., "0," while typing "0,3")
   const [percentageDrafts, setPercentageDrafts] = useState<Record<string, string>>({});
+  // Weekly target for quick distribution
+  const [weeklyTarget, setWeeklyTarget] = useState<string>('');
   const {
     configs,
     weekTotal,
@@ -125,6 +127,44 @@ const DailyRevenueConfigManager = () => {
     });
   }, []);
 
+  // Distribute weekly target across days with natural variation
+  const distributeWeeklyTarget = useCallback(() => {
+    const target = parseFloat(weeklyTarget.replace(',', '.')) || 0;
+    if (target <= 0 || target > maxWeeklyPercentage) return;
+    
+    // Base weights per day of week (simulates natural revenue patterns)
+    // Monday=good, Tuesday=weak, Wednesday=medium, Thursday=medium, 
+    // Friday=strong, Saturday=medium, Sunday=weak
+    const baseWeights = [1.1, 0.85, 0.95, 0.92, 1.2, 1.0, 0.88];
+    
+    // Add random variation of ±15% to each weight
+    const randomizedWeights = baseWeights.map(weight => {
+      const randomFactor = 0.85 + Math.random() * 0.30; // 0.85 to 1.15
+      return weight * randomFactor;
+    });
+    
+    // Normalize so that sum equals target
+    const totalWeight = randomizedWeights.reduce((a, b) => a + b, 0);
+    const dailyValues = randomizedWeights.map(w => (w / totalWeight) * target);
+    
+    // Round to 2 decimal places, ensuring sum = target
+    let roundedValues = dailyValues.map(v => Math.round(v * 100) / 100);
+    const currentSum = roundedValues.reduce((a, b) => a + b, 0);
+    const diff = Math.round((target - currentSum) * 100) / 100;
+    
+    // Adjust the largest value to compensate for rounding
+    const maxIndex = roundedValues.indexOf(Math.max(...roundedValues));
+    roundedValues[maxIndex] = Math.round((roundedValues[maxIndex] + diff) * 100) / 100;
+    
+    // Apply to week days and clear drafts
+    configs.forEach((config, index) => {
+      updateDayPercentage(config.date, roundedValues[index]);
+    });
+    
+    // Clear all drafts so values display correctly
+    setPercentageDrafts({});
+  }, [weeklyTarget, maxWeeklyPercentage, configs, updateDayPercentage]);
+
   if (loading) {
     return (
       <Card>
@@ -208,6 +248,48 @@ const DailyRevenueConfigManager = () => {
               </Label>
             </div>
           </RadioGroup>
+        </div>
+
+        <Separator />
+
+        {/* Quick Distribution */}
+        <div className="space-y-3 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <Label className="font-medium">Distribuição Rápida</Label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Informe o total desejado e o sistema distribuirá automaticamente entre os dias 
+            com variação natural (simulando faturamento real da plataforma).
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="weekly-target" className="text-xs">Meta Semanal (%)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="weekly-target"
+                  type="text"
+                  inputMode="decimal"
+                  value={weeklyTarget}
+                  onChange={(e) => setWeeklyTarget(e.target.value.replace(',', '.'))}
+                  placeholder="Ex: 2.5"
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </div>
+            <Button 
+              variant="secondary"
+              onClick={distributeWeeklyTarget}
+              disabled={!weeklyTarget || parseFloat(weeklyTarget.replace(',', '.')) <= 0 || parseFloat(weeklyTarget.replace(',', '.')) > maxWeeklyPercentage}
+            >
+              <Shuffle className="h-4 w-4 mr-2" />
+              Distribuir
+            </Button>
+            <p className="text-xs text-muted-foreground self-center">
+              Máximo: {maxWeeklyPercentage}%
+            </p>
+          </div>
         </div>
 
         <Separator />
