@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle, Gauge, Sparkles, Shuffle } from 'lucide-react';
+import { BarChart3, Save, Calendar, CheckCircle, Clock, AlertCircle, Gauge, Sparkles, Shuffle, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useDailyRevenueConfig, getWeeksForDailyConfig } from '@/hooks/useDailyRevenueConfig';
 
 const DailyRevenueConfigManager = () => {
@@ -36,7 +37,8 @@ const DailyRevenueConfigManager = () => {
     maxWeeklyPercentage,
     isOverLimit,
     remainingPercentage,
-    partnerPlans
+    partnerPlans,
+    monthlyProgress
   } = useDailyRevenueConfig();
 
   const weeks = getWeeksForDailyConfig(12);
@@ -289,6 +291,83 @@ const DailyRevenueConfigManager = () => {
             <p className="text-xs text-muted-foreground self-center">
               Máximo: {maxWeeklyPercentage}%
             </p>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Monthly Progress */}
+        <div className="space-y-3 p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-lg border border-emerald-500/20">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            <Label className="font-medium">Progresso Mensal (4 semanas)</Label>
+          </div>
+          
+          {/* Summary */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-2 rounded-lg bg-background/50">
+              <p className="text-2xl font-bold text-emerald-600">
+                {monthlyProgress.accumulated.toFixed(2)}%
+              </p>
+              <p className="text-xs text-muted-foreground">Acumulado</p>
+            </div>
+            <div className="text-center p-2 rounded-lg bg-background/50">
+              <p className="text-2xl font-bold text-amber-600">
+                {monthlyProgress.remaining.toFixed(2)}%
+              </p>
+              <p className="text-xs text-muted-foreground">Restante</p>
+            </div>
+            <div className="text-center p-2 rounded-lg bg-background/50">
+              <p className="text-2xl font-bold text-slate-600">
+                {monthlyProgress.limit.toFixed(1)}%
+              </p>
+              <p className="text-xs text-muted-foreground">Limite Mensal</p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="space-y-1">
+            <Progress 
+              value={Math.min((monthlyProgress.accumulated / monthlyProgress.limit) * 100, 100)}
+              className={cn(
+                "h-3",
+                monthlyProgress.accumulated >= monthlyProgress.limit 
+                  ? '[&>div]:bg-destructive' 
+                  : monthlyProgress.accumulated >= monthlyProgress.limit * 0.9 
+                    ? '[&>div]:bg-yellow-500' 
+                    : '[&>div]:bg-emerald-500'
+              )}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0%</span>
+              <span>{monthlyProgress.limit.toFixed(1)}%</span>
+            </div>
+          </div>
+
+          {/* Weekly Breakdown */}
+          <div className="grid grid-cols-4 gap-2 text-center text-xs">
+            {monthlyProgress.weeks.map((week, index) => (
+              <div 
+                key={week.weekStart}
+                className={cn(
+                  "p-2 rounded border transition-all",
+                  week.isCurrent 
+                    ? "bg-primary/10 border-primary/30 font-medium ring-2 ring-primary/20" 
+                    : "bg-muted/50 border-muted"
+                )}
+              >
+                <p className="text-muted-foreground mb-0.5">Sem {index + 1}</p>
+                <p className={cn(
+                  "font-semibold",
+                  week.isCurrent ? "text-primary" : ""
+                )}>
+                  {week.percentage.toFixed(2)}%
+                </p>
+                {week.isCurrent && (
+                  <p className="text-[10px] text-primary mt-0.5">atual</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
