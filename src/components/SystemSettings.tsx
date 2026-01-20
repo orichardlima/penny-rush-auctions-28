@@ -40,6 +40,7 @@ export const SystemSettings: React.FC = () => {
   const [weeklyPaymentDay, setWeeklyPaymentDay] = useState<string>('5');
   const [dailyClosingTime, setDailyClosingTime] = useState<string>('18');
   const [maxWeeklyPercentage, setMaxWeeklyPercentage] = useState<string>('10');
+  const [maxMonthlyPercentage, setMaxMonthlyPercentage] = useState<string>('20');
   const [savingPartner, setSavingPartner] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
@@ -75,6 +76,7 @@ export const SystemSettings: React.FC = () => {
       setWeeklyPaymentDay(getSettingValue('partner_weekly_payment_day', 5).toString());
       setDailyClosingTime(getSettingValue('partner_daily_closing_time', 18).toString());
       setMaxWeeklyPercentage(getSettingValue('partner_max_weekly_percentage', 10).toString());
+      setMaxMonthlyPercentage(getSettingValue('partner_max_monthly_percentage', 20).toString());
       
       setIsInitialized(true);
     }
@@ -116,7 +118,8 @@ export const SystemSettings: React.FC = () => {
         updateSetting('partner_fund_percentage', partnerFundPercentage),
         updateSetting('partner_weekly_payment_day', weeklyPaymentDay),
         updateSetting('partner_daily_closing_time', dailyClosingTime),
-        updateSetting('partner_max_weekly_percentage', maxWeeklyPercentage)
+        updateSetting('partner_max_weekly_percentage', maxWeeklyPercentage),
+        updateSetting('partner_max_monthly_percentage', maxMonthlyPercentage)
       ]);
       toast({
         title: "Configurações salvas!",
@@ -622,6 +625,31 @@ export const SystemSettings: React.FC = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Limite máximo de porcentagem que pode ser distribuída por semana na configuração de receita diária.
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <Label htmlFor="max-monthly-percentage">Limite Máximo Mensal (4 semanas) (%)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="max-monthly-percentage"
+                type="number"
+                min="1"
+                max="100"
+                value={maxMonthlyPercentage}
+                onChange={(e) => setMaxMonthlyPercentage(e.target.value)}
+                className="w-24"
+                disabled={!partnerSystemEnabled}
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Limite máximo acumulado de porcentagem que pode ser distribuída em 4 semanas consecutivas.
+            </p>
+            <p className="text-xs text-amber-600">
+              Nota: Este valor é independente do limite semanal ({maxWeeklyPercentage}% × 4 = {Number(maxWeeklyPercentage) * 4}%)
             </p>
           </div>
 
