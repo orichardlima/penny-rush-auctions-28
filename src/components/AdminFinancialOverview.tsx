@@ -142,22 +142,26 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
 
       {/* Detailed Analytics Tabs */}
       <Tabs defaultValue="revenue" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="revenue" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Evolução da Receita
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-1">
+          <TabsTrigger value="revenue" className="flex items-center gap-1 text-xs sm:text-sm">
+            <BarChart3 className="h-4 w-4 hidden sm:block" />
+            <span className="sm:hidden">Receita</span>
+            <span className="hidden sm:inline">Evolução da Receita</span>
           </TabsTrigger>
-          <TabsTrigger value="bids" className="flex items-center gap-2">
-            <PieChart className="h-4 w-4" />
-            Análise de Lances
+          <TabsTrigger value="bids" className="flex items-center gap-1 text-xs sm:text-sm">
+            <PieChart className="h-4 w-4 hidden sm:block" />
+            <span className="sm:hidden">Lances</span>
+            <span className="hidden sm:inline">Análise de Lances</span>
           </TabsTrigger>
-          <TabsTrigger value="auctions" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Top Leilões
+          <TabsTrigger value="auctions" className="flex items-center gap-1 text-xs sm:text-sm">
+            <Target className="h-4 w-4 hidden sm:block" />
+            <span className="sm:hidden">Top</span>
+            <span className="hidden sm:inline">Top Leilões</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Análise de Usuários
+          <TabsTrigger value="users" className="flex items-center gap-1 text-xs sm:text-sm">
+            <Users className="h-4 w-4 hidden sm:block" />
+            <span className="sm:hidden">Usuários</span>
+            <span className="hidden sm:inline">Análise de Usuários</span>
           </TabsTrigger>
         </TabsList>
 
