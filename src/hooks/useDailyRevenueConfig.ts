@@ -64,6 +64,7 @@ interface UseDailyRevenueConfigResult {
   selectedWeek: string;
   weekBounds: WeekBounds;
   maxWeeklyPercentage: number;
+  maxMonthlyPercentage: number;
   isOverLimit: boolean;
   remainingPercentage: number;
   partnerPlans: PartnerPlan[];
@@ -126,6 +127,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [maxWeeklyPercentage, setMaxWeeklyPercentage] = useState<number>(10);
+  const [maxMonthlyPercentage, setMaxMonthlyPercentage] = useState<number>(20);
   const [partnerPlans, setPartnerPlans] = useState<PartnerPlan[]>([]);
   const [monthlyWeeksData, setMonthlyWeeksData] = useState<Record<string, number>>({});
 
@@ -224,6 +226,17 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
 
         if (maxPercentageSetting) {
           setMaxWeeklyPercentage(Number(maxPercentageSetting.setting_value) || 10);
+        }
+
+        // Fetch max monthly percentage setting
+        const { data: maxMonthlyPercentageSetting } = await supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'partner_max_monthly_percentage')
+          .single();
+
+        if (maxMonthlyPercentageSetting) {
+          setMaxMonthlyPercentage(Number(maxMonthlyPercentageSetting.setting_value) || 20);
         }
 
         // Fetch partner plans for example calculations
@@ -341,7 +354,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   // Calculate monthly progress (current week + next 3 weeks - prospective view)
   // ALWAYS anchored to real current week, not the selected week for editing
   const monthlyProgress = useMemo((): MonthlyProgress => {
-    const limit = maxWeeklyPercentage * 4;
+    const limit = maxMonthlyPercentage;
     const weeks: WeekProgress[] = [];
     
     // Generate current week + next 3 weeks (prospective view)
@@ -382,7 +395,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     const remaining = Math.max(0, limit - accumulated);
     
     return { limit, accumulated, remaining, weeks };
-  }, [currentWeekBounds, selectedWeek, weekTotal.percentage, monthlyWeeksData, maxWeeklyPercentage]);
+  }, [currentWeekBounds, selectedWeek, weekTotal.percentage, monthlyWeeksData, maxMonthlyPercentage]);
 
   // Update day percentage locally
   const updateDayPercentage = useCallback((date: string, percentage: number) => {
@@ -468,6 +481,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     selectedWeek,
     weekBounds,
     maxWeeklyPercentage,
+    maxMonthlyPercentage,
     isOverLimit,
     remainingPercentage,
     partnerPlans,

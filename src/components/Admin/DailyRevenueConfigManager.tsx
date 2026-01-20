@@ -35,6 +35,7 @@ const DailyRevenueConfigManager = () => {
     setSelectedWeek,
     selectedWeek,
     maxWeeklyPercentage,
+    maxMonthlyPercentage,
     isOverLimit,
     remainingPercentage,
     partnerPlans,
@@ -303,6 +304,18 @@ const DailyRevenueConfigManager = () => {
             <Label className="font-medium">Progresso Mensal (4 semanas)</Label>
           </div>
           
+          {/* Limits Info */}
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Limite Semanal:</span>
+              <span className="font-medium">{maxWeeklyPercentage}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Limite Mensal (4 sem):</span>
+              <span className="font-medium">{maxMonthlyPercentage}%</span>
+            </div>
+          </div>
+
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-2 rounded-lg bg-background/50">
@@ -319,7 +332,7 @@ const DailyRevenueConfigManager = () => {
             </div>
             <div className="text-center p-2 rounded-lg bg-background/50">
               <p className="text-2xl font-bold text-slate-600">
-                {monthlyProgress.limit.toFixed(1)}%
+                {maxMonthlyPercentage}%
               </p>
               <p className="text-xs text-muted-foreground">Limite Mensal</p>
             </div>
