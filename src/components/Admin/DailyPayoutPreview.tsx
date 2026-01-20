@@ -320,41 +320,67 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
               <PieChart className="h-4 w-4 text-primary" />
               Resumo por Plano
             </CardTitle>
-            <CardDescription>Total consolidado a pagar por tipo de plano</CardDescription>
+            <CardDescription>Valores individuais e consolidados por tipo de plano</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {totalsByPlan.map((planData) => (
                 <div 
                   key={planData.planName}
-                  className="p-4 rounded-lg border bg-muted/30"
+                  className="p-4 rounded-lg border bg-muted/30 space-y-3"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline">{planData.planName}</Badge>
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="font-semibold">{planData.planName}</Badge>
                     <span className="text-xs text-muted-foreground">
                       {planData.count} contrato{planData.count !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <p className="text-2xl font-bold text-primary">
-                    {formatPrice(planData.final)}
-                  </p>
-                  {planData.calculated !== planData.final && (
-                    <p className="text-xs text-muted-foreground line-through">
-                      {formatPrice(planData.calculated)}
+
+                  {/* Valores do Plano Individual */}
+                  <div className="p-2 bg-background/50 rounded border border-dashed">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                      Pagamento Individual (1 contrato)
                     </p>
-                  )}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {planData.proRataCount > 0 && (
-                      <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/30">
-                        {planData.proRataCount} pro rata
-                      </Badge>
-                    )}
-                    {planData.cappedCount > 0 && (
-                      <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
-                        {planData.cappedCount} com limite
-                      </Badge>
+                    <p className="text-lg font-bold text-primary">
+                      {formatPrice(planData.individualPayout)}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
+                      <span>Aporte: {formatPrice(planData.aporteValue)}</span>
+                      <span>Cap: {formatPrice(planData.weeklyCap)}/sem</span>
+                    </div>
+                  </div>
+                  
+                  {/* Total Consolidado */}
+                  <div className="pt-2 border-t">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                      Total Consolidado
+                    </p>
+                    <p className="text-xl font-bold">
+                      {formatPrice(planData.final)}
+                    </p>
+                    {planData.calculated !== planData.final && (
+                      <p className="text-xs text-muted-foreground line-through">
+                        {formatPrice(planData.calculated)}
+                      </p>
                     )}
                   </div>
+
+                  {/* Indicadores */}
+                  {(planData.proRataCount > 0 || planData.cappedCount > 0) && (
+                    <div className="flex gap-2 flex-wrap">
+                      {planData.proRataCount > 0 && (
+                        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/30">
+                          {planData.proRataCount} pro rata
+                        </Badge>
+                      )}
+                      {planData.cappedCount > 0 && (
+                        <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                          {planData.cappedCount} com limite
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

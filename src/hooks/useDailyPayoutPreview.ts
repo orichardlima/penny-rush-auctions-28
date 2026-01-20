@@ -44,6 +44,11 @@ interface PlanTotal {
   final: number;
   proRataCount: number;
   cappedCount: number;
+  // Individual plan parameters
+  aporteValue: number;
+  weeklyCap: number;
+  totalCap: number;
+  individualPayout: number;
 }
 
 interface DailyPayoutPreviewResult {
@@ -173,6 +178,7 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
   const [contracts, setContracts] = useState<any[]>([]);
   const [contractUpgrades, setContractUpgrades] = useState<Map<string, any[]>>(new Map());
   const [profiles, setProfiles] = useState<Map<string, any>>(new Map());
+  const [partnerPlans, setPartnerPlans] = useState<Map<string, any>>(new Map());
 
   // Calculate week end from week start using local date parsing
   const weekEnd = useMemo(() => {
@@ -280,6 +286,20 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
           });
           setProfiles(profilesMap);
         }
+
+        // Fetch partner plans for individual values
+        const { data: plansData, error: plansError } = await supabase
+          .from('partner_plans')
+          .select('name, display_name, aporte_value, weekly_cap, total_cap')
+          .eq('is_active', true);
+
+        if (plansError) throw plansError;
+
+        const plansMap = new Map<string, any>();
+        plansData?.forEach(plan => {
+          plansMap.set(plan.name, plan);
+        });
+        setPartnerPlans(plansMap);
       } catch (error) {
         console.error('Error fetching daily payout preview data:', error);
       } finally {
@@ -406,6 +426,9 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
 
   // Calculate totals by plan type
   const totalsByPlan = useMemo((): PlanTotal[] => {
+    const totalPercentage = dailyConfigs.reduce((sum, c) => sum + Number(c.percentage), 0);
+    const calcBase = dailyConfigs[0]?.calculation_base || 'aporte';
+    
     const planTotals: { [planName: string]: { 
       count: number; 
       calculated: number; 
@@ -431,11 +454,29 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
       if (preview.totalCapApplied || preview.weeklyCapApplied) planTotals[preview.planName].cappedCount++;
     }
 
-    return Object.entries(planTotals).map(([name, data]) => ({
-      planName: name,
-      ...data
-    })).sort((a, b) => b.final - a.final);
-  }, [contractPreviews]);
+    return Object.entries(planTotals).map(([name, data]) => {
+      const planInfo = partnerPlans.get(name);
+      const aporteValue = planInfo?.aporte_value || 0;
+      const weeklyCap = planInfo?.weekly_cap || 0;
+      const totalCap = planInfo?.total_cap || 0;
+      
+      // Calculate individual payout for one contract of this plan
+      const baseValue = calcBase === 'weekly_cap' ? weeklyCap : aporteValue;
+      const calculatedIndividual = baseValue * (totalPercentage / 100);
+      const individualPayout = calcBase === 'aporte' 
+        ? Math.min(calculatedIndividual, weeklyCap) 
+        : calculatedIndividual;
+      
+      return {
+        planName: name,
+        ...data,
+        aporteValue,
+        weeklyCap,
+        totalCap,
+        individualPayout
+      };
+    }).sort((a, b) => b.final - a.final);
+  }, [contractPreviews, dailyConfigs, partnerPlans]);
 
   const calculationBase = dailyConfigs[0]?.calculation_base || 'aporte';
 
