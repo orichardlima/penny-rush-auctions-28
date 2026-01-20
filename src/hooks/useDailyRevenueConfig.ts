@@ -250,15 +250,16 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
           setPartnerPlans(plansData);
         }
 
-        // Fetch data for last 4 weeks (for monthly progress)
-        const fourWeeksAgo = new Date(weekBounds.monday);
-        fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 21); // 3 weeks back
+        // Fetch data for current week + next 3 weeks (for monthly progress)
+        // Use currentWeekBounds (fixed anchor) not weekBounds (changes with selection)
+        const threeWeeksLater = new Date(currentWeekBounds.monday);
+        threeWeeksLater.setDate(currentWeekBounds.monday.getDate() + 27); // 4 full weeks
         
         const { data: monthlyConfigsData } = await supabase
           .from('daily_revenue_config')
           .select('date, percentage')
-          .gte('date', formatLocalDate(fourWeeksAgo))
-          .lte('date', formatLocalDate(weekBounds.sunday));
+          .gte('date', formatLocalDate(currentWeekBounds.monday))
+          .lte('date', formatLocalDate(threeWeeksLater));
 
         if (monthlyConfigsData) {
           // Group by week and calculate totals
