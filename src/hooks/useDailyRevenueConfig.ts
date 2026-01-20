@@ -33,6 +33,7 @@ interface WeekProgress {
   weekLabel: string;
   percentage: number;
   isCurrent: boolean;
+  isSelected?: boolean;
   isFuture?: boolean;
 }
 
@@ -128,7 +129,25 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   const [partnerPlans, setPartnerPlans] = useState<PartnerPlan[]>([]);
   const [monthlyWeeksData, setMonthlyWeeksData] = useState<Record<string, number>>({});
 
-  // Calculate week bounds from selected week
+  // Current week bounds (fixed, based on today's date - doesn't change with selection)
+  const currentWeekBounds = useMemo((): WeekBounds => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayOfWeek = today.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    
+    return { monday, sunday, weekValue: formatLocalDate(monday) };
+  }, []); // No dependencies - calculates once based on today
+
+  // Calculate week bounds from selected week (for editing)
   const weekBounds = useMemo((): WeekBounds => {
     // Parse the date string as local time (not UTC) to avoid timezone issues
     const [year, month, day] = selectedWeek.split('-').map(Number);
@@ -320,24 +339,28 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
   }, [weekTotal.percentage, maxWeeklyPercentage]);
 
   // Calculate monthly progress (current week + next 3 weeks - prospective view)
+  // ALWAYS anchored to real current week, not the selected week for editing
   const monthlyProgress = useMemo((): MonthlyProgress => {
     const limit = maxWeeklyPercentage * 4;
     const weeks: WeekProgress[] = [];
     
     // Generate current week + next 3 weeks (prospective view)
+    // Use currentWeekBounds as anchor (fixed), not weekBounds (changes with selection)
     for (let i = 0; i < 4; i++) {
-      const monday = new Date(weekBounds.monday);
-      monday.setDate(weekBounds.monday.getDate() + (i * 7));
+      const monday = new Date(currentWeekBounds.monday);
+      monday.setDate(currentWeekBounds.monday.getDate() + (i * 7));
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       
       const weekKey = formatLocalDate(monday);
-      const isCurrent = i === 0;
+      const isCurrentWeek = weekKey === currentWeekBounds.weekValue;
+      const isSelectedWeek = weekKey === selectedWeek;
       const isFuture = i > 0;
       
-      // Use local configs for current week (real-time), db data for future weeks
+      // If it's the selected week, use weekTotal.percentage (real-time local values)
+      // Otherwise, use data from database (monthlyWeeksData)
       let percentage = 0;
-      if (isCurrent) {
+      if (isSelectedWeek) {
         percentage = weekTotal.percentage;
       } else {
         percentage = monthlyWeeksData[weekKey] || 0;
@@ -349,7 +372,8 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
         weekStart: weekKey,
         weekLabel: `${formatDate(monday)} - ${formatDate(sunday)}`,
         percentage,
-        isCurrent,
+        isCurrent: isCurrentWeek,
+        isSelected: isSelectedWeek,
         isFuture
       });
     }
@@ -358,7 +382,7 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     const remaining = Math.max(0, limit - accumulated);
     
     return { limit, accumulated, remaining, weeks };
-  }, [weekBounds, selectedWeek, weekTotal.percentage, monthlyWeeksData, maxWeeklyPercentage]);
+  }, [currentWeekBounds, selectedWeek, weekTotal.percentage, monthlyWeeksData, maxWeeklyPercentage]);
 
   // Update day percentage locally
   const updateDayPercentage = useCallback((date: string, percentage: number) => {
