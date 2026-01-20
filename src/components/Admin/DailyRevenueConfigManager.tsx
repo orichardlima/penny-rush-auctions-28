@@ -347,15 +347,18 @@ const DailyRevenueConfigManager = () => {
         {/* Weekly Breakdown */}
           <div className="grid grid-cols-4 gap-2 text-center text-xs">
             {monthlyProgress.weeks.map((week, index) => (
-              <div 
+              <button 
                 key={week.weekStart}
+                type="button"
+                onClick={() => !week.isCurrent && setSelectedWeek(week.weekStart)}
+                disabled={week.isCurrent}
                 className={cn(
-                  "p-2 rounded border transition-all",
+                  "p-2 rounded border transition-all text-center",
                   week.isCurrent 
-                    ? "bg-primary/10 border-primary/30 font-medium ring-2 ring-primary/20" 
+                    ? "bg-primary/10 border-primary/30 font-medium ring-2 ring-primary/20 cursor-default" 
                     : week.isFuture
-                      ? "bg-muted/30 border-dashed border-muted-foreground/30"
-                      : "bg-muted/50 border-muted"
+                      ? "bg-muted/30 border-dashed border-muted-foreground/30 hover:bg-muted/50 hover:border-primary/40 cursor-pointer"
+                      : "bg-muted/50 border-muted hover:bg-muted/70 cursor-pointer"
                 )}
               >
                 <p className="text-muted-foreground mb-0.5">
@@ -372,9 +375,11 @@ const DailyRevenueConfigManager = () => {
                   <p className="text-[10px] text-primary mt-0.5">atual</p>
                 )}
                 {week.isFuture && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">futuro</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {week.percentage > 0 ? 'configurado' : 'clique p/ configurar'}
+                  </p>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         </div>
