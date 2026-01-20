@@ -350,15 +350,19 @@ const DailyRevenueConfigManager = () => {
               <button 
                 key={week.weekStart}
                 type="button"
-                onClick={() => !week.isCurrent && setSelectedWeek(week.weekStart)}
-                disabled={week.isCurrent}
+                onClick={() => setSelectedWeek(week.weekStart)}
+                disabled={week.isSelected}
                 className={cn(
                   "p-2 rounded border transition-all text-center",
-                  week.isCurrent 
-                    ? "bg-primary/10 border-primary/30 font-medium ring-2 ring-primary/20 cursor-default" 
-                    : week.isFuture
-                      ? "bg-muted/30 border-dashed border-muted-foreground/30 hover:bg-muted/50 hover:border-primary/40 cursor-pointer"
-                      : "bg-muted/50 border-muted hover:bg-muted/70 cursor-pointer"
+                  week.isSelected
+                    ? week.isCurrent
+                      ? "bg-primary/10 border-primary/30 font-medium ring-2 ring-primary/20 cursor-default"
+                      : "bg-blue-500/10 border-blue-500/30 font-medium ring-2 ring-blue-500/20 cursor-default"
+                    : week.isCurrent
+                      ? "bg-primary/10 border-primary/30 font-medium hover:ring-2 hover:ring-primary/20 cursor-pointer"
+                      : week.isFuture
+                        ? "bg-muted/30 border-dashed border-muted-foreground/30 hover:bg-muted/50 hover:border-primary/40 cursor-pointer"
+                        : "bg-muted/50 border-muted hover:bg-muted/70 cursor-pointer"
                 )}
               >
                 <p className="text-muted-foreground mb-0.5">
@@ -367,14 +371,21 @@ const DailyRevenueConfigManager = () => {
                 <p className={cn(
                   "font-semibold",
                   week.isCurrent && "text-primary",
-                  week.isFuture && "text-muted-foreground"
+                  week.isSelected && !week.isCurrent && "text-blue-600",
+                  week.isFuture && !week.isSelected && "text-muted-foreground"
                 )}>
                   {week.percentage.toFixed(2)}%
                 </p>
-                {week.isCurrent && (
+                {week.isCurrent && !week.isSelected && (
                   <p className="text-[10px] text-primary mt-0.5">atual</p>
                 )}
-                {week.isFuture && (
+                {week.isCurrent && week.isSelected && (
+                  <p className="text-[10px] text-primary mt-0.5">atual • editando</p>
+                )}
+                {week.isSelected && !week.isCurrent && (
+                  <p className="text-[10px] text-blue-600 mt-0.5">editando</p>
+                )}
+                {week.isFuture && !week.isSelected && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     {week.percentage > 0 ? 'configurado' : 'clique p/ configurar'}
                   </p>
