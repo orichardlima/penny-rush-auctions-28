@@ -14,7 +14,8 @@ import {
   AlertTriangle, 
   CheckCircle2,
   Eye,
-  Loader2
+  Loader2,
+  PieChart
 } from 'lucide-react';
 
 interface DailyPayoutPreviewProps {
@@ -27,6 +28,7 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
     dailyConfigs, 
     contractPreviews, 
     totals, 
+    totalsByPlan,
     hasConfigs,
     calculationBase 
   } = useDailyPayoutPreview(selectedWeek);
@@ -309,6 +311,56 @@ const DailyPayoutPreview: React.FC<DailyPayoutPreviewProps> = ({ selectedWeek })
           )}
         </CardContent>
       </Card>
+
+      {/* Resumo por Plano */}
+      {contractPreviews.length > 0 && totalsByPlan.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PieChart className="h-4 w-4 text-primary" />
+              Resumo por Plano
+            </CardTitle>
+            <CardDescription>Total consolidado a pagar por tipo de plano</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {totalsByPlan.map((planData) => (
+                <div 
+                  key={planData.planName}
+                  className="p-4 rounded-lg border bg-muted/30"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="outline">{planData.planName}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {planData.count} contrato{planData.count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatPrice(planData.final)}
+                  </p>
+                  {planData.calculated !== planData.final && (
+                    <p className="text-xs text-muted-foreground line-through">
+                      {formatPrice(planData.calculated)}
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {planData.proRataCount > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/30">
+                        {planData.proRataCount} pro rata
+                      </Badge>
+                    )}
+                    {planData.cappedCount > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                        {planData.cappedCount} com limite
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Totais */}
       {contractPreviews.length > 0 && (

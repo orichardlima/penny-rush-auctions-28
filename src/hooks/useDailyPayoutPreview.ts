@@ -37,6 +37,15 @@ interface ContractPayoutPreview {
   dailyBreakdown: DailyBreakdownItem[];
 }
 
+interface PlanTotal {
+  planName: string;
+  count: number;
+  calculated: number;
+  final: number;
+  proRataCount: number;
+  cappedCount: number;
+}
+
 interface DailyPayoutPreviewResult {
   loading: boolean;
   dailyConfigs: DailyConfigForPreview[];
@@ -49,6 +58,7 @@ interface DailyPayoutPreviewResult {
     contractsWithCap: number;
     contractsWithProRata: number;
   };
+  totalsByPlan: PlanTotal[];
   hasConfigs: boolean;
   calculationBase: string;
 }
@@ -394,6 +404,39 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
     };
   }, [dailyConfigs, contractPreviews]);
 
+  // Calculate totals by plan type
+  const totalsByPlan = useMemo((): PlanTotal[] => {
+    const planTotals: { [planName: string]: { 
+      count: number; 
+      calculated: number; 
+      final: number;
+      proRataCount: number;
+      cappedCount: number;
+    }} = {};
+
+    for (const preview of contractPreviews) {
+      if (!planTotals[preview.planName]) {
+        planTotals[preview.planName] = { 
+          count: 0, 
+          calculated: 0, 
+          final: 0,
+          proRataCount: 0,
+          cappedCount: 0
+        };
+      }
+      planTotals[preview.planName].count++;
+      planTotals[preview.planName].calculated += preview.calculatedAmount;
+      planTotals[preview.planName].final += preview.finalAmount;
+      if (preview.proRataApplied) planTotals[preview.planName].proRataCount++;
+      if (preview.totalCapApplied || preview.weeklyCapApplied) planTotals[preview.planName].cappedCount++;
+    }
+
+    return Object.entries(planTotals).map(([name, data]) => ({
+      planName: name,
+      ...data
+    })).sort((a, b) => b.final - a.final);
+  }, [contractPreviews]);
+
   const calculationBase = dailyConfigs[0]?.calculation_base || 'aporte';
 
   return {
@@ -401,6 +444,7 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
     dailyConfigs,
     contractPreviews,
     totals,
+    totalsByPlan,
     hasConfigs: dailyConfigs.length > 0,
     calculationBase
   };
