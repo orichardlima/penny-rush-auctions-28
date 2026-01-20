@@ -344,7 +344,7 @@ const DailyRevenueConfigManager = () => {
             </div>
           </div>
 
-          {/* Weekly Breakdown */}
+        {/* Weekly Breakdown */}
           <div className="grid grid-cols-4 gap-2 text-center text-xs">
             {monthlyProgress.weeks.map((week, index) => (
               <div 
@@ -353,18 +353,26 @@ const DailyRevenueConfigManager = () => {
                   "p-2 rounded border transition-all",
                   week.isCurrent 
                     ? "bg-primary/10 border-primary/30 font-medium ring-2 ring-primary/20" 
-                    : "bg-muted/50 border-muted"
+                    : week.isFuture
+                      ? "bg-muted/30 border-dashed border-muted-foreground/30"
+                      : "bg-muted/50 border-muted"
                 )}
               >
-                <p className="text-muted-foreground mb-0.5">Sem {index + 1}</p>
+                <p className="text-muted-foreground mb-0.5">
+                  Sem {index + 1}
+                </p>
                 <p className={cn(
                   "font-semibold",
-                  week.isCurrent ? "text-primary" : ""
+                  week.isCurrent && "text-primary",
+                  week.isFuture && "text-muted-foreground"
                 )}>
                   {week.percentage.toFixed(2)}%
                 </p>
                 {week.isCurrent && (
                   <p className="text-[10px] text-primary mt-0.5">atual</p>
+                )}
+                {week.isFuture && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">futuro</p>
                 )}
               </div>
             ))}

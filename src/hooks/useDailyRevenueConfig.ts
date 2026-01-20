@@ -33,6 +33,7 @@ interface WeekProgress {
   weekLabel: string;
   percentage: number;
   isCurrent: boolean;
+  isFuture?: boolean;
 }
 
 interface MonthlyProgress {
@@ -318,22 +319,23 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
     return Math.max(0, maxWeeklyPercentage - weekTotal.percentage);
   }, [weekTotal.percentage, maxWeeklyPercentage]);
 
-  // Calculate monthly progress (last 4 weeks)
+  // Calculate monthly progress (current week + next 3 weeks - prospective view)
   const monthlyProgress = useMemo((): MonthlyProgress => {
     const limit = maxWeeklyPercentage * 4;
     const weeks: WeekProgress[] = [];
     
-    // Generate last 4 weeks (3 previous + current)
-    for (let i = 3; i >= 0; i--) {
+    // Generate current week + next 3 weeks (prospective view)
+    for (let i = 0; i < 4; i++) {
       const monday = new Date(weekBounds.monday);
-      monday.setDate(weekBounds.monday.getDate() - (i * 7));
+      monday.setDate(weekBounds.monday.getDate() + (i * 7));
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       
       const weekKey = formatLocalDate(monday);
-      const isCurrent = weekKey === selectedWeek;
+      const isCurrent = i === 0;
+      const isFuture = i > 0;
       
-      // Use local configs for current week (real-time), db data for others
+      // Use local configs for current week (real-time), db data for future weeks
       let percentage = 0;
       if (isCurrent) {
         percentage = weekTotal.percentage;
@@ -347,7 +349,8 @@ export const useDailyRevenueConfig = (): UseDailyRevenueConfigResult => {
         weekStart: weekKey,
         weekLabel: `${formatDate(monday)} - ${formatDate(sunday)}`,
         percentage,
-        isCurrent
+        isCurrent,
+        isFuture
       });
     }
     
