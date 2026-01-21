@@ -19,7 +19,6 @@ interface DailyRevenueDay {
 interface DailyRevenueBarsProps {
   days: DailyRevenueDay[];
   closingHour: number;
-  maxDailyValue: number;
   isAnimating: boolean;
   formatPrice: (value: number) => string;
 }
@@ -27,7 +26,6 @@ interface DailyRevenueBarsProps {
 const DailyRevenueBars: React.FC<DailyRevenueBarsProps> = ({
   days,
   closingHour,
-  maxDailyValue,
   isAnimating,
   formatPrice
 }) => {
@@ -67,22 +65,16 @@ const DailyRevenueBars: React.FC<DailyRevenueBarsProps> = ({
           ? day.partnerShare * dayProgress
           : day.partnerShare;
 
-        // Bar width calculation
+        // Bar width calculation - TIME-BASED (not value-based)
         const getBarWidth = () => {
           if (isProRataDay) return '100%';
           if (isTodayPending) return `${dayProgressPercent}%`;
-          if (!day.isClosed) return '0%';
-          // Closed days: proportional to max value
-          if (maxDailyValue > 0) {
-            return `${Math.max((day.partnerShare / maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`;
-          }
-          return '0%';
+          if (day.isClosed) return '100%'; // Closed day = full bar
+          return '0%'; // Future day = empty
         };
 
         const getAnimatedBarWidth = () => {
-          if (maxDailyValue > 0) {
-            return `${Math.max((day.partnerShare / maxDailyValue) * 100, day.partnerShare > 0 ? 5 : 0)}%`;
-          }
+          if (day.isClosed) return '100%';
           return '0%';
         };
         

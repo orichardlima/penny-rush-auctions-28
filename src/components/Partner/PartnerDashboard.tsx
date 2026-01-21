@@ -676,7 +676,6 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <DailyRevenueBars 
                   days={currentWeekRevenue.days}
                   closingHour={currentWeekRevenue.closingHour}
-                  maxDailyValue={currentWeekRevenue.maxDailyValue}
                   isAnimating={currentWeekRevenue.isAnimating}
                   formatPrice={formatPrice}
                 />
