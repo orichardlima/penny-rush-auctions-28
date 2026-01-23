@@ -142,6 +142,11 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
 
     fetchData();
 
+    // Polling periódico para atualizar dados a cada 15 segundos
+    const pollingInterval = setInterval(() => {
+      fetchData();
+    }, 15 * 1000);
+
     // Subscribe to real-time updates
     const channel = supabase
       .channel('current-week-revenue')
@@ -155,6 +160,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       .subscribe();
 
     return () => {
+      clearInterval(pollingInterval);
       supabase.removeChannel(channel);
     };
   }, [contract, weekBounds]);
