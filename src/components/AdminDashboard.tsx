@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
@@ -144,6 +144,7 @@ const AdminDashboard = () => {
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<User | null>(null);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userFilter, setUserFilter] = useState<'all' | 'real' | 'bot' | 'vip' | 'active'>('all');
+  const [auctionStatusFilter, setAuctionStatusFilter] = useState<'all' | 'active' | 'finished'>('all');
 
   // Estados existentes
   const [auctions, setAuctions] = useState<Auction[]>([]);
@@ -151,6 +152,12 @@ const AdminDashboard = () => {
   const [botUsers, setBotUsers] = useState<User[]>([]);
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Computed: Leilões filtrados para a seção de detalhes
+  const filteredAuctionsForDetails = useMemo(() => {
+    if (auctionStatusFilter === 'all') return auctions;
+    return auctions.filter(auction => auction.status === auctionStatusFilter);
+  }, [auctions, auctionStatusFilter]);
   
   // Helper function para criar timestamp inicial (local)
   const getInitialStartTime = () => {
@@ -880,28 +887,60 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Sidebar de seleção de leilão */}
               <Card className="lg:col-span-1">
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
                     Selecionar Leilão
                   </CardTitle>
+                  <div className="flex gap-1 mt-2">
+                    <Button
+                      size="sm"
+                      variant={auctionStatusFilter === 'all' ? 'default' : 'outline'}
+                      onClick={() => setAuctionStatusFilter('all')}
+                      className="flex-1 text-xs"
+                    >
+                      Todos
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={auctionStatusFilter === 'active' ? 'default' : 'outline'}
+                      onClick={() => setAuctionStatusFilter('active')}
+                      className="flex-1 text-xs"
+                    >
+                      Ativos
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={auctionStatusFilter === 'finished' ? 'default' : 'outline'}
+                      onClick={() => setAuctionStatusFilter('finished')}
+                      className="flex-1 text-xs"
+                    >
+                      Finalizados
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                  {auctions.map((auction) => (
-                    <Button
-                      key={auction.id}
-                      variant={selectedAuctionForDetails === auction.id ? "default" : "outline"}
-                      className="w-full justify-start"
-                      onClick={() => setSelectedAuctionForDetails(auction.id)}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium truncate">{auction.title}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {auction.total_bids} lances • {auction.status}
+                  {filteredAuctionsForDetails.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-4 text-sm">
+                      Nenhum leilão {auctionStatusFilter === 'active' ? 'ativo' : auctionStatusFilter === 'finished' ? 'finalizado' : ''} encontrado
+                    </div>
+                  ) : (
+                    filteredAuctionsForDetails.map((auction) => (
+                      <Button
+                        key={auction.id}
+                        variant={selectedAuctionForDetails === auction.id ? "default" : "outline"}
+                        className="w-full justify-start"
+                        onClick={() => setSelectedAuctionForDetails(auction.id)}
+                      >
+                        <div className="text-left">
+                          <div className="font-medium truncate">{auction.title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {auction.total_bids} lances • {auction.status}
+                          </div>
                         </div>
-                      </div>
-                    </Button>
-                  ))}
+                      </Button>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
