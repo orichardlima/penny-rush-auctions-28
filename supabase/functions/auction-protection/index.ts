@@ -51,10 +51,100 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { company_revenue, revenue_target, title, current_price, market_value } = auction;
+    const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price } = auction;
 
     console.log(`💰 [PROTECTION] Receita atual: R$${company_revenue} | Meta: R$${revenue_target}`);
     console.log(`🏪 [PROTECTION] Preço atual: R$${current_price} | Valor loja: R$${market_value}`);
+    if (ends_at) console.log(`⏰ [PROTECTION] Horário limite: ${ends_at}`);
+    if (max_price) console.log(`💲 [PROTECTION] Preço máximo: R$${max_price}`);
+
+    // Verificar se horário limite foi atingido
+    if (ends_at) {
+      const endsAtTime = new Date(ends_at);
+      const now = new Date();
+      if (now >= endsAtTime) {
+        console.log(`⏰ [PROTECTION] Horário limite atingido para "${title}"`);
+        
+        // Buscar último bidder para definir como vencedor
+        const { data: lastBid } = await supabase
+          .from('bids')
+          .select(`
+            user_id,
+            profiles!inner(full_name)
+          `)
+          .eq('auction_id', auction_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        const { error: updateError } = await supabase
+          .from('auctions')
+          .update({
+            status: 'finished',
+            finished_at: new Date().toISOString(),
+            winner_id: lastBid?.user_id || null,
+            winner_name: lastBid?.profiles?.full_name || null
+          })
+          .eq('id', auction_id);
+
+        if (updateError) {
+          console.error(`❌ [PROTECTION] Erro ao finalizar leilão:`, updateError);
+          throw updateError;
+        }
+
+        console.log(`✅ [PROTECTION] Leilão "${title}" finalizado por horário limite`);
+        return new Response(
+          JSON.stringify({ 
+            message: 'Leilão finalizado - horário limite atingido', 
+            action: 'finalized_time_limit',
+            winner: lastBid?.profiles?.full_name || 'Desconhecido'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Verificar se preço máximo foi atingido
+    if (max_price && current_price >= max_price) {
+      console.log(`💲 [PROTECTION] Preço máximo atingido para "${title}" (R$${current_price} >= R$${max_price})`);
+      
+      // Buscar último bidder para definir como vencedor
+      const { data: lastBid } = await supabase
+        .from('bids')
+        .select(`
+          user_id,
+          profiles!inner(full_name)
+        `)
+        .eq('auction_id', auction_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const { error: updateError } = await supabase
+        .from('auctions')
+        .update({
+          status: 'finished',
+          finished_at: new Date().toISOString(),
+          winner_id: lastBid?.user_id || null,
+          winner_name: lastBid?.profiles?.full_name || null
+        })
+        .eq('id', auction_id);
+
+      if (updateError) {
+        console.error(`❌ [PROTECTION] Erro ao finalizar leilão:`, updateError);
+        throw updateError;
+      }
+
+      console.log(`✅ [PROTECTION] Leilão "${title}" finalizado por preço máximo`);
+      return new Response(
+        JSON.stringify({ 
+          message: 'Leilão finalizado - preço máximo atingido', 
+          action: 'finalized_max_price',
+          winner: lastBid?.profiles?.full_name || 'Desconhecido'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Verificar se meta foi atingida
     if (company_revenue >= revenue_target) {

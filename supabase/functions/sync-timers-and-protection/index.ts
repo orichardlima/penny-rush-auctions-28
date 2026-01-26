@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
   // **FASE 2: Verificar leilões ativos para proteção ou finalização**
   const { data: activeAuctions, error: activeError } = await supabase
     .from('auctions')
-    .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment')
+    .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price')
     .eq('status', 'active');
 
   if (activeError) {
@@ -93,6 +93,75 @@ Deno.serve(async (req) => {
       const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
 
       console.log(`⏰ [CHECK] Leilão "${auction.title}": ${secondsSinceLastBid}s inativo`);
+
+      // Verificar se horário limite foi atingido
+      if (auction.ends_at) {
+        const endsAt = new Date(auction.ends_at).getTime();
+        if (currentTime >= endsAt) {
+          console.log(`⏰ [HORÁRIO-LIMITE] Leilão "${auction.title}" - horário limite atingido, finalizando`);
+          
+          const { data: lastBidData } = await supabase
+            .from('bids')
+            .select('user_id')
+            .eq('auction_id', auction.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          const { data: winnerProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', lastBidData?.user_id)
+            .single();
+
+          await supabase
+            .from('auctions')
+            .update({
+              status: 'finished',
+              finished_at: currentTimeBr,
+              winner_id: lastBidData?.user_id || null,
+              winner_name: winnerProfile?.full_name || null
+            })
+            .eq('id', auction.id);
+
+          console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - horário limite`);
+          finalizedCount++;
+          continue;
+        }
+      }
+
+      // Verificar se preço máximo foi atingido
+      if (auction.max_price && Number(auction.current_price) >= Number(auction.max_price)) {
+        console.log(`💰 [PREÇO-MÁXIMO] Leilão "${auction.title}" - preço máximo R$${auction.max_price} atingido, finalizando`);
+        
+        const { data: lastBidData } = await supabase
+          .from('bids')
+          .select('user_id')
+          .eq('auction_id', auction.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        const { data: winnerProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', lastBidData?.user_id)
+          .single();
+
+        await supabase
+          .from('auctions')
+          .update({
+            status: 'finished',
+            finished_at: currentTimeBr,
+            winner_id: lastBidData?.user_id || null,
+            winner_name: winnerProfile?.full_name || null
+          })
+          .eq('id', auction.id);
+
+        console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - preço máximo`);
+        finalizedCount++;
+        continue;
+      }
 
       // Verificar se meta foi atingida - finalizar independente de inatividade
       if (Number(auction.company_revenue) >= Number(auction.revenue_target)) {

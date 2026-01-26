@@ -338,6 +338,7 @@ export type Database = {
           is_hidden: boolean | null
           last_bid_at: string | null
           market_value: number | null
+          max_price: number | null
           participants_count: number | null
           revenue_target: number | null
           starting_price: number | null
@@ -364,6 +365,7 @@ export type Database = {
           is_hidden?: boolean | null
           last_bid_at?: string | null
           market_value?: number | null
+          max_price?: number | null
           participants_count?: number | null
           revenue_target?: number | null
           starting_price?: number | null
@@ -390,6 +392,7 @@ export type Database = {
           is_hidden?: boolean | null
           last_bid_at?: string | null
           market_value?: number | null
+          max_price?: number | null
           participants_count?: number | null
           revenue_target?: number | null
           starting_price?: number | null
