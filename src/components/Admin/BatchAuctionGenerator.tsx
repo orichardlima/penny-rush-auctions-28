@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ProductTemplate, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Rocket, Clock, Shuffle, Calendar, Package, CheckCircle } from 'lucide-react';
+import { Rocket, Clock, Shuffle, Calendar, Package, CheckCircle, Target, DollarSign, Clock3, AlertCircle } from 'lucide-react';
 import { format, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -29,6 +29,16 @@ const INTERVAL_OPTIONS = [
   { value: 180, label: '3 horas' },
 ];
 
+const TIME_LIMIT_OPTIONS = [
+  { value: '18:00', label: '18:00' },
+  { value: '19:00', label: '19:00' },
+  { value: '20:00', label: '20:00' },
+  { value: '21:00', label: '21:00' },
+  { value: '22:00', label: '22:00' },
+  { value: '23:00', label: '23:00' },
+  { value: '00:00', label: '00:00 (meia-noite)' },
+];
+
 export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGeneratorProps) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [startDateTime, setStartDateTime] = useState(() => {
@@ -40,6 +50,13 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
   const [shuffleOrder, setShuffleOrder] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Estados para condições de encerramento
+  const [enableTimeLimit, setEnableTimeLimit] = useState(false);
+  const [timeLimitHour, setTimeLimitHour] = useState('22:00');
+  const [enableRevenueTarget, setEnableRevenueTarget] = useState(true);
+  const [enableMaxPrice, setEnableMaxPrice] = useState(false);
+  const [maxPriceValue, setMaxPriceValue] = useState<string>('');
 
   const filteredTemplates = categoryFilter === 'all'
     ? templates
@@ -83,25 +100,56 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
       return;
     }
 
+    // Validação do preço máximo
+    const maxPriceNum = maxPriceValue ? parseFloat(maxPriceValue) : null;
+    if (enableMaxPrice) {
+      if (!maxPriceNum || maxPriceNum <= 0) {
+        toast.error('Informe um preço máximo válido');
+        return;
+      }
+      const minStartingPrice = Math.min(...selectedTemplates.map(t => t.starting_price || 0));
+      if (maxPriceNum <= minStartingPrice) {
+        toast.error('Preço máximo deve ser maior que o preço inicial dos produtos');
+        return;
+      }
+    }
+
     setIsGenerating(true);
 
     try {
-      const auctions = scheduledAuctions.map(({ template, startsAt }) => ({
-        title: template.title,
-        description: template.description,
-        image_url: template.image_url,
-        market_value: template.market_value,
-        revenue_target: template.revenue_target,
-        starting_price: template.starting_price,
-        current_price: template.starting_price,
-        bid_increment: template.bid_increment,
-        bid_cost: template.bid_cost,
-        starts_at: startsAt.toISOString(),
-        status: 'waiting',
-        time_left: 15,
-        total_bids: 0,
-        company_revenue: 0
-      }));
+      const auctions = scheduledAuctions.map(({ template, startsAt }) => {
+        // Calcular ends_at se limite de horário estiver ativo
+        let endsAt: string | null = null;
+        if (enableTimeLimit && timeLimitHour) {
+          const [hours, minutes] = timeLimitHour.split(':').map(Number);
+          const endDate = new Date(startsAt);
+          endDate.setHours(hours, minutes, 0, 0);
+          // Se o horário limite for antes ou igual ao início, usar o dia seguinte
+          if (endDate <= startsAt) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+          endsAt = endDate.toISOString();
+        }
+
+        return {
+          title: template.title,
+          description: template.description,
+          image_url: template.image_url,
+          market_value: template.market_value,
+          revenue_target: enableRevenueTarget ? template.revenue_target : null,
+          starting_price: template.starting_price,
+          current_price: template.starting_price,
+          bid_increment: template.bid_increment,
+          bid_cost: template.bid_cost,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt,
+          max_price: enableMaxPrice ? maxPriceNum : null,
+          status: 'waiting',
+          time_left: 15,
+          total_bids: 0,
+          company_revenue: 0
+        };
+      });
 
       const { data, error } = await supabase
         .from('auctions')
@@ -290,6 +338,106 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
             </div>
           </div>
 
+          {/* Seção de Condições de Encerramento */}
+          <Label className="text-base font-medium flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Condições de Encerramento Automático
+          </Label>
+
+          <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+            {/* Por Horário Limite */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="timeLimit"
+                  checked={enableTimeLimit}
+                  onCheckedChange={(checked) => setEnableTimeLimit(checked === true)}
+                />
+                <Label htmlFor="timeLimit" className="flex items-center gap-2 cursor-pointer">
+                  <Clock3 className="h-4 w-4" />
+                  Encerrar por Horário Limite
+                </Label>
+              </div>
+              {enableTimeLimit && (
+                <div className="ml-6 space-y-2">
+                  <Select value={timeLimitHour} onValueChange={setTimeLimitHour}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Selecione o horário" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_LIMIT_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Aplica para todos os leilões do lote
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Por Meta de Receita */}
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                id="revenueTarget"
+                checked={enableRevenueTarget}
+                onCheckedChange={(checked) => setEnableRevenueTarget(checked === true)}
+              />
+              <Label htmlFor="revenueTarget" className="flex items-center gap-2 cursor-pointer">
+                <Target className="h-4 w-4" />
+                Encerrar por Meta de Receita
+              </Label>
+            </div>
+            {enableRevenueTarget && (
+              <p className="ml-6 text-xs text-muted-foreground">
+                💡 Usa o valor configurado em cada template (revenue_target)
+              </p>
+            )}
+
+            <Separator />
+
+            {/* Por Preço Máximo */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="maxPrice"
+                  checked={enableMaxPrice}
+                  onCheckedChange={(checked) => setEnableMaxPrice(checked === true)}
+                />
+                <Label htmlFor="maxPrice" className="flex items-center gap-2 cursor-pointer">
+                  <DollarSign className="h-4 w-4" />
+                  Encerrar por Preço Máximo
+                </Label>
+              </div>
+              {enableMaxPrice && (
+                <div className="ml-6 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">R$</span>
+                    <Input
+                      type="number"
+                      placeholder="Ex: 500"
+                      value={maxPriceValue}
+                      onChange={(e) => setMaxPriceValue(e.target.value)}
+                      className="w-[150px]"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Aplica para todos os leilões do lote
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {selectedIds.length > 0 && (
             <>
               <Separator />
@@ -300,26 +448,33 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
                   Prévia dos Leilões ({selectedIds.length})
                 </Label>
                 
-                <ScrollArea className="h-[180px] border rounded-md p-2">
+                <ScrollArea className="h-[120px] border rounded-md p-2">
                   <div className="space-y-2">
                     {scheduledAuctions.map(({ template, startsAt }, index) => (
                       <div key={template.id} className="flex items-center gap-3 p-2 rounded bg-muted/30">
                         <Badge variant="outline" className="shrink-0 w-16 justify-center">
                           {format(startsAt, 'HH:mm')}
                         </Badge>
-                        <span className="text-sm truncate">{template.title}</span>
+                        <span className="text-sm truncate flex-1">{template.title}</span>
+                        {enableRevenueTarget && template.revenue_target && (
+                          <span className="text-xs text-muted-foreground">
+                            Meta: {formatCurrency(template.revenue_target)}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
 
-                <div className="mt-3 p-3 bg-muted/50 rounded-lg text-sm">
+                <div className="mt-3 p-3 bg-muted/50 rounded-lg text-sm space-y-1">
                   <p><strong>Total:</strong> {selectedIds.length} leilões</p>
                   <p><strong>Duração estimada:</strong> {formatDuration(totalDuration)}</p>
                   <p><strong>Último leilão:</strong> {scheduledAuctions.length > 0 
                     ? format(scheduledAuctions[scheduledAuctions.length - 1].startsAt, "dd/MM 'às' HH:mm", { locale: ptBR })
                     : '-'
                   }</p>
+                  {enableTimeLimit && <p><strong>Horário limite:</strong> {timeLimitHour}</p>}
+                  {enableMaxPrice && maxPriceValue && <p><strong>Preço máximo:</strong> {formatCurrency(parseFloat(maxPriceValue))}</p>}
                 </div>
               </div>
             </>
