@@ -19,6 +19,7 @@ import DailyRevenueConfigManager from './DailyRevenueConfigManager';
 import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
   DollarSign, 
@@ -41,7 +42,8 @@ import {
   Trophy,
   Receipt,
   GitBranch,
-  Eye
+  Eye,
+  Coins
 } from 'lucide-react';
 import BinaryNetworkManager from './BinaryNetworkManager';
 
@@ -64,10 +66,10 @@ const AdminPartnerManagement = () => {
     processWeeklyPayouts,
     markPayoutAsPaid,
     processTermination,
-    
     rejectWithdrawal,
     markWithdrawalAsPaid,
     correctBonusBids,
+    addManualCredit,
     refreshData 
   } = useAdminPartners();
 
@@ -101,6 +103,13 @@ const AdminPartnerManagement = () => {
     referral_bonus_percentage: 10,
     bonus_bids: 0
   });
+
+  // Manual Credit State
+  const [isCreditDialogOpen, setIsCreditDialogOpen] = useState(false);
+  const [selectedContractForCredit, setSelectedContractForCredit] = useState<any>(null);
+  const [creditAmount, setCreditAmount] = useState<string>('');
+  const [creditType, setCreditType] = useState<'bonus' | 'correction' | 'compensation' | 'other'>('bonus');
+  const [creditDescription, setCreditDescription] = useState('');
 
   // Calculate preview for manual mode with Pro Rata eligibility
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
@@ -530,6 +539,24 @@ const AdminPartnerManagement = () => {
                         <TableCell>{getStatusBadge(contract.status)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
+                            {/* Manual Credit Button - Only for ACTIVE contracts */}
+                            {contract.status === 'ACTIVE' && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedContractForCredit(contract);
+                                  setCreditAmount('');
+                                  setCreditType('bonus');
+                                  setCreditDescription('');
+                                  setIsCreditDialogOpen(true);
+                                }}
+                                title="Adicionar crédito manual"
+                                className="text-green-600 border-green-300 hover:bg-green-50"
+                              >
+                                <Coins className="h-4 w-4" />
+                              </Button>
+                            )}
                             {contract.status === 'ACTIVE' && (
                               <Dialog>
                                 <DialogTrigger asChild>
@@ -1699,6 +1726,122 @@ const AdminPartnerManagement = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Manual Credit Dialog */}
+      <Dialog open={isCreditDialogOpen} onOpenChange={setIsCreditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-green-600" />
+              Adicionar Crédito Manual
+            </DialogTitle>
+            <DialogDescription>
+              {selectedContractForCredit?.user_name} ({selectedContractForCredit?.user_email})
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Current contract info */}
+            <div className="p-3 bg-muted/50 rounded-lg space-y-1">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Plano:</span>{' '}
+                <strong>{selectedContractForCredit?.plan_name}</strong> ({formatPrice(selectedContractForCredit?.aporte_value || 0)})
+              </p>
+              <p className="text-sm">
+                <span className="text-muted-foreground">Saldo atual:</span>{' '}
+                <strong className="text-green-600">{formatPrice(selectedContractForCredit?.total_received || 0)}</strong>
+                <span className="text-muted-foreground"> / {formatPrice(selectedContractForCredit?.total_cap || 0)}</span>
+              </p>
+            </div>
+
+            {/* Credit Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="credit-amount">Valor do Crédito (R$)</Label>
+              <Input
+                id="credit-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                placeholder="Ex: 100.00"
+              />
+            </div>
+
+            {/* Credit Type */}
+            <div className="space-y-2">
+              <Label>Tipo de Crédito</Label>
+              <RadioGroup 
+                value={creditType} 
+                onValueChange={(value) => setCreditType(value as typeof creditType)}
+                className="grid grid-cols-2 gap-2"
+              >
+                <div className="flex items-center space-x-2 p-2 border rounded hover:bg-accent">
+                  <RadioGroupItem value="bonus" id="credit-bonus" />
+                  <Label htmlFor="credit-bonus" className="cursor-pointer text-sm">Bônus Especial</Label>
+                </div>
+                <div className="flex items-center space-x-2 p-2 border rounded hover:bg-accent">
+                  <RadioGroupItem value="correction" id="credit-correction" />
+                  <Label htmlFor="credit-correction" className="cursor-pointer text-sm">Correção/Ajuste</Label>
+                </div>
+                <div className="flex items-center space-x-2 p-2 border rounded hover:bg-accent">
+                  <RadioGroupItem value="compensation" id="credit-compensation" />
+                  <Label htmlFor="credit-compensation" className="cursor-pointer text-sm">Compensação</Label>
+                </div>
+                <div className="flex items-center space-x-2 p-2 border rounded hover:bg-accent">
+                  <RadioGroupItem value="other" id="credit-other" />
+                  <Label htmlFor="credit-other" className="cursor-pointer text-sm">Outro</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="credit-description">Descrição/Motivo *</Label>
+              <Textarea
+                id="credit-description"
+                value={creditDescription}
+                onChange={(e) => setCreditDescription(e.target.value)}
+                placeholder="Ex: Bônus por atingir meta de indicações"
+                rows={3}
+              />
+            </div>
+
+            {/* Warning */}
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-700">
+                ⚠️ Este valor será adicionado ao saldo disponível para saque do parceiro imediatamente. 
+                Será registrado no log de auditoria.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={async () => {
+                const amount = parseFloat(creditAmount);
+                if (!amount || amount <= 0 || !creditDescription.trim()) {
+                  return;
+                }
+                await addManualCredit(
+                  selectedContractForCredit.id, 
+                  amount, 
+                  creditDescription, 
+                  creditType
+                );
+                setIsCreditDialogOpen(false);
+              }}
+              disabled={processing || !creditAmount || parseFloat(creditAmount) <= 0 || !creditDescription.trim()}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {processing ? 'Adicionando...' : 'Adicionar Crédito'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

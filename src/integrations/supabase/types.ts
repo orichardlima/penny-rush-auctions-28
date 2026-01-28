@@ -1158,6 +1158,44 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_manual_credits: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          credit_type: string
+          description: string
+          id: string
+          partner_contract_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          credit_type?: string
+          description: string
+          id?: string
+          partner_contract_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          credit_type?: string
+          description?: string
+          id?: string
+          partner_contract_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_manual_credits_contract_fk"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_payouts: {
         Row: {
           amount: number

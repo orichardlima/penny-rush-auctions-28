@@ -1278,6 +1278,93 @@ export const useAdminPartners = () => {
     }
   };
 
+  // Add manual credit to partner's available balance
+  const addManualCredit = async (
+    contractId: string, 
+    amount: number, 
+    description: string,
+    creditType: 'bonus' | 'correction' | 'compensation' | 'other'
+  ) => {
+    setProcessing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Admin não autenticado');
+
+      const contract = contracts.find(c => c.id === contractId);
+      if (!contract) throw new Error('Contrato não encontrado');
+      
+      if (contract.status !== 'ACTIVE') {
+        throw new Error('Apenas contratos ativos podem receber créditos');
+      }
+
+      if (amount <= 0) {
+        throw new Error('O valor deve ser maior que zero');
+      }
+
+      if (!description.trim()) {
+        throw new Error('Informe o motivo do crédito');
+      }
+
+      // 1. Register manual credit in the history table
+      const { error: creditError } = await supabase
+        .from('partner_manual_credits')
+        .insert({
+          partner_contract_id: contractId,
+          amount,
+          description: description.trim(),
+          credit_type: creditType,
+          created_by: user.id
+        });
+
+      if (creditError) throw creditError;
+
+      // 2. Create a PAID payout to make the balance immediately available
+      const today = formatLocalDate(new Date());
+      const { error: payoutError } = await supabase
+        .from('partner_payouts')
+        .insert({
+          partner_contract_id: contractId,
+          period_start: today,
+          period_end: today,
+          calculated_amount: amount,
+          amount: amount,
+          status: 'PAID',
+          paid_at: new Date().toISOString(),
+          weekly_cap_applied: false,
+          total_cap_applied: false
+        });
+
+      if (payoutError) throw payoutError;
+
+      // 3. Update total_received on the contract
+      const { error: updateError } = await supabase
+        .from('partner_contracts')
+        .update({
+          total_received: contract.total_received + amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Crédito adicionado!",
+        description: `R$ ${amount.toFixed(2)} creditado com sucesso para ${contract.user_name || 'o parceiro'}.`
+      });
+
+      await Promise.all([fetchContracts(), fetchPayouts()]);
+    } catch (error: any) {
+      console.error('Error adding manual credit:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar crédito",
+        description: error.message || "Não foi possível adicionar o crédito."
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return {
     contracts,
     plans,
@@ -1299,6 +1386,7 @@ export const useAdminPartners = () => {
     rejectWithdrawal,
     markWithdrawalAsPaid,
     correctBonusBids,
+    addManualCredit,
     refreshData: async () => {
       await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations(), fetchWithdrawals()]);
     }
