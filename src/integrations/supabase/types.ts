@@ -1161,6 +1161,7 @@ export type Database = {
       partner_manual_credits: {
         Row: {
           amount: number
+          consumes_cap: boolean
           created_at: string
           created_by: string
           credit_type: string
@@ -1170,6 +1171,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          consumes_cap?: boolean
           created_at?: string
           created_by: string
           credit_type?: string
@@ -1179,6 +1181,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          consumes_cap?: boolean
           created_at?: string
           created_by?: string
           credit_type?: string
