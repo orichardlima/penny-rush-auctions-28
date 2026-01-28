@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award } from 'lucide-react';
 import { UserBidHistoryModal } from '@/components/Admin/UserBidHistoryModal';
 import { UserPurchaseHistoryModal } from '@/components/Admin/UserPurchaseHistoryModal';
 
@@ -29,11 +30,19 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
   const [isBidHistoryOpen, setIsBidHistoryOpen] = useState(false);
   const [isPurchaseHistoryOpen, setIsPurchaseHistoryOpen] = useState(false);
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [newBalance, setNewBalance] = useState(user.bids_balance.toString());
   const [blockReason, setBlockReason] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Estados para atribuição de plano
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [adminReferralCode, setAdminReferralCode] = useState('');
+  const [existingContract, setExistingContract] = useState<any>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
 
   const logAdminAction = async (actionType: string, oldValues: any = null, newValues: any = null, description: string) => {
     try {
@@ -278,6 +287,152 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     }
   };
 
+  const checkUserPartnerStatus = async () => {
+    setLoadingPlans(true);
+    setSelectedPlanId(null);
+    setAdminReferralCode('');
+    try {
+      // Buscar planos ativos
+      const { data: plansData } = await supabase
+        .from('partner_plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+      
+      setPlans(plansData || []);
+      
+      // Verificar se usuário já tem contrato ativo
+      const { data: contractData } = await supabase
+        .from('partner_contracts')
+        .select('*')
+        .eq('user_id', user.user_id)
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+      
+      setExistingContract(contractData);
+    } catch (error) {
+      console.error('Error checking partner status:', error);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const assignPlanToUser = async () => {
+    if (!selectedPlanId) return;
+    
+    const plan = plans.find(p => p.id === selectedPlanId);
+    if (!plan) return;
+    
+    setLoading(true);
+    try {
+      // Verificar se já existe contrato ativo
+      if (existingContract) {
+        toast({
+          title: "Erro",
+          description: "Usuário já possui um contrato ativo. Encerre-o primeiro.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Buscar sponsor se código informado
+      let referredByUserId: string | null = null;
+      if (adminReferralCode.trim()) {
+        const { data: sponsorContract } = await supabase
+          .from('partner_contracts')
+          .select('user_id')
+          .eq('referral_code', adminReferralCode.trim().toUpperCase())
+          .eq('status', 'ACTIVE')
+          .maybeSingle();
+        
+        if (sponsorContract && sponsorContract.user_id !== user.user_id) {
+          referredByUserId = sponsorContract.user_id;
+        } else if (adminReferralCode.trim() && !sponsorContract) {
+          toast({
+            title: "Aviso",
+            description: "Código de indicação não encontrado ou inativo. Prosseguindo sem sponsor.",
+            variant: "default"
+          });
+        }
+      }
+      
+      // Gerar código de referral único
+      const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      
+      // Criar contrato
+      const { data: newContract, error: contractError } = await supabase
+        .from('partner_contracts')
+        .insert({
+          user_id: user.user_id,
+          plan_name: plan.name,
+          aporte_value: plan.aporte_value,
+          weekly_cap: plan.weekly_cap,
+          total_cap: plan.total_cap,
+          status: 'ACTIVE',
+          referred_by_user_id: referredByUserId,
+          referral_code: newReferralCode
+        })
+        .select()
+        .single();
+      
+      if (contractError) throw contractError;
+      
+      // Creditar bônus de lances se existir
+      if (plan.bonus_bids && plan.bonus_bids > 0) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('bids_balance')
+          .eq('user_id', user.user_id)
+          .single();
+        
+        const newBalance = (profileData?.bids_balance || 0) + plan.bonus_bids;
+        
+        await supabase
+          .from('profiles')
+          .update({ bids_balance: newBalance })
+          .eq('user_id', user.user_id);
+        
+        await supabase
+          .from('partner_contracts')
+          .update({ bonus_bids_received: plan.bonus_bids })
+          .eq('id', newContract.id);
+      }
+      
+      // Registrar no audit log
+      await logAdminAction(
+        'partner_plan_assigned',
+        null,
+        { 
+          plan_name: plan.name, 
+          aporte_value: plan.aporte_value,
+          referral_code: newReferralCode,
+          sponsor: referredByUserId || 'none'
+        },
+        `Plano ${plan.display_name} atribuído pelo administrador. Valor: R$ ${plan.aporte_value}`
+      );
+      
+      toast({
+        title: "Plano ativado!",
+        description: `${plan.display_name} foi ativado para ${user.full_name || user.email}`
+      });
+      
+      setIsPlanDialogOpen(false);
+      setSelectedPlanId(null);
+      setAdminReferralCode('');
+      onUserUpdated();
+    } catch (error: any) {
+      console.error('Error assigning plan:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao ativar plano",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex gap-2">
       {/* Bid History */}
@@ -511,6 +666,111 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assign Partner Plan */}
+      <Dialog open={isPlanDialogOpen} onOpenChange={(open) => {
+        setIsPlanDialogOpen(open);
+        if (open) checkUserPartnerStatus();
+      }}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" title="Atribuir plano de parceiro">
+            <Award className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Atribuir Plano de Parceiro
+            </DialogTitle>
+            <DialogDescription>
+              {user.full_name} ({user.email})
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingPlans ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : existingContract ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  ✅ <strong>Plano atual:</strong> {existingContract.plan_name}
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  Aporte: R$ {existingContract.aporte_value?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | 
+                  Recebido: R$ {existingContract.total_received?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Para atribuir um novo plano, encerre o contrato atual primeiro na 
+                área de Gerenciamento de Parceiros.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-950 dark:border-yellow-800">
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                  ⚠️ Usuário não possui plano de parceria ativo
+                </p>
+              </div>
+              
+              <div>
+                <Label>Selecione o Plano</Label>
+                <RadioGroup value={selectedPlanId || ''} onValueChange={setSelectedPlanId} className="mt-2 space-y-2">
+                  {plans.map(plan => (
+                    <div key={plan.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
+                      <RadioGroupItem value={plan.id} id={plan.id} />
+                      <Label htmlFor={plan.id} className="flex-1 cursor-pointer">
+                        <span className="font-medium">{plan.display_name}</span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          R$ {plan.aporte_value?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Teto: R$ {plan.total_cap?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+                        </span>
+                        {plan.bonus_bids > 0 && (
+                          <span className="text-xs text-green-600 ml-2">
+                            +{plan.bonus_bids} lances
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+              
+              <div>
+                <Label htmlFor="referral-code">Código de Indicação (opcional)</Label>
+                <Input
+                  id="referral-code"
+                  value={adminReferralCode}
+                  onChange={(e) => setAdminReferralCode(e.target.value.toUpperCase())}
+                  placeholder="Ex: ABC123XY"
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  💡 Se informado, o usuário será vinculado ao sponsor correspondente
+                </p>
+              </div>
+              
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-800">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  ⚠️ Esta ação criará um contrato sem necessidade de pagamento.
+                  Será registrado no log de auditoria.
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsPlanDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={assignPlanToUser} disabled={loading || !selectedPlanId}>
+                  {loading ? 'Ativando...' : 'Ativar Plano'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
