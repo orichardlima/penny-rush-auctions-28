@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { useAdminPartners, ManualPayoutOptions, getWeeksGroupedByMonth, formatWeekRange, getContractEligibleDays, formatLocalDate } from '@/hooks/useAdminPartners';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
@@ -110,6 +111,7 @@ const AdminPartnerManagement = () => {
   const [creditAmount, setCreditAmount] = useState<string>('');
   const [creditType, setCreditType] = useState<'bonus' | 'correction' | 'compensation' | 'other'>('bonus');
   const [creditDescription, setCreditDescription] = useState('');
+  const [creditConsumesCap, setCreditConsumesCap] = useState(true);
 
   // Calculate preview for manual mode with Pro Rata eligibility
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
@@ -549,6 +551,7 @@ const AdminPartnerManagement = () => {
                                   setCreditAmount('');
                                   setCreditType('bonus');
                                   setCreditDescription('');
+                                  setCreditConsumesCap(true);
                                   setIsCreditDialogOpen(true);
                                 }}
                                 title="Adicionar crédito manual"
@@ -1795,6 +1798,23 @@ const AdminPartnerManagement = () => {
               </RadioGroup>
             </div>
 
+            {/* Consumes Cap Option */}
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div className="space-y-1">
+                <Label htmlFor="consumes-cap" className="text-sm font-medium">
+                  Consome do teto do parceiro?
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Se desativado, o valor será um bônus extra que não afeta a progressão do contrato.
+                </p>
+              </div>
+              <Switch
+                id="consumes-cap"
+                checked={creditConsumesCap}
+                onCheckedChange={setCreditConsumesCap}
+              />
+            </div>
+
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="credit-description">Descrição/Motivo *</Label>
@@ -1807,11 +1827,14 @@ const AdminPartnerManagement = () => {
               />
             </div>
 
-            {/* Warning */}
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs text-amber-700">
-                ⚠️ Este valor será adicionado ao saldo disponível para saque do parceiro imediatamente. 
-                Será registrado no log de auditoria.
+            {/* Dynamic Warning */}
+            <div className={`p-3 border rounded-lg ${creditConsumesCap ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+              <p className={`text-xs ${creditConsumesCap ? 'text-amber-700' : 'text-green-700'}`}>
+                {creditConsumesCap ? (
+                  <>⚠️ Este valor será adicionado ao saldo disponível e <strong>consumirá do teto</strong> do parceiro, avançando a progressão do contrato.</>
+                ) : (
+                  <>✅ Este valor será um <strong>bônus extra</strong> disponível para saque, sem afetar a progressão do contrato.</>
+                )}
               </p>
             </div>
           </div>
@@ -1830,7 +1853,8 @@ const AdminPartnerManagement = () => {
                   selectedContractForCredit.id, 
                   amount, 
                   creditDescription, 
-                  creditType
+                  creditType,
+                  creditConsumesCap
                 );
                 setIsCreditDialogOpen(false);
               }}

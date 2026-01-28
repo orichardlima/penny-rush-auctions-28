@@ -1283,7 +1283,8 @@ export const useAdminPartners = () => {
     contractId: string, 
     amount: number, 
     description: string,
-    creditType: 'bonus' | 'correction' | 'compensation' | 'other'
+    creditType: 'bonus' | 'correction' | 'compensation' | 'other',
+    consumesCap: boolean = true
   ) => {
     setProcessing(true);
     try {
@@ -1305,7 +1306,7 @@ export const useAdminPartners = () => {
         throw new Error('Informe o motivo do crédito');
       }
 
-      // 1. Register manual credit in the history table
+      // 1. Register manual credit in the history table with consumes_cap flag
       const { error: creditError } = await supabase
         .from('partner_manual_credits')
         .insert({
@@ -1313,7 +1314,8 @@ export const useAdminPartners = () => {
           amount,
           description: description.trim(),
           credit_type: creditType,
-          created_by: user.id
+          created_by: user.id,
+          consumes_cap: consumesCap
         });
 
       if (creditError) throw creditError;
@@ -1336,20 +1338,23 @@ export const useAdminPartners = () => {
 
       if (payoutError) throw payoutError;
 
-      // 3. Update total_received on the contract
-      const { error: updateError } = await supabase
-        .from('partner_contracts')
-        .update({
-          total_received: contract.total_received + amount,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', contractId);
+      // 3. Update total_received on the contract ONLY if consumesCap is true
+      if (consumesCap) {
+        const { error: updateError } = await supabase
+          .from('partner_contracts')
+          .update({
+            total_received: contract.total_received + amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', contractId);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
+      }
 
+      const bonusText = consumesCap ? '' : ' (bônus extra, não consome do teto)';
       toast({
         title: "Crédito adicionado!",
-        description: `R$ ${amount.toFixed(2)} creditado com sucesso para ${contract.user_name || 'o parceiro'}.`
+        description: `R$ ${amount.toFixed(2)} creditado com sucesso para ${contract.user_name || 'o parceiro'}${bonusText}.`
       });
 
       await Promise.all([fetchContracts(), fetchPayouts()]);
