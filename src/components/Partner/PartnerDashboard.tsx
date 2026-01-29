@@ -418,12 +418,6 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const progress = getProgress();
   const lastPayout = getLastPayout();
 
-  // Extend contract with pix fields for WithdrawalSection
-  const contractWithPix = contract as typeof contract & {
-    pix_key?: string | null;
-    pix_key_type?: string | null;
-    bank_details?: any;
-  };
 
   return (
     <div className="space-y-6">
@@ -993,7 +987,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Saques */}
         <TabsContent value="withdrawals">
-          <PartnerWithdrawalSection contract={contractWithPix} onRefresh={refreshData} />
+          <PartnerWithdrawalSection contract={contract} onRefresh={refreshData} />
         </TabsContent>
 
         {/* Tab de Indicações */}
