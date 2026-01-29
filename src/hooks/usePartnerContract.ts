@@ -35,6 +35,10 @@ export interface PartnerContract {
   // Campos extras para exibição do patrocinador
   sponsor_name?: string | null;
   sponsor_plan_name?: string | null;
+  // Campos de pagamento PIX
+  pix_key?: string | null;
+  pix_key_type?: string | null;
+  bank_details?: Record<string, unknown> | null;
 }
 
 export interface PartnerPayout {
@@ -154,7 +158,13 @@ export const usePartnerContract = () => {
         referred_by_user_id: data.referred_by_user_id,
         referral_code: data.referral_code,
         sponsor_name: sponsorName,
-        sponsor_plan_name: sponsorPlanName
+        sponsor_plan_name: sponsorPlanName,
+        // Campos de pagamento PIX
+        pix_key: data.pix_key || null,
+        pix_key_type: data.pix_key_type || null,
+        bank_details: (typeof data.bank_details === 'object' && data.bank_details !== null) 
+          ? data.bank_details as Record<string, unknown> 
+          : null,
       };
       
       setContract(contractWithSponsor);
