@@ -1,229 +1,184 @@
 
+## Plano: Corrigir Persistência de Dados de Pagamento PIX
 
-## Plano: Opção para Créditos Não Consumirem do Teto
+### Problema Identificado
 
-### Objetivo
-Adicionar uma opção no modal de crédito manual que permite ao administrador escolher se o valor creditado deve ou não consumir do teto total do parceiro (`total_cap`).
+Ao cadastrar a chave PIX no formulário de "Dados de Pagamento", o usuário vê a mensagem de sucesso "Dados atualizados!", mas ao verificar novamente, aparece "Nenhum dado cadastrado".
+
+**Causa Raiz:**
+Os campos `pix_key`, `pix_key_type` e `bank_details` não estão sendo mapeados para o objeto `contract` no hook `usePartnerContract`. Embora os dados sejam buscados do banco (`select('*')`), eles são ignorados na construção do objeto retornado.
 
 ---
 
-### Análise do Problema
+### Fluxo Atual (com bug)
 
-**Situação Atual:**
-- Quando um crédito manual é adicionado, a função `addManualCredit` sempre atualiza o `total_received` do contrato
-- Isso faz com que o crédito avance a progressão do parceiro em direção ao seu teto máximo
-- Resultado: créditos "extras" acabam reduzindo o espaço disponível para recebimentos futuros
-
-**Solução:**
-- Adicionar um novo campo `consumes_cap: boolean` na tabela `partner_manual_credits`
-- Adicionar um Switch no modal para o admin escolher
-- Modificar a lógica para só atualizar `total_received` quando `consumes_cap = true`
+```text
+1. Usuário preenche PIX → updateContractPaymentDetails() → UPDATE OK no banco ✅
+2. onRefresh() → refreshData() → fetchContract() → SELECT * OK ✅
+3. fetchContract mapeia data → contractWithSponsor → IGNORA pix_key, pix_key_type ❌
+4. PartnerWithdrawalSection recebe contract.pix_key = undefined ❌
+5. UI mostra "Nenhum dado cadastrado" ❌
+```
 
 ---
 
 ### Alterações Necessárias
 
-#### 1. Migração do Banco de Dados
+#### 1. Atualizar Interface `PartnerContract` (usePartnerContract.ts)
 
-Adicionar coluna `consumes_cap` na tabela `partner_manual_credits`:
+Adicionar os campos de pagamento ao tipo:
 
-```sql
-ALTER TABLE public.partner_manual_credits 
-ADD COLUMN consumes_cap boolean NOT NULL DEFAULT true;
-```
-
----
-
-#### 2. Atualizar o Hook `useAdminPartners.ts`
-
-**Modificar a assinatura da função:**
-
-```tsx
-const addManualCredit = async (
-  contractId: string, 
-  amount: number, 
-  description: string,
-  creditType: 'bonus' | 'correction' | 'compensation' | 'other',
-  consumesCap: boolean = true  // novo parâmetro
-)
-```
-
-**Ajustar a lógica de inserção:**
-
-```tsx
-// 1. Registrar o crédito manual com a flag consumes_cap
-const { error: creditError } = await supabase
-  .from('partner_manual_credits')
-  .insert({
-    partner_contract_id: contractId,
-    amount,
-    description: description.trim(),
-    credit_type: creditType,
-    created_by: user.id,
-    consumes_cap: consumesCap  // novo campo
-  });
-
-// 3. Atualizar total_received APENAS se consumesCap = true
-if (consumesCap) {
-  const { error: updateError } = await supabase
-    .from('partner_contracts')
-    .update({
-      total_received: contract.total_received + amount,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', contractId);
-
-  if (updateError) throw updateError;
+```typescript
+export interface PartnerContract {
+  // ... campos existentes ...
+  
+  // Campos de pagamento PIX
+  pix_key?: string | null;
+  pix_key_type?: string | null;
+  bank_details?: {
+    holder_name?: string;
+    bank_name?: string;
+    agency?: string;
+    account?: string;
+  } | null;
 }
 ```
 
 ---
 
-#### 3. Atualizar o Modal em `AdminPartnerManagement.tsx`
+#### 2. Mapear campos no `fetchContract` (usePartnerContract.ts)
 
-**Novo estado:**
+Incluir os campos de pagamento na construção do objeto:
 
-```tsx
-const [creditConsumesCap, setCreditConsumesCap] = useState(true);
-```
-
-**Novo elemento no modal (após "Tipo de Crédito"):**
-
-```tsx
-{/* Consume Cap Option */}
-<div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-  <div className="space-y-1">
-    <Label htmlFor="consumes-cap" className="text-sm font-medium">
-      Consome do teto do parceiro?
-    </Label>
-    <p className="text-xs text-muted-foreground">
-      Se desativado, o valor será um bônus extra que não afeta a progressão do contrato.
-    </p>
-  </div>
-  <Switch
-    id="consumes-cap"
-    checked={creditConsumesCap}
-    onCheckedChange={setCreditConsumesCap}
-  />
-</div>
-```
-
-**Atualizar a chamada da função:**
-
-```tsx
-await addManualCredit(
-  selectedContractForCredit.id, 
-  amount, 
-  creditDescription, 
-  creditType,
-  creditConsumesCap  // novo parâmetro
-);
-```
-
-**Atualizar o warning dinâmico:**
-
-```tsx
-<div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-  <p className="text-xs text-amber-700">
-    {creditConsumesCap ? (
-      <>⚠️ Este valor será adicionado ao saldo disponível e <strong>consumirá do teto</strong> do parceiro.</>
-    ) : (
-      <>✅ Este valor será um <strong>bônus extra</strong> disponível para saque, sem afetar a progressão do contrato.</>
-    )}
-  </p>
-</div>
-```
-
-**Reset do estado ao fechar:**
-
-```tsx
-// Ao abrir o dialog
-setSelectedContractForCredit(contract);
-setCreditAmount('');
-setCreditType('bonus');
-setCreditDescription('');
-setCreditConsumesCap(true);  // reset para valor padrão
-setIsCreditDialogOpen(true);
+```typescript
+const contractWithSponsor: PartnerContract = {
+  id: data.id,
+  user_id: data.user_id,
+  plan_name: data.plan_name,
+  // ... outros campos existentes ...
+  referral_code: data.referral_code,
+  sponsor_name: sponsorName,
+  sponsor_plan_name: sponsorPlanName,
+  
+  // NOVOS - Campos de pagamento
+  pix_key: data.pix_key || null,
+  pix_key_type: data.pix_key_type || null,
+  bank_details: data.bank_details || null,
+};
 ```
 
 ---
 
-### Interface Visual Atualizada
+#### 3. Remover Type Assertion desnecessário (PartnerDashboard.tsx)
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ 💳 Adicionar Crédito Manual                                         │
-├─────────────────────────────────────────────────────────────────────┤
-│ Parceiro: João Silva                                                │
-│ Plano: Pro (R$ 1.500) | Saldo atual: R$ 450,00 / R$ 4.500,00        │
-│                                                                     │
-│ Valor do Crédito:                                                   │
-│ ┌───────────────────────────────────────────────────────────────┐   │
-│ │ R$ [ 100,00 ]                                                 │   │
-│ └───────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│ Tipo de Crédito:                                                    │
-│ ┌───────────────────────────────────────────────────────────────┐   │
-│ │ ○ Bônus Especial  ○ Correção/Ajuste                           │   │
-│ │ ○ Compensação     ○ Outro                                     │   │
-│ └───────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│ ┌───────────────────────────────────────────────────────────────┐   │
-│ │ Consome do teto do parceiro?                        [ ON/OFF] │   │
-│ │ Se desativado, será um bônus extra.                           │   │
-│ └───────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│ Descrição/Motivo:                                                   │
-│ ┌───────────────────────────────────────────────────────────────┐   │
-│ │ [ Bônus por atingir meta de indicações               ]        │   │
-│ └───────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│ ✅ Este valor será um BÔNUS EXTRA disponível para saque,            │
-│    sem afetar a progressão do contrato.                             │
-│                                                                     │
-│                              [Cancelar]  [✅ Adicionar Crédito]     │
-└─────────────────────────────────────────────────────────────────────┘
+Após a correção, o cast manual não será mais necessário:
+
+**Antes:**
+```tsx
+const contractWithPix = contract as typeof contract & {
+  pix_key?: string | null;
+  pix_key_type?: string | null;
+  bank_details?: any;
+};
+```
+
+**Depois:**
+```tsx
+// Remover - contract já terá esses campos
+// Usar contract diretamente
 ```
 
 ---
 
 ### Resumo das Alterações
 
-| Componente | Arquivo | Alteração |
-|------------|---------|-----------|
-| **Banco** | Migration | Adicionar coluna `consumes_cap boolean DEFAULT true` |
-| **Hook** | useAdminPartners.ts | Novo parâmetro `consumesCap` na função `addManualCredit` |
-| **UI** | AdminPartnerManagement.tsx | Novo estado + Switch + warning dinâmico |
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/hooks/usePartnerContract.ts` | Adicionar `pix_key`, `pix_key_type`, `bank_details` ao tipo e mapeamento |
+| `src/components/Partner/PartnerDashboard.tsx` | Remover type assertion desnecessário, usar `contract` diretamente |
 
 ---
 
-### Comportamento
+### Fluxo Corrigido
 
-| Opção | Consome Teto | Comportamento |
-|-------|--------------|---------------|
-| **ON** (padrão) | Sim | Atualiza `total_received`, avança progressão do contrato |
-| **OFF** | Não | Apenas cria o payout PAID, saldo disponível para saque sem afetar teto |
+```text
+1. Usuário preenche PIX → updateContractPaymentDetails() → UPDATE OK ✅
+2. onRefresh() → refreshData() → fetchContract() → SELECT * OK ✅
+3. fetchContract mapeia TODOS os campos incluindo pix_key ✅
+4. PartnerWithdrawalSection recebe contract.pix_key = "05311193514" ✅
+5. UI mostra "PIX: 05311193514 | Tipo: cpf" ✅
+```
 
 ---
 
 ### Seção Técnica
 
-**Import a adicionar:**
+**Linhas a modificar em `usePartnerContract.ts`:**
+
+Interface (linha ~19-38):
+```typescript
+export interface PartnerContract {
+  id: string;
+  user_id: string;
+  plan_name: string;
+  aporte_value: number;
+  weekly_cap: number;
+  total_cap: number;
+  total_received: number;
+  status: 'ACTIVE' | 'CLOSED' | 'SUSPENDED';
+  closed_at: string | null;
+  closed_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  bonus_bids_received: number;
+  referred_by_user_id: string | null;
+  referral_code: string | null;
+  sponsor_name?: string | null;
+  sponsor_plan_name?: string | null;
+  // Campos de pagamento
+  pix_key?: string | null;
+  pix_key_type?: string | null;
+  bank_details?: Record<string, any> | null;
+}
+```
+
+Mapeamento (linhas ~140-158):
+```typescript
+const contractWithSponsor: PartnerContract = {
+  id: data.id,
+  user_id: data.user_id,
+  plan_name: data.plan_name,
+  aporte_value: data.aporte_value,
+  weekly_cap: data.weekly_cap,
+  total_cap: data.total_cap,
+  total_received: data.total_received,
+  status: data.status as 'ACTIVE' | 'CLOSED' | 'SUSPENDED',
+  closed_at: data.closed_at,
+  closed_reason: data.closed_reason,
+  created_at: data.created_at,
+  updated_at: data.updated_at,
+  bonus_bids_received: data.bonus_bids_received || 0,
+  referred_by_user_id: data.referred_by_user_id,
+  referral_code: data.referral_code,
+  sponsor_name: sponsorName,
+  sponsor_plan_name: sponsorPlanName,
+  // Campos de pagamento
+  pix_key: data.pix_key || null,
+  pix_key_type: data.pix_key_type || null,
+  bank_details: data.bank_details || null,
+};
+```
+
+**Linhas a modificar em `PartnerDashboard.tsx` (~421-426):**
+
+Remover:
 ```tsx
-import { Switch } from '@/components/ui/switch';
+// Extend contract with pix fields for WithdrawalSection
+const contractWithPix = contract as typeof contract & {
+  pix_key?: string | null;
+  pix_key_type?: string | null;
+  bank_details?: any;
+};
 ```
 
-**Migração SQL:**
-```sql
--- Adicionar coluna consumes_cap na tabela partner_manual_credits
-ALTER TABLE public.partner_manual_credits 
-ADD COLUMN consumes_cap boolean NOT NULL DEFAULT true;
-
--- Comentário para documentação
-COMMENT ON COLUMN public.partner_manual_credits.consumes_cap IS 
-'Se true, o crédito consome do teto total do parceiro. Se false, é um bônus extra.';
-```
-
-**Atualização nos tipos TypeScript:**
-A regeneração automática do Supabase adicionará `consumes_cap?: boolean` ao tipo.
-
+Alterar uso de `contractWithPix` para `contract` onde for passado ao `PartnerWithdrawalSection`.
