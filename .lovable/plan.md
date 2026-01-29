@@ -1,32 +1,46 @@
 
 
-## Plano: Corrigir Arredondamento nos Exemplos por Plano
+## Plano: Corrigir Arredondamento no Dashboard do Parceiro
 
 ### Problema Identificado
 
-Os valores de exemplo por plano na tabela de configuração de faturamento diário estão sendo arredondados para cima quando deveriam ser truncados para 2 casas decimais.
+Os valores diários exibidos no dashboard do parceiro estão sendo arredondados para cima em vez de truncados. Na imagem:
 
-**Exemplo:**
-- Legend: R$ 9.999 × 0,25% = 24,9975
-- Atual (arredondamento): R$ 25,00
-- Esperado (truncamento): R$ 24,99
+| Dia | Porcentagem | Valor Exibido | Valor Correto (truncado) |
+|-----|-------------|---------------|-------------------------|
+| Seg 26 | 0,3% | R$ 30,00 | R$ 29,99 |
+| Ter 27 | 0,18% | R$ 18,00 | R$ 17,99 |
+| Qua 28 | 0,25% | R$ 25,00 | R$ 24,99 |
+
+**Cálculo (Legend R$ 9.999):**
+- 9.999 × 0,30% = 29,997 → truncado = R$ 29,99
+- 9.999 × 0,18% = 17,9982 → truncado = R$ 17,99
+- 9.999 × 0,25% = 24,9975 → truncado = R$ 24,99
 
 ---
 
-### Análise Técnica
+### Causa Raiz
 
-O `Intl.NumberFormat` usa arredondamento "half-up" por padrão:
-- `24.9975` → `25.00` (arredonda 0.9975 para cima)
+O arquivo `src/components/Partner/PartnerDashboard.tsx` possui sua própria função `formatPrice` local (linhas 289-294) que **não aplica truncamento**:
 
-Em cálculos financeiros, geralmente se usa **truncamento** para não pagar mais do que o calculado.
+```typescript
+const formatPrice = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value); // ← Arredonda para cima
+};
+```
+
+A correção anterior foi feita apenas no painel admin (`DailyRevenueConfigManager.tsx`), mas não no dashboard do parceiro.
 
 ---
 
 ### Solução
 
-Modificar a função `formatPrice` local no componente `DailyRevenueConfigManager.tsx` para truncar o valor antes de formatar.
+Aplicar a mesma lógica de truncamento na função `formatPrice` do `PartnerDashboard.tsx`:
 
-**Antes (linha 47-52):**
+**Antes:**
 ```typescript
 const formatPrice = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -52,29 +66,35 @@ const formatPrice = (value: number) => {
 
 ---
 
-### Resultado Esperado
-
-| Plano | Aporte | 0,25% Atual | 0,25% Corrigido |
-|-------|--------|-------------|-----------------|
-| Start | R$ 499 | R$ 1,25 | R$ 1,24 |
-| Pro | R$ 1.499 | R$ 3,75 | R$ 3,74 |
-| Elite | R$ 2.999 | R$ 7,50 | R$ 7,49 |
-| Master | R$ 4.999 | R$ 12,50 | R$ 12,49 |
-| Legend | R$ 9.999 | R$ 25,00 | R$ 24,99 |
-
----
-
-### Arquivo a Modificar
+### Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/Admin/DailyRevenueConfigManager.tsx` | Adicionar truncamento na função `formatPrice` (linhas 47-52) |
+| `src/components/Partner/PartnerDashboard.tsx` | Adicionar truncamento na função `formatPrice` (linhas 289-294) |
+
+---
+
+### Resultado Esperado
+
+Após a correção, os valores exibidos serão:
+
+| Dia | Porcentagem | Valor Correto |
+|-----|-------------|---------------|
+| Seg 26 | 0,3% | R$ 29,99 |
+| Ter 27 | 0,18% | R$ 17,99 |
+| Qua 28 | 0,25% | R$ 24,99 |
+
+---
+
+### Consideração Adicional
+
+Pode ser interessante futuramente centralizar a função `formatPrice` com truncamento no arquivo `src/lib/utils.ts` para evitar duplicação de código. A função global atual (utils.ts) também não tem truncamento. Porém, para manter o escopo mínimo desta correção, alteraremos apenas o `PartnerDashboard.tsx` conforme solicitado.
 
 ---
 
 ### Seção Técnica
 
-A alteração será feita nas linhas 47-52 do arquivo `src/components/Admin/DailyRevenueConfigManager.tsx`:
+Alteração nas linhas 289-294 de `src/components/Partner/PartnerDashboard.tsx`:
 
 ```typescript
 const formatPrice = (value: number) => {
@@ -88,6 +108,4 @@ const formatPrice = (value: number) => {
   }).format(truncatedValue);
 };
 ```
-
-Isso garantirá que valores como 24.9975 sejam exibidos como R$ 24,99 em vez de R$ 25,00.
 
