@@ -287,14 +287,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   }, [payouts, statusFilter]);
 
   const formatPrice = (value: number) => {
-    // Truncar para 2 casas decimais (não arredondar para cima)
-    const truncatedValue = Math.floor(value * 100) / 100;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(truncatedValue);
+      currency: 'BRL'
+    }).format(value);
   };
 
   const formatDate = (dateString: string) => {
