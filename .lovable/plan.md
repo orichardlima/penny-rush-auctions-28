@@ -1,15 +1,20 @@
 
 
-## Plano: Corrigir Botão de Confirmar Saque Desabilitado
+## Plano: Corrigir Validação de Saldo no Hook de Saques
 
 ### Problema Identificado
 
-O botão "Confirmar Saque" está desabilitado mesmo quando o valor digitado é igual ou menor que o saldo disponível. Isso ocorre devido a **problemas de precisão de ponto flutuante** no JavaScript.
+A validação no hook `usePartnerWithdrawals.ts` também está usando comparação direta de ponto flutuante, causando o mesmo problema já corrigido no botão:
 
-**Exemplo do problema:**
+**Linha 111:**
+```typescript
+if (amount > availableBalance) {
+```
+
+**Cenário:**
+- Valor solicitado: `169.99`
 - Saldo calculado internamente: `169.98999999999998`
-- Valor digitado pelo usuário: `169.99`
-- Comparação: `169.99 > 169.98999999998` = `true` → Botão desabilitado ❌
+- Comparação: `169.99 > 169.98999999999998` = `true` → Erro "Saldo insuficiente" ❌
 
 ---
 
@@ -17,40 +22,22 @@ O botão "Confirmar Saque" está desabilitado mesmo quando o valor digitado é i
 
 | Arquivo | Ação |
 |---------|------|
-| `src/components/Partner/PartnerWithdrawalSection.tsx` | Corrigir comparação de valores |
+| `src/hooks/usePartnerWithdrawals.ts` | Corrigir comparação de valores na validação |
 
 ---
 
 ### Solução
 
-Arredondar ambos os valores para 2 casas decimais antes de comparar, eliminando problemas de precisão de ponto flutuante.
+Aplicar a mesma correção usada no botão: comparar valores arredondados como centavos (inteiros).
 
-**Antes (linha 288):**
+**Antes (linha 111):**
 ```typescript
-disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || parseFloat(withdrawalAmount) > availableBalance}
+if (amount > availableBalance) {
 ```
 
 **Depois:**
 ```typescript
-disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || Math.round(parseFloat(withdrawalAmount) * 100) > Math.round(availableBalance * 100)}
-```
-
-**Explicação da correção:**
-- Multiplica ambos os valores por 100 para trabalhar com centavos (inteiros)
-- Usa `Math.round()` para eliminar imprecisões de ponto flutuante
-- Compara inteiros, que não têm problemas de precisão
-- Exemplo: `Math.round(169.99 * 100) = 16999` vs `Math.round(169.99 * 100) = 16999` → `false` → Botão habilitado ✅
-
----
-
-### Mudanças Adicionais Recomendadas
-
-Para maior segurança, também podemos arredondar o `availableBalance` ao exibir e ao usar "Usar saldo total":
-
-1. **Linha 276** - Função "Usar saldo total":
-```typescript
-// Garantir que o valor definido seja exatamente 2 casas
-onClick={() => setWithdrawalAmount((Math.round(availableBalance * 100) / 100).toFixed(2))}
+if (Math.round(amount * 100) > Math.round(availableBalance * 100)) {
 ```
 
 ---
@@ -58,6 +45,6 @@ onClick={() => setWithdrawalAmount((Math.round(availableBalance * 100) / 100).to
 ### Resultado Esperado
 
 Após a correção:
-- Digitar **169,99** quando o saldo é **R$ 169,99** → Botão habilitado ✅
-- Clicar em "Usar saldo total" → Define valor correto e botão habilitado ✅
+- Sacar **R$ 169,99** quando o saldo é **R$ 169,99** → Saque processado com sucesso ✅
+- A comparação `Math.round(16999) > Math.round(16999)` = `false` → Validação passa ✅
 
