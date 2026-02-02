@@ -10,6 +10,7 @@ import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
 import { getPartnerReferralCodeFromUrlOrStorage, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
+import { parseLocalDate, formatWeekRange } from '@/hooks/useAdminPartners';
 import { 
   Wallet, 
   TrendingUp, 
@@ -262,7 +263,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       .slice(0, 10)
       .reverse()
       .map((p) => {
-        const start = new Date(p.period_start);
+        const start = parseLocalDate(p.period_start);
         return {
           semana: `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`,
           valor: p.amount,
@@ -301,12 +302,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     });
   };
 
-  const formatPeriod = (periodStart: string, periodEnd?: string | null) => {
-    const start = new Date(periodStart);
-    const end = periodEnd ? new Date(periodEnd) : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
-    const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    return `${formatDate(start)} - ${formatDate(end)}/${start.getFullYear()}`;
-  };
+  // Use formatWeekRange from useAdminPartners to avoid timezone issues
+  const formatPeriod = formatWeekRange;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -873,8 +870,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               {payouts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredPayouts.map((payout) => {
-                    const start = new Date(payout.period_start);
-                    const end = payout.period_end ? new Date(payout.period_end) : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+                    const start = parseLocalDate(payout.period_start);
+                    const end = payout.period_end ? parseLocalDate(payout.period_end) : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
                     const isPaid = payout.status === 'PAID';
                     const isPending = payout.status === 'PENDING';
                     
