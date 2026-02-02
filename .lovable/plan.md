@@ -1,74 +1,81 @@
 
-## Plano: Remover Truncamento e Voltar ao Arredondamento Padrão
+## Plano: Corrigir Bug de Data e Processar Semana 26/01–01/02
+
+### Diagnóstico
+
+**Problema identificado**: O rendimento da semana 26/01 a 01/02 não aparece porque:
+
+1. As configurações diárias estão corretas na tabela `daily_revenue_config`:
+   - Segunda 26/01: 0.30%
+   - Terça 27/01: 0.18%
+   - Quarta 28/01: 0.25%
+   - Quinta 29/01: 0.23%
+   - Sexta 30/01: 0.27%
+   - Sábado 31/01: 0.24%
+   - Domingo 01/02: 0.23%
+   - **Total: 1.70%** (~R$ 170 para Legend)
+
+2. **Não existe registro em `partner_payouts`** para esta semana - o admin ainda não processou
+
+3. Há um **bug de fuso horário** no processamento que pode causar problemas:
+   ```typescript
+   // Linha 609 - BUG
+   const weekStartDate = new Date(weekStart);  // "2026-01-26" → UTC → no Brasil vira 25/01 21h
+   ```
+
+---
 
 ### Alterações
 
-Reverter a função `formatPrice` em ambos os arquivos para usar o arredondamento padrão do `Intl.NumberFormat`.
-
----
-
-### Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/Partner/PartnerDashboard.tsx` | Remover truncamento (linhas 289-298) |
-| `src/components/Admin/DailyRevenueConfigManager.tsx` | Remover truncamento (linhas 47-56) |
-
----
-
-### Resultado
-
-| Plano | Aporte | 0,25% Atual (truncado) | 0,25% Após (arredondado) |
-|-------|--------|------------------------|--------------------------|
-| Start | R$ 499 | R$ 1,24 | R$ 1,25 |
-| Legend | R$ 9.999 | R$ 24,99 | R$ 25,00 |
+| Arquivo | O que será feito |
+|---------|------------------|
+| `src/hooks/useAdminPartners.ts` | Corrigir bug de data usando `parseLocalDate()` |
 
 ---
 
 ### Seção Técnica
 
-**PartnerDashboard.tsx (linhas 289-298):**
+**Linhas 606-612 (useAdminPartners.ts):**
 
 ```typescript
-// Antes (com truncamento)
-const formatPrice = (value: number) => {
-  const truncatedValue = Math.floor(value * 100) / 100;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(truncatedValue);
-};
+// ANTES (com bug de UTC)
+const weekStartDate = new Date(weekStart);
+const weekEndDate = getWeekEnd(weekStartDate);
+const weekEnd = weekEndDate.toISOString().split('T')[0];
 
-// Depois (arredondamento padrão)
-const formatPrice = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-};
+// DEPOIS (corrigido com parseLocalDate)
+const weekStartDate = parseLocalDate(weekStart);  // Já existe no arquivo
+const weekEndDate = getWeekEnd(weekStartDate);
+const weekEnd = formatLocalDate(weekEndDate);  // Já existe no arquivo
 ```
 
-**DailyRevenueConfigManager.tsx (linhas 47-56):**
+**Linhas 771-772 (modo automático):**
 
 ```typescript
-// Antes (com truncamento)
-const formatPrice = (value: number) => {
-  const truncatedValue = Math.floor(value * 100) / 100;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(truncatedValue);
-};
+// ANTES
+.gte('created_at', weekStartDate.toISOString())
+.lt('created_at', new Date(weekEndDate.getTime() + 86400000).toISOString())
 
-// Depois (arredondamento padrão)
-const formatPrice = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-};
+// DEPOIS (usar datas locais para queries de compras)
+.gte('created_at', `${formatLocalDate(weekStartDate)}T00:00:00-03:00`)
+.lt('created_at', `${formatLocalDate(new Date(weekEndDate.getTime() + 86400000))}T00:00:00-03:00`)
 ```
+
+---
+
+### Próximo Passo Após Implementação
+
+Após corrigir o bug, o admin deve:
+
+1. Ir em **Admin > Parceiros > Repasses**
+2. Selecionar a semana **26/01 - 01/02**
+3. Escolher **"Usar Faturamento Diário"**
+4. Clicar em **"Processar Repasses"**
+
+Isso criará os registros em `partner_payouts` e o rendimento aparecerá no painel do parceiro.
+
+---
+
+### Fase 2 (Automação - Próxima Iteração)
+
+Após aprovar esta correção, podemos implementar a automação via Edge Function para que o sistema processe automaticamente os repasses semanais às segundas-feiras, eliminando a necessidade de ação manual do admin.
