@@ -1,77 +1,63 @@
 
-## Plano: Corrigir Problema de Fuso Horário na Exibição de Datas
+
+## Plano: Corrigir Botão de Confirmar Saque Desabilitado
 
 ### Problema Identificado
 
-O dashboard do parceiro está mostrando datas incorretas (um dia a menos) devido à interpretação UTC quando strings de data no formato `YYYY-MM-DD` são passadas para `new Date()`.
+O botão "Confirmar Saque" está desabilitado mesmo quando o valor digitado é igual ou menor que o saldo disponível. Isso ocorre devido a **problemas de precisão de ponto flutuante** no JavaScript.
 
-**Exemplo:**
-- Banco de dados: `period_start: 2026-01-26`
-- Exibição atual: `25/01 - 31/01` ❌
-- Exibição correta: `26/01 - 01/02` ✅
-
-### Causa Técnica
-
-Quando JavaScript recebe `new Date("2026-01-26")`, ele interpreta como meia-noite UTC. No Brasil (UTC-3), isso resulta em `25/01/2026 às 21:00`, causando o deslocamento de um dia.
+**Exemplo do problema:**
+- Saldo calculado internamente: `169.98999999999998`
+- Valor digitado pelo usuário: `169.99`
+- Comparação: `169.99 > 169.98999999998` = `true` → Botão desabilitado ❌
 
 ---
 
-### Arquivos a Modificar
+### Arquivo a Modificar
 
 | Arquivo | Ação |
 |---------|------|
-| `src/components/Partner/PartnerDashboard.tsx` | Corrigir todas as instâncias de parsing de datas |
+| `src/components/Partner/PartnerWithdrawalSection.tsx` | Corrigir comparação de valores |
 
 ---
 
 ### Solução
 
-Reutilizar as funções auxiliares já existentes no projeto:
+Arredondar ambos os valores para 2 casas decimais antes de comparar, eliminando problemas de precisão de ponto flutuante.
 
+**Antes (linha 288):**
 ```typescript
-// Já existem em src/hooks/useAdminPartners.ts
-import { parseLocalDate, formatWeekRange } from '@/hooks/useAdminPartners';
+disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || parseFloat(withdrawalAmount) > availableBalance}
 ```
 
-### Alterações Específicas
-
-**1. Remover função `formatPeriod` local (linhas 304-309)**
-Substituir pela função `formatWeekRange` já existente e validada.
-
-**2. Corrigir `chartData` (linha 265)**
+**Depois:**
 ```typescript
-// Antes (com bug)
-const start = new Date(p.period_start);
-
-// Depois (corrigido)
-const start = parseLocalDate(p.period_start);
+disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || Math.round(parseFloat(withdrawalAmount) * 100) > Math.round(availableBalance * 100)}
 ```
 
-**3. Corrigir histórico de payouts (linhas 876-877)**
-```typescript
-// Antes (com bug)
-const start = new Date(payout.period_start);
-const end = payout.period_end ? new Date(payout.period_end) : ...
-
-// Depois (corrigido)
-const start = parseLocalDate(payout.period_start);
-const end = payout.period_end ? parseLocalDate(payout.period_end) : ...
-```
+**Explicação da correção:**
+- Multiplica ambos os valores por 100 para trabalhar com centavos (inteiros)
+- Usa `Math.round()` para eliminar imprecisões de ponto flutuante
+- Compara inteiros, que não têm problemas de precisão
+- Exemplo: `Math.round(169.99 * 100) = 16999` vs `Math.round(169.99 * 100) = 16999` → `false` → Botão habilitado ✅
 
 ---
 
-### Resumo das Mudanças
+### Mudanças Adicionais Recomendadas
 
-1. Adicionar import de `parseLocalDate` e `formatWeekRange` do `useAdminPartners`
-2. Remover a função `formatPeriod` duplicada 
-3. Corrigir 3 pontos onde `new Date(period_start)` causa o bug de timezone
-4. Usar `formatWeekRange` para exibição consistente de períodos
+Para maior segurança, também podemos arredondar o `availableBalance` ao exibir e ao usar "Usar saldo total":
+
+1. **Linha 276** - Função "Usar saldo total":
+```typescript
+// Garantir que o valor definido seja exatamente 2 casas
+onClick={() => setWithdrawalAmount((Math.round(availableBalance * 100) / 100).toFixed(2))}
+```
 
 ---
 
 ### Resultado Esperado
 
-Após a correção, os períodos serão exibidos corretamente:
-- `26/01 - 01/02/2026` ✅
+Após a correção:
+- Digitar **169,99** quando o saldo é **R$ 169,99** → Botão habilitado ✅
+- Clicar em "Usar saldo total" → Define valor correto e botão habilitado ✅
 
-Isso garante consistência com o que está salvo no banco de dados e com a lógica da Edge Function de processamento de repasses.
