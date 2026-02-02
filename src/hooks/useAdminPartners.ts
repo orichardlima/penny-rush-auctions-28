@@ -606,9 +606,9 @@ export const useAdminPartners = () => {
   const processWeeklyPayouts = async (weekStart: string, fundPercentage: number, options?: ManualPayoutOptions) => {
     setProcessing(true);
     try {
-      const weekStartDate = new Date(weekStart);
+      const weekStartDate = parseLocalDate(weekStart);
       const weekEndDate = getWeekEnd(weekStartDate);
-      const weekEnd = weekEndDate.toISOString().split('T')[0];
+      const weekEnd = formatLocalDate(weekEndDate);
 
       // 1. Buscar contratos ativos
       const { data: allActiveContracts, error: contractsError } = await supabase
@@ -768,8 +768,8 @@ export const useAdminPartners = () => {
           .from('bid_purchases')
           .select('amount_paid')
           .eq('payment_status', 'completed')
-          .gte('created_at', weekStartDate.toISOString())
-          .lt('created_at', new Date(weekEndDate.getTime() + 86400000).toISOString()); // +1 day to include the full end date
+          .gte('created_at', `${formatLocalDate(weekStartDate)}T00:00:00-03:00`)
+          .lt('created_at', `${formatLocalDate(new Date(weekEndDate.getTime() + 86400000))}T00:00:00-03:00`); // +1 day to include the full end date
 
         if (purchasesError) throw purchasesError;
 
