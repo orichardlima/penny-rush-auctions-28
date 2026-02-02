@@ -1,138 +1,77 @@
 
+## Plano: Corrigir Problema de Fuso Horário na Exibição de Datas
 
-## Plano: Automação de Repasses Semanais (Domingo 23h)
+### Problema Identificado
 
-### Visão Geral
+O dashboard do parceiro está mostrando datas incorretas (um dia a menos) devido à interpretação UTC quando strings de data no formato `YYYY-MM-DD` são passadas para `new Date()`.
 
-Criar uma Edge Function que será executada automaticamente todo domingo após às 23h, somando os rendimentos diários da semana (segunda→domingo) e gerando os registros de repasse para cada parceiro ativo.
+**Exemplo:**
+- Banco de dados: `period_start: 2026-01-26`
+- Exibição atual: `25/01 - 31/01` ❌
+- Exibição correta: `26/01 - 01/02` ✅
+
+### Causa Técnica
+
+Quando JavaScript recebe `new Date("2026-01-26")`, ele interpreta como meia-noite UTC. No Brasil (UTC-3), isso resulta em `25/01/2026 às 21:00`, causando o deslocamento de um dia.
 
 ---
 
-### Arquivos a Criar/Modificar
+### Arquivos a Modificar
 
 | Arquivo | Ação |
 |---------|------|
-| `supabase/functions/partner-weekly-payouts/index.ts` | **Criar** - Edge Function principal |
-| `supabase/config.toml` | **Modificar** - Adicionar configuração da função |
+| `src/components/Partner/PartnerDashboard.tsx` | Corrigir todas as instâncias de parsing de datas |
 
 ---
 
-### Lógica da Edge Function
+### Solução
 
-```
-1. Calcular semana atual (segunda→domingo)
-2. Verificar se é domingo após 23h (ou aceitar execução manual/forçada)
-3. Buscar todos os contratos ACTIVE
-4. Para cada contrato:
-   a. Verificar se já existe payout para esta semana (idempotência)
-   b. Buscar daily_revenue_config de segunda a domingo
-   c. Aplicar Pro Rata (ignorar dias antes da criação do contrato)
-   d. Somar percentuais e calcular valor do repasse
-   e. Aplicar teto total se necessário
-   f. Criar registro em partner_payouts
-   g. Atualizar total_received do contrato
-   h. Fechar contrato se atingiu o teto
-5. Retornar resumo do processamento
-```
-
----
-
-### Segurança
-
-- Função com `verify_jwt = false` (necessário para chamadas do cron)
-- Validação interna: só processa se for domingo após 23h OU se receber `force=true` (para backfill manual pelo admin)
-- Logs detalhados para auditoria
-
----
-
-### Agendamento (pg_cron)
-
-Após criar a função, você precisará executar este SQL no Supabase (SQL Editor):
-
-```sql
-SELECT cron.schedule(
-  'partner-weekly-payouts',
-  '5 23 * * 0',  -- Domingo às 23:05 (5 min após fechamento)
-  $$
-  SELECT net.http_post(
-    url := 'https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/partner-weekly-payouts',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsY2RpZGtreGlnb2ZkaHhuenpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTY0NzMsImV4cCI6MjA2OTAzMjQ3M30.fzDV-B0p7U5FnbpjpvRH6KI0ldyRPzPXMcuSw3fnv5k"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
-
----
-
-### Seção Técnica
-
-**Estrutura da Edge Function:**
+Reutilizar as funções auxiliares já existentes no projeto:
 
 ```typescript
-// partner-weekly-payouts/index.ts
-
-import { createClient } from '@supabase/supabase-js'
-
-// Helpers para datas locais (Brasil)
-const parseLocalDate = (dateStr: string): Date => { ... }
-const formatLocalDate = (date: Date): string => { ... }
-const getWeekStart = (date: Date): Date => { ... }  // Segunda-feira
-const getWeekEnd = (date: Date): Date => { ... }    // Domingo
-
-Deno.serve(async (req) => {
-  // 1. Verificar se é domingo após 23h (ou force=true)
-  // 2. Calcular weekStart/weekEnd
-  // 3. Buscar contratos ativos
-  // 4. Para cada contrato:
-  //    - Verificar idempotência
-  //    - Buscar daily_revenue_config
-  //    - Aplicar Pro Rata
-  //    - Calcular valor
-  //    - Criar payout
-  //    - Atualizar contrato
-  // 5. Retornar resumo
-})
+// Já existem em src/hooks/useAdminPartners.ts
+import { parseLocalDate, formatWeekRange } from '@/hooks/useAdminPartners';
 ```
 
-**Idempotência:**
+### Alterações Específicas
+
+**1. Remover função `formatPeriod` local (linhas 304-309)**
+Substituir pela função `formatWeekRange` já existente e validada.
+
+**2. Corrigir `chartData` (linha 265)**
 ```typescript
-// Verificar se já existe payout para esta semana
-const { data: existingPayout } = await supabase
-  .from('partner_payouts')
-  .select('id')
-  .eq('partner_contract_id', contract.id)
-  .eq('period_start', weekStart)
-  .single();
+// Antes (com bug)
+const start = new Date(p.period_start);
 
-if (existingPayout) {
-  // Já processado, pular
-  continue;
-}
+// Depois (corrigido)
+const start = parseLocalDate(p.period_start);
+```
+
+**3. Corrigir histórico de payouts (linhas 876-877)**
+```typescript
+// Antes (com bug)
+const start = new Date(payout.period_start);
+const end = payout.period_end ? new Date(payout.period_end) : ...
+
+// Depois (corrigido)
+const start = parseLocalDate(payout.period_start);
+const end = payout.period_end ? parseLocalDate(payout.period_end) : ...
 ```
 
 ---
 
-### Testes Após Implementação
+### Resumo das Mudanças
 
-1. **Teste manual**: Chamar a função com `force=true` para processar a semana 26/01-01/02
-2. **Verificar banco**: Confirmar criação dos registros em `partner_payouts`
-3. **Verificar UI**: Rendimento deve aparecer no painel do parceiro
-4. **Configurar cron**: Executar o SQL de agendamento
+1. Adicionar import de `parseLocalDate` e `formatWeekRange` do `useAdminPartners`
+2. Remover a função `formatPeriod` duplicada 
+3. Corrigir 3 pontos onde `new Date(period_start)` causa o bug de timezone
+4. Usar `formatWeekRange` para exibição consistente de períodos
 
 ---
 
-### Backfill da Semana 26/01-01/02
+### Resultado Esperado
 
-Após a função estar ativa, você poderá processar a semana pendente chamando:
+Após a correção, os períodos serão exibidos corretamente:
+- `26/01 - 01/02/2026` ✅
 
-```bash
-curl -X POST \
-  'https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/partner-weekly-payouts' \
-  -H 'Authorization: Bearer [anon_key]' \
-  -H 'Content-Type: application/json' \
-  -d '{"force": true, "weekStart": "2026-01-26"}'
-```
-
-Ou diretamente pela interface do Admin (se adicionarmos um botão para isso).
-
+Isso garante consistência com o que está salvo no banco de dados e com a lógica da Edge Function de processamento de repasses.
