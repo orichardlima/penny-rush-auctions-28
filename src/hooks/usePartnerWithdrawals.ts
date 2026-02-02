@@ -108,7 +108,7 @@ export const usePartnerWithdrawals = (contractId?: string) => {
 
     // Verificar saldo disponível
     const availableBalance = await calculateAvailableBalance();
-    if (amount > availableBalance) {
+    if (Math.round(amount * 100) > Math.round(availableBalance * 100)) {
       toast({
         variant: "destructive",
         title: "Saldo insuficiente",
