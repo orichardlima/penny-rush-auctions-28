@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.admin-update-user-password]
 verify_jwt = false
+
+[functions.partner-weekly-payouts]
+verify_jwt = false
