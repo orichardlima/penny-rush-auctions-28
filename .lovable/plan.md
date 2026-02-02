@@ -1,81 +1,138 @@
 
-## Plano: Corrigir Bug de Data e Processar Semana 26/01–01/02
 
-### Diagnóstico
+## Plano: Automação de Repasses Semanais (Domingo 23h)
 
-**Problema identificado**: O rendimento da semana 26/01 a 01/02 não aparece porque:
+### Visão Geral
 
-1. As configurações diárias estão corretas na tabela `daily_revenue_config`:
-   - Segunda 26/01: 0.30%
-   - Terça 27/01: 0.18%
-   - Quarta 28/01: 0.25%
-   - Quinta 29/01: 0.23%
-   - Sexta 30/01: 0.27%
-   - Sábado 31/01: 0.24%
-   - Domingo 01/02: 0.23%
-   - **Total: 1.70%** (~R$ 170 para Legend)
-
-2. **Não existe registro em `partner_payouts`** para esta semana - o admin ainda não processou
-
-3. Há um **bug de fuso horário** no processamento que pode causar problemas:
-   ```typescript
-   // Linha 609 - BUG
-   const weekStartDate = new Date(weekStart);  // "2026-01-26" → UTC → no Brasil vira 25/01 21h
-   ```
+Criar uma Edge Function que será executada automaticamente todo domingo após às 23h, somando os rendimentos diários da semana (segunda→domingo) e gerando os registros de repasse para cada parceiro ativo.
 
 ---
 
-### Alterações
+### Arquivos a Criar/Modificar
 
-| Arquivo | O que será feito |
-|---------|------------------|
-| `src/hooks/useAdminPartners.ts` | Corrigir bug de data usando `parseLocalDate()` |
+| Arquivo | Ação |
+|---------|------|
+| `supabase/functions/partner-weekly-payouts/index.ts` | **Criar** - Edge Function principal |
+| `supabase/config.toml` | **Modificar** - Adicionar configuração da função |
+
+---
+
+### Lógica da Edge Function
+
+```
+1. Calcular semana atual (segunda→domingo)
+2. Verificar se é domingo após 23h (ou aceitar execução manual/forçada)
+3. Buscar todos os contratos ACTIVE
+4. Para cada contrato:
+   a. Verificar se já existe payout para esta semana (idempotência)
+   b. Buscar daily_revenue_config de segunda a domingo
+   c. Aplicar Pro Rata (ignorar dias antes da criação do contrato)
+   d. Somar percentuais e calcular valor do repasse
+   e. Aplicar teto total se necessário
+   f. Criar registro em partner_payouts
+   g. Atualizar total_received do contrato
+   h. Fechar contrato se atingiu o teto
+5. Retornar resumo do processamento
+```
+
+---
+
+### Segurança
+
+- Função com `verify_jwt = false` (necessário para chamadas do cron)
+- Validação interna: só processa se for domingo após 23h OU se receber `force=true` (para backfill manual pelo admin)
+- Logs detalhados para auditoria
+
+---
+
+### Agendamento (pg_cron)
+
+Após criar a função, você precisará executar este SQL no Supabase (SQL Editor):
+
+```sql
+SELECT cron.schedule(
+  'partner-weekly-payouts',
+  '5 23 * * 0',  -- Domingo às 23:05 (5 min após fechamento)
+  $$
+  SELECT net.http_post(
+    url := 'https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/partner-weekly-payouts',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsY2RpZGtreGlnb2ZkaHhuenpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTY0NzMsImV4cCI6MjA2OTAzMjQ3M30.fzDV-B0p7U5FnbpjpvRH6KI0ldyRPzPXMcuSw3fnv5k"}'::jsonb,
+    body := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
+```
 
 ---
 
 ### Seção Técnica
 
-**Linhas 606-612 (useAdminPartners.ts):**
+**Estrutura da Edge Function:**
 
 ```typescript
-// ANTES (com bug de UTC)
-const weekStartDate = new Date(weekStart);
-const weekEndDate = getWeekEnd(weekStartDate);
-const weekEnd = weekEndDate.toISOString().split('T')[0];
+// partner-weekly-payouts/index.ts
 
-// DEPOIS (corrigido com parseLocalDate)
-const weekStartDate = parseLocalDate(weekStart);  // Já existe no arquivo
-const weekEndDate = getWeekEnd(weekStartDate);
-const weekEnd = formatLocalDate(weekEndDate);  // Já existe no arquivo
+import { createClient } from '@supabase/supabase-js'
+
+// Helpers para datas locais (Brasil)
+const parseLocalDate = (dateStr: string): Date => { ... }
+const formatLocalDate = (date: Date): string => { ... }
+const getWeekStart = (date: Date): Date => { ... }  // Segunda-feira
+const getWeekEnd = (date: Date): Date => { ... }    // Domingo
+
+Deno.serve(async (req) => {
+  // 1. Verificar se é domingo após 23h (ou force=true)
+  // 2. Calcular weekStart/weekEnd
+  // 3. Buscar contratos ativos
+  // 4. Para cada contrato:
+  //    - Verificar idempotência
+  //    - Buscar daily_revenue_config
+  //    - Aplicar Pro Rata
+  //    - Calcular valor
+  //    - Criar payout
+  //    - Atualizar contrato
+  // 5. Retornar resumo
+})
 ```
 
-**Linhas 771-772 (modo automático):**
-
+**Idempotência:**
 ```typescript
-// ANTES
-.gte('created_at', weekStartDate.toISOString())
-.lt('created_at', new Date(weekEndDate.getTime() + 86400000).toISOString())
+// Verificar se já existe payout para esta semana
+const { data: existingPayout } = await supabase
+  .from('partner_payouts')
+  .select('id')
+  .eq('partner_contract_id', contract.id)
+  .eq('period_start', weekStart)
+  .single();
 
-// DEPOIS (usar datas locais para queries de compras)
-.gte('created_at', `${formatLocalDate(weekStartDate)}T00:00:00-03:00`)
-.lt('created_at', `${formatLocalDate(new Date(weekEndDate.getTime() + 86400000))}T00:00:00-03:00`)
+if (existingPayout) {
+  // Já processado, pular
+  continue;
+}
 ```
 
 ---
 
-### Próximo Passo Após Implementação
+### Testes Após Implementação
 
-Após corrigir o bug, o admin deve:
-
-1. Ir em **Admin > Parceiros > Repasses**
-2. Selecionar a semana **26/01 - 01/02**
-3. Escolher **"Usar Faturamento Diário"**
-4. Clicar em **"Processar Repasses"**
-
-Isso criará os registros em `partner_payouts` e o rendimento aparecerá no painel do parceiro.
+1. **Teste manual**: Chamar a função com `force=true` para processar a semana 26/01-01/02
+2. **Verificar banco**: Confirmar criação dos registros em `partner_payouts`
+3. **Verificar UI**: Rendimento deve aparecer no painel do parceiro
+4. **Configurar cron**: Executar o SQL de agendamento
 
 ---
 
-### Fase 2 (Automação - Próxima Iteração)
+### Backfill da Semana 26/01-01/02
 
-Após aprovar esta correção, podemos implementar a automação via Edge Function para que o sistema processe automaticamente os repasses semanais às segundas-feiras, eliminando a necessidade de ação manual do admin.
+Após a função estar ativa, você poderá processar a semana pendente chamando:
+
+```bash
+curl -X POST \
+  'https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/partner-weekly-payouts' \
+  -H 'Authorization: Bearer [anon_key]' \
+  -H 'Content-Type: application/json' \
+  -d '{"force": true, "weekStart": "2026-01-26"}'
+```
+
+Ou diretamente pela interface do Admin (se adicionarmos um botão para isso).
+
