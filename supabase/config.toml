@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.partner-weekly-payouts]
 verify_jwt = false
+
+[functions.partner-payment]
+verify_jwt = false
+
+[functions.partner-payment-webhook]
+verify_jwt = false
