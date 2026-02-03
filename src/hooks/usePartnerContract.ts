@@ -16,6 +16,18 @@ export interface PartnerPlan {
   bonus_bids: number;
 }
 
+export interface PartnerPaymentData {
+  contractId: string;
+  paymentId: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  pixCopyPaste?: string;
+  status: string;
+  planName: string;
+  aporteValue: number;
+  bonusBids: number;
+}
+
 export interface PartnerContract {
   id: string;
   user_id: string;
@@ -207,7 +219,7 @@ export const usePartnerContract = () => {
     }
   }, [contract?.id]);
 
-  const createContract = async (planId: string, referralCode?: string) => {
+  const createContract = async (planId: string, referralCode?: string): Promise<{ success: boolean; paymentData?: PartnerPaymentData }> => {
     if (!profile?.user_id) return { success: false };
 
     const plan = plans.find(p => p.id === planId);
@@ -220,129 +232,83 @@ export const usePartnerContract = () => {
       return { success: false };
     }
 
-    // Verificar se já existe contrato ativo
+    // Verificar se já existe contrato ativo ou pendente
     const { data: existingActive } = await supabase
       .from('partner_contracts')
-      .select('id')
+      .select('id, status')
       .eq('user_id', profile.user_id)
-      .eq('status', 'ACTIVE')
+      .in('status', ['ACTIVE', 'PENDING'])
       .maybeSingle();
 
     if (existingActive) {
       toast({
         variant: "destructive",
-        title: "Contrato já existe",
-        description: "Você já possui um contrato ativo. Aguarde seu encerramento para criar outro."
+        title: existingActive.status === 'ACTIVE' ? "Contrato já existe" : "Pagamento pendente",
+        description: existingActive.status === 'ACTIVE' 
+          ? "Você já possui um contrato ativo. Aguarde seu encerramento para criar outro."
+          : "Você já possui um pagamento pendente. Conclua o pagamento ou aguarde a expiração."
       });
       return { success: false };
     }
 
     setSubmitting(true);
     try {
-      // Buscar contrato referenciador se houver código
-      let referredByUserId: string | null = null;
-      let referrerContractId: string | null = null;
-      
-      if (referralCode) {
-        const normalizedCode = referralCode.trim().toUpperCase();
-        console.log('[usePartnerContract] Buscando referrer com código:', normalizedCode);
-        
-        const { data: referrerContract, error: referrerError } = await supabase
-          .from('partner_contracts')
-          .select('id, user_id, referral_code')
-          .eq('referral_code', normalizedCode)
-          .eq('status', 'ACTIVE')
-          .maybeSingle();
+      // Buscar email do usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email || '';
+      const userName = profile.full_name || 'Usuário';
 
-        if (referrerError) {
-          console.warn('[usePartnerContract] Erro ao buscar referrer:', referrerError);
-        } else if (referrerContract) {
-          if (referrerContract.user_id !== profile.user_id) {
-            referredByUserId = referrerContract.user_id;
-            referrerContractId = referrerContract.id;
-            console.log('[usePartnerContract] Referrer encontrado:', {
-              referrerContractId,
-              referredByUserId,
-              referralCode: referrerContract.referral_code
-            });
-          } else {
-            console.warn('[usePartnerContract] Usuário tentando usar próprio código de referral');
-          }
-        } else {
-          console.warn('[usePartnerContract] Nenhum contrato ativo encontrado com código:', normalizedCode);
+      console.log('[usePartnerContract] Iniciando pagamento PIX para plano:', {
+        planId,
+        planName: plan.name,
+        referralCode: referralCode || 'NENHUM'
+      });
+
+      // Chamar Edge Function para gerar pagamento PIX
+      const { data, error } = await supabase.functions.invoke('partner-payment', {
+        body: {
+          planId,
+          userId: profile.user_id,
+          userEmail,
+          userName,
+          referralCode: referralCode || undefined
         }
-      }
-
-      // Gerar código de indicação único
-      const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-
-      console.log('[usePartnerContract] Inserindo contrato com referred_by_user_id:', referredByUserId);
-      
-      const { data, error } = await supabase
-        .from('partner_contracts')
-        .insert({
-          user_id: profile.user_id,
-          plan_name: plan.name,
-          aporte_value: plan.aporte_value,
-          weekly_cap: plan.weekly_cap,
-          total_cap: plan.total_cap,
-          status: 'ACTIVE',
-          referred_by_user_id: referredByUserId,
-          referral_code: newReferralCode
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      console.log('[usePartnerContract] Contrato criado:', {
-        contractId: data.id,
-        referredByUserId: data.referred_by_user_id,
-        planName: data.plan_name
       });
 
-      // NOTA: Os bônus de indicação em cascata (até 3 níveis) são criados
-      // automaticamente pelo trigger create_cascade_referral_bonuses no banco de dados
-
-      // Creditar bônus de lances se o plano tiver
-      if (plan.bonus_bids && plan.bonus_bids > 0) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('bids_balance')
-          .eq('user_id', profile.user_id)
-          .single();
-
-        const currentBalance = profileData?.bids_balance || 0;
-        const newBalance = currentBalance + plan.bonus_bids;
-
-        await supabase
-          .from('profiles')
-          .update({ bids_balance: newBalance })
-          .eq('user_id', profile.user_id);
-
-        // Atualizar o contrato com o bônus recebido
-        await supabase
-          .from('partner_contracts')
-          .update({ bonus_bids_received: plan.bonus_bids })
-          .eq('id', data.id);
+      if (error) {
+        console.error('[usePartnerContract] Erro na edge function:', error);
+        throw new Error(error.message || 'Erro ao gerar pagamento');
       }
 
-      // Recarregar contrato completo com dados do patrocinador
-      await fetchContract();
-      
-      toast({
-        title: "Contrato criado!",
-        description: plan.bonus_bids && plan.bonus_bids > 0 
-          ? `Seu contrato foi registrado e você recebeu ${plan.bonus_bids} lances de bônus!`
-          : "Seu contrato de parceiro foi registrado com sucesso."
+      if (data.error) {
+        console.error('[usePartnerContract] Erro retornado pela edge function:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('[usePartnerContract] Pagamento PIX gerado com sucesso:', {
+        contractId: data.contractId,
+        paymentId: data.paymentId
       });
-      return { success: true };
+
+      const paymentData: PartnerPaymentData = {
+        contractId: data.contractId,
+        paymentId: data.paymentId,
+        qrCode: data.qrCode,
+        qrCodeBase64: data.qrCodeBase64,
+        pixCopyPaste: data.pixCopyPaste,
+        status: data.status,
+        planName: data.planName,
+        aporteValue: data.aporteValue,
+        bonusBids: data.bonusBids
+      };
+
+      return { success: true, paymentData };
     } catch (error: any) {
-      console.error('Error creating contract:', error);
+      console.error('Error creating contract payment:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao criar contrato",
-        description: error.message || "Não foi possível criar o contrato."
+        title: "Erro ao criar pagamento",
+        description: error.message || "Não foi possível gerar o pagamento PIX."
       });
       return { success: false };
     } finally {

@@ -947,6 +947,8 @@ export type Database = {
           closed_reason: string | null
           created_at: string
           id: string
+          payment_id: string | null
+          payment_status: string | null
           pix_key: string | null
           pix_key_type: string | null
           plan_name: string
@@ -970,6 +972,8 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           id?: string
+          payment_id?: string | null
+          payment_status?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
           plan_name: string
@@ -993,6 +997,8 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           id?: string
+          payment_id?: string | null
+          payment_status?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
           plan_name?: string

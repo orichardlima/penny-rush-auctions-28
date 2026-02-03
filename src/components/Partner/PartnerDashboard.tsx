@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePartnerContract } from '@/hooks/usePartnerContract';
+import { usePartnerContract, PartnerPaymentData } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
@@ -48,6 +48,7 @@ import BinaryBonusHistory from './BinaryBonusHistory';
 import DailyRevenueBars from './DailyRevenueBars';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { PartnerPixPaymentModal } from './PartnerPixPaymentModal';
 
 interface PartnerDashboardProps {
   preselectedPlanId?: string | null;
@@ -83,10 +84,36 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [creatingContract, setCreatingContract] = useState(false);
+  
+  // Estado para modal de pagamento PIX
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState<PartnerPaymentData | null>(null);
+
+  // Função para lidar com seleção de plano
+  const handlePlanSelect = async (planId: string, referralCode?: string) => {
+    console.log('[PartnerDashboard] Selecionando plano:', planId, 'referral:', referralCode);
+    
+    const result = await createContract(planId, referralCode);
+    
+    if (result.success && result.paymentData) {
+      // Abrir modal de pagamento PIX
+      setPaymentData(result.paymentData);
+      setPaymentModalOpen(true);
+      // Limpar código de indicação após criar pagamento
+      clearPartnerReferralTracking();
+    }
+  };
+
+  // Callback quando pagamento é confirmado
+  const handlePaymentSuccess = () => {
+    setPaymentModalOpen(false);
+    setPaymentData(null);
+    refreshData();
+  };
 
   // Auto-criar contrato se tem plano pré-selecionado e não tem contrato
   React.useEffect(() => {
-    if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract) {
+    if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract && !paymentModalOpen) {
       const selectedPlan = plans.find(p => p.id === preselectedPlanId);
       if (selectedPlan) {
         setCreatingContract(true);
@@ -102,22 +129,13 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           localStorage: localStorage.getItem('partner_referral') || 'VAZIO'
         });
         
-        createContract(preselectedPlanId, referralCode || undefined)
-          .then((result) => {
-            if (result.success) {
-              // Limpar código de indicação após uso bem-sucedido
-              clearPartnerReferralTracking();
-              console.log('[PartnerDashboard] Contrato criado com sucesso, referral limpo');
-            } else {
-              console.error('[PartnerDashboard] Falha ao criar contrato');
-            }
-          })
+        handlePlanSelect(preselectedPlanId, referralCode || undefined)
           .finally(() => {
             setCreatingContract(false);
           });
       }
     }
-  }, [loading, contract, preselectedPlanId, plans, createContract, creatingContract]);
+  }, [loading, contract, preselectedPlanId, plans, creatingContract, paymentModalOpen]);
   
   const getDayName = (day: number) => {
     const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
@@ -359,12 +377,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 // Prioridade: URL atual > localStorage
                 const referralCode = getPartnerReferralCodeFromUrlOrStorage();
                 console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode);
-                createContract(planId, referralCode || undefined).then((result) => {
-                  if (result.success) {
-                    clearPartnerReferralTracking();
-                    console.log('[PartnerDashboard] Contrato criado, referral limpo');
-                  }
-                });
+                handlePlanSelect(planId, referralCode || undefined);
               }}
               loading={submitting}
             />
@@ -408,6 +421,30 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             </p>
           </CardContent>
         </Card>
+
+        {/* Modal de Pagamento PIX */}
+        {paymentData && (
+          <PartnerPixPaymentModal
+            open={paymentModalOpen}
+            onClose={() => {
+              setPaymentModalOpen(false);
+              setPaymentData(null);
+            }}
+            paymentData={{
+              paymentId: paymentData.paymentId,
+              qrCode: paymentData.qrCode,
+              qrCodeBase64: paymentData.qrCodeBase64,
+              pixCopyPaste: paymentData.pixCopyPaste
+            }}
+            planInfo={{
+              name: paymentData.planName,
+              aporteValue: paymentData.aporteValue,
+              bonusBids: paymentData.bonusBids
+            }}
+            contractId={paymentData.contractId}
+            onSuccess={handlePaymentSuccess}
+          />
+        )}
       </div>
     );
   }
