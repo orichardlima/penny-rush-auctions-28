@@ -44,9 +44,11 @@ import {
   Receipt,
   GitBranch,
   Eye,
-  Coins
+  Coins,
+  Megaphone
 } from 'lucide-react';
 import BinaryNetworkManager from './BinaryNetworkManager';
+import AdCenterMaterialsManager from './AdCenterMaterialsManager';
 
 const AdminPartnerManagement = () => {
   const { 
@@ -458,6 +460,10 @@ const AdminPartnerManagement = () => {
             <GitBranch className="h-4 w-4 mr-1" />
             Binário
           </TabsTrigger>
+          <TabsTrigger value="adcenter" className="shrink-0">
+            <Megaphone className="h-4 w-4 mr-1" />
+            Anúncios
+          </TabsTrigger>
         </TabsList>
 
         {/* Níveis de Indicação Tab */}
@@ -473,6 +479,11 @@ const AdminPartnerManagement = () => {
         {/* Sistema Binário Tab */}
         <TabsContent value="binary">
           <BinaryNetworkManager />
+        </TabsContent>
+
+        {/* Central de Anúncios Tab */}
+        <TabsContent value="adcenter">
+          <AdCenterMaterialsManager />
         </TabsContent>
 
         {/* Projeções Tab */}

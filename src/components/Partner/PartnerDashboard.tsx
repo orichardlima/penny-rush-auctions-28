@@ -41,15 +41,15 @@ import { PartnerBadge } from './PartnerBadge';
 import { GraduationBadge } from './GraduationBadge';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerLevels } from '@/hooks/usePartnerLevels';
-import { FileText, GraduationCap, GitBranch, HelpCircle } from 'lucide-react';
+import { FileText, GraduationCap, GitBranch, HelpCircle, Megaphone } from 'lucide-react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryBonusHistory from './BinaryBonusHistory';
 import DailyRevenueBars from './DailyRevenueBars';
+import AdCenterDashboard from './AdCenterDashboard';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PartnerPixPaymentModal } from './PartnerPixPaymentModal';
-
 interface PartnerDashboardProps {
   preselectedPlanId?: string | null;
 }
@@ -661,6 +661,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Repasses
           </TabsTrigger>
+          <TabsTrigger value="ads" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
+            <Megaphone className="h-3.5 w-3.5 md:h-4 md:w-4" />
+            Anúncios
+          </TabsTrigger>
           <TabsTrigger value="withdrawals" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <ArrowUpRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Saques
@@ -1036,6 +1040,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab de Anúncios */}
+        <TabsContent value="ads">
+          <AdCenterDashboard partnerContractId={contract.id} />
         </TabsContent>
 
         {/* Tab de Saques */}

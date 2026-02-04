@@ -81,8 +81,14 @@ interface ProcessResult {
   plan_name: string
   status: 'processed' | 'skipped' | 'error' | 'closed'
   amount?: number
+  ad_center_multiplier?: number
   reason?: string
 }
+
+// Constantes da Central de Anúncios
+const AD_CENTER_REQUIRED_DAYS = 5
+const AD_CENTER_BASE_PERCENTAGE = 70
+const AD_CENTER_BONUS_PERCENTAGE = 30
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -273,9 +279,31 @@ Deno.serve(async (req) => {
         // 6. Verificar teto total
         const remainingCap = contract.total_cap - contract.total_received
         const totalCapApplied = amountAfterWeeklyCap > remainingCap
-        const finalAmount = totalCapApplied ? remainingCap : amountAfterWeeklyCap
+        let amountAfterCaps = totalCapApplied ? remainingCap : amountAfterWeeklyCap
 
-        console.log(`[partner-weekly-payouts] Contrato ${contract.id}: Calculado=${calculatedAmount.toFixed(2)}, Final=${finalAmount.toFixed(2)}`)
+        // 7. Buscar confirmações da Central de Anúncios para esta semana
+        const { count: adCenterCompletions, error: adCenterError } = await supabase
+          .from('ad_center_completions')
+          .select('*', { count: 'exact', head: true })
+          .eq('partner_contract_id', contract.id)
+          .gte('completion_date', weekStartStr)
+          .lte('completion_date', weekEndStr)
+
+        if (adCenterError) {
+          console.error(`[partner-weekly-payouts] Erro ao buscar ad_center_completions:`, adCenterError)
+          // Continua sem aplicar desconto da central de anúncios
+        }
+
+        // 8. Calcular multiplicador de desbloqueio da Central de Anúncios
+        const completedAdDays = adCenterCompletions || 0
+        const effectiveAdDays = Math.min(completedAdDays, AD_CENTER_REQUIRED_DAYS)
+        const adCenterUnlockPercentage = AD_CENTER_BASE_PERCENTAGE + (AD_CENTER_BONUS_PERCENTAGE * effectiveAdDays / AD_CENTER_REQUIRED_DAYS)
+        const adCenterMultiplier = adCenterUnlockPercentage / 100
+
+        // 9. Aplicar multiplicador da Central de Anúncios
+        const finalAmount = Math.round(amountAfterCaps * adCenterMultiplier * 100) / 100
+
+        console.log(`[partner-weekly-payouts] Contrato ${contract.id}: Calculado=${calculatedAmount.toFixed(2)}, AposCaps=${amountAfterCaps.toFixed(2)}, AdCenter=${completedAdDays}/${AD_CENTER_REQUIRED_DAYS} dias (${adCenterUnlockPercentage.toFixed(0)}%), Final=${finalAmount.toFixed(2)}`)
 
         if (finalAmount <= 0) {
           console.log(`[partner-weekly-payouts] Contrato ${contract.id} já atingiu teto total. Fechando.`)
@@ -300,15 +328,15 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // 7. Criar registro de payout
+        // 10. Criar registro de payout
         const { error: payoutError } = await supabase
           .from('partner_payouts')
           .insert({
             partner_contract_id: contract.id,
             period_start: weekStartStr,
             period_end: weekEndStr,
-            calculated_amount: calculatedAmount,
-            amount: finalAmount,
+            calculated_amount: amountAfterCaps, // Valor antes do desconto da Central
+            amount: finalAmount, // Valor final com desconto aplicado
             weekly_cap_applied: weeklyCapApplied,
             total_cap_applied: totalCapApplied,
             status: 'PENDING'
@@ -319,7 +347,7 @@ Deno.serve(async (req) => {
           throw payoutError
         }
 
-        // 8. Atualizar contrato
+        // 11. Atualizar contrato
         const newTotalReceived = contract.total_received + finalAmount
         const newAvailableBalance = contract.available_balance + finalAmount
         const shouldClose = newTotalReceived >= contract.total_cap
@@ -351,10 +379,11 @@ Deno.serve(async (req) => {
           plan_name: contract.plan_name,
           status: shouldClose ? 'closed' : 'processed',
           amount: finalAmount,
+          ad_center_multiplier: adCenterMultiplier,
           reason: shouldClose ? 'Processado e fechado (teto atingido)' : undefined
         })
 
-        console.log(`[partner-weekly-payouts] Contrato ${contract.id} processado com sucesso. Valor: R$ ${finalAmount.toFixed(2)}`)
+        console.log(`[partner-weekly-payouts] Contrato ${contract.id} processado com sucesso. Valor: R$ ${finalAmount.toFixed(2)} (AdCenter: ${adCenterUnlockPercentage.toFixed(0)}%)`)
 
       } catch (error) {
         console.error(`[partner-weekly-payouts] Erro ao processar contrato ${contract.id}:`, error)
