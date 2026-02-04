@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_center_completions: {
+        Row: {
+          completion_date: string
+          confirmed_at: string | null
+          id: string
+          material_id: string | null
+          partner_contract_id: string
+          social_network: string
+        }
+        Insert: {
+          completion_date: string
+          confirmed_at?: string | null
+          id?: string
+          material_id?: string | null
+          partner_contract_id: string
+          social_network: string
+        }
+        Update: {
+          completion_date?: string
+          confirmed_at?: string | null
+          id?: string
+          material_id?: string | null
+          partner_contract_id?: string
+          social_network?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_center_completions_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "ad_center_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_center_completions_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_center_materials: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          target_date: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          target_date?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          target_date?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action_type: string
