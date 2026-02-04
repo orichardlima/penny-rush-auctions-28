@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.partner-payment-webhook]
 verify_jwt = false
+
+[functions.partner-upgrade-payment]
+verify_jwt = false

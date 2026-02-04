@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePartnerContract, PartnerPaymentData } from '@/hooks/usePartnerContract';
+import { usePartnerContract, PartnerPaymentData, PartnerUpgradePaymentData } from '@/hooks/usePartnerContract';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
@@ -88,6 +88,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   // Estado para modal de pagamento PIX
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentData, setPaymentData] = useState<PartnerPaymentData | null>(null);
+  
+  // Estado para modal de pagamento PIX de upgrade
+  const [upgradePaymentModalOpen, setUpgradePaymentModalOpen] = useState(false);
+  const [upgradePaymentData, setUpgradePaymentData] = useState<PartnerUpgradePaymentData | null>(null);
 
   // Função para lidar com seleção de plano
   const handlePlanSelect = async (planId: string, referralCode?: string) => {
@@ -108,6 +112,20 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const handlePaymentSuccess = () => {
     setPaymentModalOpen(false);
     setPaymentData(null);
+    refreshData();
+  };
+
+  // Callback para upgrade com pagamento PIX
+  const handleUpgradePaymentData = (data: PartnerUpgradePaymentData) => {
+    console.log('[PartnerDashboard] Recebeu dados de pagamento de upgrade:', data);
+    setUpgradePaymentData(data);
+    setUpgradePaymentModalOpen(true);
+  };
+
+  // Callback quando pagamento de upgrade é confirmado
+  const handleUpgradePaymentSuccess = () => {
+    setUpgradePaymentModalOpen(false);
+    setUpgradePaymentData(null);
     refreshData();
   };
 
@@ -469,6 +487,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               contract={contract}
               plans={plans}
               onUpgrade={upgradeContract}
+              onPaymentData={handleUpgradePaymentData}
               submitting={submitting}
             />
           )}
@@ -1066,6 +1085,31 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           Não há garantia de retorno, valor mínimo ou prazo.
         </AlertDescription>
       </Alert>
+
+      {/* Modal de Pagamento PIX para Upgrade */}
+      {upgradePaymentData && (
+        <PartnerPixPaymentModal
+          open={upgradePaymentModalOpen}
+          onClose={() => {
+            setUpgradePaymentModalOpen(false);
+            setUpgradePaymentData(null);
+          }}
+          paymentData={{
+            paymentId: upgradePaymentData.paymentId,
+            qrCode: upgradePaymentData.qrCode,
+            qrCodeBase64: upgradePaymentData.qrCodeBase64,
+            pixCopyPaste: upgradePaymentData.pixCopyPaste
+          }}
+          planInfo={{
+            name: `Upgrade: ${upgradePaymentData.previousPlanName} → ${upgradePaymentData.newPlanName}`,
+            aporteValue: upgradePaymentData.differenceToPay,
+            bonusBids: 0
+          }}
+          contractId={upgradePaymentData.contractId}
+          onSuccess={handleUpgradePaymentSuccess}
+          isUpgrade={true}
+        />
+      )}
     </div>
   );
 };

@@ -20,12 +20,13 @@ import {
   Loader2,
   ArrowRight
 } from 'lucide-react';
-import { PartnerContract, PartnerPlan } from '@/hooks/usePartnerContract';
+import { PartnerContract, PartnerPlan, PartnerUpgradePaymentData } from '@/hooks/usePartnerContract';
 
 interface PartnerUpgradeDialogProps {
   contract: PartnerContract;
   plans: PartnerPlan[];
-  onUpgrade: (planId: string) => Promise<{ success: boolean; differenceToPay?: number }>;
+  onUpgrade: (planId: string) => Promise<{ success: boolean; paymentData?: PartnerUpgradePaymentData }>;
+  onPaymentData?: (data: PartnerUpgradePaymentData) => void;
   submitting: boolean;
 }
 
@@ -33,6 +34,7 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
   contract,
   plans,
   onUpgrade,
+  onPaymentData,
   submitting
 }) => {
   const [open, setOpen] = useState(false);
@@ -63,10 +65,16 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
     
     const result = await onUpgrade(selectedPlan.id);
     
-    if (result.success) {
+    if (result.success && result.paymentData) {
+      // Fechar dialog e passar dados do pagamento para o componente pai
       setOpen(false);
       setSelectedPlan(null);
       setStep('select');
+      
+      // Notificar o componente pai com os dados do pagamento
+      if (onPaymentData) {
+        onPaymentData(result.paymentData);
+      }
     }
   };
 
@@ -199,7 +207,7 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
 
                 <div className="border-t pt-4 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Diferença a pagar:</span>
+                    <span>Diferença a pagar via PIX:</span>
                     <span className="font-bold text-lg text-purple-600">
                       {formatPrice(selectedPlan.aporte_value - contract.aporte_value)}
                     </span>
@@ -227,7 +235,7 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
             <Alert className="border-blue-500/20 bg-blue-500/5">
               <CheckCircle className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-700">
-                Seu histórico de recebimentos será preservado. O valor já recebido continua contabilizado no novo teto.
+                O upgrade só será aplicado após a confirmação do pagamento PIX.
               </AlertDescription>
             </Alert>
 
@@ -258,12 +266,12 @@ const PartnerUpgradeDialog: React.FC<PartnerUpgradeDialogProps> = ({
                 {submitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processando...
+                    Gerando PIX...
                   </>
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Confirmar Upgrade
+                    Gerar PIX para Upgrade
                   </>
                 )}
               </Button>

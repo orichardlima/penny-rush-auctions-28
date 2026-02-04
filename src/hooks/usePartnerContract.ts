@@ -28,6 +28,21 @@ export interface PartnerPaymentData {
   bonusBids: number;
 }
 
+export interface PartnerUpgradePaymentData {
+  paymentId: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  pixCopyPaste?: string;
+  status: string;
+  contractId: string;
+  previousPlanName: string;
+  newPlanName: string;
+  differenceToPay: number;
+  newAporteValue: number;
+  newTotalCap: number;
+  newWeeklyCap: number;
+}
+
 export interface PartnerContract {
   id: string;
   user_id: string;
@@ -316,7 +331,7 @@ export const usePartnerContract = () => {
     }
   };
 
-  const upgradeContract = async (newPlanId: string) => {
+  const upgradeContract = async (newPlanId: string): Promise<{ success: boolean; paymentData?: PartnerUpgradePaymentData }> => {
     if (!contract || !profile?.user_id) return { success: false };
 
     const newPlan = plans.find(p => p.id === newPlanId);
@@ -360,63 +375,68 @@ export const usePartnerContract = () => {
       return { success: false };
     }
 
-    const differenceToPay = newPlan.aporte_value - contract.aporte_value;
-
     setSubmitting(true);
     try {
-      // 1. Registrar o upgrade na tabela de auditoria
-      const { error: upgradeError } = await supabase
-        .from('partner_upgrades')
-        .insert({
-          partner_contract_id: contract.id,
-          previous_plan_name: contract.plan_name,
-          previous_aporte_value: contract.aporte_value,
-          previous_weekly_cap: contract.weekly_cap,
-          previous_total_cap: contract.total_cap,
-          new_plan_name: newPlan.name,
-          new_aporte_value: newPlan.aporte_value,
-          new_weekly_cap: newPlan.weekly_cap,
-          new_total_cap: newPlan.total_cap,
-          total_received_at_upgrade: contract.total_received,
-          difference_paid: differenceToPay
-        });
+      // Buscar email do usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email || '';
+      const userName = profile.full_name || 'Usuário';
 
-      if (upgradeError) throw upgradeError;
-
-      // 2. Atualizar o contrato existente (NÃO criar novo)
-      // total_received NÃO é alterado - preservando histórico
-      const { data: updatedContract, error: updateError } = await supabase
-        .from('partner_contracts')
-        .update({
-          plan_name: newPlan.name,
-          aporte_value: newPlan.aporte_value,
-          weekly_cap: newPlan.weekly_cap,
-          total_cap: newPlan.total_cap,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', contract.id)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-
-      // Recarregar contrato completo com dados do patrocinador
-      await fetchContract();
-      
-      toast({
-        title: "Upgrade realizado!",
-        description: `Seu plano foi atualizado para ${newPlan.display_name}. Diferença: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(differenceToPay)}`
+      console.log('[usePartnerContract] Iniciando pagamento PIX para upgrade:', {
+        contractId: contract.id,
+        currentPlan: contract.plan_name,
+        newPlanId,
+        newPlanName: newPlan.name
       });
 
-      await fetchUpgrades();
+      // Chamar Edge Function para gerar pagamento PIX do upgrade
+      const { data, error } = await supabase.functions.invoke('partner-upgrade-payment', {
+        body: {
+          contractId: contract.id,
+          newPlanId,
+          userId: profile.user_id,
+          userEmail,
+          userName
+        }
+      });
 
-      return { success: true, differenceToPay };
+      if (error) {
+        console.error('[usePartnerContract] Erro na edge function:', error);
+        throw new Error(error.message || 'Erro ao gerar pagamento');
+      }
+
+      if (data.error) {
+        console.error('[usePartnerContract] Erro retornado pela edge function:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('[usePartnerContract] Pagamento PIX de upgrade gerado com sucesso:', {
+        paymentId: data.paymentId,
+        differenceToPay: data.differenceToPay
+      });
+
+      const paymentData: PartnerUpgradePaymentData = {
+        paymentId: data.paymentId,
+        qrCode: data.qrCode,
+        qrCodeBase64: data.qrCodeBase64,
+        pixCopyPaste: data.pixCopyPaste,
+        status: data.status,
+        contractId: data.contractId,
+        previousPlanName: data.previousPlanName,
+        newPlanName: data.newPlanName,
+        differenceToPay: data.differenceToPay,
+        newAporteValue: data.newAporteValue,
+        newTotalCap: data.newTotalCap,
+        newWeeklyCap: data.newWeeklyCap
+      };
+
+      return { success: true, paymentData };
     } catch (error: any) {
-      console.error('Error upgrading contract:', error);
+      console.error('Error creating upgrade payment:', error);
       toast({
         variant: "destructive",
-        title: "Erro no upgrade",
-        description: error.message || "Não foi possível realizar o upgrade."
+        title: "Erro ao criar pagamento",
+        description: error.message || "Não foi possível gerar o pagamento PIX para o upgrade."
       });
       return { success: false };
     } finally {
