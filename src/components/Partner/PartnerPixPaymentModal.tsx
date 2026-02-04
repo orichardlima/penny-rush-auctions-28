@@ -24,6 +24,7 @@ interface PartnerPixPaymentModalProps {
   contractId: string;
   onSuccess: () => void;
   isUpgrade?: boolean;
+  previousPlanName?: string; // Para detectar upgrade concluído
 }
 
 export const PartnerPixPaymentModal = ({ 
@@ -33,7 +34,8 @@ export const PartnerPixPaymentModal = ({
   planInfo,
   contractId,
   onSuccess,
-  isUpgrade = false
+  isUpgrade = false,
+  previousPlanName
 }: PartnerPixPaymentModalProps) => {
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -45,9 +47,11 @@ export const PartnerPixPaymentModal = ({
     if (!open || !contractId || paymentStatus !== 'pending') return;
 
     console.log('🔗 Setting up realtime subscription for partner contract:', contractId);
+    console.log('📋 Mode:', isUpgrade ? 'UPGRADE' : 'NEW CONTRACT');
+    console.log('📋 Previous plan:', previousPlanName, '→ New plan:', planInfo.name);
 
     const channel = supabase
-      .channel(`partner-payment-status-${contractId}`, {
+      .channel(`partner-payment-status-${contractId}-${Date.now()}`, {
         config: {
           broadcast: { self: true }
         }
@@ -66,10 +70,33 @@ export const PartnerPixPaymentModal = ({
           const newPaymentStatus = payload.new?.payment_status;
           const newStatus = payload.new?.status;
           const oldPaymentStatus = payload.old?.payment_status;
+          const newPlanName = payload.new?.plan_name;
+          const oldPlanName = payload.old?.plan_name;
           
           console.log(`Status change: ${oldPaymentStatus} -> ${newPaymentStatus}, contract status: ${newStatus}`);
+          console.log(`Plan change: ${oldPlanName} -> ${newPlanName}`);
           
-          if (newPaymentStatus === 'completed' && oldPaymentStatus === 'pending') {
+          // Para UPGRADE: detectar mudança de plano
+          if (isUpgrade && previousPlanName) {
+            if (newPlanName === planInfo.name && oldPlanName === previousPlanName) {
+              console.log('✅ Upgrade completed! Plan changed from', previousPlanName, 'to', newPlanName);
+              setPaymentStatus('approved');
+              toast({
+                title: "Pagamento aprovado! 🎉",
+                description: "Seu plano foi atualizado com sucesso.",
+                variant: "default"
+              });
+              
+              setTimeout(() => {
+                onSuccess();
+                onClose();
+              }, 2000);
+              return;
+            }
+          }
+          
+          // Para NOVO CONTRATO: detectar payment_status pending -> completed
+          if (!isUpgrade && newPaymentStatus === 'completed' && oldPaymentStatus === 'pending') {
             console.log('✅ Payment approved! Updating UI...');
             setPaymentStatus('approved');
             toast({
@@ -109,10 +136,10 @@ export const PartnerPixPaymentModal = ({
       }
 
       try {
-        console.log('🔍 Polling partner contract status...');
+        console.log('🔍 Polling partner contract status... isUpgrade:', isUpgrade);
         const { data, error } = await supabase
           .from('partner_contracts')
-          .select('payment_status, status')
+          .select('payment_status, status, plan_name')
           .eq('id', contractId)
           .single();
 
@@ -121,26 +148,50 @@ export const PartnerPixPaymentModal = ({
           return;
         }
 
-        if (data.payment_status === 'completed') {
-          console.log('✅ Payment completed detected via polling!');
-          setPaymentStatus('approved');
-          toast({
-            title: "Pagamento aprovado! 🎉",
-            description: "Seu contrato de parceiro foi ativado com sucesso.",
-            variant: "default"
-          });
-          
-          setTimeout(() => {
-            onSuccess();
-            onClose();
-          }, 2000);
-        } else if (data.payment_status === 'failed') {
-          setPaymentStatus('failed');
-          toast({
-            title: "Pagamento rejeitado",
-            description: "Tente novamente ou use outro método.",
-            variant: "destructive"
-          });
+        console.log('📊 Polling result:', data);
+
+        // Para UPGRADE: verificar se o plano mudou
+        if (isUpgrade && previousPlanName) {
+          if (data.plan_name === planInfo.name && data.plan_name !== previousPlanName) {
+            console.log('✅ Upgrade completed detected via polling! Plan:', data.plan_name);
+            setPaymentStatus('approved');
+            toast({
+              title: "Pagamento aprovado! 🎉",
+              description: "Seu plano foi atualizado com sucesso.",
+              variant: "default"
+            });
+            
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 2000);
+          }
+          return; // Não verificar payment_status para upgrades
+        }
+
+        // Para NOVO CONTRATO: verificar payment_status
+        if (!isUpgrade) {
+          if (data.payment_status === 'completed') {
+            console.log('✅ Payment completed detected via polling!');
+            setPaymentStatus('approved');
+            toast({
+              title: "Pagamento aprovado! 🎉",
+              description: "Seu contrato de parceiro foi ativado com sucesso.",
+              variant: "default"
+            });
+            
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 2000);
+          } else if (data.payment_status === 'failed') {
+            setPaymentStatus('failed');
+            toast({
+              title: "Pagamento rejeitado",
+              description: "Tente novamente ou use outro método.",
+              variant: "destructive"
+            });
+          }
         }
       } catch (error) {
         console.error('Polling error:', error);
@@ -163,7 +214,7 @@ export const PartnerPixPaymentModal = ({
       clearInterval(pollingInterval);
       clearTimeout(timeoutId);
     };
-  }, [open, contractId, paymentStatus, onSuccess, onClose, toast]);
+  }, [open, contractId, paymentStatus, onSuccess, onClose, toast, isUpgrade, previousPlanName, planInfo.name]);
 
   const copyToClipboard = () => {
     if (paymentData.pixCopyPaste) {
@@ -183,7 +234,7 @@ export const PartnerPixPaymentModal = ({
     try {
       const { data, error } = await supabase
         .from('partner_contracts')
-        .select('payment_status, status')
+        .select('payment_status, status, plan_name')
         .eq('id', contractId)
         .single();
 
@@ -192,6 +243,33 @@ export const PartnerPixPaymentModal = ({
         return;
       }
 
+      console.log('🔍 Manual check - isUpgrade:', isUpgrade, 'previousPlanName:', previousPlanName, 'data:', data);
+
+      // Para UPGRADE: verificar se o plano mudou
+      if (isUpgrade && previousPlanName) {
+        if (data.plan_name !== previousPlanName) {
+          console.log('✅ Upgrade completed! Plan changed to:', data.plan_name);
+          setPaymentStatus('approved');
+          toast({
+            title: "Pagamento aprovado! 🎉",
+            description: "Seu plano foi atualizado com sucesso.",
+            variant: "default"
+          });
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        } else {
+          toast({
+            title: "Pagamento ainda pendente",
+            description: "Aguarde a confirmação do seu banco.",
+            variant: "default"
+          });
+        }
+        return;
+      }
+
+      // Para NOVO CONTRATO: verificar payment_status
       if (data.payment_status === 'completed') {
         setPaymentStatus('approved');
         toast({
