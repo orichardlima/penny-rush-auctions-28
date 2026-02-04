@@ -663,7 +663,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </TabsTrigger>
           <TabsTrigger value="ads" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <Megaphone className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            Anúncios
+            Central de Anúncios
           </TabsTrigger>
           <TabsTrigger value="withdrawals" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <ArrowUpRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
