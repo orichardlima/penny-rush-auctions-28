@@ -1,38 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { X, PartyPopper, Rocket, Sparkles } from "lucide-react";
-
-const STORAGE_KEY = "launch_banner_dismissed";
-const EXPIRY_DAYS = 7;
+import { X, Rocket, Sparkles } from "lucide-react";
+import { useLaunchBanner, dismissLaunchBanner } from "@/hooks/useLaunchBanner";
 
 export const LaunchBanner = () => {
-  const [dismissed, setDismissed] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const { timestamp } = JSON.parse(stored);
-      const daysPassed = (Date.now() - timestamp) / (1000 * 60 * 60 * 24);
-      if (daysPassed >= EXPIRY_DAYS) {
-        localStorage.removeItem(STORAGE_KEY);
-        setDismissed(false);
-      }
-    } else {
-      setDismissed(false);
-    }
-  }, []);
+  const [localDismissed, setLocalDismissed] = useState(false);
+  const { isVisible, isLoading, title, subtitle, highlight, cta1, cta2, mobileCta } = useLaunchBanner();
 
   const handleDismiss = () => {
     setIsClosing(true);
     setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now() }));
-      setDismissed(true);
+      dismissLaunchBanner();
+      setLocalDismissed(true);
     }, 300);
   };
 
-  if (dismissed) return null;
+  // Don't render while loading, if not visible, or if locally dismissed
+  if (isLoading || !isVisible || localDismissed) return null;
 
   return (
     <div 
@@ -47,30 +33,32 @@ export const LaunchBanner = () => {
         <div className="flex items-center justify-between gap-4">
           {/* Content */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <PartyPopper className="h-5 w-5 sm:h-6 sm:w-6 text-white flex-shrink-0 animate-bounce" />
+            <span className="text-xl sm:text-2xl flex-shrink-0 animate-bounce">🎉</span>
             
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
               {/* Desktop text */}
               <div className="hidden sm:flex items-center gap-2">
                 <span className="text-white font-bold text-sm lg:text-base whitespace-nowrap">
-                  🎉 LANÇAMENTO OFICIAL!
+                  {title}
                 </span>
                 <span className="text-white/90 text-sm lg:text-base">
-                  A plataforma Show de Lances está no ar!
+                  {subtitle}
                 </span>
               </div>
               
               {/* Mobile text */}
               <div className="sm:hidden">
                 <span className="text-white font-bold text-sm">
-                  🎉 Lançamento Oficial!
+                  {title}
                 </span>
               </div>
               
-              <div className="hidden lg:flex items-center gap-1 text-white/80 text-sm">
-                <Sparkles className="h-4 w-4" />
-                <span>Cada lance custa apenas R$ 1!</span>
-              </div>
+              {highlight && (
+                <div className="hidden lg:flex items-center gap-1 text-white/80 text-sm">
+                  <Sparkles className="h-4 w-4" />
+                  <span>{highlight}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -78,35 +66,41 @@ export const LaunchBanner = () => {
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Desktop buttons */}
             <div className="hidden sm:flex items-center gap-2">
-              <Link to="/#leiloes">
-                <Button 
-                  size="sm" 
-                  variant="outline-hero"
-                  className="text-xs lg:text-sm"
-                >
-                  <Rocket className="h-3.5 w-3.5 mr-1" />
-                  Ver Leilões
-                </Button>
-              </Link>
-              <Link to="/pacotes">
-                <Button 
-                  size="sm" 
-                  className="bg-white text-primary hover:bg-white/90 text-xs lg:text-sm font-semibold"
-                >
-                  Comprar Lances
-                </Button>
-              </Link>
+              {cta1.text && cta1.link && (
+                <Link to={cta1.link}>
+                  <Button 
+                    size="sm" 
+                    variant="outline-hero"
+                    className="text-xs lg:text-sm"
+                  >
+                    <Rocket className="h-3.5 w-3.5 mr-1" />
+                    {cta1.text}
+                  </Button>
+                </Link>
+              )}
+              {cta2.text && cta2.link && (
+                <Link to={cta2.link}>
+                  <Button 
+                    size="sm" 
+                    className="bg-white text-primary hover:bg-white/90 text-xs lg:text-sm font-semibold"
+                  >
+                    {cta2.text}
+                  </Button>
+                </Link>
+              )}
             </div>
             
             {/* Mobile button */}
-            <Link to="/#leiloes" className="sm:hidden">
-              <Button 
-                size="sm" 
-                className="bg-white text-primary hover:bg-white/90 text-xs font-semibold"
-              >
-                Participar
-              </Button>
-            </Link>
+            {mobileCta.text && mobileCta.link && (
+              <Link to={mobileCta.link} className="sm:hidden">
+                <Button 
+                  size="sm" 
+                  className="bg-white text-primary hover:bg-white/90 text-xs font-semibold"
+                >
+                  {mobileCta.text}
+                </Button>
+              </Link>
+            )}
 
             {/* Close button */}
             <button

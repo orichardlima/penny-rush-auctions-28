@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +43,19 @@ export const SystemSettings: React.FC = () => {
   const [maxMonthlyPercentage, setMaxMonthlyPercentage] = useState<string>('20');
   const [savingPartner, setSavingPartner] = useState(false);
 
+  // Launch Banner State
+  const [bannerEnabled, setBannerEnabled] = useState<boolean>(true);
+  const [bannerTitle, setBannerTitle] = useState<string>('🎉 LANÇAMENTO OFICIAL!');
+  const [bannerSubtitle, setBannerSubtitle] = useState<string>('A plataforma Show de Lances está no ar!');
+  const [bannerHighlight, setBannerHighlight] = useState<string>('Cada lance custa apenas R$ 1!');
+  const [bannerCta1Text, setBannerCta1Text] = useState<string>('Ver Leilões');
+  const [bannerCta1Link, setBannerCta1Link] = useState<string>('/#leiloes');
+  const [bannerCta2Text, setBannerCta2Text] = useState<string>('Comprar Lances');
+  const [bannerCta2Link, setBannerCta2Link] = useState<string>('/pacotes');
+  const [bannerMobileCtaText, setBannerMobileCtaText] = useState<string>('Participar');
+  const [bannerExpiresAt, setBannerExpiresAt] = useState<string>('');
+  const [savingBanner, setSavingBanner] = useState(false);
+
   // Flag to prevent useEffect from resetting local state after user edits
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -77,6 +90,24 @@ export const SystemSettings: React.FC = () => {
       setDailyClosingTime(getSettingValue('partner_daily_closing_time', 18).toString());
       setMaxWeeklyPercentage(getSettingValue('partner_max_weekly_percentage', 10).toString());
       setMaxMonthlyPercentage(getSettingValue('partner_max_monthly_percentage', 20).toString());
+      
+      // Launch Banner
+      setBannerEnabled(getSettingValue('launch_banner_enabled', true));
+      setBannerTitle(getSettingValue('launch_banner_title', '🎉 LANÇAMENTO OFICIAL!'));
+      setBannerSubtitle(getSettingValue('launch_banner_subtitle', 'A plataforma Show de Lances está no ar!'));
+      setBannerHighlight(getSettingValue('launch_banner_highlight', 'Cada lance custa apenas R$ 1!'));
+      setBannerCta1Text(getSettingValue('launch_banner_cta1_text', 'Ver Leilões'));
+      setBannerCta1Link(getSettingValue('launch_banner_cta1_link', '/#leiloes'));
+      setBannerCta2Text(getSettingValue('launch_banner_cta2_text', 'Comprar Lances'));
+      setBannerCta2Link(getSettingValue('launch_banner_cta2_link', '/pacotes'));
+      setBannerMobileCtaText(getSettingValue('launch_banner_mobile_cta_text', 'Participar'));
+      const bannerExpires = getSettingValue('launch_banner_expires_at', '');
+      if (bannerExpires) {
+        const date = new Date(bannerExpires);
+        if (!isNaN(date.getTime())) {
+          setBannerExpiresAt(date.toISOString().slice(0, 16));
+        }
+      }
       
       setIsInitialized(true);
     }
@@ -162,6 +193,40 @@ export const SystemSettings: React.FC = () => {
       });
     } finally {
       setSavingPromo(false);
+    }
+  };
+
+  const handleSaveBannerSettings = async () => {
+    setSavingBanner(true);
+    try {
+      // Convert datetime-local to ISO string
+      const expiresAtISO = bannerExpiresAt ? new Date(bannerExpiresAt).toISOString() : '';
+      
+      await Promise.all([
+        updateSetting('launch_banner_enabled', bannerEnabled.toString()),
+        updateSetting('launch_banner_title', bannerTitle),
+        updateSetting('launch_banner_subtitle', bannerSubtitle),
+        updateSetting('launch_banner_highlight', bannerHighlight),
+        updateSetting('launch_banner_cta1_text', bannerCta1Text),
+        updateSetting('launch_banner_cta1_link', bannerCta1Link),
+        updateSetting('launch_banner_cta2_text', bannerCta2Text),
+        updateSetting('launch_banner_cta2_link', bannerCta2Link),
+        updateSetting('launch_banner_mobile_cta_text', bannerMobileCtaText),
+        updateSetting('launch_banner_expires_at', expiresAtISO)
+      ]);
+      
+      toast({
+        title: "Banner salvo!",
+        description: bannerEnabled ? "O banner de lançamento está ativo." : "Banner desativado.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações do banner.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingBanner(false);
     }
   };
 
@@ -252,6 +317,27 @@ export const SystemSettings: React.FC = () => {
     return result;
   };
 
+  // Calculate time remaining for banner expiration
+  const getBannerTimeRemaining = () => {
+    if (!bannerExpiresAt) return null;
+    const now = new Date().getTime();
+    const expiry = new Date(bannerExpiresAt).getTime();
+    const diff = expiry - now;
+    
+    if (diff <= 0) return 'Expirado';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let result = '';
+    if (days > 0) result += `${days}d `;
+    if (hours > 0 || days > 0) result += `${hours}h `;
+    result += `${minutes}min`;
+    
+    return result;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -267,7 +353,226 @@ export const SystemSettings: React.FC = () => {
         <h2 className="text-xl font-semibold">Configurações do Sistema</h2>
       </div>
 
-      {/* Promoção de Multiplicador */}
+      {/* Banner de Lançamento */}
+      <Card className="border-pink-500/20 bg-gradient-to-br from-pink-500/5 to-purple-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <PartyPopper className="h-5 w-5 text-pink-500" />
+            <CardTitle className="text-pink-600">Banner de Lançamento</CardTitle>
+          </div>
+          <CardDescription>
+            Configure o banner promocional exibido no topo da página inicial
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="banner-enabled">Ativar banner de lançamento</Label>
+              <p className="text-sm text-muted-foreground">
+                O banner será exibido no topo da página inicial
+              </p>
+            </div>
+            <Switch
+              id="banner-enabled"
+              checked={bannerEnabled}
+              onCheckedChange={setBannerEnabled}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="banner-title">Título Principal</Label>
+              <Input
+                id="banner-title"
+                value={bannerTitle}
+                onChange={(e) => setBannerTitle(e.target.value)}
+                placeholder="🎉 LANÇAMENTO OFICIAL!"
+                disabled={!bannerEnabled}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="banner-subtitle">Subtítulo</Label>
+              <Input
+                id="banner-subtitle"
+                value={bannerSubtitle}
+                onChange={(e) => setBannerSubtitle(e.target.value)}
+                placeholder="A plataforma Show de Lances está no ar!"
+                disabled={!bannerEnabled}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="banner-highlight">Texto de Destaque (Desktop)</Label>
+            <Input
+              id="banner-highlight"
+              value={bannerHighlight}
+              onChange={(e) => setBannerHighlight(e.target.value)}
+              placeholder="Cada lance custa apenas R$ 1!"
+              disabled={!bannerEnabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Exibido apenas em telas grandes
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4 p-4 rounded-lg bg-muted/30 border">
+              <p className="text-sm font-medium">Botão Primário</p>
+              <div className="space-y-2">
+                <Label htmlFor="banner-cta1-text">Texto</Label>
+                <Input
+                  id="banner-cta1-text"
+                  value={bannerCta1Text}
+                  onChange={(e) => setBannerCta1Text(e.target.value)}
+                  placeholder="Ver Leilões"
+                  disabled={!bannerEnabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="banner-cta1-link">Link</Label>
+                <Input
+                  id="banner-cta1-link"
+                  value={bannerCta1Link}
+                  onChange={(e) => setBannerCta1Link(e.target.value)}
+                  placeholder="/#leiloes"
+                  disabled={!bannerEnabled}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 p-4 rounded-lg bg-muted/30 border">
+              <p className="text-sm font-medium">Botão Secundário</p>
+              <div className="space-y-2">
+                <Label htmlFor="banner-cta2-text">Texto</Label>
+                <Input
+                  id="banner-cta2-text"
+                  value={bannerCta2Text}
+                  onChange={(e) => setBannerCta2Text(e.target.value)}
+                  placeholder="Comprar Lances"
+                  disabled={!bannerEnabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="banner-cta2-link">Link</Label>
+                <Input
+                  id="banner-cta2-link"
+                  value={bannerCta2Link}
+                  onChange={(e) => setBannerCta2Link(e.target.value)}
+                  placeholder="/pacotes"
+                  disabled={!bannerEnabled}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="banner-mobile-cta">Texto do Botão Mobile</Label>
+            <Input
+              id="banner-mobile-cta"
+              value={bannerMobileCtaText}
+              onChange={(e) => setBannerMobileCtaText(e.target.value)}
+              placeholder="Participar"
+              className="max-w-xs"
+              disabled={!bannerEnabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Usa o mesmo link do botão primário
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="banner-expires">Expiração Automática</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="banner-expires"
+                type="datetime-local"
+                value={bannerExpiresAt}
+                onChange={(e) => setBannerExpiresAt(e.target.value)}
+                className="w-auto"
+                disabled={!bannerEnabled}
+              />
+              {bannerExpiresAt && bannerEnabled && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>{getBannerTimeRemaining()}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Deixe vazio para banner sem prazo definido
+            </p>
+          </div>
+
+          {/* Preview */}
+          {bannerEnabled && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">📣 Preview do Banner:</p>
+                <div className="relative rounded-lg overflow-hidden shadow-md">
+                  <div className="bg-gradient-to-r from-primary via-primary/80 to-accent p-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className="text-xl flex-shrink-0">🎉</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-white font-bold text-sm whitespace-nowrap">
+                            {bannerTitle || 'Título'}
+                          </span>
+                          <span className="text-white/90 text-sm">
+                            {bannerSubtitle || 'Subtítulo'}
+                          </span>
+                          {bannerHighlight && (
+                            <span className="hidden lg:flex items-center gap-1 text-white/80 text-xs">
+                              <Sparkles className="h-3 w-3" />
+                              {bannerHighlight}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {bannerCta1Text && (
+                          <Button size="sm" variant="outline-hero" className="text-xs h-7 pointer-events-none">
+                            <Rocket className="h-3 w-3 mr-1" />
+                            {bannerCta1Text}
+                          </Button>
+                        )}
+                        {bannerCta2Text && (
+                          <Button size="sm" className="bg-white text-primary text-xs h-7 pointer-events-none">
+                            {bannerCta2Text}
+                          </Button>
+                        )}
+                        <div className="p-1 rounded-full bg-white/20">
+                          <X className="h-3 w-3 text-white/80" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button 
+              onClick={handleSaveBannerSettings}
+              disabled={savingBanner || updating}
+              className="flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+            >
+              <Save className="h-4 w-4" />
+              {savingBanner ? 'Salvando...' : 'Salvar Banner'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-yellow-500/5">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -806,6 +1111,12 @@ export const SystemSettings: React.FC = () => {
               <div className="font-medium">Exibição Finalizados</div>
               <div className="text-muted-foreground">
                 {finishedAuctionsDisplayHours === '0' ? 'Desativado' : `${finishedAuctionsDisplayHours}h`}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium">Banner Lançamento</div>
+              <div className={bannerEnabled ? "text-pink-500 font-medium" : "text-muted-foreground"}>
+                {bannerEnabled ? 'Ativo' : 'Inativo'}
               </div>
             </div>
           </div>
