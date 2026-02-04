@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAdCenterAdmin, AdCenterMaterial } from '@/hooks/useAdCenter';
+import { ImageUploadPreview } from '@/components/ImageUploadPreview';
 import { 
   Megaphone, 
   Plus, 
@@ -33,11 +34,14 @@ const AdCenterMaterialsManager: React.FC = () => {
     updateMaterial,
     deleteMaterial,
     toggleMaterialActive,
+    uploadMaterialImage,
     refreshData
   } = useAdCenterAdmin();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<AdCenterMaterial | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -54,37 +58,74 @@ const AdCenterMaterialsManager: React.FC = () => {
       image_url: '',
       target_date: ''
     });
+    setSelectedFile(null);
   };
 
   const handleCreate = async () => {
     if (!formData.title.trim()) return;
     
-    const success = await createMaterial({
-      title: formData.title,
-      description: formData.description || undefined,
-      image_url: formData.image_url || undefined,
-      target_date: formData.target_date || undefined
-    });
+    setUploadingImage(true);
+    
+    try {
+      let imageUrl = formData.image_url;
+      
+      // Se tem arquivo selecionado, fazer upload
+      if (selectedFile) {
+        const uploadedUrl = await uploadMaterialImage(selectedFile);
+        if (!uploadedUrl) {
+          setUploadingImage(false);
+          return;
+        }
+        imageUrl = uploadedUrl;
+      }
 
-    if (success) {
-      setIsCreateOpen(false);
-      resetForm();
+      const success = await createMaterial({
+        title: formData.title,
+        description: formData.description || undefined,
+        image_url: imageUrl || undefined,
+        target_date: formData.target_date || undefined
+      });
+
+      if (success) {
+        setIsCreateOpen(false);
+        resetForm();
+      }
+    } finally {
+      setUploadingImage(false);
     }
   };
 
   const handleUpdate = async () => {
     if (!editingMaterial || !formData.title.trim()) return;
 
-    const success = await updateMaterial(editingMaterial.id, {
-      title: formData.title,
-      description: formData.description || null,
-      image_url: formData.image_url || null,
-      target_date: formData.target_date || null
-    });
+    setUploadingImage(true);
+    
+    try {
+      let imageUrl = formData.image_url;
+      
+      // Se tem arquivo selecionado, fazer upload
+      if (selectedFile) {
+        const uploadedUrl = await uploadMaterialImage(selectedFile);
+        if (!uploadedUrl) {
+          setUploadingImage(false);
+          return;
+        }
+        imageUrl = uploadedUrl;
+      }
 
-    if (success) {
-      setEditingMaterial(null);
-      resetForm();
+      const success = await updateMaterial(editingMaterial.id, {
+        title: formData.title,
+        description: formData.description || null,
+        image_url: imageUrl || null,
+        target_date: formData.target_date || null
+      });
+
+      if (success) {
+        setEditingMaterial(null);
+        resetForm();
+      }
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -96,6 +137,15 @@ const AdCenterMaterialsManager: React.FC = () => {
       image_url: material.image_url || '',
       target_date: material.target_date || ''
     });
+    setSelectedFile(null);
+  };
+
+  const handleImageSelect = (file: File | null) => {
+    setSelectedFile(file);
+    // Se uma nova imagem foi selecionada, limpar a URL atual
+    if (file) {
+      setFormData(prev => ({ ...prev, image_url: '' }));
+    }
   };
 
   const formatDate = (dateString: string | null) => {
@@ -208,16 +258,15 @@ const AdCenterMaterialsManager: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="image_url">URL da Imagem</Label>
-                  <Input
-                    id="image_url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    placeholder="https://..."
+                  <Label>Imagem do Material</Label>
+                  <ImageUploadPreview
+                    onImageSelect={handleImageSelect}
+                    compact
+                    maxWidth={1200}
+                    maxHeight={800}
+                    showCardPreview={false}
+                    disabled={uploadingImage}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Cole a URL de uma imagem hospedada (Supabase Storage, Imgur, etc.)
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -238,8 +287,8 @@ const AdCenterMaterialsManager: React.FC = () => {
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleCreate} disabled={processing || !formData.title.trim()}>
-                  {processing ? 'Criando...' : 'Criar Material'}
+                <Button onClick={handleCreate} disabled={processing || uploadingImage || !formData.title.trim()}>
+                  {uploadingImage ? 'Fazendo upload...' : processing ? 'Criando...' : 'Criar Material'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -357,11 +406,29 @@ const AdCenterMaterialsManager: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <Label htmlFor="edit-image_url">URL da Imagem</Label>
-                                  <Input
-                                    id="edit-image_url"
-                                    value={formData.image_url}
-                                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                                  <Label>Imagem do Material</Label>
+                                  {formData.image_url && !selectedFile && (
+                                    <div className="mb-3 p-3 bg-muted rounded-lg">
+                                      <div className="flex items-center gap-3">
+                                        <img 
+                                          src={formData.image_url} 
+                                          alt="Imagem atual"
+                                          className="w-16 h-16 rounded object-cover"
+                                        />
+                                        <div className="flex-1">
+                                          <p className="text-sm font-medium">Imagem atual</p>
+                                          <p className="text-xs text-muted-foreground">Selecione uma nova imagem abaixo para substituir</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <ImageUploadPreview
+                                    onImageSelect={handleImageSelect}
+                                    compact
+                                    maxWidth={1200}
+                                    maxHeight={800}
+                                    showCardPreview={false}
+                                    disabled={uploadingImage}
                                   />
                                 </div>
 
@@ -380,8 +447,8 @@ const AdCenterMaterialsManager: React.FC = () => {
                                 <Button variant="outline" onClick={() => setEditingMaterial(null)}>
                                   Cancelar
                                 </Button>
-                                <Button onClick={handleUpdate} disabled={processing || !formData.title.trim()}>
-                                  {processing ? 'Salvando...' : 'Salvar'}
+                                <Button onClick={handleUpdate} disabled={processing || uploadingImage || !formData.title.trim()}>
+                                  {uploadingImage ? 'Fazendo upload...' : processing ? 'Salvando...' : 'Salvar'}
                                 </Button>
                               </DialogFooter>
                             </DialogContent>
