@@ -341,6 +341,43 @@ export const useAdCenterAdmin = () => {
     load();
   }, [fetchMaterials, fetchStats]);
 
+  // Upload de imagem para o storage
+  const uploadMaterialImage = async (file: File): Promise<string | null> => {
+    try {
+      // Gerar nome único para o arquivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      // Fazer upload para o Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('ad-center-materials')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('[useAdCenterAdmin] Erro no upload:', error);
+        throw error;
+      }
+
+      // Retornar URL pública da imagem
+      const { data: { publicUrl } } = supabase.storage
+        .from('ad-center-materials')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('[useAdCenterAdmin] Erro ao fazer upload:', error);
+      toast({
+        title: 'Erro no upload',
+        description: 'Não foi possível fazer upload da imagem.',
+        variant: 'destructive'
+      });
+      return null;
+    }
+  };
+
   const createMaterial = async (material: {
     title: string;
     description?: string;
@@ -457,6 +494,7 @@ export const useAdCenterAdmin = () => {
     updateMaterial,
     deleteMaterial,
     toggleMaterialActive,
+    uploadMaterialImage,
     refreshData: async () => {
       await Promise.all([fetchMaterials(), fetchStats()]);
     }
