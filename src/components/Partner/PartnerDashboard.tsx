@@ -1108,6 +1108,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           contractId={upgradePaymentData.contractId}
           onSuccess={handleUpgradePaymentSuccess}
           isUpgrade={true}
+          previousPlanName={upgradePaymentData.previousPlanName}
         />
       )}
     </div>
