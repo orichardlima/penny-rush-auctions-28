@@ -23,6 +23,7 @@ interface PartnerPixPaymentModalProps {
   };
   contractId: string;
   onSuccess: () => void;
+  isUpgrade?: boolean;
 }
 
 export const PartnerPixPaymentModal = ({ 
@@ -31,7 +32,8 @@ export const PartnerPixPaymentModal = ({
   paymentData, 
   planInfo,
   contractId,
-  onSuccess 
+  onSuccess,
+  isUpgrade = false
 }: PartnerPixPaymentModalProps) => {
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -233,7 +235,9 @@ export const PartnerPixPaymentModal = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Pagamento PIX - Parceria</DialogTitle>
+          <DialogTitle className="text-center">
+            {isUpgrade ? 'Pagamento PIX - Upgrade de Plano' : 'Pagamento PIX - Parceria'}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -247,7 +251,7 @@ export const PartnerPixPaymentModal = ({
               <p className="text-2xl font-bold text-primary">{formatPrice(planInfo.aporteValue)}</p>
               <div className="space-y-1">
                 <Badge variant="secondary" className="text-xs">
-                  Aporte para participação
+                  {isUpgrade ? 'Diferença para upgrade' : 'Aporte para participação'}
                 </Badge>
                 {planInfo.bonusBids > 0 && (
                   <div className="flex items-center justify-center gap-1 text-xs text-amber-600">
@@ -338,7 +342,12 @@ export const PartnerPixPaymentModal = ({
               <div className="text-green-600">
                 <Check className="w-12 h-12 mx-auto mb-2" />
                 <p className="font-semibold">Pagamento aprovado!</p>
-                <p className="text-sm">Seu contrato de parceiro foi ativado.</p>
+                <p className="text-sm">
+                  {isUpgrade 
+                    ? 'Seu plano foi atualizado com sucesso.' 
+                    : 'Seu contrato de parceiro foi ativado.'
+                  }
+                </p>
                 {planInfo.bonusBids > 0 && (
                   <p className="text-sm text-amber-600">
                     +{planInfo.bonusBids} lances foram creditados!
