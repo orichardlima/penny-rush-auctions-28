@@ -1,173 +1,128 @@
 
-# Implementar Upload de Imagem na Central de Anúncios
+# Banner de Lançamento Oficial da Plataforma
 
 ## Resumo
 
-Alterar o formulário de criação/edição de materiais promocionais para utilizar **upload de arquivo** ao invés de inserção de URL. O admin poderá arrastar ou selecionar uma imagem do computador, que será automaticamente enviada para um bucket do Supabase Storage.
+Criar um banner promocional destacado no topo da página inicial anunciando a abertura oficial da plataforma Show de Lances. O banner será fixo acima do Header e terá design atrativo com animações sutis.
 
 ---
 
-## Alterações Necessárias
+## Design do Banner
 
-### 1. Banco de Dados - Novo Bucket de Storage
-
-Criar um bucket dedicado para imagens da Central de Anúncios:
-
-| Configuração | Valor |
-|--------------|-------|
-| Nome do bucket | `ad-center-materials` |
-| Público | Sim (para exibição nas redes sociais) |
-| Limite de tamanho | 5MB |
-| Políticas RLS | Admins podem fazer upload/editar/excluir; Qualquer um pode visualizar |
-
-### 2. Hook `useAdCenter.ts`
-
-Adicionar função de upload no hook admin:
-
-```typescript
-const uploadMaterialImage = async (file: File): Promise<string | null> => {
-  // Gera nome único para o arquivo
-  const fileName = `${Date.now()}-${file.name}`;
-  
-  // Faz upload para o Supabase Storage
-  const { data, error } = await supabase.storage
-    .from('ad-center-materials')
-    .upload(fileName, file);
-    
-  if (error) return null;
-  
-  // Retorna URL pública da imagem
-  return supabase.storage
-    .from('ad-center-materials')
-    .getPublicUrl(fileName).data.publicUrl;
-};
-```
-
-### 3. Componente `AdCenterMaterialsManager.tsx`
-
-Substituir o campo de URL por área de upload:
-
-**Antes (campo de texto):**
 ```text
-┌─────────────────────────────────────────────┐
-│ URL da Imagem                               │
-│ [https://...                              ] │
-│ Cole a URL de uma imagem hospedada          │
-└─────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────┐
+│  🎉  LANÇAMENTO OFICIAL! A plataforma Show de Lances está no ar!  🚀           │
+│                                                                                 │
+│      [Ver Leilões]  [Comprar Lances]                              [X]          │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Depois (área de upload):**
-```text
-┌─────────────────────────────────────────────┐
-│ Imagem do Material                          │
-│ ┌─────────────────────────────────────────┐ │
-│ │ ┌───────┐                               │ │
-│ │ │ THUMB │  [X] material-fevereiro.jpg   │ │
-│ │ └───────┘       256KB - Processada      │ │
-│ │                                         │ │
-│ │ ou arraste uma nova imagem              │ │
-│ └─────────────────────────────────────────┘ │
-│ Formatos: JPEG, PNG, WebP - Máximo: 5MB     │
-└─────────────────────────────────────────────┘
-```
-
-**Funcionalidades:**
-- Reutilizar o componente `ImageUploadPreview` existente (modo compacto)
-- Preview da imagem antes de salvar
-- Otimização automática (WebP, compressão)
-- Ao editar, mostrar imagem atual com opção de trocar
+**Características visuais:**
+- Gradiente vibrante (primary → accent) com animação sutil de brilho
+- Ícones de celebração (confetti, rocket, sparkles)
+- Botões de ação para converter visitantes
+- Botão de fechar que salva preferência no localStorage
+- Totalmente responsivo (adaptado para mobile)
 
 ---
 
-## Fluxo de Upload
+## Arquivos a Criar/Modificar
+
+| Arquivo | Ação |
+|---------|------|
+| `src/components/LaunchBanner.tsx` | Criar novo componente |
+| `src/pages/Index.tsx` | Importar e renderizar acima do Header |
+| `src/index.css` | Adicionar animação de shimmer/brilho |
+
+---
+
+## Estrutura do Componente
+
+### LaunchBanner.tsx
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                     FLUXO DE CRIAÇÃO                            │
+│                        LaunchBanner                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   1. Admin seleciona/arrasta imagem                             │
-│              │                                                  │
-│              v                                                  │
-│   2. ImageUploadPreview processa e valida                       │
-│      (redimensiona, comprime, converte para WebP)               │
-│              │                                                  │
-│              v                                                  │
-│   3. Admin preenche título, legenda, data alvo                  │
-│              │                                                  │
-│              v                                                  │
-│   4. Clica "Criar Material"                                     │
-│              │                                                  │
-│              v                                                  │
-│   5. Hook faz upload da imagem processada para Storage          │
-│      supabase.storage.from('ad-center-materials').upload(...)   │
-│              │                                                  │
-│              v                                                  │
-│   6. Recebe URL pública da imagem                               │
-│              │                                                  │
-│              v                                                  │
-│   7. Insere registro na tabela ad_center_materials              │
-│      com image_url = URL pública                                │
-│              │                                                  │
-│              v                                                  │
-│   8. Sucesso! Material disponível para parceiros                │
+│   Estado: dismissed (boolean)                                   │
+│   - Verificar localStorage("launch_banner_dismissed")           │
+│   - Se true, não renderiza o banner                             │
+│                                                                 │
+│   Layout:                                                       │
+│   ┌───────────────────────────────────────────────────────────┐ │
+│   │ Desktop: Faixa horizontal com texto + 2 botões + fechar   │ │
+│   │ Mobile: Texto menor + 1 botão + fechar                    │ │
+│   └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│   Animações:                                                    │
+│   - Shimmer effect no background                                │
+│   - Fade in suave ao carregar                                   │
+│   - Fade out ao fechar                                          │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Arquivos a Modificar
+## Especificações Detalhadas
 
-| Arquivo | Modificação |
-|---------|-------------|
-| Nova migração SQL | Criar bucket `ad-center-materials` com políticas RLS |
-| `src/hooks/useAdCenter.ts` | Adicionar função `uploadMaterialImage` no hook admin |
-| `src/components/Admin/AdCenterMaterialsManager.tsx` | Substituir input de URL pelo `ImageUploadPreview` |
+### Texto e CTAs
+
+**Desktop:**
+- Título: "🎉 LANÇAMENTO OFICIAL! A plataforma Show de Lances está no ar!"
+- Subtítulo: "Ganhe produtos incríveis por centavos. Cada lance custa apenas R$ 1!"
+- CTA 1: "Ver Leilões" → /leiloes
+- CTA 2: "Comprar Lances" → /pacotes
+
+**Mobile:**
+- Título: "🎉 Lançamento Oficial!"
+- Subtítulo: "Participe agora dos leilões"
+- CTA único: "Participar" → /leiloes
+
+### Estilização
+
+| Propriedade | Valor |
+|-------------|-------|
+| Background | Gradiente primary → accent com overlay shimmer |
+| Altura | 56px desktop / 48px mobile |
+| Posição | Fixo no topo (acima do Header sticky) |
+| Sombra | shadow-lg para destaque |
+| Z-index | 60 (acima do Header que é 50) |
+
+### Persistência
+
+- Ao clicar no X, salvar `launch_banner_dismissed: true` no localStorage
+- Ao carregar, verificar se já foi fechado
+- Banner aparece novamente após 7 dias (opcional)
 
 ---
 
-## Detalhes de Implementação
+## Animação CSS
 
-### Migração SQL
+```css
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
-```sql
--- Criar bucket para materiais da Central de Anúncios
-INSERT INTO storage.buckets (id, name, public, file_size_limit)
-VALUES ('ad-center-materials', 'ad-center-materials', true, 5242880);
-
--- Políticas de acesso
-CREATE POLICY "Qualquer um pode ver materiais"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'ad-center-materials');
-
-CREATE POLICY "Admins podem fazer upload"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'ad-center-materials' AND is_admin_user(auth.uid()));
-
-CREATE POLICY "Admins podem atualizar"
-ON storage.objects FOR UPDATE
-USING (bucket_id = 'ad-center-materials' AND is_admin_user(auth.uid()));
-
-CREATE POLICY "Admins podem deletar"
-ON storage.objects FOR DELETE
-USING (bucket_id = 'ad-center-materials' AND is_admin_user(auth.uid()));
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
 ```
 
-### Modificações no Componente
-
-O formulário terá:
-- Estado para armazenar o arquivo selecionado (`selectedFile`)
-- Integração com `ImageUploadPreview` em modo compacto
-- Lógica para fazer upload ao clicar em "Criar Material"
-- Na edição: exibir imagem atual com botão para substituir
-
 ---
 
-## Comportamento na Edição
+## Fluxo de Implementação
 
-Quando o admin editar um material existente:
-1. Mostrar thumbnail da imagem atual
-2. Exibir botão "Trocar Imagem"
-3. Se nova imagem for selecionada, fazer upload ao salvar
-4. Manter imagem antiga se nenhuma nova for selecionada
+1. Criar animação CSS de shimmer no `index.css`
+2. Criar componente `LaunchBanner.tsx` com toda a lógica
+3. Importar e posicionar no `Index.tsx` antes do Header
+4. Testar responsividade e comportamento de fechamento
