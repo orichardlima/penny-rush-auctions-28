@@ -26,11 +26,11 @@ export interface AuctionData {
   winnerName: string | null;
   status: string;
   created_at: string;
+  last_bid_at: string | null;
 }
 
 interface AuctionRealtimeContextType {
   auctions: AuctionData[];
-  timers: Map<string, number>;
   isConnected: boolean;
   loading: boolean;
   getAuctionTimer: (auctionId: string) => number;
@@ -53,15 +53,29 @@ interface AuctionRealtimeProviderProps {
 
 export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = ({ children }) => {
   const [auctions, setAuctions] = useState<AuctionData[]>([]);
-  const [timers, setTimers] = useState<Map<string, number>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0); // Força re-render a cada segundo
   const { toast } = useToast();
   
-  const timerIntervalRef = useRef<NodeJS.Timeout>();
   const resyncIntervalRef = useRef<NodeJS.Timeout>();
   const emergencyPollRef = useRef<NodeJS.Timeout>();
   const disconnectToastTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Calcular tempo restante a partir de timestamp absoluto
+  const calculateTimeLeft = useCallback((auction: AuctionData): number => {
+    if (auction.auctionStatus !== 'active') return 0;
+    
+    const lastBidAt = auction.last_bid_at 
+      ? new Date(auction.last_bid_at).getTime() 
+      : Date.now();
+    
+    const deadline = lastBidAt + (15 * 1000); // 15 segundos após último lance
+    const now = Date.now();
+    const remaining = Math.ceil((deadline - now) / 1000);
+    
+    return Math.max(0, remaining);
+  }, []);
 
   // Buscar perfil do ganhador
   const fetchWinnerProfile = async (winnerId: string): Promise<string | null> => {
@@ -165,7 +179,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       winnerId: auction.winner_id,
       winnerName: winnerNameWithRegion,
       status: auction.status,
-      created_at: auction.created_at
+      created_at: auction.created_at,
+      last_bid_at: auction.last_bid_at
     };
   };
 
@@ -211,15 +226,6 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       
       setAuctions(cleanAuctions);
 
-      // Inicializar timers com time_left de cada leilão
-      const newTimers = new Map<string, number>();
-      cleanAuctions.forEach(auction => {
-        if (auction.auctionStatus === 'active') {
-          newTimers.set(auction.id, auction.timeLeft);
-        }
-      });
-      setTimers(newTimers);
-
       console.log(`✅ [REALTIME-CONTEXT] ${cleanAuctions.length} leilões carregados`);
     } catch (error) {
       console.error('❌ [REALTIME-CONTEXT] Erro:', error);
@@ -237,25 +243,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       prev.map(auction => auction.id === updatedAuction.id ? updatedAuction : auction)
     );
 
-    // Se recebeu novo lance, resetar timer para 15 segundos
-    if (updatedAuction.auctionStatus === 'active') {
-      setTimers(prev => {
-        const newTimers = new Map(prev);
-        newTimers.set(auctionId, 15);
-        return newTimers;
-      });
-      console.log(`🎯 [${auctionId}] Timer resetado para 15s via Realtime`);
-    }
-
-    // Se finalizou, remover do timer
-    if (updatedAuction.auctionStatus === 'finished') {
-      setTimers(prev => {
-        const newTimers = new Map(prev);
-        newTimers.delete(auctionId);
-        return newTimers;
-      });
-      console.log(`🏁 [${auctionId}] Leilão finalizado`);
-    }
+    console.log(`🎯 [${auctionId}] Atualizado via Realtime | last_bid_at: ${updatedAuction.last_bid_at}`);
   }, []);
 
   // Adicionar novo leilão
@@ -265,14 +253,6 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     
     if (newAuction.auctionStatus === 'active' || newAuction.auctionStatus === 'waiting') {
       setAuctions(prev => [newAuction, ...prev]);
-      
-      if (newAuction.auctionStatus === 'active') {
-        setTimers(prev => {
-          const newTimers = new Map(prev);
-          newTimers.set(newAuction.id, newAuction.timeLeft);
-          return newTimers;
-        });
-      }
     }
     
     return newAuction;
@@ -288,30 +268,32 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     );
   }, []);
 
-  // Timer local que decrementa a cada segundo
+  // Tick a cada segundo para forçar re-render e atualizar timers calculados
   useEffect(() => {
-    timerIntervalRef.current = setInterval(() => {
-      setTimers(prev => {
-        const newTimers = new Map(prev);
-        let hasChanges = false;
-        
-        newTimers.forEach((time, auctionId) => {
-          if (time > 0) {
-            newTimers.set(auctionId, time - 1);
-            hasChanges = true;
-          }
-        });
-        
-        return hasChanges ? newTimers : prev;
-      });
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
     }, 1000);
 
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync automático quando timer está crítico (< 3s)
+  useEffect(() => {
+    const checkCriticalTimers = () => {
+      const hasLowTimer = auctions.some(auction => {
+        const timeLeft = calculateTimeLeft(auction);
+        return timeLeft > 0 && timeLeft <= 3;
+      });
+      
+      if (hasLowTimer) {
+        console.log('⚠️ [REALTIME-CONTEXT] Timer crítico detectado, forçando sync');
+        fetchAuctions();
       }
     };
-  }, []);
+    
+    const interval = setInterval(checkCriticalTimers, 3000);
+    return () => clearInterval(interval);
+  }, [auctions, calculateTimeLeft, fetchAuctions]);
 
   // Resync periódico a cada 60 segundos
   useEffect(() => {
@@ -349,7 +331,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       .on('postgres_changes', 
         { event: 'UPDATE', schema: 'public', table: 'auctions' },
         async (payload) => {
-          console.log(`📡 [REALTIME] UPDATE recebido: ${payload.new.id}`);
+          console.log(`📡 [REALTIME] UPDATE recebido: ${payload.new.id} | last_bid_at: ${(payload.new as any).last_bid_at}`);
           await updateAuction(payload.new.id, payload.new);
         }
       )
@@ -371,15 +353,6 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         async (payload) => {
           console.log(`📡 [REALTIME] Novo lance: ${payload.new.auction_id}`);
           await updateRecentBidders(payload.new.auction_id);
-          
-          // Resetar timer para 15 segundos quando novo lance
-          setTimers(prev => {
-            const newTimers = new Map(prev);
-            if (newTimers.has(payload.new.auction_id)) {
-              newTimers.set(payload.new.auction_id, 15);
-            }
-            return newTimers;
-          });
         }
       )
       .subscribe((status) => {
@@ -393,7 +366,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
               toast({
                 title: "Conexão instável",
                 description: "Reconectando automaticamente...",
-                variant: "default", // Menos alarmante que "destructive"
+                variant: "default",
               });
               disconnectToastTimeoutRef.current = undefined;
             }, 5000);
@@ -433,14 +406,15 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     };
   }, [fetchAuctions, updateAuction, addAuction, updateRecentBidders, toast]);
 
-  // Função para obter timer de um leilão específico
+  // Função para obter timer de um leilão específico (calculado dinamicamente)
   const getAuctionTimer = useCallback((auctionId: string) => {
-    return timers.get(auctionId) ?? 0;
-  }, [timers]);
+    const auction = auctions.find(a => a.id === auctionId);
+    if (!auction) return 0;
+    return calculateTimeLeft(auction);
+  }, [auctions, calculateTimeLeft, tick]); // tick força recálculo a cada segundo
 
   const value = {
     auctions,
-    timers,
     isConnected,
     loading,
     getAuctionTimer,
