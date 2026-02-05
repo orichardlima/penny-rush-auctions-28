@@ -61,6 +61,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
   const timerIntervalRef = useRef<NodeJS.Timeout>();
   const resyncIntervalRef = useRef<NodeJS.Timeout>();
   const emergencyPollRef = useRef<NodeJS.Timeout>();
+  const disconnectToastTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Buscar perfil do ganhador
   const fetchWinnerProfile = async (winnerId: string): Promise<string | null> => {
@@ -386,11 +387,17 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         setIsConnected(status === 'SUBSCRIBED');
 
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          toast({
-            title: "Conexão perdida",
-            description: "Tentando reconectar...",
-            variant: "destructive",
-          });
+          // Aguardar 5 segundos antes de mostrar toast (reconexões rápidas são silenciosas)
+          if (!disconnectToastTimeoutRef.current) {
+            disconnectToastTimeoutRef.current = setTimeout(() => {
+              toast({
+                title: "Conexão instável",
+                description: "Reconectando automaticamente...",
+                variant: "default", // Menos alarmante que "destructive"
+              });
+              disconnectToastTimeoutRef.current = undefined;
+            }, 5000);
+          }
 
           // Ativar polling de emergência
           if (!emergencyPollRef.current) {
@@ -400,6 +407,13 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
             }, 5000);
           }
         } else if (status === 'SUBSCRIBED') {
+          // Cancelar toast pendente se reconectou rapidamente
+          if (disconnectToastTimeoutRef.current) {
+            clearTimeout(disconnectToastTimeoutRef.current);
+            disconnectToastTimeoutRef.current = undefined;
+            console.log('✅ [REALTIME-CONTEXT] Reconexão silenciosa bem-sucedida');
+          }
+          
           // Desativar polling de emergência quando reconectar
           if (emergencyPollRef.current) {
             clearInterval(emergencyPollRef.current);
@@ -412,6 +426,9 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       supabase.removeChannel(channel);
       if (emergencyPollRef.current) {
         clearInterval(emergencyPollRef.current);
+      }
+      if (disconnectToastTimeoutRef.current) {
+        clearTimeout(disconnectToastTimeoutRef.current);
       }
     };
   }, [fetchAuctions, updateAuction, addAuction, updateRecentBidders, toast]);
