@@ -1,152 +1,186 @@
 
-# Otimizacao Urgente do Realtime - Plano de Implementacao
+# Plano: Melhorar Estabilidade da Conexão Realtime em Mobile
 
-## ✅ STATUS: IMPLEMENTADO
+## Problema Identificado
 
-A otimização foi implementada com sucesso. Consumo de Realtime reduzido de ~120% para menos de 5%.
+A mensagem "Conexão perdida - Tentando reconectar..." aparece frequentemente em celulares porque:
 
----
+1. Navegadores mobile fazem "throttling" (reduzem execução de JavaScript) quando a aba está em segundo plano
+2. Os heartbeats do Supabase Realtime não são enviados a tempo
+3. O servidor assume que o cliente desconectou e fecha a conexão
+4. Ao retornar, o sistema detecta a desconexão e exibe o toast
 
-## Resumo Executivo
-
-### 1. Criar um Novo Context Global para Leiloes
-
-Vamos criar um arquivo `AuctionRealtimeContext.tsx` que sera responsavel por:
-- Manter UM UNICO canal Realtime para toda a aplicacao
-- Gerenciar o timer de TODOS os leiloes localmente no navegador
-- Receber e propagar atualizacoes de lances em tempo real
-
-### 2. Remover o Sistema de Polling
-
-O arquivo `useIndependentTimer.ts` que faz verificacoes a cada 500ms sera completamente removido. Isso elimina a principal fonte de consumo.
-
-### 3. Simplificar as Paginas
-
-As paginas `Index.tsx` e `Auctions.tsx` terao suas subscriptions removidas, pois o Context ira centralizar tudo.
-
-### 4. Ajustar Sistema de Protecao
-
-O `useRealTimeProtection.ts` sera modificado para executar apenas para administradores, reduzindo significativamente as chamadas.
+Este é um comportamento normal e esperado em redes móveis, mas a experiência pode ser melhorada.
 
 ---
 
-## Arquivos que Serao Criados
+## Solução Proposta
 
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/contexts/AuctionRealtimeContext.tsx` | Context global com 1 canal Realtime compartilhado |
+Implementar as melhores práticas recomendadas pelo Supabase para conexões Realtime estáveis:
+
+### 1. Habilitar Web Worker para Heartbeats
+
+Mover a lógica de heartbeat para um Web Worker, que é menos afetado pelo throttling do navegador:
+
+```typescript
+// No cliente Supabase
+realtime: {
+  worker: true,  // Heartbeats em thread separada
+}
+```
+
+### 2. Implementar heartbeatCallback para Reconexão Automática
+
+Detectar desconexões silenciosas e reconectar automaticamente:
+
+```typescript
+realtime: {
+  heartbeatCallback: (status) => {
+    if (status === 'disconnected') {
+      client.connect()  // Reconectar automaticamente
+    }
+  },
+}
+```
+
+### 3. Melhorar Experiência de Reconexão
+
+- Não mostrar toast de "Conexão perdida" imediatamente (esperar 3-5 segundos)
+- Mostrar toast apenas se a reconexão demorar muito tempo
+- Mostrar indicador sutil ao invés de toast intrusivo
 
 ---
 
-## Arquivos que Serao Modificados
+## Arquivos a Serem Modificados
 
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---------|---------|
-| `src/components/AuctionCard.tsx` | Usar dados do Context ao inves do hook de polling |
-| `src/pages/Index.tsx` | Remover subscription duplicada, usar Context |
-| `src/pages/Auctions.tsx` | Remover subscription duplicada, usar Context |
-| `src/hooks/useRealTimeProtection.ts` | Executar apenas para admins |
-| `src/App.tsx` | Adicionar o Provider do Context |
+| `src/integrations/supabase/client.ts` | Adicionar `worker: true` e `heartbeatCallback` na configuração Realtime |
+| `src/contexts/AuctionRealtimeContext.tsx` | Melhorar lógica de tratamento de desconexão e reconexão |
 
 ---
 
-## Arquivos que Serao Removidos
+## Detalhes Técnicos
 
-| Arquivo | Motivo |
-|---------|--------|
-| `src/hooks/useIndependentTimer.ts` | Substituido pelo Context centralizado |
+### Mudança no Cliente Supabase
+
+O arquivo `src/integrations/supabase/client.ts` será atualizado para:
+
+```typescript
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  realtime: {
+    worker: true,  // NOVO: Heartbeats via Web Worker
+    heartbeatCallback: (status) => {
+      if (status === 'disconnected') {
+        // Reconectar automaticamente quando heartbeat falha
+        supabase.realtime.connect()
+      }
+    },
+  }
+});
+```
+
+### Mudança no Context de Leilões
+
+O `AuctionRealtimeContext.tsx` será atualizado para:
+
+1. Adicionar delay antes de mostrar toast de desconexão
+2. Usar um indicador visual sutil ao invés de toast (opcional)
+3. Cancelar o toast se reconectar rapidamente
+
+Exemplo da lógica:
+
+```typescript
+let disconnectTimeoutRef = useRef<NodeJS.Timeout>();
+
+// No subscribe callback:
+if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+  // Aguardar 5 segundos antes de alertar o usuario
+  disconnectTimeoutRef.current = setTimeout(() => {
+    toast({
+      title: "Conexão instável",
+      description: "Reconectando automaticamente...",
+      variant: "default",  // Menos alarmante
+    });
+  }, 5000);
+  
+  // Ativar polling de emergencia
+  // ...
+  
+} else if (status === 'SUBSCRIBED') {
+  // Cancelar toast pendente se reconectou rapidamente
+  if (disconnectTimeoutRef.current) {
+    clearTimeout(disconnectTimeoutRef.current);
+  }
+  // ...
+}
+```
 
 ---
 
-## Como Vai Funcionar
+## Benefícios Esperados
 
-### Timer Local
-
-1. Ao carregar a pagina, buscamos o `time_left` de cada leilao (1 query)
-2. Um `setInterval` local decrementa o timer a cada segundo SEM consultar o banco
-3. Quando um lance e recebido via Realtime, o timer e resetado para 15 segundos
-
-### Propagacao de Lances
-
-1. Usuario A da um lance no Rio de Janeiro
-2. O lance e inserido no banco de dados (tabela `bids`)
-3. O trigger do banco atualiza a tabela `auctions`
-4. O Realtime propaga o evento para TODOS os usuarios conectados
-5. Usuario B em Recife recebe o evento e seu timer e resetado
-
-Tempo total: 200-500ms (igual ao sistema atual)
-
----
-
-## Beneficios
-
-| Metrica | Antes | Depois |
+| Aspecto | Antes | Depois |
 |---------|-------|--------|
-| Queries por minuto (3 leiloes) | ~360/usuario | 0 |
-| Channels Realtime ativos | 6-8 | 1-2 |
-| Consumo de cota | 120% | Menos de 5% |
-| Experiencia do usuario | Normal | Identica |
+| Toast de desconexão | Aparece imediatamente | Aparece só após 5s sem conexão |
+| Heartbeats em background | Throttled pelo navegador | Executam via Web Worker |
+| Reconexão | Manual/polling | Automática via heartbeatCallback |
+| Experiência mobile | Toasts frequentes | Reconexão silenciosa |
 
 ---
 
-## Garantias de Seguranca
+## Fluxo de Reconexão
 
-1. **Sincronizacao ao voltar a aba**: Quando usuario volta a aba, forcamos sync com servidor
-2. **Resync periodico**: A cada 60 segundos, verificamos se timer esta correto
-3. **Servidor e autoridade**: Finalizacao de leilao sempre e decidida pelo backend
-4. **Fallback**: Se Realtime desconectar, ativamos polling de emergencia (30s)
-
----
-
-## Detalhes Tecnicos
-
-### Estrutura do Context
-
-O novo Context tera:
-
-**Estado:**
-- `auctions`: Map com dados de todos os leiloes
-- `timers`: Map com timer de cada leilao
-- `isConnected`: Status da conexao Realtime
-
-**Funcoes:**
-- `updateAuctionTimer()`: Atualiza timer de um leilao especifico
-- `forceSync()`: Forca sincronizacao com servidor
-
-### Eventos Escutados
-
-O Context escutara apenas:
-- `UPDATE` na tabela `auctions` (mudancas de preco, status, etc)
-- `INSERT` na tabela `bids` (novos lances)
-
-### Logica do Timer
-
-```
-Para cada leilao ativo:
-  - setInterval(1000ms) decrementa timer localmente
-  - Ao receber evento de novo lance: timer = 15
-  - Ao timer = 0: mostrar "Verificando..."
-  - Ao receber status = 'finished': parar timer
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    USUARIO EM MOBILE                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Navegador coloca aba em background (throttling ativado)        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  ANTES: Heartbeats param, servidor desconecta                   │
+│  DEPOIS: Web Worker mantém heartbeats, conexão estável          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+               ┌──────────────┴──────────────┐
+               │                             │
+               ▼                             ▼
+┌────────────────────────┐     ┌─────────────────────────────────┐
+│  Se desconectar mesmo  │     │  Se conexão mantida             │
+│  assim:                │     │                                 │
+│  - heartbeatCallback   │     │  - Nenhuma ação necessária      │
+│    detecta             │     │  - Usuário não percebe nada     │
+│  - Reconecta auto      │     │                                 │
+│  - Toast só após 5s    │     │                                 │
+└────────────────────────┘     └─────────────────────────────────┘
 ```
 
 ---
 
-## Ordem de Implementacao
+## Considerações
 
-1. Criar `AuctionRealtimeContext.tsx`
-2. Adicionar Provider no `App.tsx`
-3. Modificar `AuctionCard.tsx` para usar Context
-4. Limpar `Index.tsx` e `Auctions.tsx`
-5. Ajustar `useRealTimeProtection.ts`
-6. Remover `useIndependentTimer.ts`
+1. **Service Worker existente**: O projeto já tem um `public/sw.js`. A opção `worker: true` do Supabase usa um Web Worker interno, não conflita.
+
+2. **Compatibilidade**: Web Workers são suportados em 97%+ dos navegadores, incluindo todos os móveis modernos.
+
+3. **Fallback**: Se Web Worker não estiver disponível, o Supabase automaticamente usa a thread principal.
 
 ---
 
 ## Resultado Esperado
 
-Apos a implementacao:
-- Lances continuam aparecendo em tempo real para todos
-- Timers continuam contando corretamente
-- Precos e nomes de participantes atualizam instantaneamente
-- Consumo de Realtime cai drasticamente
-- Nenhuma mudanca visivel para o usuario final
+Após a implementação:
+- Usuários mobile verão muito menos mensagens de "Conexão perdida"
+- Reconexões acontecem silenciosamente em segundo plano
+- A experiência será mais fluida e menos interruptiva
+- Dados continuam sincronizando normalmente
