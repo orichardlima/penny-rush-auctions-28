@@ -1,10 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useRealTimeProtection = () => {
   const intervalRef = useRef<NodeJS.Timeout>();
+  const { profile } = useAuth();
 
   useEffect(() => {
+    // Apenas executar para administradores
+    if (!profile?.is_admin) {
+      console.log('🛡️ [PROTECTION-SYSTEM] Ignorado (não é admin)');
+      return;
+    }
+
     const callProtectionSystem = async () => {
       try {
         const { data, error } = await supabase.functions.invoke('sync-timers-and-protection', {
@@ -21,9 +29,9 @@ export const useRealTimeProtection = () => {
       }
     };
 
-// Chamadas a cada 15 segundos (não muito frequente)
+    // Chamadas a cada 15 segundos (apenas para admins)
     intervalRef.current = setInterval(callProtectionSystem, 15000);
-    console.log('🛡️ [PROTECTION-SYSTEM] Sistema iniciado (15s)');
+    console.log('🛡️ [PROTECTION-SYSTEM] Sistema iniciado para ADMIN (15s)');
 
     // Chamada inicial
     callProtectionSystem();
@@ -34,5 +42,5 @@ export const useRealTimeProtection = () => {
         console.log('🛑 [PROTECTION-SYSTEM] Sistema parado');
       }
     };
-  }, []);
+  }, [profile?.is_admin]);
 };

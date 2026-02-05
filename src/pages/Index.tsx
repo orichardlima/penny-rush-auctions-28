@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { AuctionCard } from "@/components/AuctionCard";
@@ -14,7 +14,7 @@ import { PixPaymentModal } from "@/components/PixPaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
-import { useAuctionData } from "@/hooks/useAuctionData";
+import { useAuctionRealtime } from "@/contexts/AuctionRealtimeContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,59 +39,14 @@ const Index = () => {
   const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
-  const { 
-    auctions, 
-    loading, 
-    fetchAuctions, 
-    updateAuction, 
-    addAuction, 
-    updateRecentBidders,
-    setAuctions
-  } = useAuctionData();
+  // Usar Context centralizado - sem subscription duplicada
+  const { auctions, loading, forceSync } = useAuctionRealtime();
 
   // Hook para verificar e ativar leilões automaticamente
-  useAuctionTimer(fetchAuctions);
+  useAuctionTimer(forceSync);
 
-  // Sistema de proteção em tempo real (1 segundo)
+  // Sistema de proteção em tempo real (apenas para admins)
   useRealTimeProtection();
-
-  useEffect(() => {
-    fetchAuctions();
-
-    // Configurar realtime updates para leilões e lances
-    const channel = supabase
-      .channel('auctions-updates')
-      .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'auctions' },
-        async (payload) => {
-          await updateAuction(payload.new.id, payload.new);
-        }
-      )
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'auctions' },
-        async (payload) => {
-          const newAuction = await addAuction(payload.new);
-          if (newAuction.status === 'active' || newAuction.status === 'waiting') {
-            toast({
-              title: "Novo leilão disponível!",
-              description: `${newAuction.title} foi adicionado aos leilões ativos.`,
-            });
-          }
-        }
-      )
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'bids' },
-        async (payload) => {
-          const auctionId = payload.new.auction_id;
-          await updateRecentBidders(auctionId);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [toast, fetchAuctions, updateAuction, addAuction, updateRecentBidders]);
 
   const handleBid = async (auctionId: string) => {
     // Verificar se já está processando um lance para este leilão
