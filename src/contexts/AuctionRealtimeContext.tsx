@@ -85,9 +85,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
   
   const resyncIntervalRef = useRef<NodeJS.Timeout>();
   const emergencyPollRef = useRef<NodeJS.Timeout>();
-  const disconnectToastTimeoutRef = useRef<NodeJS.Timeout>();
   const lastCriticalSyncRef = useRef<Map<string, number>>(new Map());
-  const lastToastTimeRef = useRef<number>(0);
 
   // Calcular tempo restante a partir de timestamp absoluto (usando helper)
   const calculateTimeLeft = useCallback((auction: AuctionData): number => {
@@ -434,29 +432,9 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         setIsConnected(status === 'SUBSCRIBED');
 
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          // Aguardar 10 segundos antes de mostrar toast (reconexões rápidas são silenciosas)
-          if (!disconnectToastTimeoutRef.current) {
-            disconnectToastTimeoutRef.current = setTimeout(() => {
-              const now = Date.now();
-              const timeSinceLastToast = now - lastToastTimeRef.current;
-              
-              // Cooldown de 60 segundos entre toasts
-              if (timeSinceLastToast > 60000) {
-                lastToastTimeRef.current = now;
-                toast({
-                  title: "Conexão instável",
-                  description: "Reconectando automaticamente...",
-                  variant: "default",
-                });
-              } else {
-                console.log('🔇 [REALTIME] Toast suprimido (cooldown 60s)');
-              }
-              
-              disconnectToastTimeoutRef.current = undefined;
-            }, 10000);
-          }
-
-          // Ativar polling de emergência
+          console.log('⚠️ [REALTIME] Conexão perdida, ativando polling de emergência');
+          
+          // Ativar polling de emergência (silencioso para usuário)
           if (!emergencyPollRef.current) {
             emergencyPollRef.current = setInterval(() => {
               console.log('🆘 [REALTIME-CONTEXT] Polling de emergência');
@@ -464,12 +442,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
             }, 5000);
           }
         } else if (status === 'SUBSCRIBED') {
-          // Cancelar toast pendente se reconectou rapidamente
-          if (disconnectToastTimeoutRef.current) {
-            clearTimeout(disconnectToastTimeoutRef.current);
-            disconnectToastTimeoutRef.current = undefined;
-            console.log('✅ [REALTIME-CONTEXT] Reconexão silenciosa bem-sucedida');
-          }
+          console.log('✅ [REALTIME] Conexão restabelecida');
           
           // Desativar polling de emergência quando reconectar
           if (emergencyPollRef.current) {
@@ -483,9 +456,6 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       supabase.removeChannel(channel);
       if (emergencyPollRef.current) {
         clearInterval(emergencyPollRef.current);
-      }
-      if (disconnectToastTimeoutRef.current) {
-        clearTimeout(disconnectToastTimeoutRef.current);
       }
     };
   }, [fetchAuctions, updateAuction, addAuction, updateRecentBidders, toast]);
