@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { AuctionCard } from "@/components/AuctionCard";
 import { AuctionFilters } from "@/components/AuctionFilters";
@@ -9,7 +9,7 @@ import { SEOHead } from "@/components/SEOHead";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
 import { useAuctionFilters } from "@/hooks/useAuctionFilters";
-import { useAuctionData } from "@/hooks/useAuctionData";
+import { useAuctionRealtime } from "@/contexts/AuctionRealtimeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -23,72 +23,14 @@ const Auctions = () => {
   const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
-  const { 
-    auctions, 
-    loading, 
-    fetchAuctions, 
-    updateAuction, 
-    addAuction, 
-    updateRecentBidders 
-  } = useAuctionData();
+  // Usar Context centralizado - sem subscription duplicada
+  const { auctions, loading, forceSync } = useAuctionRealtime();
 
   // Sistema de filtros
   const { filters, setFilters, filteredAuctions, totalResults } = useAuctionFilters(auctions);
 
   // Hook para verificar e ativar leilões automaticamente
-  useAuctionTimer(fetchAuctions);
-
-  // Detectar quando usuário volta à aba para forçar sincronização
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        setTimeout(() => {
-          fetchAuctions();
-        }, 500);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [fetchAuctions]);
-
-  useEffect(() => {
-    fetchAuctions();
-
-    // Configurar realtime updates para leilões e lances
-    const channel = supabase
-      .channel('auctions-updates')
-      .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'auctions' },
-        async (payload) => {
-          await updateAuction(payload.new.id, payload.new);
-        }
-      )
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'auctions' },
-        async (payload) => {
-          const newAuction = await addAuction(payload.new);
-          if (newAuction.status === 'active' || newAuction.status === 'waiting') {
-            toast({
-              title: "Novo leilão disponível!",
-              description: `${newAuction.title} foi adicionado aos leilões ativos.`,
-            });
-          }
-        }
-      )
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'bids' },
-        async (payload) => {
-          const auctionId = payload.new.auction_id;
-          await updateRecentBidders(auctionId);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [toast, fetchAuctions, updateAuction, addAuction, updateRecentBidders]);
+  useAuctionTimer(forceSync);
 
   const handleBid = async (auctionId: string) => {
     // Verificar se já está processando um lance para este leilão

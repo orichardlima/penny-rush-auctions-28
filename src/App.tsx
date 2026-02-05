@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AuctionRealtimeProvider } from "@/contexts/AuctionRealtimeContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
 import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 import { CookieConsent } from "@/components/CookieConsent";
@@ -73,14 +74,16 @@ const AppContent = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppContent />
-          <CookieConsent />
-        </BrowserRouter>
-      </TooltipProvider>
+      <AuctionRealtimeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppContent />
+            <CookieConsent />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuctionRealtimeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

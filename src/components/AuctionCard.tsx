@@ -3,9 +3,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Gavel, TrendingUp, Trophy } from 'lucide-react';
-import { useBackendTimer } from '@/hooks/useIndependentTimer';
 
 interface AuctionCardProps {
   id: string;
@@ -53,28 +53,26 @@ export const AuctionCard = ({
   winnerName
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
-
-  // Timer e dados 100% controlados pelo backend hook
-  const {
-    backendTimeLeft,
-    isVerifying,
-    isInitialized,
-    auctionStatus: backendStatus,
-    currentPrice: hookCurrentPrice,
-    totalBids: hookTotalBids,
-    recentBidders: hookRecentBidders,
-    winnerName: hookWinnerName
-  } = useBackendTimer({
-    auctionId: id
-  });
-
-  // Usar dados do hook quando inicializado, props como fallback
-  const displayTimeLeft = isInitialized ? backendTimeLeft : initialTimeLeft;
-  const displayCurrentPrice = isInitialized && hookCurrentPrice > 0 ? hookCurrentPrice : currentPrice;
-  const displayTotalBids = isInitialized && hookTotalBids > 0 ? hookTotalBids : totalBids;
-  const displayWinnerName = isInitialized && hookWinnerName ? hookWinnerName : winnerName;
-  const displayStatus = isInitialized ? backendStatus : auctionStatus;
-  const displayRecentBidders = isInitialized && hookRecentBidders.length > 0 ? hookRecentBidders : recentBidders;
+  
+  // Usar timer do Context centralizado
+  const { getAuctionTimer, auctions } = useAuctionRealtime();
+  
+  // Buscar dados atualizados do Context se disponível
+  const contextAuction = auctions.find(a => a.id === id);
+  
+  // Timer vem do Context (decrementa localmente)
+  const contextTimer = getAuctionTimer(id);
+  const displayTimeLeft = auctionStatus === 'active' && contextTimer > 0 ? contextTimer : initialTimeLeft;
+  
+  // Usar dados do Context quando disponíveis, props como fallback
+  const displayCurrentPrice = contextAuction?.currentPrice ?? currentPrice;
+  const displayTotalBids = contextAuction?.totalBids ?? totalBids;
+  const displayWinnerName = contextAuction?.winnerName ?? winnerName;
+  const displayStatus = contextAuction?.auctionStatus ?? auctionStatus;
+  const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
+  
+  // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
+  const isVerifying = displayStatus === 'active' && displayTimeLeft === 0;
 
   // Função para formatar preços em reais
   const formatPrice = (priceInReais: number) => {
