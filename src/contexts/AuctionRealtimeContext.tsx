@@ -29,11 +29,16 @@ export interface AuctionData {
   last_bid_at: string | null;
 }
 
+export interface AuctionTimerResult {
+  timeLeft: number;
+  isSyncing: boolean;
+}
+
 interface AuctionRealtimeContextType {
   auctions: AuctionData[];
   isConnected: boolean;
   loading: boolean;
-  getAuctionTimer: (auctionId: string) => number;
+  getAuctionTimer: (auctionId: string) => AuctionTimerResult;
   forceSync: () => Promise<void>;
 }
 
@@ -51,6 +56,26 @@ interface AuctionRealtimeProviderProps {
   children: React.ReactNode;
 }
 
+// Helper puro para cálculo de timer baseado em timestamps absolutos
+const calculateTimeLeftFromFields = (
+  status: string,
+  lastBidAt: string | null,
+  endsAt: string | null
+): number => {
+  if (status !== 'active') return 0;
+  if (!lastBidAt) return -1; // Precisa sync
+  
+  const lastBidTime = new Date(lastBidAt).getTime();
+  const bidDeadline = lastBidTime + (15 * 1000); // 15 segundos após último lance
+  
+  let deadline = bidDeadline;
+  if (endsAt) {
+    deadline = Math.min(bidDeadline, new Date(endsAt).getTime());
+  }
+  
+  return Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+};
+
 export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = ({ children }) => {
   const [auctions, setAuctions] = useState<AuctionData[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -61,20 +86,52 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
   const resyncIntervalRef = useRef<NodeJS.Timeout>();
   const emergencyPollRef = useRef<NodeJS.Timeout>();
   const disconnectToastTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastCriticalSyncRef = useRef<Map<string, number>>(new Map());
 
-  // Calcular tempo restante a partir de timestamp absoluto
+  // Calcular tempo restante a partir de timestamp absoluto (usando helper)
   const calculateTimeLeft = useCallback((auction: AuctionData): number => {
-    if (auction.auctionStatus !== 'active') return 0;
-    
-    const lastBidAt = auction.last_bid_at 
-      ? new Date(auction.last_bid_at).getTime() 
-      : Date.now();
-    
-    const deadline = lastBidAt + (15 * 1000); // 15 segundos após último lance
+    return calculateTimeLeftFromFields(
+      auction.auctionStatus === 'active' ? 'active' : auction.status,
+      auction.last_bid_at,
+      auction.ends_at
+    );
+  }, []);
+
+  // Buscar um leilão específico com throttle
+  const fetchSingleAuction = useCallback(async (auctionId: string, throttleMs: number = 2000) => {
+    const lastSync = lastCriticalSyncRef.current.get(auctionId) || 0;
     const now = Date.now();
-    const remaining = Math.ceil((deadline - now) / 1000);
     
-    return Math.max(0, remaining);
+    if (now - lastSync < throttleMs) {
+      console.log(`⏳ [${auctionId}] Throttled (${throttleMs}ms)`);
+      return;
+    }
+    
+    lastCriticalSyncRef.current.set(auctionId, now);
+    
+    try {
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('*')
+        .eq('id', auctionId)
+        .single();
+      
+      if (error || !data) {
+        console.error(`❌ [${auctionId}] Erro ao buscar:`, error);
+        return;
+      }
+      
+      const recentBidders = await fetchRecentBidders(auctionId);
+      const updatedAuction = await transformAuctionData({ ...data, recentBidders });
+      
+      setAuctions(prev => 
+        prev.map(auction => auction.id === auctionId ? updatedAuction : auction)
+      );
+      
+      console.log(`🔄 [${auctionId}] Sync individual | last_bid_at: ${updatedAuction.last_bid_at}`);
+    } catch (error) {
+      console.error(`❌ [${auctionId}] Erro no fetch:`, error);
+    }
   }, []);
 
   // Buscar perfil do ganhador
@@ -234,16 +291,23 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     }
   }, []);
 
-  // Atualizar um leilão específico
+  // Atualizar um leilão específico (usa payload.new diretamente para evitar race condition)
   const updateAuction = useCallback(async (auctionId: string, newData: any) => {
+    // Calcular timeLeft diretamente do payload para evitar state stale
+    const calculatedTimeLeft = calculateTimeLeftFromFields(
+      newData.status,
+      newData.last_bid_at,
+      newData.ends_at
+    );
+    
+    console.log(`🎯 [${auctionId}] UPDATE | last_bid_at: ${newData.last_bid_at} | timeLeft calc: ${calculatedTimeLeft}s`);
+    
     const recentBidders = await fetchRecentBidders(auctionId);
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
     
     setAuctions(prev => 
       prev.map(auction => auction.id === updatedAuction.id ? updatedAuction : auction)
     );
-
-    console.log(`🎯 [${auctionId}] Atualizado via Realtime | last_bid_at: ${updatedAuction.last_bid_at}`);
   }, []);
 
   // Adicionar novo leilão
@@ -277,23 +341,32 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     return () => clearInterval(interval);
   }, []);
 
-  // Sync automático quando timer está crítico (< 3s)
+  // Sync automático quando timer está crítico (< 3s) - apenas leilões ativos
   useEffect(() => {
     const checkCriticalTimers = () => {
-      const hasLowTimer = auctions.some(auction => {
-        const timeLeft = calculateTimeLeft(auction);
-        return timeLeft > 0 && timeLeft <= 3;
-      });
+      // Filtrar apenas leilões ativos antes de iterar
+      const activeAuctions = auctions.filter(a => a.auctionStatus === 'active');
       
-      if (hasLowTimer) {
-        console.log('⚠️ [REALTIME-CONTEXT] Timer crítico detectado, forçando sync');
-        fetchAuctions();
-      }
+      activeAuctions.forEach(auction => {
+        const timeLeft = calculateTimeLeft(auction);
+        
+        // Timer crítico (1-3s): sync com throttle de 2s
+        if (timeLeft > 0 && timeLeft <= 3) {
+          console.log(`⚠️ [${auction.id}] Timer crítico: ${timeLeft}s`);
+          fetchSingleAuction(auction.id, 2000);
+        }
+        
+        // Precisa sync inicial (last_bid_at null): throttle de 5s
+        if (timeLeft === -1) {
+          console.log(`🔍 [${auction.id}] Precisa sync inicial`);
+          fetchSingleAuction(auction.id, 5000);
+        }
+      });
     };
     
-    const interval = setInterval(checkCriticalTimers, 3000);
+    const interval = setInterval(checkCriticalTimers, 1000);
     return () => clearInterval(interval);
-  }, [auctions, calculateTimeLeft, fetchAuctions]);
+  }, [auctions, calculateTimeLeft, fetchSingleAuction]);
 
   // Resync periódico a cada 60 segundos
   useEffect(() => {
@@ -407,10 +480,17 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
   }, [fetchAuctions, updateAuction, addAuction, updateRecentBidders, toast]);
 
   // Função para obter timer de um leilão específico (calculado dinamicamente)
-  const getAuctionTimer = useCallback((auctionId: string) => {
+  const getAuctionTimer = useCallback((auctionId: string): AuctionTimerResult => {
     const auction = auctions.find(a => a.id === auctionId);
-    if (!auction) return 0;
-    return calculateTimeLeft(auction);
+    if (!auction) return { timeLeft: 0, isSyncing: false };
+    
+    const timeLeft = calculateTimeLeft(auction);
+    const isSyncing = timeLeft === -1;
+    
+    return { 
+      timeLeft: isSyncing ? 0 : timeLeft, 
+      isSyncing 
+    };
   }, [auctions, calculateTimeLeft, tick]); // tick força recálculo a cada segundo
 
   const value = {
