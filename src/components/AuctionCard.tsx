@@ -60,8 +60,8 @@ export const AuctionCard = ({
   // Buscar dados atualizados do Context se disponível
   const contextAuction = auctions.find(a => a.id === id);
   
-  // Timer vem do Context (decrementa localmente)
-  const contextTimer = getAuctionTimer(id);
+  // Timer vem do Context (decrementa localmente) - agora retorna {timeLeft, isSyncing}
+  const { timeLeft: contextTimer, isSyncing } = getAuctionTimer(id);
   const displayTimeLeft = auctionStatus === 'active' && contextTimer > 0 ? contextTimer : initialTimeLeft;
   
   // Usar dados do Context quando disponíveis, props como fallback
@@ -72,7 +72,8 @@ export const AuctionCard = ({
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
   
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
-  const isVerifying = displayStatus === 'active' && displayTimeLeft === 0;
+  // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
+  const isVerifying = displayStatus === 'active' && (displayTimeLeft === 0 || isSyncing);
 
   // Função para formatar preços em reais
   const formatPrice = (priceInReais: number) => {
