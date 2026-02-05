@@ -1,212 +1,152 @@
 
-# Sistema de Configuracao do Banner de Lancamento pelo Admin
+# Otimizacao Urgente do Realtime - Plano de Implementacao
 
-## Resumo
+## Resumo Executivo
 
-Transformar o banner de lancamento estatico em um componente dinamico controlado pelo painel administrativo. O admin podera ligar/desligar, editar textos, configurar links dos botoes e definir data de expiracao automatica.
-
----
-
-## Arquitetura da Solucao
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           FLUXO DE DADOS                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌─────────────┐      ┌──────────────────┐      ┌───────────────────┐     │
-│   │   ADMIN     │ ──── │  SystemSettings  │ ──── │  system_settings  │     │
-│   │   PANEL     │      │    Component     │      │     (Supabase)    │     │
-│   └─────────────┘      └──────────────────┘      └───────────────────┘     │
-│                                                            │                │
-│                                                            ▼                │
-│   ┌─────────────┐      ┌──────────────────┐      ┌───────────────────┐     │
-│   │   USUARIO   │ ◄─── │   LaunchBanner   │ ◄─── │ useLaunchBanner   │     │
-│   │    (Home)   │      │    Component     │      │      (Hook)       │     │
-│   └─────────────┘      └──────────────────┘      └───────────────────┘     │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+Vamos reduzir o consumo de Realtime Messages de 120% para menos de 5% atraves de uma centralizacao inteligente das subscriptions, mantendo **100% da experiencia de usuario** atual.
 
 ---
 
-## Arquivos a Criar/Modificar
+## O Que Sera Feito
 
-| Arquivo | Acao | Descricao |
-|---------|------|-----------|
-| `supabase/migrations/` | Criar | Adicionar configuracoes do banner na tabela system_settings |
-| `src/hooks/useLaunchBanner.ts` | Criar | Hook para buscar e gerenciar configuracoes do banner |
-| `src/components/LaunchBanner.tsx` | Modificar | Usar hook e exibir conteudo dinamico |
-| `src/components/SystemSettings.tsx` | Modificar | Adicionar secao de configuracao do banner |
+### 1. Criar um Novo Context Global para Leiloes
 
----
+Vamos criar um arquivo `AuctionRealtimeContext.tsx` que sera responsavel por:
+- Manter UM UNICO canal Realtime para toda a aplicacao
+- Gerenciar o timer de TODOS os leiloes localmente no navegador
+- Receber e propagar atualizacoes de lances em tempo real
 
-## Novas Configuracoes no Banco de Dados
+### 2. Remover o Sistema de Polling
 
-As seguintes entradas serao adicionadas na tabela `system_settings`:
+O arquivo `useIndependentTimer.ts` que faz verificacoes a cada 500ms sera completamente removido. Isso elimina a principal fonte de consumo.
 
-| setting_key | setting_type | setting_value (padrao) | description |
-|-------------|--------------|------------------------|-------------|
-| `launch_banner_enabled` | boolean | `true` | Ativar/desativar banner de lancamento |
-| `launch_banner_title` | string | `LANCAMENTO OFICIAL!` | Titulo principal do banner |
-| `launch_banner_subtitle` | string | `A plataforma Show de Lances esta no ar!` | Subtitulo do banner |
-| `launch_banner_highlight` | string | `Cada lance custa apenas R$ 1!` | Texto de destaque (desktop) |
-| `launch_banner_cta1_text` | string | `Ver Leiloes` | Texto do botao primario |
-| `launch_banner_cta1_link` | string | `/#leiloes` | Link do botao primario |
-| `launch_banner_cta2_text` | string | `Comprar Lances` | Texto do botao secundario |
-| `launch_banner_cta2_link` | string | `/pacotes` | Link do botao secundario |
-| `launch_banner_mobile_cta_text` | string | `Participar` | Texto do botao mobile |
-| `launch_banner_expires_at` | string | (vazio) | Data/hora de expiracao automatica (ISO) |
+### 3. Simplificar as Paginas
+
+As paginas `Index.tsx` e `Auctions.tsx` terao suas subscriptions removidas, pois o Context ira centralizar tudo.
+
+### 4. Ajustar Sistema de Protecao
+
+O `useRealTimeProtection.ts` sera modificado para executar apenas para administradores, reduzindo significativamente as chamadas.
 
 ---
 
-## Hook useLaunchBanner
+## Arquivos que Serao Criados
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                      useLaunchBanner                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   Retorna:                                                       │
-│   ┌───────────────────────────────────────────────────────────┐ │
-│   │ - isVisible: boolean (considera enabled + expires_at)     │ │
-│   │ - isLoading: boolean                                      │ │
-│   │ - title: string                                           │ │
-│   │ - subtitle: string                                        │ │
-│   │ - highlight: string                                       │ │
-│   │ - cta1: { text, link }                                    │ │
-│   │ - cta2: { text, link }                                    │ │
-│   │ - mobileCta: { text, link }                               │ │
-│   │ - expiresAt: Date | null                                  │ │
-│   └───────────────────────────────────────────────────────────┘ │
-│                                                                  │
-│   Logica:                                                        │
-│   1. Buscar configuracoes da system_settings                     │
-│   2. Verificar se banner esta habilitado                         │
-│   3. Verificar se nao expirou (expires_at > now)                 │
-│   4. Verificar localStorage (usuario ja fechou?)                 │
-│   5. Retornar dados formatados                                   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/contexts/AuctionRealtimeContext.tsx` | Context global com 1 canal Realtime compartilhado |
 
 ---
 
-## Secao no Painel Admin (SystemSettings.tsx)
+## Arquivos que Serao Modificados
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  🎉  Banner de Lancamento                                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  [Switch] Ativar banner de lancamento                                │   │
-│  │  O banner sera exibido no topo da pagina inicial                     │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  ───────────────────────────────────────────────────────────────────────    │
-│                                                                              │
-│  Titulo Principal                     Subtitulo                             │
-│  ┌─────────────────────────┐         ┌─────────────────────────┐           │
-│  │ LANCAMENTO OFICIAL!     │         │ A plataforma Show de... │           │
-│  └─────────────────────────┘         └─────────────────────────┘           │
-│                                                                              │
-│  Texto de Destaque (Desktop)                                                │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ Cada lance custa apenas R$ 1!                                        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  ───────────────────────────────────────────────────────────────────────    │
-│                                                                              │
-│  Botao Primario                       Botao Secundario                      │
-│  ┌─────────────────────────┐         ┌─────────────────────────┐           │
-│  │ Texto: Ver Leiloes      │         │ Texto: Comprar Lances   │           │
-│  │ Link: /#leiloes         │         │ Link: /pacotes          │           │
-│  └─────────────────────────┘         └─────────────────────────┘           │
-│                                                                              │
-│  Botao Mobile                                                               │
-│  ┌─────────────────────────┐                                               │
-│  │ Texto: Participar       │                                               │
-│  └─────────────────────────┘                                               │
-│                                                                              │
-│  ───────────────────────────────────────────────────────────────────────    │
-│                                                                              │
-│  Expiracao Automatica                                                       │
-│  ┌────────────────────────────┐   Tempo restante: 7d 12h 30min             │
-│  │ 2026-02-15T23:59           │                                            │
-│  └────────────────────────────┘                                            │
-│  Deixe vazio para banner sem prazo definido                                │
-│                                                                              │
-│  ───────────────────────────────────────────────────────────────────────    │
-│                                                                              │
-│  Preview do Banner:                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  🎉 LANCAMENTO OFICIAL! A plataforma Show de Lances esta no ar!     │   │
-│  │                [Ver Leiloes] [Comprar Lances]              [X]       │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│                                           [ 💾 Salvar Configuracoes ]       │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/AuctionCard.tsx` | Usar dados do Context ao inves do hook de polling |
+| `src/pages/Index.tsx` | Remover subscription duplicada, usar Context |
+| `src/pages/Auctions.tsx` | Remover subscription duplicada, usar Context |
+| `src/hooks/useRealTimeProtection.ts` | Executar apenas para admins |
+| `src/App.tsx` | Adicionar o Provider do Context |
 
 ---
 
-## Detalhes Tecnicos
+## Arquivos que Serao Removidos
 
-### 1. Migracao SQL
-
-Inserir 10 novas configuracoes na tabela `system_settings` usando INSERT:
-- Todas as configuracoes terao valores padrao funcionais
-- O tipo `string` sera usado para textos e links
-- O tipo `boolean` para o toggle de ativacao
-- A data de expiracao sera armazenada como string ISO
-
-### 2. Hook useLaunchBanner
-
-- Usar `useQuery` do TanStack Query para cache e revalidacao
-- Verificar expiracao antes de retornar `isVisible = true`
-- Manter compatibilidade com localStorage para preferencia do usuario
-- Stale time de 60 segundos para nao sobrecarregar requisicoes
-
-### 3. Modificacao do LaunchBanner
-
-- Substituir textos hardcoded pelos valores do hook
-- Exibir skeleton/loading enquanto carrega configuracoes
-- Manter toda a logica visual e animacoes existentes
-- Adicionar verificacao de expiracao automatica
-
-### 4. Secao Admin
-
-- Seguir o padrao visual das outras secoes do SystemSettings
-- Usar gradiente roxo/rosa para combinar com tema de lancamento
-- Incluir preview ao vivo do banner com os textos configurados
-- Calcular e exibir tempo restante ate expiracao
+| Arquivo | Motivo |
+|---------|--------|
+| `src/hooks/useIndependentTimer.ts` | Substituido pelo Context centralizado |
 
 ---
 
-## Fluxo de Implementacao
+## Como Vai Funcionar
 
-1. Criar migracao SQL para adicionar configuracoes do banner
-2. Criar hook `useLaunchBanner.ts` para buscar e processar dados
-3. Atualizar `LaunchBanner.tsx` para usar o hook
-4. Adicionar secao de configuracao no `SystemSettings.tsx`
-5. Testar funcionamento completo (toggle, edicao, expiracao)
+### Timer Local
 
----
+1. Ao carregar a pagina, buscamos o `time_left` de cada leilao (1 query)
+2. Um `setInterval` local decrementa o timer a cada segundo SEM consultar o banco
+3. Quando um lance e recebido via Realtime, o timer e resetado para 15 segundos
 
-## Consideracoes de Seguranca
+### Propagacao de Lances
 
-- As configuracoes ficam na tabela `system_settings` que ja possui RLS adequado
-- Apenas admins podem editar via painel (verificado pelo componente AdminDashboard)
-- Usuarios comuns so podem visualizar (SELECT) - politica ja existente
+1. Usuario A da um lance no Rio de Janeiro
+2. O lance e inserido no banco de dados (tabela `bids`)
+3. O trigger do banco atualiza a tabela `auctions`
+4. O Realtime propaga o evento para TODOS os usuarios conectados
+5. Usuario B em Recife recebe o evento e seu timer e resetado
+
+Tempo total: 200-500ms (igual ao sistema atual)
 
 ---
 
 ## Beneficios
 
-- Admin controla banner sem precisar de codigo
-- Pode criar campanhas temporarias com data de fim automatico
-- Pode personalizar textos para diferentes promocoes
-- Pode desativar rapidamente se necessario
-- Preview em tempo real antes de salvar
+| Metrica | Antes | Depois |
+|---------|-------|--------|
+| Queries por minuto (3 leiloes) | ~360/usuario | 0 |
+| Channels Realtime ativos | 6-8 | 1-2 |
+| Consumo de cota | 120% | Menos de 5% |
+| Experiencia do usuario | Normal | Identica |
+
+---
+
+## Garantias de Seguranca
+
+1. **Sincronizacao ao voltar a aba**: Quando usuario volta a aba, forcamos sync com servidor
+2. **Resync periodico**: A cada 60 segundos, verificamos se timer esta correto
+3. **Servidor e autoridade**: Finalizacao de leilao sempre e decidida pelo backend
+4. **Fallback**: Se Realtime desconectar, ativamos polling de emergencia (30s)
+
+---
+
+## Detalhes Tecnicos
+
+### Estrutura do Context
+
+O novo Context tera:
+
+**Estado:**
+- `auctions`: Map com dados de todos os leiloes
+- `timers`: Map com timer de cada leilao
+- `isConnected`: Status da conexao Realtime
+
+**Funcoes:**
+- `updateAuctionTimer()`: Atualiza timer de um leilao especifico
+- `forceSync()`: Forca sincronizacao com servidor
+
+### Eventos Escutados
+
+O Context escutara apenas:
+- `UPDATE` na tabela `auctions` (mudancas de preco, status, etc)
+- `INSERT` na tabela `bids` (novos lances)
+
+### Logica do Timer
+
+```
+Para cada leilao ativo:
+  - setInterval(1000ms) decrementa timer localmente
+  - Ao receber evento de novo lance: timer = 15
+  - Ao timer = 0: mostrar "Verificando..."
+  - Ao receber status = 'finished': parar timer
+```
+
+---
+
+## Ordem de Implementacao
+
+1. Criar `AuctionRealtimeContext.tsx`
+2. Adicionar Provider no `App.tsx`
+3. Modificar `AuctionCard.tsx` para usar Context
+4. Limpar `Index.tsx` e `Auctions.tsx`
+5. Ajustar `useRealTimeProtection.ts`
+6. Remover `useIndependentTimer.ts`
+
+---
+
+## Resultado Esperado
+
+Apos a implementacao:
+- Lances continuam aparecendo em tempo real para todos
+- Timers continuam contando corretamente
+- Precos e nomes de participantes atualizam instantaneamente
+- Consumo de Realtime cai drasticamente
+- Nenhuma mudanca visivel para o usuario final
