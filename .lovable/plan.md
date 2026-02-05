@@ -1,186 +1,224 @@
 
-# Plano: Melhorar Estabilidade da Conexão Realtime em Mobile
+# Plano: Sincronização de Timers via Timestamps Absolutos
 
-## Problema Identificado
+## Problema Atual
 
-A mensagem "Conexão perdida - Tentando reconectar..." aparece frequentemente em celulares porque:
+O sistema atual usa **contadores locais independentes** em cada navegador:
 
-1. Navegadores mobile fazem "throttling" (reduzem execução de JavaScript) quando a aba está em segundo plano
-2. Os heartbeats do Supabase Realtime não são enviados a tempo
-3. O servidor assume que o cliente desconectou e fecha a conexão
-4. Ao retornar, o sistema detecta a desconexão e exibe o toast
+```
+Navegador A:  timer = 15 → 14 → 13 → [evento chega] → 15 → 14...
+Navegador B:  timer = 15 → 14 → [evento chega 300ms depois] → 15 → 14...
+                                 ↓
+              Resultado: drift acumulativo de 1-5 segundos
+```
 
-Este é um comportamento normal e esperado em redes móveis, mas a experiência pode ser melhorada.
+Cada `setInterval` roda independente, e pequenas diferenças de latência se acumulam.
 
 ---
 
-## Solução Proposta
+## Solução: Calcular Timer a partir de Timestamps
 
-Implementar as melhores práticas recomendadas pelo Supabase para conexões Realtime estáveis:
+Ao invés de manter contadores locais, **calcular o tempo restante a partir de timestamps absolutos do servidor**:
 
-### 1. Habilitar Web Worker para Heartbeats
+```
+deadline = last_bid_at + 15 segundos
+tempo_restante = ceil(deadline - agora)
+```
 
-Mover a lógica de heartbeat para um Web Worker, que é menos afetado pelo throttling do navegador:
+Todos os navegadores usam a mesma referência (`last_bid_at` do banco) e calculam o mesmo resultado.
+
+---
+
+## Mudanças Necessárias
+
+### 1. Adicionar `last_bid_at` ao tipo `AuctionData`
+
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx`
+
+Adicionar o campo `last_bid_at` à interface:
 
 ```typescript
-// No cliente Supabase
-realtime: {
-  worker: true,  // Heartbeats em thread separada
+export interface AuctionData {
+  // ... campos existentes ...
+  last_bid_at: string | null;  // NOVO
 }
 ```
 
-### 2. Implementar heartbeatCallback para Reconexão Automática
+### 2. Incluir `last_bid_at` na transformação de dados
 
-Detectar desconexões silenciosas e reconectar automaticamente:
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx`
+
+Na função `transformAuctionData`, incluir o campo:
 
 ```typescript
-realtime: {
-  heartbeatCallback: (status) => {
-    if (status === 'disconnected') {
-      client.connect()  // Reconectar automaticamente
+return {
+  // ... campos existentes ...
+  last_bid_at: auction.last_bid_at,  // NOVO
+};
+```
+
+### 3. Substituir Map de timers por cálculo baseado em timestamp
+
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx`
+
+Remover o estado `timers` (Map) e o `setInterval` que decrementa. Substituir por uma função que calcula o tempo restante dinamicamente:
+
+```typescript
+// REMOVER:
+const [timers, setTimers] = useState<Map<string, number>>(new Map());
+const timerIntervalRef = useRef<NodeJS.Timeout>();
+
+// useEffect com setInterval que decrementa timers
+
+// ADICIONAR:
+const calculateTimeLeft = useCallback((auction: AuctionData): number => {
+  if (auction.auctionStatus !== 'active') return 0;
+  
+  const lastBidAt = auction.last_bid_at 
+    ? new Date(auction.last_bid_at).getTime() 
+    : Date.now();
+  
+  const deadline = lastBidAt + (15 * 1000); // 15 segundos após último lance
+  const now = Date.now();
+  const remaining = Math.ceil((deadline - now) / 1000);
+  
+  return Math.max(0, remaining);
+}, []);
+
+const getAuctionTimer = useCallback((auctionId: string) => {
+  const auction = auctions.find(a => a.id === auctionId);
+  if (!auction) return 0;
+  return calculateTimeLeft(auction);
+}, [auctions, calculateTimeLeft]);
+```
+
+### 4. Forçar re-render a cada segundo para atualizar display
+
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx`
+
+Manter um estado que muda a cada segundo apenas para forçar re-render:
+
+```typescript
+const [tick, setTick] = useState(0);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setTick(t => t + 1);
+  }, 1000);
+  
+  return () => clearInterval(interval);
+}, []);
+```
+
+### 5. Simplificar handlers de Realtime
+
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx`
+
+Remover toda a lógica de manipulação de timers nos handlers. O Realtime só precisa atualizar os dados do leilão (que incluem `last_bid_at`):
+
+```typescript
+// No handler de UPDATE:
+// REMOVER: setTimers(...) 
+// Apenas atualizar dados do leilão com updateAuction()
+
+// No handler de INSERT em bids:
+// REMOVER: setTimers(...)
+// O UPDATE do auction já virá com last_bid_at atualizado
+```
+
+### 6. Fetch inteligente quando timer crítico
+
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx`
+
+Adicionar sync automático quando timer está baixo:
+
+```typescript
+useEffect(() => {
+  const checkCriticalTimers = () => {
+    const hasLowTimer = auctions.some(auction => {
+      const timeLeft = calculateTimeLeft(auction);
+      return timeLeft > 0 && timeLeft <= 3;
+    });
+    
+    if (hasLowTimer) {
+      fetchAuctions();
     }
-  },
-}
+  };
+  
+  const interval = setInterval(checkCriticalTimers, 3000);
+  return () => clearInterval(interval);
+}, [auctions, calculateTimeLeft, fetchAuctions]);
 ```
-
-### 3. Melhorar Experiência de Reconexão
-
-- Não mostrar toast de "Conexão perdida" imediatamente (esperar 3-5 segundos)
-- Mostrar toast apenas se a reconexão demorar muito tempo
-- Mostrar indicador sutil ao invés de toast intrusivo
 
 ---
 
-## Arquivos a Serem Modificados
+## Arquivos a Modificar
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/integrations/supabase/client.ts` | Adicionar `worker: true` e `heartbeatCallback` na configuração Realtime |
-| `src/contexts/AuctionRealtimeContext.tsx` | Melhorar lógica de tratamento de desconexão e reconexão |
+| `src/contexts/AuctionRealtimeContext.tsx` | Refatorar sistema de timers para usar cálculo baseado em timestamp |
 
 ---
 
-## Detalhes Técnicos
+## Fluxo Corrigido
 
-### Mudança no Cliente Supabase
-
-O arquivo `src/integrations/supabase/client.ts` será atualizado para:
-
-```typescript
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  realtime: {
-    worker: true,  // NOVO: Heartbeats via Web Worker
-    heartbeatCallback: (status) => {
-      if (status === 'disconnected') {
-        // Reconectar automaticamente quando heartbeat falha
-        supabase.realtime.connect()
-      }
-    },
-  }
-});
 ```
-
-### Mudança no Context de Leilões
-
-O `AuctionRealtimeContext.tsx` será atualizado para:
-
-1. Adicionar delay antes de mostrar toast de desconexão
-2. Usar um indicador visual sutil ao invés de toast (opcional)
-3. Cancelar o toast se reconectar rapidamente
-
-Exemplo da lógica:
-
-```typescript
-let disconnectTimeoutRef = useRef<NodeJS.Timeout>();
-
-// No subscribe callback:
-if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-  // Aguardar 5 segundos antes de alertar o usuario
-  disconnectTimeoutRef.current = setTimeout(() => {
-    toast({
-      title: "Conexão instável",
-      description: "Reconectando automaticamente...",
-      variant: "default",  // Menos alarmante
-    });
-  }, 5000);
-  
-  // Ativar polling de emergencia
-  // ...
-  
-} else if (status === 'SUBSCRIBED') {
-  // Cancelar toast pendente se reconectou rapidamente
-  if (disconnectTimeoutRef.current) {
-    clearTimeout(disconnectTimeoutRef.current);
-  }
-  // ...
-}
+Lance dado pelo usuário
+       │
+       ▼
+Trigger atualiza auctions.last_bid_at = now()
+       │
+       ▼
+Realtime propaga UPDATE com last_bid_at
+       │
+       ├─────────────────────┬─────────────────────┐
+       ▼                     ▼                     ▼
+Navegador A              Navegador B          Navegador C
+       │                     │                     │
+       ▼                     ▼                     ▼
+Recebe last_bid_at      Recebe last_bid_at    Recebe last_bid_at
+= "2025-02-05 15:30:00" = "2025-02-05 15:30:00" = "2025-02-05 15:30:00"
+       │                     │                     │
+       ▼                     ▼                     ▼
+Calcula:                Calcula:              Calcula:
+deadline = 15:30:15     deadline = 15:30:15   deadline = 15:30:15
+now = 15:30:02          now = 15:30:02        now = 15:30:02
+timer = 13s             timer = 13s           timer = 13s
+       │                     │                     │
+       └─────────────────────┴─────────────────────┘
+                    SINCRONIZADOS!
 ```
 
 ---
 
-## Benefícios Esperados
+## Comparação
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Toast de desconexão | Aparece imediatamente | Aparece só após 5s sem conexão |
-| Heartbeats em background | Throttled pelo navegador | Executam via Web Worker |
-| Reconexão | Manual/polling | Automática via heartbeatCallback |
-| Experiência mobile | Toasts frequentes | Reconexão silenciosa |
-
----
-
-## Fluxo de Reconexão
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    USUARIO EM MOBILE                            │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Navegador coloca aba em background (throttling ativado)        │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  ANTES: Heartbeats param, servidor desconecta                   │
-│  DEPOIS: Web Worker mantém heartbeats, conexão estável          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-               ┌──────────────┴──────────────┐
-               │                             │
-               ▼                             ▼
-┌────────────────────────┐     ┌─────────────────────────────────┐
-│  Se desconectar mesmo  │     │  Se conexão mantida             │
-│  assim:                │     │                                 │
-│  - heartbeatCallback   │     │  - Nenhuma ação necessária      │
-│    detecta             │     │  - Usuário não percebe nada     │
-│  - Reconecta auto      │     │                                 │
-│  - Toast só após 5s    │     │                                 │
-└────────────────────────┘     └─────────────────────────────────┘
-```
+| Aspecto | Sistema Atual | Novo Sistema |
+|---------|---------------|--------------|
+| Fonte de verdade | Cada navegador (local) | Banco de dados (`last_bid_at`) |
+| Cálculo do timer | Decremento local com setInterval | `ceil(deadline - now)` |
+| Drift entre navegadores | 1-5 segundos | Menos de 1 segundo |
+| Custo por lance | 0 (mas dessincronizado) | 0 (usa dados do Realtime) |
+| Sync ao voltar à aba | Fetch completo | Fetch completo |
+| Sync quando timer baixo | Não | Sim (automático) |
 
 ---
 
-## Considerações
+## Benefícios
 
-1. **Service Worker existente**: O projeto já tem um `public/sw.js`. A opção `worker: true` do Supabase usa um Web Worker interno, não conflita.
-
-2. **Compatibilidade**: Web Workers são suportados em 97%+ dos navegadores, incluindo todos os móveis modernos.
-
-3. **Fallback**: Se Web Worker não estiver disponível, o Supabase automaticamente usa a thread principal.
+1. **Sincronização perfeita**: Todos os navegadores mostram o mesmo valor
+2. **Zero SELECTs extras**: Usa apenas dados que já vêm no Realtime
+3. **Resiliente a latência**: Calcula com base em timestamp absoluto
+4. **Código mais simples**: Remove Map de timers e lógica de manipulação
 
 ---
 
-## Resultado Esperado
+## Considerações Técnicas
 
-Após a implementação:
-- Usuários mobile verão muito menos mensagens de "Conexão perdida"
-- Reconexões acontecem silenciosamente em segundo plano
-- A experiência será mais fluida e menos interruptiva
-- Dados continuam sincronizando normalmente
+1. **Diferença de relógio**: Se o relógio do usuário estiver errado, haverá discrepância. Isso é raro e aceitável.
+
+2. **Performance**: `calculateTimeLeft` é leve (apenas aritmética). Chamar a cada render é OK.
+
+3. **Tick forçado**: O estado `tick` que incrementa a cada segundo força o Context a re-renderizar, atualizando os timers calculados.
+
+4. **Fallback**: Se `last_bid_at` for null (leilão sem lances), usa `Date.now()` como referência.
