@@ -321,16 +321,6 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     return newAuction;
   }, []);
 
-  // Atualizar bidders quando novo lance é inserido
-  const updateRecentBidders = useCallback(async (auctionId: string) => {
-    const recentBidders = await fetchRecentBidders(auctionId);
-    setAuctions(prev => 
-      prev.map(auction => 
-        auction.id === auctionId ? { ...auction, recentBidders } : auction
-      )
-    );
-  }, []);
-
   // Tick a cada segundo para forçar re-render e atualizar timers calculados
   useEffect(() => {
     const interval = setInterval(() => {
@@ -451,7 +441,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         clearInterval(emergencyPollRef.current);
       }
     };
-  }, [fetchAuctions, updateAuction, addAuction, updateRecentBidders, toast]);
+  }, [fetchAuctions, updateAuction, addAuction, toast]);
 
   // Função para obter timer de um leilão específico (calculado dinamicamente)
   const getAuctionTimer = useCallback((auctionId: string): AuctionTimerResult => {
