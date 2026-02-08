@@ -1,95 +1,61 @@
 
 
-# Implementacao do Snapshot `last_bidders` na tabela `auctions`
+# Corrigir formatacao dos nomes no trigger `last_bidders`
 
-## Objetivo
+## Problema
 
-Eliminar as queries `fetchRecentBidders()` que rodam em cada cliente a cada lance recebido via Realtime. Os ultimos 3 nomes passam a vir diretamente no payload do `UPDATE` de `auctions`, sem nenhum SELECT adicional no frontend.
+O trigger `update_auction_on_bid()` esta formatando nomes como **"Oswaldo F."** (primeiro nome + inicial do sobrenome com ponto), mas a funcao original do frontend `formatUserNameForDisplay()` formata como **"Oswaldo Ferreira"** (primeiro nome + segundo nome por extenso).
 
-## Resultado esperado
+Isso causou uma mudanca visual nos nomes exibidos em "Ultimos lances" nos cards de leilao.
 
-- Com 500 usuarios simultaneos: **0 queries por lance** (antes: 1.000 queries por lance)
-- Nomes dos ultimos 3 participantes continuam aparecendo instantaneamente
-- Nenhuma mudanca visual para o usuario
+## Causa raiz
 
----
+Na migration SQL, a linha de formatacao do trigger usa:
 
-## Etapa 1 - Migration SQL
-
-Adicionar coluna e atualizar o trigger existente.
-
-### 1a. Nova coluna
-
-```sql
-ALTER TABLE public.auctions 
-ADD COLUMN last_bidders jsonb DEFAULT '[]'::jsonb;
+```text
+v_name_parts[1] || ' ' || left(v_name_parts[2], 1) || '.'
+-- Resultado: "Oswaldo F."
 ```
 
-Formato: `["Ana S.", "Carlos M.", "Julia R."]` -- array de strings simples, sem IDs.
+Quando deveria usar:
 
-### 1b. Recriar trigger `update_auction_on_bid()`
-
-O trigger atual ja faz: incrementar `total_bids`, `current_price`, `time_left`, `last_bid_at`, `company_revenue`.
-
-A mudanca adiciona apenas a logica de buscar o `full_name` do perfil, formatar como "PrimeiroNome S." e fazer prepend no array `last_bidders`, mantendo maximo 3 itens.
-
-Logica de formatacao (dentro do PL/pgSQL):
-- Buscar `full_name` de `profiles` onde `user_id = NEW.user_id`
-- Separar por espacos, pegar primeiro nome + inicial do segundo nome com ponto
-- Se nao encontrar perfil, usar "Usuario"
-- Prepend no array existente e truncar para 3
-
-### 1c. Backfill dos leiloes ativos/waiting
-
-Atualizar os 5 leiloes existentes com os ultimos 3 nomes de cada um, usando subquery em `bids` + `profiles`.
-
----
-
-## Etapa 2 - Frontend (`AuctionRealtimeContext.tsx`)
-
-### 2a. `updateAuction()` (linha 294-310)
-
-**Remover** a chamada `fetchRecentBidders(auctionId)` e ler `newData.last_bidders` direto do payload Realtime:
-
-```typescript
-const recentBidders = Array.isArray(newData.last_bidders) 
-  ? newData.last_bidders 
-  : [];
+```text
+v_name_parts[1] || ' ' || v_name_parts[2]
+-- Resultado: "Oswaldo Ferreira"
 ```
 
-### 2b. `addAuction()` (linha 313-322)
+## Solucao
 
-Mesmo tratamento: ler `newData.last_bidders` em vez de chamar `fetchRecentBidders`.
+Uma unica migration SQL que:
 
-### 2c. `fetchSingleAuction()` (linha 100-134)
+1. Atualiza o trigger `update_auction_on_bid()` para usar o segundo nome completo (sem abreviar)
+2. Faz re-backfill dos leiloes ativos/waiting para corrigir os nomes ja salvos
 
-Ler `data.last_bidders` em vez de chamar `fetchRecentBidders`.
+## Mudancas especificas
 
-### 2d. `transformAuctionData()` (linha 227)
+### Migration SQL (novo arquivo)
 
-Usar `auction.last_bidders` com fallback para `auction.recentBidders || []`.
+**Trigger** -- alterar a linha de formatacao de:
+```text
+v_name_parts[1] || ' ' || left(v_name_parts[2], 1) || '.'
+```
+Para:
+```text
+v_name_parts[1] || ' ' || v_name_parts[2]
+```
 
-### 2e. `fetchAuctions()` (carga inicial, linha 270-277)
-
-Ler `auction.last_bidders` em vez de chamar `fetchRecentBidders` para cada leilao. Fallback com `fetchRecentBidders` apenas se `last_bidders` estiver vazio/null (leiloes antigos).
-
-### 2f. Funcao `fetchRecentBidders`
-
-Manter no codigo como fallback, mas nao sera mais chamada durante operacao normal (apenas na carga inicial de leiloes sem o campo populado).
-
----
+**Backfill** -- mesma correcao aplicada na query de backfill, trocando a logica de abreviacao pela mesma logica de nome completo.
 
 ## Arquivos modificados
 
 | Arquivo | Mudanca |
 |---|---|
-| Migration SQL (nova) | Coluna `last_bidders`, trigger atualizado, backfill |
-| `src/contexts/AuctionRealtimeContext.tsx` | Ler `last_bidders` do payload, remover SELECTs redundantes |
+| Nova migration SQL | Corrigir formatacao no trigger + re-backfill |
 
 ## Arquivos NAO modificados
 
-- `src/components/AuctionCard.tsx` -- continua recebendo `recentBidders: string[]`
-- `src/pages/Index.tsx` -- sem mudanca
-- `src/pages/Auctions.tsx` -- sem mudanca
-- Todos os outros componentes, hooks e paginas
+- `src/contexts/AuctionRealtimeContext.tsx` -- sem mudanca
+- `src/lib/utils.ts` -- sem mudanca (a funcao `formatUserNameForDisplay` ja esta correta)
+- `src/components/AuctionCard.tsx` -- sem mudanca
+- Nenhum componente de UI e alterado
 
