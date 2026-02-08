@@ -147,21 +147,11 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       fetchData();
     }, 15 * 1000);
 
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('current-week-revenue')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'daily_revenue_config'
-      }, () => {
-        fetchData();
-      })
-      .subscribe();
+    // Polling already covers updates (daily_revenue_config changes rarely)
+    // No Realtime channel needed here
 
     return () => {
       clearInterval(pollingInterval);
-      supabase.removeChannel(channel);
     };
   }, [contract, weekBounds]);
 

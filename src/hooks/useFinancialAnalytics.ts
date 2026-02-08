@@ -171,46 +171,17 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     refreshData();
   }, [filters]);
 
-  // Realtime auto-refresh with debounce
-  const refreshTimerRef = useRef<number | null>(null);
-  const lastRefreshRef = useRef<number>(0);
-  
+  // Polling auto-refresh every 30 seconds (replaces Realtime for admin dashboard)
   useEffect(() => {
-    const triggerAutoRefresh = () => {
-      const now = Date.now();
-      // Evitar refresh muito frequente (mínimo 2 segundos entre chamadas)
-      if (now - lastRefreshRef.current < 2000) {
-        console.log('[useFinancialAnalytics] Refresh muito frequente, ignorando');
-        return;
-      }
-
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-      }
-      refreshTimerRef.current = window.setTimeout(() => {
-        lastRefreshRef.current = Date.now();
-        console.log('[useFinancialAnalytics] Realtime event -> refreshing');
-        refreshData();
-      }, 1500); // Aumentado para 1.5 segundos
-    };
-
-    console.log('[useFinancialAnalytics] Subscribing to realtime changes');
-    const channel = supabase
-      .channel('financial-analytics')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'auctions' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bids' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_purchases' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, triggerAutoRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bid_packages' }, triggerAutoRefresh)
-      .subscribe();
+    console.log('[useFinancialAnalytics] Starting 30s polling for financial data');
+    const pollInterval = setInterval(() => {
+      console.log('[useFinancialAnalytics] Polling refresh (30s)');
+      refreshData();
+    }, 30000);
 
     return () => {
-      console.log('[useFinancialAnalytics] Unsubscribing realtime channel');
-      supabase.removeChannel(channel);
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
+      console.log('[useFinancialAnalytics] Stopping polling');
+      clearInterval(pollInterval);
     };
   }, []); // Stable empty dependency array
 

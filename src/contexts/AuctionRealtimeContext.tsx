@@ -420,13 +420,6 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
           }
         }
       )
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'bids' },
-        async (payload) => {
-          console.log(`📡 [REALTIME] Novo lance: ${payload.new.auction_id}`);
-          await updateRecentBidders(payload.new.auction_id);
-        }
-      )
       .subscribe((status) => {
         console.log('🔌 [REALTIME-CONTEXT] Status:', status);
         setIsConnected(status === 'SUBSCRIBED');
