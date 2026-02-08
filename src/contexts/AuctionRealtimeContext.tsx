@@ -120,7 +120,10 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         return;
       }
       
-      const recentBidders = await fetchRecentBidders(auctionId);
+      // Ler last_bidders direto do banco (sem SELECT adicional)
+      const recentBidders = Array.isArray((data as any).last_bidders) 
+        ? (data as any).last_bidders as string[]
+        : [];
       const updatedAuction = await transformAuctionData({ ...data, recentBidders });
       
       setAuctions(prev => 
@@ -267,10 +270,16 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         return;
       }
 
-      // Processar em paralelo
+      // Processar em paralelo - usar last_bidders do banco, fallback para fetchRecentBidders apenas se vazio
       const auctionsWithBidders = await Promise.all(
         (data || []).map(async (auction, index) => {
-          const recentBidders = await fetchRecentBidders(auction.id);
+          let recentBidders: string[];
+          if (Array.isArray((auction as any).last_bidders) && (auction as any).last_bidders.length > 0) {
+            recentBidders = (auction as any).last_bidders as string[];
+          } else {
+            // Fallback para leilões antigos sem last_bidders populado
+            recentBidders = await fetchRecentBidders(auction.id);
+          }
           const transformed = await transformAuctionData({ ...auction, recentBidders });
           return { ...transformed, _originalIndex: index };
         })
@@ -301,7 +310,10 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     
     console.log(`🎯 [${auctionId}] UPDATE | last_bid_at: ${newData.last_bid_at} | timeLeft calc: ${calculatedTimeLeft}s`);
     
-    const recentBidders = await fetchRecentBidders(auctionId);
+    // Ler last_bidders direto do payload Realtime (0 SELECTs)
+    const recentBidders = Array.isArray(newData.last_bidders) 
+      ? newData.last_bidders as string[]
+      : [];
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
     
     setAuctions(prev => 
@@ -311,7 +323,10 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
   // Adicionar novo leilão
   const addAuction = useCallback(async (newData: any) => {
-    const recentBidders = await fetchRecentBidders(newData.id);
+    // Ler last_bidders direto do payload (0 SELECTs)
+    const recentBidders = Array.isArray(newData.last_bidders) 
+      ? newData.last_bidders as string[]
+      : [];
     const newAuction = await transformAuctionData({ ...newData, recentBidders });
     
     if (newAuction.auctionStatus === 'active' || newAuction.auctionStatus === 'waiting') {

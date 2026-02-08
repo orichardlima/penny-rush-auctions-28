@@ -415,6 +415,7 @@ export type Database = {
           image_url: string | null
           is_hidden: boolean | null
           last_bid_at: string | null
+          last_bidders: Json | null
           market_value: number | null
           max_price: number | null
           participants_count: number | null
@@ -442,6 +443,7 @@ export type Database = {
           image_url?: string | null
           is_hidden?: boolean | null
           last_bid_at?: string | null
+          last_bidders?: Json | null
           market_value?: number | null
           max_price?: number | null
           participants_count?: number | null
@@ -469,6 +471,7 @@ export type Database = {
           image_url?: string | null
           is_hidden?: boolean | null
           last_bid_at?: string | null
+          last_bidders?: Json | null
           market_value?: number | null
           max_price?: number | null
           participants_count?: number | null
