@@ -258,7 +258,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       
       if (displayHours > 0) {
         const cutoffTime = new Date(Date.now() - displayHours * 60 * 60 * 1000).toISOString();
-        query = query.or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${cutoffTime},is_hidden.eq.false)`);
+        query = query.or(`status.in.(active,waiting),and(status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false)`);
       } else {
         query = query.in('status', ['active', 'waiting']);
       }
