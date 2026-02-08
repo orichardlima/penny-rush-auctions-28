@@ -1,44 +1,45 @@
 
 
-## Correcao: Leiloes antigos aparecendo na home apos migration
+## Correção definitiva: Leilões antigos aparecendo na produção
 
-### Problema
+### Diagnóstico
 
-A migration que corrigiu o `company_revenue` fez UPDATE em todos os leiloes, atualizando automaticamente a coluna `updated_at` para o momento da execucao (2026-02-08 21:35:34). O filtro de exibicao de leiloes finalizados na home usa `updated_at` como referencia, fazendo com que leiloes finalizados ha meses (ex: iPhone 16 Pro Max de setembro 2025) voltassem a aparecer.
+Existem **dois problemas** causando a exibição de leilões antigos no site de produção:
 
-### Causa raiz
+**Problema 1 - Código não publicado:**
+A correção feita no `AuctionRealtimeContext.tsx` (trocar `updated_at.gte` por `finished_at.gte`) foi aplicada apenas no ambiente de teste. O site de produção (`penny-rush-auctions-28.lovable.app`) continua rodando a versão antiga que usa `updated_at` como filtro.
 
-No arquivo `src/contexts/AuctionRealtimeContext.tsx`, linha 261, o filtro de leiloes finalizados usa `updated_at`:
+**Problema 2 - Segundo arquivo com o mesmo bug:**
+O arquivo `src/hooks/useAuctionData.ts` na linha 155 ainda contém o filtro antigo com `updated_at.gte`. Embora as páginas principais (Index e Auctions) usem o `AuctionRealtimeContext`, esse hook pode ser importado no futuro e reintroduziria o bug.
+
+### Solução
+
+#### Passo 1: Corrigir `src/hooks/useAuctionData.ts`
+
+Alterar a linha 155 de:
 
 ```text
 query = query.or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${cutoffTime},is_hidden.eq.false)`);
 ```
 
-O campo `updated_at` pode mudar por qualquer motivo (migrations, edits administrativos), enquanto `finished_at` representa o momento real de encerramento do leilao.
-
-### Solucao
-
-Alterar o filtro no `AuctionRealtimeContext.tsx` para usar `finished_at` no lugar de `updated_at`:
+Para:
 
 ```text
 query = query.or(`status.in.(active,waiting),and(status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false)`);
 ```
 
-### Detalhes tecnicos
+#### Passo 2: Publicar para produção
 
-| Arquivo | Mudanca |
-|---|---|
-| `src/contexts/AuctionRealtimeContext.tsx` | Linha 261: trocar `updated_at.gte` por `finished_at.gte` |
+Apos a correção do segundo arquivo, o usuário precisa publicar o projeto para que ambas as correções entrem em vigor no site de produção.
 
 ### O que NAO muda
 
-- Nenhuma outra funcionalidade e alterada
-- O filtro de leiloes ativos e em espera permanece identico
-- A logica de ordenacao permanece identica
-- Nenhuma migration SQL e necessaria
-- A configuracao `finished_auctions_display_hours` continua funcionando normalmente
+- Nenhum outro componente ou funcionalidade e alterado
+- A lógica de ordenação permanece identica
+- Nenhuma migration SQL e necessária
+- A configuração `finished_auctions_display_hours` (atualmente 12 horas) continua funcionando normalmente
 
 ### Resultado esperado
 
-Apenas leiloes finalizados dentro do periodo configurado (ex: ultimas 48h baseado em `finished_at`) aparecerao na home. Leiloes antigos voltarao a ficar ocultos imediatamente.
+Apenas leilões finalizados nas últimas 12 horas (conforme configuração atual) aparecerão no site, tanto no ambiente de teste quanto na produção após a publicação.
 
