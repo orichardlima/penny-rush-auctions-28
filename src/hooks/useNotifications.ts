@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface NotificationSettings {
   auctionEndingSoon: boolean;
@@ -17,77 +14,10 @@ export const useNotifications = () => {
     bidOutbid: true,
     auctionWon: true,
   });
-  const [notifiedAuctions, setNotifiedAuctions] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
-  const { user } = useAuth();
 
-  // Monitorar leilões terminando em breve
-  useEffect(() => {
-    if (!settings.auctionEndingSoon || !user) return;
-
-    const channel = supabase
-      .channel('auction-ending-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'auctions'
-        },
-        (payload) => {
-          const auction = payload.new as any;
-          if (
-            auction.status === 'active' &&
-            auction.time_left <= 30 &&
-            auction.time_left > 0 &&
-            !notifiedAuctions.has(auction.id)
-          ) {
-            toast({
-              title: "⏰ Leilão terminando em breve!",
-              description: `${auction.title} termina em ${auction.time_left} segundos`,
-              duration: 5000,
-            });
-            setNotifiedAuctions(prev => new Set(prev).add(auction.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [settings.auctionEndingSoon, user, toast]);
-
-  // Monitorar novos leilões
-  useEffect(() => {
-    if (!settings.newAuctions || !user) return;
-
-    const channel = supabase
-      .channel('new-auction-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'auctions'
-        },
-        (payload) => {
-          const auction = payload.new as any;
-          if (auction.status === 'active' || auction.status === 'waiting') {
-            toast({
-              title: "🆕 Novo leilão disponível!",
-              description: `${auction.title} acabou de ser adicionado`,
-              duration: 4000,
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [settings.newAuctions, user, toast]);
+  // Notificações agora são tratadas pelo AuctionRealtimeContext
+  // (novo leilão = INSERT handler, leilão terminando = timer local)
+  // Este hook mantém apenas as configurações/toggles de preferência
 
   const updateSettings = useCallback((newSettings: Partial<NotificationSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
