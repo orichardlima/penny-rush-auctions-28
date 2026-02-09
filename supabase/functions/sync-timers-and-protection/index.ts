@@ -81,7 +81,13 @@ Deno.serve(async (req) => {
     for (let i = 0; i < shuffledAuctions.length; i++) {
       const auction = shuffledAuctions[i];
       
-      // A partir do segundo leilão, adicionar delay aleatório de 2-6 segundos
+      // Delay aleatório entre leilões para dessincronizar
+      if (i > 0) {
+        const delay = getRandomDelay(1000, 4000);
+        console.log(`⏳ [DELAY] Aguardando ${delay}ms antes de processar "${auction.title}"`);
+        await sleep(delay);
+      }
+
       // Calcular tempo desde último lance
       const lastBidTime = new Date(auction.last_bid_at).getTime();
       const currentTime = Date.now();
@@ -191,16 +197,17 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // LANCE PROBABILÍSTICO: 40% chance após 5s, 100% após 10s
-      if (secondsSinceLastBid >= 5) {
-        // Probabilidade crescente para parecer natural
-        // 5-9s: 40% de chance (lance "rápido", timer ~6-10s)
-        // 10s+: 100% garantido (lance obrigatório, timer ~5s)
-        const bidProbability = secondsSinceLastBid >= 10 ? 1.0 : 0.4;
-        const roll = Math.random();
+      // LANCE PROBABILÍSTICO: threshold e probabilidade variáveis por leilão
+      {
+        const minThreshold = 4 + Math.floor(Math.random() * 4); // 4-7s
+        const bidProbability = secondsSinceLastBid >= 10 ? 1.0 
+          : secondsSinceLastBid >= minThreshold ? (0.3 + Math.random() * 0.3) // 30-60%
+          : 0;
         
-        if (roll > bidProbability) {
-          console.log(`🎲 [NATURAL] "${auction.title}" - ${secondsSinceLastBid}s inativo, aguardando próximo ciclo (roll: ${roll.toFixed(2)} > prob: ${bidProbability})`);
+        if (bidProbability === 0 || Math.random() > bidProbability) {
+          if (secondsSinceLastBid >= minThreshold) {
+            console.log(`🎲 [NATURAL] "${auction.title}" - ${secondsSinceLastBid}s inativo (threshold: ${minThreshold}s), aguardando próximo ciclo`);
+          }
           continue;
         }
         const currentPrice = Number(auction.current_price);
