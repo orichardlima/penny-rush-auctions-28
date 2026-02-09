@@ -62,13 +62,15 @@ export const AuctionCard = ({
   
   // Timer vem do Context (decrementa localmente) - agora retorna {timeLeft, isSyncing}
   const { timeLeft: contextTimer, isSyncing } = getAuctionTimer(id);
-  const displayTimeLeft = auctionStatus === 'active' && contextTimer > 0 ? contextTimer : initialTimeLeft;
-  
   // Usar dados do Context quando disponíveis, props como fallback
   const displayCurrentPrice = contextAuction?.currentPrice ?? currentPrice;
   const displayTotalBids = contextAuction?.totalBids ?? totalBids;
   const displayWinnerName = contextAuction?.winnerName ?? winnerName;
   const displayStatus = contextAuction?.auctionStatus ?? auctionStatus;
+  
+  const displayTimeLeft = contextAuction
+    ? (displayStatus === 'active' ? contextTimer : 0)
+    : initialTimeLeft;
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
   
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
