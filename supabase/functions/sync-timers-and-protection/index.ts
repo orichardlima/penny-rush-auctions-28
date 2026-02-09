@@ -82,11 +82,6 @@ Deno.serve(async (req) => {
       const auction = shuffledAuctions[i];
       
       // A partir do segundo leilão, adicionar delay aleatório de 2-6 segundos
-      if (i > 0) {
-        const randomDelay = getRandomDelay(2000, 6000);
-        console.log(`⏳ [DELAY] Aguardando ${(randomDelay/1000).toFixed(1)}s antes de processar "${auction.title}"`);
-        await sleep(randomDelay);
-      }
       // Calcular tempo desde último lance
       const lastBidTime = new Date(auction.last_bid_at).getTime();
       const currentTime = Date.now();
@@ -197,7 +192,7 @@ Deno.serve(async (req) => {
       }
 
       // SE INATIVO HÁ 15+ SEGUNDOS
-      if (secondsSinceLastBid >= 15) {
+      if (secondsSinceLastBid >= 10) {
         const currentPrice = Number(auction.current_price);
         const marketValue = Number(auction.market_value);
 
@@ -207,7 +202,7 @@ Deno.serve(async (req) => {
           .select('id')
           .eq('auction_id', auction.id)
           .eq('cost_paid', 0) // Bots internos têm cost_paid = 0
-          .gte('created_at', new Date(Date.now() - 5000).toISOString())
+          .gte('created_at', new Date(Date.now() - 3000).toISOString())
           .limit(1);
 
         if (recentBot && recentBot.length > 0) {
