@@ -30,8 +30,8 @@ export const useRealTimeProtection = () => {
     };
 
     // Chamadas a cada 10 segundos (apenas para admins)
-    intervalRef.current = setInterval(callProtectionSystem, 10000);
-    console.log('🛡️ [PROTECTION-SYSTEM] Sistema iniciado para ADMIN (10s)');
+    intervalRef.current = setInterval(callProtectionSystem, 5000);
+    console.log('🛡️ [PROTECTION-SYSTEM] Sistema iniciado para ADMIN (5s)');
 
     // Chamada inicial
     callProtectionSystem();

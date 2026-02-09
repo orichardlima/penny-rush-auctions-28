@@ -191,8 +191,18 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // SE INATIVO HÁ 15+ SEGUNDOS
-      if (secondsSinceLastBid >= 10) {
+      // LANCE PROBABILÍSTICO: 40% chance após 5s, 100% após 10s
+      if (secondsSinceLastBid >= 5) {
+        // Probabilidade crescente para parecer natural
+        // 5-9s: 40% de chance (lance "rápido", timer ~6-10s)
+        // 10s+: 100% garantido (lance obrigatório, timer ~5s)
+        const bidProbability = secondsSinceLastBid >= 10 ? 1.0 : 0.4;
+        const roll = Math.random();
+        
+        if (roll > bidProbability) {
+          console.log(`🎲 [NATURAL] "${auction.title}" - ${secondsSinceLastBid}s inativo, aguardando próximo ciclo (roll: ${roll.toFixed(2)} > prob: ${bidProbability})`);
+          continue;
+        }
         const currentPrice = Number(auction.current_price);
         const marketValue = Number(auction.market_value);
 
