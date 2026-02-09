@@ -1,45 +1,62 @@
 
 
-## Correção definitiva: Leilões antigos aparecendo na produção
+## Correcao: Timer travando em 15 segundos
 
-### Diagnóstico
+### Problema
 
-Existem **dois problemas** causando a exibição de leilões antigos no site de produção:
-
-**Problema 1 - Código não publicado:**
-A correção feita no `AuctionRealtimeContext.tsx` (trocar `updated_at.gte` por `finished_at.gte`) foi aplicada apenas no ambiente de teste. O site de produção (`penny-rush-auctions-28.lovable.app`) continua rodando a versão antiga que usa `updated_at` como filtro.
-
-**Problema 2 - Segundo arquivo com o mesmo bug:**
-O arquivo `src/hooks/useAuctionData.ts` na linha 155 ainda contém o filtro antigo com `updated_at.gte`. Embora as páginas principais (Index e Auctions) usem o `AuctionRealtimeContext`, esse hook pode ser importado no futuro e reintroduziria o bug.
-
-### Solução
-
-#### Passo 1: Corrigir `src/hooks/useAuctionData.ts`
-
-Alterar a linha 155 de:
+Na linha 65 do `AuctionCard.tsx`, existe um bug logico no calculo do timer exibido:
 
 ```text
-query = query.or(`status.in.(active,waiting),and(status.eq.finished,updated_at.gte.${cutoffTime},is_hidden.eq.false)`);
+const displayTimeLeft = auctionStatus === 'active' && contextTimer > 0 ? contextTimer : initialTimeLeft;
 ```
 
-Para:
+Quando o `contextTimer` (calculado pelo Context centralizado) chega a **0**, a condicao `contextTimer > 0` retorna `false`, e o valor cai no fallback `initialTimeLeft`, que tem valor padrao **15**. Isso cria o seguinte ciclo:
 
 ```text
-query = query.or(`status.in.(active,waiting),and(status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false)`);
+Timer: 15 -> 14 -> ... -> 1 -> 0 -> (fallback) 15 -> 14 -> ...
 ```
 
-#### Passo 2: Publicar para produção
+O timer nunca chega a mostrar 0, entao o estado "Verificando lances validos" (linha 76) tambem nunca e ativado, pois depende de `displayTimeLeft === 0`.
 
-Apos a correção do segundo arquivo, o usuário precisa publicar o projeto para que ambas as correções entrem em vigor no site de produção.
+### Causa raiz
+
+A logica de fallback foi pensada para quando o Context ainda nao carregou os dados, mas ela tambem e acionada quando o timer legitimamente chega a zero.
+
+### Solucao
+
+Alterar a linha 65 para tratar corretamente os tres cenarios:
+
+1. **Context disponivel e timer > 0**: mostrar `contextTimer`
+2. **Context disponivel e timer = 0**: mostrar `0` (para ativar estado "Verificando")
+3. **Context nao disponivel**: usar `initialTimeLeft` como fallback
+
+Nova logica:
+
+```text
+const displayTimeLeft = contextAuction
+  ? (displayStatus === 'active' ? contextTimer : 0)
+  : initialTimeLeft;
+```
+
+Quando o `contextAuction` existe (dados carregados), usa sempre o timer calculado pelo Context. Quando nao existe (fallback), usa o valor da prop.
+
+### Detalhes tecnicos
+
+| Arquivo | Linha | Mudanca |
+|---|---|---|
+| `src/components/AuctionCard.tsx` | 65 | Substituir logica do `displayTimeLeft` |
 
 ### O que NAO muda
 
-- Nenhum outro componente ou funcionalidade e alterado
-- A lógica de ordenação permanece identica
-- Nenhuma migration SQL e necessária
-- A configuração `finished_auctions_display_hours` (atualmente 12 horas) continua funcionando normalmente
+- Nenhum outro componente e alterado
+- A logica de calculo do timer no `AuctionRealtimeContext` permanece identica
+- O estado "Verificando lances validos" (isVerifying) continua funcionando com a mesma condicao
+- Nenhum outro visual ou funcionalidade e modificado
 
 ### Resultado esperado
 
-Apenas leilões finalizados nas últimas 12 horas (conforme configuração atual) aparecerão no site, tanto no ambiente de teste quanto na produção após a publicação.
+- Timer conta de 15 ate 0 normalmente
+- Ao chegar em 0, exibe "Verificando lances validos" corretamente
+- Quando um novo lance e registrado (bot ou real), o timer reinicia a partir do valor correto
+- Elimina o "travamento" visual em 15 segundos
 
