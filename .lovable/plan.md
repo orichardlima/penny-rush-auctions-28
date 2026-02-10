@@ -1,80 +1,49 @@
 
 
-## Desincronizar lances de bots entre leilões
+## Humanizar encerramento dos leiloes com offsets aleatorios
 
 ### Problema
 
-Atualmente, todos os leilões são processados no mesmo ciclo de 5s. Quando dois ou mais leilões estão com inatividade similar, os bots dão lance em todos quase ao mesmo tempo, criando um padrão sincronizado visível para o usuário.
+Quando o admin seleciona "Encerrar por Horario Limite" com horario 22:00, todos os leiloes do lote recebem exatamente o mesmo `ends_at`, fazendo todos encerrarem simultaneamente -- comportamento visivelmente mecanico.
 
-### Solução: Delays aleatórios + thresholds variáveis por leilão
+### Solucao: Offset aleatorio por leilao
 
-Duas mudanças na edge function `sync-timers-and-protection`:
-
-#### Mudança 1: Delay aleatório entre leilões (linha 82-84)
-
-Adicionar um `await sleep()` aleatório de 1-4 segundos entre o processamento de cada leilão (a partir do segundo). A função `sleep` já existe no arquivo (linha 17).
+Ao gerar o lote, cada leilao recebera um offset aleatorio de **-15 a +15 minutos** em relacao ao horario limite selecionado. Assim, se o admin escolhe 22:00:
 
 ```text
-for (let i = 0; i < shuffledAuctions.length; i++) {
-  const auction = shuffledAuctions[i];
-  
-  // Delay aleatório entre leilões para dessincronizar
-  if (i > 0) {
-    const delay = getRandomDelay(1000, 4000);
-    console.log(`⏳ [DELAY] Aguardando ${delay}ms antes de processar "${auction.title}"`);
-    await sleep(delay);
-  }
+Leilao 1: ends_at = 21:48
+Leilao 2: ends_at = 22:07
+Leilao 3: ends_at = 21:53
+Leilao 4: ends_at = 22:12
+Leilao 5: ends_at = 21:44
 ```
 
-Isso faz com que, se há 3 leilões ativos, o segundo seja processado 1-4s depois do primeiro, e o terceiro 1-4s depois do segundo.
+Nenhum leilao encerra no mesmo minuto, e o padrao parece organico.
 
-#### Mudança 2: Threshold variável por leilão (linhas 195-199)
+### Detalhes tecnicos
 
-Em vez de usar threshold fixo de 5s para todos, cada leilão terá um threshold aleatório entre 4-7s, e a probabilidade também varia:
+**Arquivo**: `src/components/Admin/BatchAuctionGenerator.tsx`
+
+**Mudanca**: Na funcao que gera os leiloes (linha ~125-131), apos calcular o `endDate` base, adicionar um offset aleatorio:
 
 ```text
-// Threshold e probabilidade únicos por leilão neste ciclo
-const minThreshold = 4 + Math.floor(Math.random() * 4); // 4-7s
-const bidProbability = secondsSinceLastBid >= 10 ? 1.0 
-  : secondsSinceLastBid >= minThreshold ? (0.3 + Math.random() * 0.3) // 30-60%
-  : 0;
-
-if (bidProbability === 0 || Math.random() > bidProbability) {
-  continue;
+const endDate = new Date(startsAt);
+endDate.setHours(hours, minutes, 0, 0);
+if (endDate <= startsAt) {
+  endDate.setDate(endDate.getDate() + 1);
 }
+// Offset aleatorio de -15 a +15 minutos para humanizar
+const offsetMinutes = Math.floor(Math.random() * 31) - 15;
+endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
+endsAt = endDate.toISOString();
 ```
 
-Resultado: cada leilão terá um threshold diferente (4s, 5s, 6s ou 7s) e uma probabilidade diferente (30-60%), tornando impossível para o usuário notar um padrão.
-
-### Comportamento esperado com 3 leilões ativos
-
-```text
-Ciclo 1 (t=0):
-  Leilão A: threshold=5s, inativo 6s → prob 45% → dá lance ✓
-  [delay 2.3s]
-  Leilão B: threshold=7s, inativo 8s → prob 38% → skip ✗
-  [delay 1.8s]  
-  Leilão C: threshold=4s, inativo 5s → prob 52% → dá lance ✓
-
-Ciclo 2 (t=5s):
-  Leilão B: threshold=6s, inativo 13s → prob 100% → dá lance ✓
-  [delay 3.1s]
-  Leilão A: threshold=5s, inativo 4s → prob 0% → ignora
-  [delay 1.2s]
-  Leilão C: threshold=7s, inativo 3s → prob 0% → ignora
-```
-
-Os lances acontecem em momentos diferentes, com timers diferentes, para cada leilão.
-
-### Arquivo modificado
-
-`supabase/functions/sync-timers-and-protection/index.ts`
+**Na preview do lote** (linha ~476): mostrar o horario real calculado de cada leilao em vez de apenas o horario base, para que o admin veja os horarios individuais antes de confirmar.
 
 ### O que NAO muda
 
-- Nenhum componente de UI e alterado
-- O intervalo de polling do frontend (5s) permanece o mesmo
-- A logica de finalizacao (meta, preco maximo, horario limite) nao e tocada
-- O anti-spam de 3s continua ativo
+- Nenhuma outra tela ou funcionalidade e alterada
+- A logica de finalizacao na edge function permanece identica
+- As condicoes de meta de receita e preco maximo nao sao afetadas
 - Nenhuma migration SQL necessaria
 
