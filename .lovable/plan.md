@@ -1,49 +1,73 @@
 
 
-## Humanizar encerramento dos leiloes com offsets aleatorios
+## Adicionar opcao de duracao ativa (em horas) como alternativa ao horario limite
 
 ### Problema
 
-Quando o admin seleciona "Encerrar por Horario Limite" com horario 22:00, todos os leiloes do lote recebem exatamente o mesmo `ends_at`, fazendo todos encerrarem simultaneamente -- comportamento visivelmente mecanico.
+Atualmente, a unica forma de configurar o encerramento por tempo e definindo um horario fixo (ex: 22:00). O admin quer tambem poder escolher **quantas horas** cada leilao ficara ativo apos iniciar.
 
-### Solucao: Offset aleatorio por leilao
+### Solucao
 
-Ao gerar o lote, cada leilao recebera um offset aleatorio de **-15 a +15 minutos** em relacao ao horario limite selecionado. Assim, se o admin escolhe 22:00:
+Adicionar um seletor de modo dentro da opcao "Encerrar por Horario Limite", permitindo escolher entre:
+
+- **Horario fixo** (comportamento atual): todos encerram proximo ao horario escolhido (com offset aleatorio de +/-15min)
+- **Duracao ativa**: cada leilao encerra X horas apos seu proprio `startsAt` (tambem com offset aleatorio de +/-15min)
+
+### Interface
+
+Quando "Encerrar por Horario Limite" estiver marcado, aparecera um toggle/select para escolher o modo:
 
 ```text
-Leilao 1: ends_at = 21:48
-Leilao 2: ends_at = 22:07
-Leilao 3: ends_at = 21:53
-Leilao 4: ends_at = 22:12
-Leilao 5: ends_at = 21:44
+[x] Encerrar por Horario Limite
+    Modo: [ Horario fixo v ] / [ Duracao ativa v ]
+    
+    Se "Horario fixo":  [ 22:00 v ]
+    Se "Duracao ativa":  [ 2 horas v ]
 ```
 
-Nenhum leilao encerra no mesmo minuto, e o padrao parece organico.
+### Opcoes de duracao
+
+- 1 hora, 2 horas, 3 horas, 4 horas, 6 horas, 8 horas, 12 horas
+
+### Logica de calculo
+
+No `scheduledAuctions` memo, quando o modo for "duracao":
+
+```text
+// Modo duracao: ends_at = startsAt + duracaoHoras + offset aleatorio
+const endDate = addMinutes(startsAt, durationHours * 60);
+const offsetMinutes = Math.floor(Math.random() * 31) - 15;
+endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
+endsAt = endDate;
+```
+
+Exemplo com duracao de 2 horas e leiloes iniciando escalonados:
+```text
+Leilao 1: inicio 10:00 → encerra ~12:08
+Leilao 2: inicio 10:30 → encerra ~12:22
+Leilao 3: inicio 11:00 → encerra ~12:47
+```
 
 ### Detalhes tecnicos
 
 **Arquivo**: `src/components/Admin/BatchAuctionGenerator.tsx`
 
-**Mudanca**: Na funcao que gera os leiloes (linha ~125-131), apos calcular o `endDate` base, adicionar um offset aleatorio:
+**Novos estados**:
+- `timeLimitMode`: `'fixed'` | `'duration'` (default: `'fixed'`)
+- `durationHours`: number (default: 2)
 
-```text
-const endDate = new Date(startsAt);
-endDate.setHours(hours, minutes, 0, 0);
-if (endDate <= startsAt) {
-  endDate.setDate(endDate.getDate() + 1);
-}
-// Offset aleatorio de -15 a +15 minutos para humanizar
-const offsetMinutes = Math.floor(Math.random() * 31) - 15;
-endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
-endsAt = endDate.toISOString();
-```
+**Constante**: `DURATION_OPTIONS` com as opcoes de horas
 
-**Na preview do lote** (linha ~476): mostrar o horario real calculado de cada leilao em vez de apenas o horario base, para que o admin veja os horarios individuais antes de confirmar.
+**Mudancas no `scheduledAuctions` memo**: adicionar branch para modo `'duration'` que calcula `endsAt` como `startsAt + durationHours * 60 minutos + offset`
+
+**Mudancas na UI**: dentro do bloco `enableTimeLimit`, adicionar um Select para o modo e renderizar condicionalmente o seletor de horario fixo ou o seletor de duracao
+
+**Preview**: ja funciona automaticamente pois usa o `endsAt` calculado no memo
 
 ### O que NAO muda
 
-- Nenhuma outra tela ou funcionalidade e alterada
+- Nenhum outro componente ou pagina e alterado
 - A logica de finalizacao na edge function permanece identica
-- As condicoes de meta de receita e preco maximo nao sao afetadas
+- O offset aleatorio de +/-15min continua aplicado em ambos os modos
 - Nenhuma migration SQL necessaria
 
