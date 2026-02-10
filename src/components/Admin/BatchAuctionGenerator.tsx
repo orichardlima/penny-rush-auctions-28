@@ -39,6 +39,16 @@ const TIME_LIMIT_OPTIONS = [
   { value: '00:00', label: '00:00 (meia-noite)' },
 ];
 
+const DURATION_OPTIONS = [
+  { value: 1, label: '1 hora' },
+  { value: 2, label: '2 horas' },
+  { value: 3, label: '3 horas' },
+  { value: 4, label: '4 horas' },
+  { value: 6, label: '6 horas' },
+  { value: 8, label: '8 horas' },
+  { value: 12, label: '12 horas' },
+];
+
 export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGeneratorProps) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [startDateTime, setStartDateTime] = useState(() => {
@@ -53,7 +63,9 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
 
   // Estados para condições de encerramento
   const [enableTimeLimit, setEnableTimeLimit] = useState(false);
+  const [timeLimitMode, setTimeLimitMode] = useState<'fixed' | 'duration'>('fixed');
   const [timeLimitHour, setTimeLimitHour] = useState('22:00');
+  const [durationHours, setDurationHours] = useState(2);
   const [enableRevenueTarget, setEnableRevenueTarget] = useState(true);
   const [enableMaxPrice, setEnableMaxPrice] = useState(false);
   const [maxPriceValue, setMaxPriceValue] = useState<string>('');
@@ -76,22 +88,28 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
       const startsAt = addMinutes(baseDate, index * intervalMinutes);
 
       let endsAt: Date | null = null;
-      if (enableTimeLimit && timeLimitHour) {
-        const [hours, minutes] = timeLimitHour.split(':').map(Number);
-        const endDate = new Date(startsAt);
-        endDate.setHours(hours, minutes, 0, 0);
-        if (endDate <= startsAt) {
-          endDate.setDate(endDate.getDate() + 1);
+      if (enableTimeLimit) {
+        if (timeLimitMode === 'fixed' && timeLimitHour) {
+          const [hours, minutes] = timeLimitHour.split(':').map(Number);
+          const endDate = new Date(startsAt);
+          endDate.setHours(hours, minutes, 0, 0);
+          if (endDate <= startsAt) {
+            endDate.setDate(endDate.getDate() + 1);
+          }
+          const offsetMinutes = Math.floor(Math.random() * 31) - 15;
+          endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
+          endsAt = endDate;
+        } else if (timeLimitMode === 'duration') {
+          const endDate = addMinutes(startsAt, durationHours * 60);
+          const offsetMinutes = Math.floor(Math.random() * 31) - 15;
+          endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
+          endsAt = endDate;
         }
-        // Offset aleatório de -15 a +15 minutos para humanizar
-        const offsetMinutes = Math.floor(Math.random() * 31) - 15;
-        endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
-        endsAt = endDate;
       }
 
       return { template, startsAt, endsAt };
     });
-  }, [selectedTemplates, startDateTime, intervalMinutes, enableTimeLimit, timeLimitHour]);
+  }, [selectedTemplates, startDateTime, intervalMinutes, enableTimeLimit, timeLimitMode, timeLimitHour, durationHours]);
 
   const toggleTemplate = (id: string) => {
     setSelectedIds(prev => 
@@ -361,22 +379,53 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
                 </Label>
               </div>
               {enableTimeLimit && (
-                <div className="ml-6 space-y-2">
-                  <Select value={timeLimitHour} onValueChange={setTimeLimitHour}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Selecione o horário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_LIMIT_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="ml-6 space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Modo</Label>
+                    <Select value={timeLimitMode} onValueChange={(v) => setTimeLimitMode(v as 'fixed' | 'duration')}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">Horário fixo</SelectItem>
+                        <SelectItem value="duration">Duração ativa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {timeLimitMode === 'fixed' ? (
+                    <Select value={timeLimitHour} onValueChange={setTimeLimitHour}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Selecione o horário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIME_LIMIT_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select value={durationHours.toString()} onValueChange={(v) => setDurationHours(parseInt(v))}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DURATION_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value.toString()}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    Aplica para todos os leilões do lote
+                    {timeLimitMode === 'fixed' 
+                      ? 'Todos encerram próximo ao horário escolhido (±15min)' 
+                      : 'Cada leilão fica ativo por este período após iniciar (±15min)'}
                   </p>
                 </div>
               )}
@@ -480,7 +529,11 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
                     ? format(scheduledAuctions[scheduledAuctions.length - 1].startsAt, "dd/MM 'às' HH:mm", { locale: ptBR })
                     : '-'
                   }</p>
-                  {enableTimeLimit && <p><strong>Horário limite:</strong> {timeLimitHour}</p>}
+                  {enableTimeLimit && (
+                    <p><strong>{timeLimitMode === 'fixed' ? 'Horário limite:' : 'Duração ativa:'}</strong>{' '}
+                      {timeLimitMode === 'fixed' ? timeLimitHour : `${durationHours}h por leilão`}
+                    </p>
+                  )}
                   {enableMaxPrice && maxPriceValue && <p><strong>Preço máximo:</strong> {formatCurrency(parseFloat(maxPriceValue))}</p>}
                 </div>
               </div>
