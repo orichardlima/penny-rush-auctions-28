@@ -72,11 +72,26 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
 
   const scheduledAuctions = useMemo(() => {
     const baseDate = new Date(startDateTime);
-    return selectedTemplates.map((template, index) => ({
-      template,
-      startsAt: addMinutes(baseDate, index * intervalMinutes)
-    }));
-  }, [selectedTemplates, startDateTime, intervalMinutes]);
+    return selectedTemplates.map((template, index) => {
+      const startsAt = addMinutes(baseDate, index * intervalMinutes);
+
+      let endsAt: Date | null = null;
+      if (enableTimeLimit && timeLimitHour) {
+        const [hours, minutes] = timeLimitHour.split(':').map(Number);
+        const endDate = new Date(startsAt);
+        endDate.setHours(hours, minutes, 0, 0);
+        if (endDate <= startsAt) {
+          endDate.setDate(endDate.getDate() + 1);
+        }
+        // Offset aleatório de -15 a +15 minutos para humanizar
+        const offsetMinutes = Math.floor(Math.random() * 31) - 15;
+        endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
+        endsAt = endDate;
+      }
+
+      return { template, startsAt, endsAt };
+    });
+  }, [selectedTemplates, startDateTime, intervalMinutes, enableTimeLimit, timeLimitHour]);
 
   const toggleTemplate = (id: string) => {
     setSelectedIds(prev => 
@@ -117,20 +132,7 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
     setIsGenerating(true);
 
     try {
-      const auctions = scheduledAuctions.map(({ template, startsAt }) => {
-        // Calcular ends_at se limite de horário estiver ativo
-        let endsAt: string | null = null;
-        if (enableTimeLimit && timeLimitHour) {
-          const [hours, minutes] = timeLimitHour.split(':').map(Number);
-          const endDate = new Date(startsAt);
-          endDate.setHours(hours, minutes, 0, 0);
-          // Se o horário limite for antes ou igual ao início, usar o dia seguinte
-          if (endDate <= startsAt) {
-            endDate.setDate(endDate.getDate() + 1);
-          }
-          endsAt = endDate.toISOString();
-        }
-
+      const auctions = scheduledAuctions.map(({ template, startsAt, endsAt }) => {
         return {
           title: template.title,
           description: template.description,
@@ -142,7 +144,7 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
           bid_increment: template.bid_increment,
           bid_cost: template.bid_cost,
           starts_at: startsAt.toISOString(),
-          ends_at: endsAt,
+          ends_at: endsAt ? endsAt.toISOString() : null,
           max_price: enableMaxPrice ? maxPriceNum : null,
           status: 'waiting',
           time_left: 15,
@@ -450,12 +452,17 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
                 
                 <ScrollArea className="h-[120px] border rounded-md p-2">
                   <div className="space-y-2">
-                    {scheduledAuctions.map(({ template, startsAt }, index) => (
+                  {scheduledAuctions.map(({ template, startsAt, endsAt }, index) => (
                       <div key={template.id} className="flex items-center gap-3 p-2 rounded bg-muted/30">
                         <Badge variant="outline" className="shrink-0 w-16 justify-center">
                           {format(startsAt, 'HH:mm')}
                         </Badge>
                         <span className="text-sm truncate flex-1">{template.title}</span>
+                        {endsAt && (
+                          <Badge variant="secondary" className="shrink-0 text-xs">
+                            até {format(endsAt, 'HH:mm')}
+                          </Badge>
+                        )}
                         {enableRevenueTarget && template.revenue_target && (
                           <span className="text-xs text-muted-foreground">
                             Meta: {formatCurrency(template.revenue_target)}
