@@ -1,64 +1,52 @@
 
 
-## Adicionar Campo de "Pontuação Gerada" ao Modal de Planos
+## Corrigir handleLink para Propagar Pontos + Recalcular Retroativamente
 
-### Problema Atual
-Quando o admin cria ou edita um plano, não há campo para informar quantos **pontos** ele gera na rede binária. A pontuação precisa ser configurada separadamente na tab "Pontos por Plano" do PartnerGraduationManager, o que é confuso.
+### Problema
+O `handleLink` no `AdminBinaryTreeView.tsx` faz apenas updates manuais nas tabelas (parent, position, child), mas **não chama** a função `propagate_binary_points` que já existe no banco e é responsável por distribuir os pontos para todos os uplines.
 
 ### Solução
-Adicionar um campo numérico **"Pontos Gerados"** ao modal de criar/editar planos que:
-1. Permite configurar os pontos no mesmo local onde se configura o aporte, limite semanal, etc
-2. Ao criar um plano, também insere um registro em `partner_level_points` com plan_name e points
-3. Ao editar um plano, atualiza o registro em `partner_level_points` correspondente
-4. Se o plano não existir em `partner_level_points` ainda, cria um novo registro
 
-### Mudanças Técnicas
+#### 1. Corrigir `handleLink` para propagar pontos automaticamente
 
-**Arquivo**: `src/components/Admin/AdminPartnerManagement.tsx`
+**Arquivo**: `src/components/Admin/AdminBinaryTreeView.tsx`
 
-1. **Estado de Criar Plano**:
-   - Adicionar `binary_points: 0` ao objeto `newPlan` (linhas ~98-108)
-   - Adicionar um Input numérico para "Pontos Gerados" no dialog de criação (após o campo de "Bônus de Lances")
+Após os 2 updates existentes (linhas 180-198), adicionar um passo 3 que:
+1. Busca o `plan_name` do contrato do parceiro vinculado em `partner_contracts`
+2. Busca os `points` correspondentes em `partner_level_points`
+3. Chama `supabase.rpc('propagate_binary_points', ...)` para distribuir os pontos pela árvore acima
+4. Exibe no toast quantos pontos foram propagados
 
-2. **Estado de Editar Plano**:
-   - Adicionar `binary_points: 0` ao objeto `editingPlan` quando abre o dialog (ele já carrega o plano, mas não tem os pontos)
-   - Necessário fazer uma query adicional ao abrir o dialog para buscar os pontos em `partner_level_points`
-   - Adicionar um Input numérico no dialog de edição
+Isso garante que **toda futura vinculação** de parceiros isolados também propague pontos corretamente.
 
-3. **Função `handleCreatePlan`** (linha ~269):
-   - Após criar o plano via `createPlan()`, fazer um INSERT em `partner_level_points` com:
-     - `plan_name`: nome do plano
-     - `points`: valor informado pelo admin
-     - Se já existir uma entrada para esse plano, fazer UPDATE ao invés de INSERT
+#### 2. Adicionar botão "Recalcular Pontos" na tabela de posições
 
-4. **Função de Atualizar Plano** (linha ~916):
-   - Ao atualizar o plano via `updatePlan()`, também fazer UPDATE em `partner_level_points` se o valor mudou
+**Arquivo**: `src/components/Admin/AdminBinaryTreeView.tsx`
 
-5. **Dialog de Criar Plano** (linhas 682-791):
-   - Adicionar campo Input tipo "number" com label "Pontos Gerados"
-   - Atualizar o estado `newPlan` ao mudar
+- Adicionar um botão na tabela geral (PositionsTable) ou no card de resumo que permite ao admin selecionar um parceiro e recalcular/propagar seus pontos retroativamente
+- Esse botão chamará `supabase.rpc('propagate_binary_points', { p_source_contract_id, p_points, p_reason: 'manual_recalc' })`
+- Útil para corrigir o caso do Adailton e qualquer outro parceiro que tenha sido vinculado sem propagação
 
-6. **Dialog de Editar Plano** (linhas 832-925):
-   - Adicionar campo Input tipo "number" com label "Pontos Gerados"
-   - Atualizar o estado `editingPlan` ao mudar
-   - Buscar os pontos ao abrir o dialog (useEffect dentro do DialogContent ou ao clicar em Editar)
+### Detalhes Técnicos
 
-### Fluxo de Dados
+**Mudança no `handleLink`** (após linha 198):
 
 ```text
-Admin cria plano "Legend" com 1200 pontos:
-1. Cria registro em partner_plans (aporte, cap, etc)
-2. Cria registro em partner_level_points (plan_name="Legend", points=1200)
-3. Pronto! O Legend gera 1200 pontos
-
-Admin edita Legend de 1200 para 1500 pontos:
-1. Atualiza partner_plans
-2. Atualiza partner_level_points (points = 1500)
+// 3. Propagar pontos para uplines
+// Buscar plan_name do contrato
+// Buscar points de partner_level_points
+// Chamar rpc('propagate_binary_points', { source, points, reason: 'admin_link' })
+// Incluir no toast a quantidade de pontos propagados
 ```
 
-### O Que NÃO Muda
-- A tab "Pontos por Plano" no PartnerGraduationManager continua funcionando para ajustes finos
-- Nenhuma outra página é alterada
-- Sem migrations de banco de dados necessárias
-- A lógica de propagação de pontos na rede binária continua igual
+**Botão "Recalcular Pontos"** na PositionsTable:
+- Adiciona uma coluna "Ações" com um botão por linha
+- Ao clicar, abre um Dialog de confirmação mostrando: nome, plano, pontos que seriam propagados
+- Confirma e chama o RPC
+- Atualiza a tabela após sucesso
 
+### O Que NAO Muda
+- A lógica de spillover (BFS) continua igual
+- A UI de seleção de sponsor continua igual
+- Nenhuma migration de banco necessária (as funções `propagate_binary_points` e `partner_level_points` já existem)
+- Nenhum outro componente é alterado
