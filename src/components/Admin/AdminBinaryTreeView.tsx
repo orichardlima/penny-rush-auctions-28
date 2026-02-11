@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2 } from 'lucide-react';
+import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2, Calculator } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface BinaryPositionRecord {
@@ -51,6 +51,12 @@ export const AdminBinaryTreeView: React.FC = () => {
   const [selectedSponsorId, setSelectedSponsorId] = useState('');
   const [linking, setLinking] = useState(false);
   const [spilloverResult, setSpilloverResult] = useState<{ parentContractId: string; position: 'left' | 'right' } | null>(null);
+
+  // Recalculate dialog state
+  const [recalcDialogOpen, setRecalcDialogOpen] = useState(false);
+  const [recalcTarget, setRecalcTarget] = useState<EnrichedPosition | null>(null);
+  const [recalcPoints, setRecalcPoints] = useState<number>(0);
+  const [recalculating, setRecalculating] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -170,6 +176,43 @@ export const AdminBinaryTreeView: React.FC = () => {
     setLinkDialogOpen(true);
   };
 
+  const openRecalcDialog = async (pos: EnrichedPosition) => {
+    setRecalcTarget(pos);
+    setRecalcPoints(0);
+    setRecalcDialogOpen(true);
+    try {
+      const { data: levelPoints } = await supabase
+        .from('partner_level_points')
+        .select('points')
+        .eq('plan_name', pos.planName)
+        .single();
+      if (levelPoints) setRecalcPoints(levelPoints.points);
+    } catch (err) {
+      console.error('Error fetching points:', err);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    if (!recalcTarget || recalcPoints <= 0) return;
+    setRecalculating(true);
+    try {
+      const { error: rpcError } = await supabase.rpc('propagate_binary_points', {
+        p_source_contract_id: recalcTarget.partner_contract_id,
+        p_points: recalcPoints,
+        p_reason: 'manual_recalc',
+      });
+      if (rpcError) throw rpcError;
+      toast({ title: 'Pontos recalculados', description: `${recalcPoints} pontos de ${recalcTarget.partnerName} propagados com sucesso.` });
+      setRecalcDialogOpen(false);
+      fetchData();
+    } catch (err: any) {
+      console.error('Recalc error:', err);
+      toast({ title: 'Erro ao recalcular', description: err.message || 'Erro desconhecido', variant: 'destructive' });
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const handleLink = async () => {
     if (!selectedIsolated || !selectedSponsorId || !spilloverResult) return;
     setLinking(true);
@@ -197,7 +240,38 @@ export const AdminBinaryTreeView: React.FC = () => {
 
       if (err2) throw err2;
 
-      toast({ title: 'Vinculado com sucesso', description: `${selectedIsolated.partnerName} foi vinculado à árvore binária sob ${posMap.get(selectedSponsorId)?.partnerName || 'sponsor'}.` });
+      // 3. Propagar pontos para uplines
+      let pointsPropagated = 0;
+      try {
+        const { data: contract } = await supabase
+          .from('partner_contracts')
+          .select('plan_name')
+          .eq('id', childContractId)
+          .single();
+
+        if (contract?.plan_name) {
+          const { data: levelPoints } = await supabase
+            .from('partner_level_points')
+            .select('points')
+            .eq('plan_name', contract.plan_name)
+            .single();
+
+          if (levelPoints && levelPoints.points > 0) {
+            const { data: propagated, error: rpcError } = await supabase.rpc('propagate_binary_points', {
+              p_source_contract_id: childContractId,
+              p_points: levelPoints.points,
+              p_reason: 'admin_link',
+            });
+            if (rpcError) console.error('Propagation error:', rpcError);
+            else pointsPropagated = levelPoints.points;
+          }
+        }
+      } catch (propErr) {
+        console.error('Point propagation error:', propErr);
+      }
+
+      const pointsMsg = pointsPropagated > 0 ? ` ${pointsPropagated} pontos propagados.` : ' (sem pontos configurados para propagar)';
+      toast({ title: 'Vinculado com sucesso', description: `${selectedIsolated.partnerName} foi vinculado à árvore binária sob ${posMap.get(selectedSponsorId)?.partnerName || 'sponsor'}.${pointsMsg}` });
       setLinkDialogOpen(false);
       fetchData();
     } catch (err: any) {
@@ -263,7 +337,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           <CardTitle className="text-lg">Todos os Registros ({positions.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <PositionsTable positions={positions} posMap={posMap} />
+          <PositionsTable positions={positions} posMap={posMap} onRecalculate={openRecalcDialog} />
         </CardContent>
       </Card>
 
@@ -314,6 +388,35 @@ export const AdminBinaryTreeView: React.FC = () => {
               disabled={!selectedSponsorId || !spilloverResult || linking}
             >
               {linking ? 'Vinculando...' : 'Confirmar Vinculação'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recalculate Dialog */}
+      <Dialog open={recalcDialogOpen} onOpenChange={setRecalcDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recalcular Pontos</DialogTitle>
+            <DialogDescription>
+              Propagar pontos de <strong>{recalcTarget?.partnerName}</strong> ({recalcTarget?.planName}) para todos os uplines na árvore binária.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {recalcPoints > 0 ? (
+              <div className="rounded-md border p-3 bg-muted text-sm space-y-1">
+                <p><strong>{recalcPoints}</strong> pontos serão propagados para os uplines.</p>
+                <p className="text-muted-foreground">Reason: manual_recalc</p>
+              </div>
+            ) : (
+              <p className="text-sm text-destructive">Nenhum ponto configurado para o plano "{recalcTarget?.planName}" em partner_level_points.</p>
+            )}
+            <Button
+              className="w-full"
+              onClick={handleRecalculate}
+              disabled={recalcPoints <= 0 || recalculating}
+            >
+              {recalculating ? 'Recalculando...' : 'Confirmar Recálculo'}
             </Button>
           </div>
         </DialogContent>
@@ -403,7 +506,7 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
   );
 };
 
-const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition> }> = ({ positions, posMap }) => {
+const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onRecalculate: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onRecalculate }) => {
   const getName = (contractId: string | null) => {
     if (!contractId) return '—';
     return posMap.get(contractId)?.partnerName || contractId.slice(0, 8);
@@ -422,6 +525,7 @@ const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<stri
             <TableHead className="text-center">Pts Esq</TableHead>
             <TableHead className="text-center">Pts Dir</TableHead>
             <TableHead className="text-center">Filhos</TableHead>
+            <TableHead className="text-center">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -435,6 +539,11 @@ const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<stri
               <TableCell className="text-center">{formatPoints(p.left_points)}</TableCell>
               <TableCell className="text-center">{formatPoints(p.right_points)}</TableCell>
               <TableCell className="text-center">{(p.left_child_id ? 1 : 0) + (p.right_child_id ? 1 : 0)}</TableCell>
+              <TableCell className="text-center">
+                <Button variant="outline" size="sm" onClick={() => onRecalculate(p)}>
+                  <Calculator className="w-4 h-4 mr-1" />Recalcular
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
