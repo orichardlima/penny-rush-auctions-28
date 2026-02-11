@@ -11,7 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { GitBranch, Settings, History, Play, Users, TrendingUp, DollarSign, RefreshCw, AlertTriangle } from 'lucide-react';
+import { GitBranch, Settings, History, Play, Users, TrendingUp, DollarSign, RefreshCw, AlertTriangle, TreePine } from 'lucide-react';
+import { AdminBinaryTreeView } from './AdminBinaryTreeView';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -66,12 +67,17 @@ export const BinaryNetworkManager: React.FC = () => {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="cycle">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="tree">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="tree"><TreePine className="w-4 h-4 mr-2" />Árvore</TabsTrigger>
           <TabsTrigger value="cycle"><Play className="w-4 h-4 mr-2" />Fechar Ciclo</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-2" />Histórico</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-2" />Configurações</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="tree">
+          <AdminBinaryTreeView />
+        </TabsContent>
 
         <TabsContent value="cycle" className="space-y-4">
           <Card>
