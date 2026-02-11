@@ -1,72 +1,64 @@
 
 
-## Corrigir vinculacao para usar spillover automatico (derramamento)
+## Adicionar Campo de "Pontuação Gerada" ao Modal de Planos
 
-### Problema atual
+### Problema Atual
+Quando o admin cria ou edita um plano, não há campo para informar quantos **pontos** ele gera na rede binária. A pontuação precisa ser configurada separadamente na tab "Pontos por Plano" do PartnerGraduationManager, o que é confuso.
 
-O dialog de vinculacao pede ao admin para escolher manualmente o no pai E a posicao. Isso esta errado porque:
-- O admin deveria escolher apenas o **sponsor** (quem indicou)
-- O **posicionamento** (parent + posicao) deveria ser automatico por spillover: encontrar a proxima vaga livre na subarvore do sponsor
+### Solução
+Adicionar um campo numérico **"Pontos Gerados"** ao modal de criar/editar planos que:
+1. Permite configurar os pontos no mesmo local onde se configura o aporte, limite semanal, etc
+2. Ao criar um plano, também insere um registro em `partner_level_points` com plan_name e points
+3. Ao editar um plano, atualiza o registro em `partner_level_points` correspondente
+4. Se o plano não existir em `partner_level_points` ainda, cria um novo registro
 
-### Como funciona o spillover
+### Mudanças Técnicas
 
-O algoritmo de derramamento percorre a subarvore do sponsor usando BFS (busca em largura) para encontrar o primeiro no com uma vaga livre (esquerda tem prioridade sobre direita, ou vice-versa conforme regra de perna menor).
+**Arquivo**: `src/components/Admin/AdminPartnerManagement.tsx`
 
-```text
-Exemplo: Richard tem filhos E e D preenchidos.
-- Filho E de Richard tem vaga na direita
-- Adailton sera posicionado como filho direito do Filho E
-- sponsor_contract_id = Richard
-- parent_contract_id = Filho E
-- position = right
-```
+1. **Estado de Criar Plano**:
+   - Adicionar `binary_points: 0` ao objeto `newPlan` (linhas ~98-108)
+   - Adicionar um Input numérico para "Pontos Gerados" no dialog de criação (após o campo de "Bônus de Lances")
 
-### Mudancas
+2. **Estado de Editar Plano**:
+   - Adicionar `binary_points: 0` ao objeto `editingPlan` quando abre o dialog (ele já carrega o plano, mas não tem os pontos)
+   - Necessário fazer uma query adicional ao abrir o dialog para buscar os pontos em `partner_level_points`
+   - Adicionar um Input numérico no dialog de edição
 
-**Arquivo**: `src/components/Admin/AdminBinaryTreeView.tsx`
+3. **Função `handleCreatePlan`** (linha ~269):
+   - Após criar o plano via `createPlan()`, fazer um INSERT em `partner_level_points` com:
+     - `plan_name`: nome do plano
+     - `points`: valor informado pelo admin
+     - Se já existir uma entrada para esse plano, fazer UPDATE ao invés de INSERT
 
-1. **Simplificar o dialog**: remover a selecao manual de posicao (RadioGroup) e a selecao de pai. Substituir por um unico Select de **Sponsor** mostrando TODOS os parceiros (nao apenas os com vaga direta)
+4. **Função de Atualizar Plano** (linha ~916):
+   - Ao atualizar o plano via `updatePlan()`, também fazer UPDATE em `partner_level_points` se o valor mudou
 
-2. **Implementar funcao `findNextAvailableSlot`**: algoritmo BFS que recebe o contract_id do sponsor e percorre sua subarvore para encontrar o primeiro no com vaga livre
-   - Usa fila (queue) comecando pelo sponsor
-   - Para cada no, verifica se tem vaga esquerda ou direita
-   - Se tem vaga, retorna `{ parentContractId, position }`
-   - Se nao tem, adiciona os filhos na fila e continua
-   - Prioridade: esquerda antes de direita (perna menor primeiro)
+5. **Dialog de Criar Plano** (linhas 682-791):
+   - Adicionar campo Input tipo "number" com label "Pontos Gerados"
+   - Atualizar o estado `newPlan` ao mudar
 
-3. **Atualizar `handleLink`**:
-   - Recebe apenas o sponsor selecionado
-   - Chama `findNextAvailableSlot(sponsorContractId)` para encontrar parent e posicao automaticamente
-   - Faz os dois UPDATEs como antes, mas agora com `sponsor_contract_id` = sponsor escolhido e `parent_contract_id` = no encontrado pelo BFS
+6. **Dialog de Editar Plano** (linhas 832-925):
+   - Adicionar campo Input tipo "number" com label "Pontos Gerados"
+   - Atualizar o estado `editingPlan` ao mudar
+   - Buscar os pontos ao abrir o dialog (useEffect dentro do DialogContent ou ao clicar em Editar)
 
-4. **Atualizar UI do dialog**:
-   - Titulo: "Vincular Parceiro a Arvore"
-   - Campo unico: Select de Sponsor com busca
-   - Ao selecionar sponsor, mostrar preview: "Sera posicionado como filho [esquerdo/direito] de [Nome do No Pai]"
-   - Se a subarvore do sponsor estiver completamente cheia (improvavel mas possivel), mostrar mensagem de erro
-   - Botao de confirmacao
-
-### Algoritmo BFS (pseudocodigo)
+### Fluxo de Dados
 
 ```text
-function findNextAvailableSlot(sponsorContractId):
-  queue = [sponsorContractId]
-  while queue not empty:
-    current = queue.shift()
-    node = posMap.get(current)
-    if not node: continue
-    if not node.left_child_id: return { parent: current, position: 'left' }
-    if not node.right_child_id: return { parent: current, position: 'right' }
-    queue.push(node.left_child_id)
-    queue.push(node.right_child_id)
-  return null  // sem vaga (subarvore cheia)
+Admin cria plano "Legend" com 1200 pontos:
+1. Cria registro em partner_plans (aporte, cap, etc)
+2. Cria registro em partner_level_points (plan_name="Legend", points=1200)
+3. Pronto! O Legend gera 1200 pontos
+
+Admin edita Legend de 1200 para 1500 pontos:
+1. Atualiza partner_plans
+2. Atualiza partner_level_points (points = 1500)
 ```
 
-### O que NAO muda
-
-- Nenhuma outra pagina ou componente e alterado
-- A arvore hierarquica, resumo, tabela completa permanecem intactas
-- A logica de UPDATE no banco continua a mesma (dois updates)
-- Nenhuma migration necessaria
-- A tabela de isolados continua com o botao "Vincular"
+### O Que NÃO Muda
+- A tab "Pontos por Plano" no PartnerGraduationManager continua funcionando para ajustes finos
+- Nenhuma outra página é alterada
+- Sem migrations de banco de dados necessárias
+- A lógica de propagação de pontos na rede binária continua igual
 
