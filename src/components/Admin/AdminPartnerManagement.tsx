@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import BinaryNetworkManager from './BinaryNetworkManager';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminPartnerManagement = () => {
   const { 
@@ -104,7 +105,8 @@ const AdminPartnerManagement = () => {
     is_active: true,
     sort_order: 0,
     referral_bonus_percentage: 10,
-    bonus_bids: 0
+    bonus_bids: 0,
+    binary_points: 0
   });
 
   // Manual Credit State
@@ -266,7 +268,24 @@ const AdminPartnerManagement = () => {
   const handleCreatePlan = async () => {
     if (!newPlan.name || !newPlan.display_name || newPlan.aporte_value <= 0) return;
     
-    await createPlan(newPlan);
+    const { binary_points, ...planData } = newPlan;
+    await createPlan(planData);
+    
+    // Upsert binary points in partner_level_points
+    if (binary_points >= 0) {
+      const { data: existing } = await supabase
+        .from('partner_level_points')
+        .select('id')
+        .eq('plan_name', newPlan.name)
+        .maybeSingle();
+      
+      if (existing) {
+        await supabase.from('partner_level_points').update({ points: binary_points }).eq('id', existing.id);
+      } else {
+        await supabase.from('partner_level_points').insert({ plan_name: newPlan.name, points: binary_points });
+      }
+    }
+    
     setIsCreatingPlan(false);
     setNewPlan({
       name: '',
@@ -277,7 +296,8 @@ const AdminPartnerManagement = () => {
       is_active: true,
       sort_order: plans.length,
       referral_bonus_percentage: 10,
-      bonus_bids: 0
+      bonus_bids: 0,
+      binary_points: 0
     });
   };
 
@@ -768,6 +788,20 @@ const AdminPartnerManagement = () => {
                         Lances creditados automaticamente ao comprar o plano
                       </p>
                     </div>
+
+                    <div className="space-y-2">
+                      <Label>Pontos Gerados (Rede Binária)</Label>
+                      <Input 
+                        type="number"
+                        min={0}
+                        value={newPlan.binary_points}
+                        onChange={(e) => setNewPlan({...newPlan, binary_points: parseInt(e.target.value) || 0})}
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Pontos propagados na rede binária ao ativar este plano
+                      </p>
+                    </div>
                     
                     {newPlan.aporte_value > 0 && newPlan.total_cap > 0 && (
                       <div className="p-3 bg-muted/50 rounded-lg">
@@ -831,10 +865,17 @@ const AdminPartnerManagement = () => {
                         <div className="flex gap-2">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button 
+                                <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => setEditingPlan({ ...plan })}
+                                onClick={async () => {
+                                  const { data: pointsData } = await supabase
+                                    .from('partner_level_points')
+                                    .select('points')
+                                    .eq('plan_name', plan.name)
+                                    .maybeSingle();
+                                  setEditingPlan({ ...plan, binary_points: pointsData?.points ?? 0 });
+                                }}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -908,12 +949,39 @@ const AdminPartnerManagement = () => {
                                       Lances creditados ao adquirir o plano
                                     </p>
                                   </div>
+                                  <div className="space-y-2">
+                                    <Label>Pontos Gerados (Rede Binária)</Label>
+                                    <Input 
+                                      type="number"
+                                      min={0}
+                                      value={editingPlan.binary_points ?? 0}
+                                      onChange={(e) => setEditingPlan({...editingPlan, binary_points: parseInt(e.target.value) || 0})}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Pontos propagados na rede binária ao ativar este plano
+                                    </p>
+                                  </div>
                                 </div>
                               )}
                               <DialogFooter>
                                 <Button 
-                                  onClick={() => {
-                                    updatePlan(editingPlan.id, editingPlan);
+                                  onClick={async () => {
+                                    const { binary_points, ...planFields } = editingPlan;
+                                    await updatePlan(editingPlan.id, planFields);
+                                    
+                                    // Upsert binary points
+                                    const { data: existing } = await supabase
+                                      .from('partner_level_points')
+                                      .select('id')
+                                      .eq('plan_name', editingPlan.name)
+                                      .maybeSingle();
+                                    
+                                    if (existing) {
+                                      await supabase.from('partner_level_points').update({ points: binary_points ?? 0 }).eq('id', existing.id);
+                                    } else {
+                                      await supabase.from('partner_level_points').insert({ plan_name: editingPlan.name, points: binary_points ?? 0 });
+                                    }
+                                    
                                     setEditingPlan(null);
                                   }}
                                   disabled={processing}
