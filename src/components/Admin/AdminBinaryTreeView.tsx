@@ -6,7 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface BinaryPositionRecord {
   id: string;
@@ -39,6 +44,13 @@ const formatPoints = (v: number) => v.toLocaleString('pt-BR');
 export const AdminBinaryTreeView: React.FC = () => {
   const [positions, setPositions] = useState<EnrichedPosition[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Link dialog state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedIsolated, setSelectedIsolated] = useState<EnrichedPosition | null>(null);
+  const [selectedParentId, setSelectedParentId] = useState('');
+  const [selectedPosition, setSelectedPosition] = useState<'left' | 'right' | ''>('');
+  const [linking, setLinking] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -126,6 +138,84 @@ export const AdminBinaryTreeView: React.FC = () => {
   const totalLeftPts = positions.reduce((s, p) => s + p.left_points, 0);
   const totalRightPts = positions.reduce((s, p) => s + p.right_points, 0);
 
+  // Available parents: all positions that have at least one free slot
+  const getAvailableParents = () => {
+    return positions.filter(p => !p.left_child_id || !p.right_child_id);
+  };
+
+  // Available positions for a given parent
+  const getAvailablePositions = (parentContractId: string): ('left' | 'right')[] => {
+    const parent = posMap.get(parentContractId);
+    if (!parent) return [];
+    const available: ('left' | 'right')[] = [];
+    if (!parent.left_child_id) available.push('left');
+    if (!parent.right_child_id) available.push('right');
+    return available;
+  };
+
+  const openLinkDialog = (pos: EnrichedPosition) => {
+    setSelectedIsolated(pos);
+    setSelectedParentId('');
+    setSelectedPosition('');
+    setLinkDialogOpen(true);
+  };
+
+  const handleLink = async () => {
+    if (!selectedIsolated || !selectedParentId || !selectedPosition) return;
+    setLinking(true);
+    try {
+      const childContractId = selectedIsolated.partner_contract_id;
+
+      // 1. Update isolated partner
+      const { error: err1 } = await supabase
+        .from('partner_binary_positions')
+        .update({
+          parent_contract_id: selectedParentId,
+          sponsor_contract_id: selectedParentId,
+          position: selectedPosition,
+        })
+        .eq('partner_contract_id', childContractId);
+
+      if (err1) throw err1;
+
+      // 2. Update parent slot
+      const updateField = selectedPosition === 'left' ? 'left_child_id' : 'right_child_id';
+      const { error: err2 } = await supabase
+        .from('partner_binary_positions')
+        .update({ [updateField]: childContractId })
+        .eq('partner_contract_id', selectedParentId);
+
+      if (err2) throw err2;
+
+      toast({ title: 'Vinculado com sucesso', description: `${selectedIsolated.partnerName} foi vinculado à árvore binária.` });
+      setLinkDialogOpen(false);
+      fetchData();
+    } catch (err: any) {
+      console.error('Link error:', err);
+      toast({ title: 'Erro ao vincular', description: err.message || 'Erro desconhecido', variant: 'destructive' });
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  // Filter parents based on selected position
+  const filteredParents = selectedPosition
+    ? positions.filter(p => {
+        if (selectedPosition === 'left') return !p.left_child_id;
+        return !p.right_child_id;
+      })
+    : getAvailableParents();
+
+  // When parent changes, auto-check available positions
+  const availablePositionsForParent = selectedParentId ? getAvailablePositions(selectedParentId) : [];
+
+  // Reset position if no longer valid after parent change
+  useEffect(() => {
+    if (selectedParentId && selectedPosition && !availablePositionsForParent.includes(selectedPosition as 'left' | 'right')) {
+      setSelectedPosition('');
+    }
+  }, [selectedParentId, availablePositionsForParent, selectedPosition]);
+
   if (loading) {
     return <Card><CardContent className="py-8"><Skeleton className="h-48 w-full" /></CardContent></Card>;
   }
@@ -170,7 +260,7 @@ export const AdminBinaryTreeView: React.FC = () => {
             <CardDescription>Sem parent, sponsor ou filhos na rede binária</CardDescription>
           </CardHeader>
           <CardContent>
-            <PositionsTable positions={isolated} posMap={posMap} />
+            <IsolatedTable positions={isolated} posMap={posMap} onLink={openLinkDialog} />
           </CardContent>
         </Card>
       )}
@@ -184,6 +274,75 @@ export const AdminBinaryTreeView: React.FC = () => {
           <PositionsTable positions={positions} posMap={posMap} />
         </CardContent>
       </Card>
+
+      {/* Link Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Vincular Parceiro à Árvore</DialogTitle>
+            <DialogDescription>
+              Vincular <strong>{selectedIsolated?.partnerName}</strong> ({selectedIsolated?.planName}) a um nó pai na rede binária.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {/* Position selection */}
+            <div className="space-y-2">
+              <Label>Posição</Label>
+              <RadioGroup
+                value={selectedPosition}
+                onValueChange={(v) => setSelectedPosition(v as 'left' | 'right')}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="left" id="pos-left" />
+                  <Label htmlFor="pos-left">Esquerda</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="right" id="pos-right" />
+                  <Label htmlFor="pos-right">Direita</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Parent selection */}
+            <div className="space-y-2">
+              <Label>Nó Pai</Label>
+              <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o nó pai..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredParents
+                    .filter(p => p.partner_contract_id !== selectedIsolated?.partner_contract_id)
+                    .map(p => {
+                      const slots: string[] = [];
+                      if (!p.left_child_id) slots.push('E');
+                      if (!p.right_child_id) slots.push('D');
+                      return (
+                        <SelectItem key={p.partner_contract_id} value={p.partner_contract_id}>
+                          {p.partnerName} ({p.planName}) — vaga: {slots.join(', ')}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Validation message */}
+            {selectedParentId && availablePositionsForParent.length === 0 && (
+              <p className="text-sm text-destructive">Este nó pai não possui vagas disponíveis.</p>
+            )}
+
+            <Button
+              className="w-full"
+              onClick={handleLink}
+              disabled={!selectedParentId || !selectedPosition || linking || (selectedParentId && !availablePositionsForParent.includes(selectedPosition as 'left' | 'right'))}
+            >
+              {linking ? 'Vinculando...' : 'Confirmar Vinculação'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -228,6 +387,44 @@ const TreeNodeView: React.FC<{ node: TreeNode; depth: number }> = ({ node, depth
         </CollapsibleContent>
       )}
     </Collapsible>
+  );
+};
+
+const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onLink: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onLink }) => {
+  const getName = (contractId: string | null) => {
+    if (!contractId) return '—';
+    return posMap.get(contractId)?.partnerName || contractId.slice(0, 8);
+  };
+
+  return (
+    <div className="max-h-96 overflow-y-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Parceiro</TableHead>
+            <TableHead>Plano</TableHead>
+            <TableHead className="text-center">Pts Esq</TableHead>
+            <TableHead className="text-center">Pts Dir</TableHead>
+            <TableHead className="text-center">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {positions.map(p => (
+            <TableRow key={p.id}>
+              <TableCell className="font-medium">{p.partnerName}</TableCell>
+              <TableCell><Badge variant="outline">{p.planName}</Badge></TableCell>
+              <TableCell className="text-center">{formatPoints(p.left_points)}</TableCell>
+              <TableCell className="text-center">{formatPoints(p.right_points)}</TableCell>
+              <TableCell className="text-center">
+                <Button variant="outline" size="sm" onClick={() => onLink(p)}>
+                  <Link2 className="w-4 h-4 mr-1" />Vincular
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 
