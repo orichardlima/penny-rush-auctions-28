@@ -1,52 +1,80 @@
 
 
-## Corrigir handleLink para Propagar Pontos + Recalcular Retroativamente
+## Posicionar Automaticamente Parceiros Sem Indicacao Sob um Sponsor Padrao
 
-### Problema
-O `handleLink` no `AdminBinaryTreeView.tsx` faz apenas updates manuais nas tabelas (parent, position, child), mas **não chama** a função `propagate_binary_points` que já existe no banco e é responsável por distribuir os pontos para todos os uplines.
+### Problema Atual
+Quando um parceiro se cadastra sem link de indicacao (`referred_by_user_id = NULL`), o trigger `auto_create_binary_position` cria uma posicao isolada (sem sponsor, sem parent, sem posicao). Esses parceiros ficam "soltos" e precisam de vinculacao manual pelo admin.
 
-### Solução
+### Solucao
+Alterar o trigger para que, quando nao houver indicador, o sistema use automaticamente o **nó raiz da arvore** como sponsor padrao. Assim o parceiro sera posicionado via spillover (BFS na perna menor), exatamente como se tivesse sido indicado pelo parceiro raiz.
 
-#### 1. Corrigir `handleLink` para propagar pontos automaticamente
-
-**Arquivo**: `src/components/Admin/AdminBinaryTreeView.tsx`
-
-Após os 2 updates existentes (linhas 180-198), adicionar um passo 3 que:
-1. Busca o `plan_name` do contrato do parceiro vinculado em `partner_contracts`
-2. Busca os `points` correspondentes em `partner_level_points`
-3. Chama `supabase.rpc('propagate_binary_points', ...)` para distribuir os pontos pela árvore acima
-4. Exibe no toast quantos pontos foram propagados
-
-Isso garante que **toda futura vinculação** de parceiros isolados também propague pontos corretamente.
-
-#### 2. Adicionar botão "Recalcular Pontos" na tabela de posições
-
-**Arquivo**: `src/components/Admin/AdminBinaryTreeView.tsx`
-
-- Adicionar um botão na tabela geral (PositionsTable) ou no card de resumo que permite ao admin selecionar um parceiro e recalcular/propagar seus pontos retroativamente
-- Esse botão chamará `supabase.rpc('propagate_binary_points', { p_source_contract_id, p_points, p_reason: 'manual_recalc' })`
-- Útil para corrigir o caso do Adailton e qualquer outro parceiro que tenha sido vinculado sem propagação
-
-### Detalhes Técnicos
-
-**Mudança no `handleLink`** (após linha 198):
+### Como Funciona
 
 ```text
-// 3. Propagar pontos para uplines
-// Buscar plan_name do contrato
-// Buscar points de partner_level_points
-// Chamar rpc('propagate_binary_points', { source, points, reason: 'admin_link' })
-// Incluir no toast a quantidade de pontos propagados
+Cadastro sem indicacao:
+
+ANTES (atual):
+  Parceiro novo -> Sem referral -> Criado ISOLADO (sem conexao)
+
+DEPOIS (novo):
+  Parceiro novo -> Sem referral -> Busca nó raiz da arvore
+                                -> Posiciona via spillover na perna menor
+                                -> Propaga pontos para uplines
 ```
 
-**Botão "Recalcular Pontos"** na PositionsTable:
-- Adiciona uma coluna "Ações" com um botão por linha
-- Ao clicar, abre um Dialog de confirmação mostrando: nome, plano, pontos que seriam propagados
-- Confirma e chama o RPC
-- Atualiza a tabela após sucesso
+### Implementacao
+
+**Unica mudanca**: Migration SQL para atualizar a funcao `auto_create_binary_position`
+
+No bloco `ELSE` (linhas 63-76 do trigger atual), em vez de criar posicao isolada, o trigger fara:
+
+1. Buscar o nó raiz da arvore binaria (parceiro sem `parent_contract_id` que tenha filhos -- atualmente Richard Lima)
+2. Se encontrar uma raiz, usar esse contrato como `sponsor_contract_id` padrao
+3. Chamar `position_partner_binary()` com esse sponsor, aplicando spillover e propagacao de pontos automaticamente
+4. Somente se NAO existir nenhuma raiz na arvore (caso a rede esteja vazia), criar como raiz isolada
+
+### Detalhes Tecnicos
+
+A migration vai substituir o bloco:
+```text
+-- Sem patrocinador: criar posicao raiz
+INSERT INTO partner_binary_positions (...) VALUES (NEW.id, NULL, NULL, NULL, 0, 0, 0, 0);
+```
+
+Por uma logica que:
+```text
+-- Buscar raiz da arvore (nó sem parent que tenha filhos)
+SELECT partner_contract_id INTO v_default_sponsor
+FROM partner_binary_positions
+WHERE parent_contract_id IS NULL
+  AND (left_child_id IS NOT NULL OR right_child_id IS NOT NULL)
+LIMIT 1;
+
+-- Se nao encontrou raiz com filhos, buscar qualquer raiz
+IF v_default_sponsor IS NULL THEN
+  SELECT partner_contract_id INTO v_default_sponsor
+  FROM partner_binary_positions
+  WHERE parent_contract_id IS NULL
+  LIMIT 1;
+END IF;
+
+IF v_default_sponsor IS NOT NULL THEN
+  -- Posicionar automaticamente sob a raiz, com spillover e pontos
+  v_result := position_partner_binary(NEW.id, v_default_sponsor, v_preferred_side);
+ELSE
+  -- Rede vazia: este será o primeiro nó raiz
+  INSERT INTO partner_binary_positions (...) VALUES (NEW.id, NULL, NULL, NULL, 0, 0, 0, 0);
+END IF;
+```
 
 ### O Que NAO Muda
-- A lógica de spillover (BFS) continua igual
-- A UI de seleção de sponsor continua igual
-- Nenhuma migration de banco necessária (as funções `propagate_binary_points` e `partner_level_points` já existem)
-- Nenhum outro componente é alterado
+- Nenhuma alteracao de UI ou componentes React
+- A logica para parceiros COM indicacao continua identica
+- O fluxo de pagamento e ativacao nao muda
+- A funcao `position_partner_binary` e o spillover BFS continuam iguais
+- A tabela de "Parceiros Isolados" no admin continua funcionando (mas tera menos ocorrencias)
+
+### Resultado
+- Parceiros sem indicacao serao posicionados automaticamente na arvore
+- Seus pontos serao propagados corretamente para todos os uplines
+- O admin nao precisara mais vincular manualmente esses casos
