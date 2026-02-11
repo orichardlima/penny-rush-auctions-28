@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { 
   GitBranch, 
   User, 
@@ -13,7 +14,9 @@ import {
   ArrowRight,
   TrendingUp,
   Trophy,
-  RefreshCw
+  RefreshCw,
+  Search,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,10 +26,24 @@ interface TreeNodeProps {
   allNodes: BinaryTreeNode[];
   depth: number;
   maxDepth: number;
+  searchQuery: string;
+  matchingNodeIds: Set<string>;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, depth, maxDepth }) => {
+const hasMatchingDescendant = (nodeId: string, allNodes: BinaryTreeNode[], matchingIds: Set<string>): boolean => {
+  const node = allNodes.find(n => n.contract_id === nodeId);
+  if (!node) return false;
+  if (matchingIds.has(node.contract_id)) return true;
+  const left = node.left_child_id ? hasMatchingDescendant(node.left_child_id, allNodes, matchingIds) : false;
+  const right = node.right_child_id ? hasMatchingDescendant(node.right_child_id, allNodes, matchingIds) : false;
+  return left || right;
+};
+
+const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, depth, maxDepth, searchQuery, matchingNodeIds }) => {
+  const shouldAutoExpand = node && searchQuery && hasMatchingDescendant(node.contract_id, allNodes, matchingNodeIds);
   const [expanded, setExpanded] = useState(depth < 2);
+  const isExpanded = expanded || !!shouldAutoExpand;
+  const isMatch = node ? matchingNodeIds.has(node.contract_id) : false;
 
   if (!node) {
     return (
@@ -60,7 +77,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
       <div 
         className={cn(
           "relative w-32 rounded-lg border-2 p-2 transition-all cursor-pointer hover:shadow-md",
-          getPositionColor()
+          getPositionColor(),
+          isMatch && "ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
         )}
         onClick={() => hasChildren && setExpanded(!expanded)}
       >
@@ -108,7 +126,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
       </div>
 
       {/* Children */}
-      {hasChildren && expanded && depth < maxDepth && (
+      {hasChildren && isExpanded && depth < maxDepth && (
         <div className="flex flex-col items-center mt-2">
           {/* Connector lines */}
           <div className="w-px h-4 bg-border" />
@@ -126,6 +144,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
               allNodes={allNodes} 
               depth={depth + 1}
               maxDepth={maxDepth}
+              searchQuery={searchQuery}
+              matchingNodeIds={matchingNodeIds}
             />
             <TreeNode 
               node={rightChild} 
@@ -133,6 +153,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
               allNodes={allNodes} 
               depth={depth + 1}
               maxDepth={maxDepth}
+              searchQuery={searchQuery}
+              matchingNodeIds={matchingNodeIds}
             />
           </div>
         </div>
@@ -144,10 +166,19 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
 export const BinaryNetworkTree: React.FC = () => {
   const { position, tree, stats, loading, refresh } = useBinaryNetwork();
   const [maxDepth, setMaxDepth] = useState(3);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const rootNode = useMemo(() => {
     return tree.find(n => n.depth === 0) || null;
   }, [tree]);
+
+  const matchingNodeIds = useMemo(() => {
+    if (!searchQuery.trim()) return new Set<string>();
+    const query = searchQuery.toLowerCase().trim();
+    return new Set(
+      tree.filter(n => n.partner_name?.toLowerCase().includes(query)).map(n => n.contract_id)
+    );
+  }, [tree, searchQuery]);
 
   if (loading) {
     return (
@@ -262,6 +293,30 @@ export const BinaryNetworkTree: React.FC = () => {
           ))}
         </div>
 
+        {/* Search Field */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar downline por nome..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          {searchQuery && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {matchingNodeIds.size} resultado(s) encontrado(s)
+            </p>
+          )}
+        </div>
+
         {/* Tree Visualization */}
         <div className="overflow-x-auto pb-4">
           <div className="min-w-[400px] flex justify-center">
@@ -271,6 +326,8 @@ export const BinaryNetworkTree: React.FC = () => {
               allNodes={tree}
               depth={0}
               maxDepth={maxDepth}
+              searchQuery={searchQuery}
+              matchingNodeIds={matchingNodeIds}
             />
           </div>
         </div>
