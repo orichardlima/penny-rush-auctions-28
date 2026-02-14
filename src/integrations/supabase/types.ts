@@ -867,6 +867,90 @@ export type Database = {
         }
         Relationships: []
       }
+      fast_start_achievements: {
+        Row: {
+          achieved_at: string
+          created_at: string
+          extra_percentage_applied: number
+          id: string
+          partner_contract_id: string
+          processed: boolean
+          referrals_count: number
+          tier_id: string
+          total_extra_bonus: number
+        }
+        Insert: {
+          achieved_at?: string
+          created_at?: string
+          extra_percentage_applied: number
+          id?: string
+          partner_contract_id: string
+          processed?: boolean
+          referrals_count: number
+          tier_id: string
+          total_extra_bonus?: number
+        }
+        Update: {
+          achieved_at?: string
+          created_at?: string
+          extra_percentage_applied?: number
+          id?: string
+          partner_contract_id?: string
+          processed?: boolean
+          referrals_count?: number
+          tier_id?: string
+          total_extra_bonus?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fast_start_achievements_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fast_start_achievements_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "fast_start_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fast_start_tiers: {
+        Row: {
+          created_at: string
+          extra_percentage: number
+          id: string
+          is_active: boolean
+          name: string
+          required_referrals: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          extra_percentage: number
+          id?: string
+          is_active?: boolean
+          name: string
+          required_referrals: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          extra_percentage?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          required_referrals?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           auction_id: string
@@ -1389,6 +1473,7 @@ export type Database = {
           bonus_value: number
           created_at: string
           id: string
+          is_fast_start_bonus: boolean
           paid_at: string | null
           referral_level: number
           referred_contract_id: string
@@ -1403,6 +1488,7 @@ export type Database = {
           bonus_value: number
           created_at?: string
           id?: string
+          is_fast_start_bonus?: boolean
           paid_at?: string | null
           referral_level?: number
           referred_contract_id: string
@@ -1417,6 +1503,7 @@ export type Database = {
           bonus_value?: number
           created_at?: string
           id?: string
+          is_fast_start_bonus?: boolean
           paid_at?: string | null
           referral_level?: number
           referred_contract_id?: string
@@ -2090,6 +2177,10 @@ export type Database = {
         Returns: Json
       }
       preview_binary_cycle_closure: { Args: never; Returns: Json }
+      process_fast_start_bonus: {
+        Args: { p_contract_id: string; p_tier_id: string }
+        Returns: undefined
+      }
       process_partner_referral_bonus: {
         Args: { p_referred_contract_id: string; p_referrer_user_id: string }
         Returns: Json

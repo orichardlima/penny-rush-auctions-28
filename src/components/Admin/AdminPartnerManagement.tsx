@@ -45,10 +45,12 @@ import {
   GitBranch,
   Eye,
   Coins,
-  Megaphone
+  Megaphone,
+  Rocket
 } from 'lucide-react';
 import BinaryNetworkManager from './BinaryNetworkManager';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
+import FastStartTiersManager from './FastStartTiersManager';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminPartnerManagement = () => {
@@ -484,6 +486,10 @@ const AdminPartnerManagement = () => {
             <Megaphone className="h-4 w-4 mr-1" />
             Anúncios
           </TabsTrigger>
+          <TabsTrigger value="faststart" className="shrink-0">
+            <Rocket className="h-4 w-4 mr-1" />
+            Início Rápido
+          </TabsTrigger>
         </TabsList>
 
         {/* Níveis de Indicação Tab */}
@@ -504,6 +510,11 @@ const AdminPartnerManagement = () => {
         {/* Central de Anúncios Tab */}
         <TabsContent value="adcenter">
           <AdCenterMaterialsManager />
+        </TabsContent>
+
+        {/* Início Rápido Tab */}
+        <TabsContent value="faststart">
+          <FastStartTiersManager />
         </TabsContent>
 
         {/* Projeções Tab */}
