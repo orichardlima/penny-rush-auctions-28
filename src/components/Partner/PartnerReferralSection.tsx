@@ -9,6 +9,7 @@ import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import PartnerLevelProgress from './PartnerLevelProgress';
 import ReferralNetworkTree from './ReferralNetworkTree';
+import FastStartProgress from './FastStartProgress';
 import { 
   Users, 
   Copy, 
@@ -29,6 +30,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
   const { 
     bonuses, 
     referralCode,
+    contractId,
     binaryPoints,
     stats, 
     loading,
@@ -79,6 +81,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
   return (
     <div className="space-y-6">
+      {/* Bônus de Início Rápido */}
+      <FastStartProgress contractId={contractId} />
+
       {/* Graduação / Nível do Parceiro - baseado na perna menor do binário */}
       <PartnerLevelProgress 
         totalPoints={binaryPoints.weakerLegPoints} 
@@ -212,9 +217,16 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                 {bonuses.map((bonus) => (
                   <TableRow key={bonus.id}>
                     <TableCell>
-                      <Badge className={getLevelColor(bonus.referral_level)}>
-                        {getLevelLabel(bonus.referral_level)}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge className={getLevelColor(bonus.referral_level)}>
+                          {getLevelLabel(bonus.referral_level)}
+                        </Badge>
+                        {(bonus as any).is_fast_start_bonus && (
+                          <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs">
+                            🚀 Rápido
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-medium">
                       {bonus.referred_user_name}
