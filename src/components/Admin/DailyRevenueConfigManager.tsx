@@ -319,19 +319,19 @@ const DailyRevenueConfigManager = () => {
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-2 rounded-lg bg-background/50">
-              <p className="text-2xl font-bold text-emerald-600">
+              <p className="text-xl sm:text-2xl font-bold text-emerald-600">
                 {monthlyProgress.accumulated.toFixed(2)}%
               </p>
               <p className="text-xs text-muted-foreground">Acumulado</p>
             </div>
             <div className="text-center p-2 rounded-lg bg-background/50">
-              <p className="text-2xl font-bold text-amber-600">
+              <p className="text-xl sm:text-2xl font-bold text-amber-600">
                 {monthlyProgress.remaining.toFixed(2)}%
               </p>
               <p className="text-xs text-muted-foreground">Restante</p>
             </div>
             <div className="text-center p-2 rounded-lg bg-background/50">
-              <p className="text-2xl font-bold text-slate-600">
+              <p className="text-xl sm:text-2xl font-bold text-slate-600">
                 {maxMonthlyPercentage}%
               </p>
               <p className="text-xs text-muted-foreground">Limite Mensal</p>
@@ -358,7 +358,7 @@ const DailyRevenueConfigManager = () => {
           </div>
 
         {/* Weekly Breakdown */}
-          <div className="grid grid-cols-4 gap-2 text-center text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
             {monthlyProgress.weeks.map((week, index) => (
               <button 
                 key={week.weekStart}
@@ -411,14 +411,14 @@ const DailyRevenueConfigManager = () => {
         <Separator />
 
         {/* Days Table */}
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[120px]">Dia</TableHead>
                 <TableHead className="w-[140px]">Porcentagem (%)</TableHead>
-                <TableHead>Exemplos por Plano</TableHead>
-                <TableHead className="w-[130px]">Status</TableHead>
+                <TableHead className="hidden md:table-cell">Exemplos por Plano</TableHead>
+                <TableHead className="hidden sm:table-cell w-[130px]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -446,7 +446,7 @@ const DailyRevenueConfigManager = () => {
                       className={`w-24 ${isOverLimit ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {config.percentage > 0 && partnerPlans.length > 0 ? (
                       <div className="flex flex-col gap-0.5 text-xs">
                         {partnerPlans.map(plan => (
@@ -460,7 +460,7 @@ const DailyRevenueConfigManager = () => {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {getStatusBadge(config)}
                   </TableCell>
                 </TableRow>
