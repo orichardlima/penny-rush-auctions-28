@@ -171,20 +171,6 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     refreshData();
   }, [filters]);
 
-  // Polling auto-refresh every 30 seconds (replaces Realtime for admin dashboard)
-  useEffect(() => {
-    console.log('[useFinancialAnalytics] Starting 30s polling for financial data');
-    const pollInterval = setInterval(() => {
-      console.log('[useFinancialAnalytics] Polling refresh (30s)');
-      refreshData();
-    }, 30000);
-
-    return () => {
-      console.log('[useFinancialAnalytics] Stopping polling');
-      clearInterval(pollInterval);
-    };
-  }, []); // Stable empty dependency array
-
   return {
     summary,
     auctionDetails,
