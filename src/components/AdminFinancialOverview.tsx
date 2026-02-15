@@ -28,7 +28,7 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     period: '30d'
   });
 
-  const { summary, revenueTrends, loading, error } = useFinancialAnalytics(filters);
+  const { summary, auctionDetails, revenueTrends, loading, error } = useFinancialAnalytics(filters);
 
   if (loading) {
     return (
@@ -175,11 +175,11 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
             totalBids={summary?.total_bids || 0}
             userBids={summary?.user_bids || 0}
             botBids={summary?.bot_bids || 0}
-            auctionData={auctions.slice(0, 10).map(auction => ({
+            auctionData={auctionDetails.slice(0, 10).map(auction => ({
               title: auction.title.length > 20 ? auction.title.substring(0, 20) + '...' : auction.title,
-              user_bids_count: Math.floor((auction.total_bids || 0) * 0.7), // Estimativa
-              bot_bids_count: Math.floor((auction.total_bids || 0) * 0.3), // Estimativa
-              total_bids_count: auction.total_bids || 0,
+              user_bids_count: auction.user_bids_count || 0,
+              bot_bids_count: auction.bot_bids_count || 0,
+              total_bids_count: auction.total_bids_count || 0,
             }))}
           />
         </TabsContent>
