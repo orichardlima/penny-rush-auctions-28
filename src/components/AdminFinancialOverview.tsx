@@ -83,10 +83,10 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              R$ {summary?.total_revenue?.toFixed(2) || '0.00'}
+              R$ {summary?.package_revenue?.toFixed(2) || '0.00'}
             </div>
             <p className="text-xs text-muted-foreground">
-              Leilões + Pacotes de Lances
+              Pagamentos confirmados
             </p>
           </CardContent>
         </Card>

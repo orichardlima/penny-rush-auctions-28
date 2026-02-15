@@ -61,25 +61,18 @@ export const FinancialSummaryCards: React.FC<FinancialSummaryCardsProps> = ({
 
   const cards = [
     {
-      title: "Receita Total",
-      value: formatCurrency(summary.total_revenue),
-      description: "Leilões + Pacotes",
+      title: "Receita Real (Caixa)",
+      value: formatCurrency(summary.package_revenue),
+      description: "Pagamentos confirmados de pacotes",
       icon: DollarSign,
       color: "text-green-600"
     },
     {
-      title: "Receita de Leilões",
+      title: "Lances Consumidos",
       value: formatCurrency(summary.auction_revenue),
-      description: `${summary.finished_auctions} leilões finalizados`,
-      icon: TrendingUp,
+      description: "Valor de lances usados em leilões (informativo)",
+      icon: Activity,
       color: "text-blue-600"
-    },
-    {
-      title: "Receita de Pacotes",
-      value: formatCurrency(summary.package_revenue),
-      description: "Vendas de lances",
-      icon: ShoppingCart,
-      color: "text-purple-600"
     },
     {
       title: "Média por Leilão",
