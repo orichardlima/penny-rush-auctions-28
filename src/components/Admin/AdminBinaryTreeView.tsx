@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2, Calculator } from 'lucide-react';
+import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2, Calculator, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 
 interface BinaryPositionRecord {
@@ -469,13 +470,16 @@ const TreeNodeView: React.FC<{ node: TreeNode; depth: number }> = ({ node, depth
 };
 
 const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onLink: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onLink }) => {
-  const getName = (contractId: string | null) => {
-    if (!contractId) return '—';
-    return posMap.get(contractId)?.partnerName || contractId.slice(0, 8);
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const filtered = positions.filter(p => p.partnerName.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="max-h-96 overflow-y-auto">
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Buscar parceiro..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" />
+      </div>
+      <div className="max-h-96 overflow-y-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -487,7 +491,7 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
           </TableRow>
         </TableHeader>
         <TableBody>
-          {positions.map(p => (
+          {filtered.map(p => (
             <TableRow key={p.id}>
               <TableCell className="font-medium">{p.partnerName}</TableCell>
               <TableCell><Badge variant="outline">{p.planName}</Badge></TableCell>
@@ -503,17 +507,25 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
         </TableBody>
       </Table>
     </div>
+    </div>
   );
 };
 
 const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onRecalculate: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onRecalculate }) => {
+  const [searchTerm, setSearchTerm] = useState('');
   const getName = (contractId: string | null) => {
     if (!contractId) return '—';
     return posMap.get(contractId)?.partnerName || contractId.slice(0, 8);
   };
+  const filtered = positions.filter(p => p.partnerName.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="max-h-96 overflow-y-auto">
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Buscar parceiro..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" />
+      </div>
+      <div className="max-h-96 overflow-y-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -529,7 +541,7 @@ const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<stri
           </TableRow>
         </TableHeader>
         <TableBody>
-          {positions.map(p => (
+          {filtered.map(p => (
             <TableRow key={p.id}>
               <TableCell className="font-medium">{p.partnerName}</TableCell>
               <TableCell><Badge variant="outline">{p.planName}</Badge></TableCell>
@@ -548,6 +560,7 @@ const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<stri
           ))}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 };
