@@ -1,50 +1,40 @@
 
 
-## Correcao de Pontuacao - Mover 1000 pts do Luciano para nova linha ascendente
+## Melhorar Responsividade do Gerenciamento de Parceiros
 
-### Resumo
+### Problemas Identificados (baseado na screenshot)
 
-Os 1000 pontos do plano Legend do Luciano foram propagados pela linha ascendente antiga (Binario 9 > Binario 8 > Richard Lima). Precisamos remover esses pontos da linha antiga e propaga-los pela nova linha (Adailton > Binario 8 > Richard Lima).
+1. **Cards de estatisticas**: Os 5 cards em uma unica linha (`md:grid-cols-5`) causam truncamento de valores monetarios em tablets (ex: "R$ 64.483," cortado)
+2. **Tabela de dias (Faturamento Diario)**: A tabela com 4 colunas (Dia, Porcentagem, Exemplos por Plano, Status) nao cabe bem em telas menores - a coluna "Exemplos por Plano" ocupa espaco excessivo
+3. **Grid semanal do Progresso Mensal**: `grid-cols-4` fixo pode ficar apertado em mobile
+4. **Distribuicao Rapida**: Layout dos inputs pode ficar apertado
 
-### Situacao Atual dos Pontos
+### Alteracoes Planejadas
 
-| Parceiro | left_points | right_points | Observacao |
-|----------|-------------|--------------|------------|
-| Binario 9 (a797b7e7) | 1000 | 0 | Recebeu 1000 na esquerda (Luciano antigo) |
-| Binario 8 (d0190e00) | 1400 | 1000 | Recebeu 1000 na esquerda (via Binario 9) |
-| Adailton (9d9db00f) | 0 | 0 | Nao recebeu nada ainda |
-| Richard Lima (c42ad205) | 1950 | 2550 | Recebeu 1000 na direita (via Binario 8) |
+**1. Cards de Estatisticas** (`AdminPartnerManagement.tsx`)
+- Mudar de `grid-cols-1 md:grid-cols-5` para `grid-cols-2 md:grid-cols-3 lg:grid-cols-5`
+- Em mobile: 2 colunas; em tablet: 3 colunas; em desktop: 5 colunas
 
-### Alteracoes Necessarias
+**2. Tabela de Dias** (`DailyRevenueConfigManager.tsx`)
+- Esconder a coluna "Exemplos por Plano" em telas pequenas com `hidden md:table-cell`
+- Esconder a coluna "Status" em telas muito pequenas com `hidden sm:table-cell`
+- Adicionar `overflow-x-auto` ao container da tabela
 
-**1. Remover pontos da linha antiga:**
+**3. Grid Semanal do Progresso Mensal** (`DailyRevenueConfigManager.tsx`)
+- Mudar de `grid-cols-4` para `grid-cols-2 sm:grid-cols-4`
 
-| Parceiro | Campo | De | Para |
-|----------|-------|----|------|
-| Binario 9 | left_points, total_left_points | 1000 | 0 |
-| Binario 8 | left_points | 1400 | 400 |
+**4. Resumo Mensal** (`DailyRevenueConfigManager.tsx`)
+- Ajustar tamanho dos textos em mobile (de `text-2xl` para `text-xl sm:text-2xl`)
 
-**2. Adicionar pontos na nova linha:**
+### Detalhes Tecnicos
 
-| Parceiro | Campo | De | Para |
-|----------|-------|----|------|
-| Adailton | right_points, total_right_points | 0 | 1000 |
-| Binario 8 | right_points | 1000 | 2000 |
+Arquivo 1: `src/components/Admin/AdminPartnerManagement.tsx`
+- Linha ~387: Ajustar grid dos stats cards
 
-**3. Richard Lima (raiz):** Sem alteracao -- os 1000 pontos saem da esquerda via Binario 9 e entram pela direita via Adailton, mas como Binario 8 esta na direita de Richard Lima, o ponto ja chegava pela direita. O resultado liquido e zero (remove 1000 right, adiciona 1000 right).
+Arquivo 2: `src/components/Admin/DailyRevenueConfigManager.tsx`
+- Linha ~320: Ajustar grid do resumo mensal
+- Linha ~361: Ajustar grid semanal
+- Linhas ~414-466: Adicionar classes responsivas na tabela de dias (hidden columns)
+- Container da tabela com overflow-x-auto
 
-**4. Atualizar logs de pontos:** Inserir novos registros no `binary_points_log` para a nova propagacao e manter os antigos como historico.
-
-### Operacoes SQL (5 UPDATEs + 2 INSERTs)
-
-1. Binario 9: `left_points = 0, total_left_points = 0`
-2. Binario 8: `left_points = 400, right_points = 2000`
-3. Adailton: `right_points = 1000, total_right_points = 1000`
-4. Inserir 2 registros no `binary_points_log` (Adailton right +1000, Binario 8 right +1000)
-
-### O Que NAO Muda
-
-- Pontos proprios de cada parceiro
-- Nenhum codigo, interface ou schema e alterado
-- Richard Lima mantem os mesmos pontos (efeito liquido zero)
-
+Nenhuma funcionalidade, logica de calculo ou workflow sera alterado. Apenas classes CSS do Tailwind serao ajustadas.
