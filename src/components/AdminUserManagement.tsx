@@ -166,6 +166,9 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       });
 
       if (error) throw error;
+      if (data?.error) {
+        throw new Error(data.error);
+      }
       if (data?.warning) {
         console.warn('Delete warning:', data.warning);
       }
