@@ -1,48 +1,71 @@
 
 
-## Ajuste do Dashboard Financeiro: Separacao Clara de Receitas
+## Correcao da Exclusao de Usuarios
 
-### Problema Atual
-O card "Receita Total" soma `auction_revenue + package_revenue`, o que gera dupla contagem:
-- **Receita de Pacotes** = dinheiro real que entrou (usuario comprou pacote de lances)
-- **Receita de Leiloes** = valor dos lances consumidos nos leiloes (mesmos lances que foram comprados nos pacotes)
-
-Somar os dois conta o mesmo dinheiro duas vezes.
+### Problema
+A funcao `deleteUser` no `AdminUserManagement.tsx` faz apenas um **soft delete** (marca `is_blocked = true`), mas nao remove o usuario de fato. Alem disso, a query que carrega a lista de usuarios no `AdminDashboard.tsx` nao filtra usuarios marcados como deletados, entao eles continuam aparecendo normalmente.
 
 ### Solucao
 
-Ajustar os cards do `FinancialSummaryCards` para apresentar 3 metricas distintas e claras:
+Criar uma edge function que faz a exclusao real do usuario (removendo de `auth.users` via service role), deletar os dados relacionados, e atualizar o frontend para chamar essa edge function.
 
-| Card | O que mostra | Fonte |
-|---|---|---|
-| **Receita Real (Caixa)** | Apenas pagamentos confirmados de pacotes de lances | `package_revenue` da RPC |
-| **Lances Consumidos** | Valor dos lances gastos em leiloes por usuarios reais | `auction_revenue` da RPC |
-| **Receita Total** | Igual a Receita Real (sem dupla contagem) | `package_revenue` apenas |
+---
+
+### Etapa 1 - Criar Edge Function `admin-delete-user`
+
+Criar `supabase/functions/admin-delete-user/index.ts` que:
+
+1. Verifica que o solicitante e admin (via token JWT + consulta ao `profiles`)
+2. Deleta registros relacionados ao usuario nas tabelas filhas (bids, bid_purchases, orders, affiliate data, partner contracts, etc.)
+3. Deleta o perfil da tabela `profiles`
+4. Deleta o usuario de `auth.users` usando `supabase.auth.admin.deleteUser()`
+5. Registra a acao no audit log
+
+A edge function usara o `SUPABASE_SERVICE_ROLE_KEY` (ja disponivel automaticamente) para executar operacoes administrativas.
+
+### Etapa 2 - Atualizar `AdminUserManagement.tsx`
+
+Alterar a funcao `deleteUser` para:
+- Chamar a edge function `admin-delete-user` via `supabase.functions.invoke()`
+- Em vez de fazer soft delete no `profiles`, delegar a exclusao completa para o backend
+- Manter o toast de sucesso/erro e a chamada `onUserUpdated()` para atualizar a lista
+
+### Etapa 3 - Nenhuma alteracao na query de listagem
+
+Como o usuario sera efetivamente removido do banco, a query existente no `AdminDashboard.tsx` naturalmente nao retornara mais o usuario deletado. Nao e necessario alterar o filtro.
 
 ---
 
 ### Detalhes Tecnicos
 
-#### 1. Alterar `FinancialSummaryCards.tsx`
+**Edge Function - Ordem de exclusao (respeitar foreign keys):**
 
-Reorganizar os cards:
+```text
+1. bids (user_id)
+2. bid_purchases (user_id)
+3. orders (winner_id)
+4. affiliate_commissions (via affiliates.user_id)
+5. affiliate_referrals (via affiliates.user_id)
+6. affiliate_withdrawals (via affiliates.user_id)
+7. affiliate_cpa_goals (via affiliates.user_id)
+8. affiliates (user_id)
+9. partner_referral_bonuses (referred_user_id)
+10. partner_contracts e tabelas dependentes
+11. profiles (user_id)
+12. auth.users (id) via admin API
+```
 
-- **Card 1: "Receita Real (Caixa)"** - Mostrar `package_revenue` com icone DollarSign verde e descricao "Pagamentos confirmados de pacotes"
-- **Card 2: "Lances Consumidos"** - Mostrar `auction_revenue` com icone Activity azul e descricao "Valor de lances usados em leiloes" (informativo, nao soma na receita)
-- **Card 3: "Media por Leilao"** - Manter como esta
-- Demais cards permanecem inalterados
+**Frontend - Chamada:**
 
-A mudanca principal e que "Receita Total" agora mostra apenas `package_revenue` (receita real de caixa), e o antigo "Receita de Leiloes" vira "Lances Consumidos" (metrica informativa).
-
-#### 2. Alterar `AdminFinancialOverview.tsx`
-
-No card executivo "Receita Total" (o primeiro card com borda verde), tambem ajustar para mostrar `package_revenue` como receita real, e mudar a descricao de "Leiloes + Pacotes de Lances" para "Pagamentos confirmados".
-
-#### Nenhuma alteracao no banco de dados
-A RPC ja retorna `auction_revenue` e `package_revenue` separadamente. Apenas a apresentacao no frontend sera ajustada.
+```typescript
+const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+  body: { userId: user.user_id }
+});
+```
 
 ### Resultado Esperado
-- O dashboard mostra claramente que a receita real e apenas o dinheiro dos pacotes (~R$ 1.566)
-- O valor de lances consumidos (~R$ 3.978) aparece como metrica informativa separada
-- Nenhuma dupla contagem no total
-- Todas as demais funcionalidades permanecem inalteradas
+
+- Ao clicar em "Deletar Usuario", o usuario sera completamente removido do sistema
+- A lista de usuarios sera atualizada automaticamente sem o usuario deletado
+- Registros relacionados (lances, compras, etc.) serao removidos para evitar dados orfaos
+- Acao registrada no audit log para rastreabilidade
