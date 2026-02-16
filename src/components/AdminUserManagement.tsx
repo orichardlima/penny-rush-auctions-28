@@ -156,36 +156,31 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const deleteUser = async () => {
     setLoading(true);
     try {
-      // Soft delete - mark as deleted instead of hard delete
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          is_blocked: true,
-          block_reason: 'CONTA DELETADA PELO ADMINISTRADOR',
-          blocked_at: new Date().toISOString()
-        })
-        .eq('user_id', user.user_id);
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: user.user_id },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
 
       if (error) throw error;
-
-      await logAdminAction(
-        'user_deleted',
-        null,
-        null,
-        `Usuário deletado: ${user.full_name} (${user.email})`
-      );
+      if (data?.warning) {
+        console.warn('Delete warning:', data.warning);
+      }
 
       toast({
         title: "Sucesso",
-        description: "Usuário deletado com sucesso"
+        description: "Usuário deletado permanentemente com sucesso"
       });
 
       onUserUpdated();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({
         title: "Erro",
-        description: "Erro ao deletar usuário",
+        description: error.message || "Erro ao deletar usuário",
         variant: "destructive"
       });
     } finally {
