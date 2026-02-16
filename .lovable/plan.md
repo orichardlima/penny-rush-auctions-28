@@ -1,71 +1,70 @@
 
 
-## Correcao da Exclusao de Usuarios
+## Correção: Tratamento de erro na exclusão de usuários
 
-### Problema
-A funcao `deleteUser` no `AdminUserManagement.tsx` faz apenas um **soft delete** (marca `is_blocked = true`), mas nao remove o usuario de fato. Alem disso, a query que carrega a lista de usuarios no `AdminDashboard.tsx` nao filtra usuarios marcados como deletados, entao eles continuam aparecendo normalmente.
+### Problema Identificado
 
-### Solucao
+O mecanismo de hard delete **funciona** (confirmado nos logs: "binário 11" foi deletado com sucesso). Porém, o "Binário 10" ainda existe no banco, o que indica que a exclusão dele falhou silenciosamente.
 
-Criar uma edge function que faz a exclusao real do usuario (removendo de `auth.users` via service role), deletar os dados relacionados, e atualizar o frontend para chamar essa edge function.
+A causa raiz está no tratamento de erros do frontend: quando a edge function retorna um erro no corpo da resposta (ex: `{ error: "User not found" }` com HTTP 404), o `supabase.functions.invoke` **não lança exceção** -- apenas popula o campo `data` com o corpo da resposta. O código atual só verifica `error` (erro de rede), mas não verifica `data.error` (erro lógico retornado pela edge function). Resultado: o toast mostra "sucesso" mesmo quando a exclusão falhou.
 
----
+### Solução
 
-### Etapa 1 - Criar Edge Function `admin-delete-user`
+Ajustar a função `deleteUser` em `AdminUserManagement.tsx` para verificar **também** o campo `data.error` retornado pela edge function.
 
-Criar `supabase/functions/admin-delete-user/index.ts` que:
+### Detalhes Técnicos
 
-1. Verifica que o solicitante e admin (via token JWT + consulta ao `profiles`)
-2. Deleta registros relacionados ao usuario nas tabelas filhas (bids, bid_purchases, orders, affiliate data, partner contracts, etc.)
-3. Deleta o perfil da tabela `profiles`
-4. Deleta o usuario de `auth.users` usando `supabase.auth.admin.deleteUser()`
-5. Registra a acao no audit log
+**Arquivo:** `src/components/AdminUserManagement.tsx` (função `deleteUser`, linhas 156-189)
 
-A edge function usara o `SUPABASE_SERVICE_ROLE_KEY` (ja disponivel automaticamente) para executar operacoes administrativas.
-
-### Etapa 2 - Atualizar `AdminUserManagement.tsx`
-
-Alterar a funcao `deleteUser` para:
-- Chamar a edge function `admin-delete-user` via `supabase.functions.invoke()`
-- Em vez de fazer soft delete no `profiles`, delegar a exclusao completa para o backend
-- Manter o toast de sucesso/erro e a chamada `onUserUpdated()` para atualizar a lista
-
-### Etapa 3 - Nenhuma alteracao na query de listagem
-
-Como o usuario sera efetivamente removido do banco, a query existente no `AdminDashboard.tsx` naturalmente nao retornara mais o usuario deletado. Nao e necessario alterar o filtro.
-
----
-
-### Detalhes Tecnicos
-
-**Edge Function - Ordem de exclusao (respeitar foreign keys):**
-
-```text
-1. bids (user_id)
-2. bid_purchases (user_id)
-3. orders (winner_id)
-4. affiliate_commissions (via affiliates.user_id)
-5. affiliate_referrals (via affiliates.user_id)
-6. affiliate_withdrawals (via affiliates.user_id)
-7. affiliate_cpa_goals (via affiliates.user_id)
-8. affiliates (user_id)
-9. partner_referral_bonuses (referred_user_id)
-10. partner_contracts e tabelas dependentes
-11. profiles (user_id)
-12. auth.users (id) via admin API
-```
-
-**Frontend - Chamada:**
+Alterar o bloco de tratamento de resposta para:
 
 ```typescript
-const { data, error } = await supabase.functions.invoke('admin-delete-user', {
-  body: { userId: user.user_id }
-});
+const deleteUser = async () => {
+  setLoading(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+      body: { userId: user.user_id },
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`
+      }
+    });
+
+    if (error) throw error;
+
+    // NOVO: verificar erro lógico retornado pela edge function
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    if (data?.warning) {
+      console.warn('Delete warning:', data.warning);
+    }
+
+    toast({
+      title: "Sucesso",
+      description: "Usuário deletado permanentemente com sucesso"
+    });
+
+    onUserUpdated();
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    toast({
+      title: "Erro ao deletar",
+      description: error.message || "Erro ao deletar usuário. Tente novamente.",
+      variant: "destructive"
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 ```
+
+A unica mudanca e adicionar a verificacao `if (data?.error) throw new Error(data.error);` na linha 169, para que erros logicos da edge function sejam tratados corretamente e exibidos ao admin.
 
 ### Resultado Esperado
 
-- Ao clicar em "Deletar Usuario", o usuario sera completamente removido do sistema
-- A lista de usuarios sera atualizada automaticamente sem o usuario deletado
-- Registros relacionados (lances, compras, etc.) serao removidos para evitar dados orfaos
-- Acao registrada no audit log para rastreabilidade
+- Se a exclusao falhar por qualquer motivo (usuario nao encontrado, erro de FK, etc.), o admin vera a mensagem de erro real
+- Se a exclusao for bem-sucedida, o usuario sera removido e a lista atualizada
+- Para o "Binario 10" especificamente: basta clicar novamente no botao de deletar -- agora qualquer erro sera exibido claramente
