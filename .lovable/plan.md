@@ -1,48 +1,75 @@
 
 
-## Filtros para a Tabela de Contratos de Parceiros
+## Reconexao Automatica da Arvore Binaria ao Excluir Usuario
 
-### O que sera feito
-Adicionar filtros acima da tabela "Todos os Contratos" na aba Contratos do Gerenciamento de Parceiros, permitindo buscar e filtrar contratos de forma rapida.
+### Problema Atual
+Ao excluir um usuario, a edge function simplesmente anula as referencias (`left_child_id`, `right_child_id`, `parent_contract_id`) e deleta o registro. Isso causa:
+- Filhos (downline) ficam orfaos, desconectados da arvore
+- Pontos propagados pelo usuario deletado permanecem inflados no upline
+- A estrutura da arvore binaria se fragmenta
 
-### Filtros propostos
-1. **Busca por nome/email** - Campo de texto para buscar pelo nome ou email do parceiro
-2. **Filtro por Plano** - Select com todos os planos disponiveis (Start, Pro, Elite, Legend, etc.)
-3. **Filtro por Status** - Select com as opcoes: Todos, Ativo, Suspenso, Encerrado, Pendente
-4. **Botao "Limpar Filtros"** - Para resetar todos os filtros de uma vez
+### Solucao
+Antes de deletar a posicao binaria do usuario, o sistema ira:
+1. Reconectar os filhos ao no pai (avo)
+2. Subtrair os pontos do usuario deletado de todo o upline
+3. Manter a arvore integra e os pontos consistentes
 
-### Como vai funcionar
-- Os filtros serao combinaveis (AND): busca + plano + status funcionam juntos
-- A lista sera filtrada em tempo real no frontend (sem nova chamada ao banco)
-- O contador de resultados sera exibido (ex: "Exibindo 5 de 13 contratos")
-- O CSV exportara apenas os contratos filtrados (nao todos)
+### Logica de Reconexao
+
+```text
+ANTES da exclusao (deletando B):
+
+       A
+      / \
+     B   ...
+    / \
+   C   D
+
+DEPOIS da exclusao:
+
+       A
+      / \
+     C   ...
+      \
+       D (reposicionado na extremidade direita de C)
+```
+
+**Regras:**
+- Se B era filho esquerdo de A: o filho esquerdo de B (C) assume a posicao de B como filho esquerdo de A
+- Se B era filho direito de A: mesma logica, filho esquerdo de B assume
+- O outro filho de B (D) e reposicionado na extremidade da subarvore do primeiro filho (spillover)
+- Se B tinha apenas 1 filho, esse filho assume diretamente a posicao de B
+- Se B nao tinha filhos, apenas remove e limpa a referencia no pai
 
 ### Detalhes Tecnicos
 
-**Arquivo:** `src/components/Admin/AdminPartnerManagement.tsx`
+**Arquivo:** `supabase/functions/admin-delete-user/index.ts`
 
-1. **Novos estados** (junto aos estados existentes, ~linha 90):
-   - `contractSearch: string` - texto de busca
-   - `contractStatusFilter: string` - filtro de status ('all' | 'ACTIVE' | 'SUSPENDED' | 'CLOSED' | 'PENDING')
-   - `contractPlanFilter: string` - filtro de plano ('all' | nome do plano)
+Substituir o bloco atual de tratamento binario (linhas 133-139) por uma logica expandida:
 
-2. **Novo useMemo** para contratos filtrados:
-   ```
-   filteredContracts = contracts filtrados por:
-     - search (nome ou email, case-insensitive)
-     - status (se diferente de 'all')
-     - plan_name (se diferente de 'all')
-   ```
+1. **Buscar a posicao binaria do contrato** sendo deletado:
+   - `parent_contract_id`, `position`, `left_child_id`, `right_child_id`
 
-3. **UI dos filtros** - Inseridos entre o CardHeader e a Table (linha ~543), com:
-   - Input de busca com icone de lupa
-   - Select de Status
-   - Select de Plano (populado dinamicamente a partir dos planos existentes)
-   - Botao "Limpar" (visivel apenas quando ha filtros ativos)
-   - Texto "Exibindo X de Y contratos"
+2. **Buscar os pontos do plano** do usuario deletado na tabela `partner_level_points`
 
-4. **Substituir** `contracts.map(...)` por `filteredContracts.map(...)` na tabela
+3. **Subtrair pontos do upline** - Percorrer toda a cadeia de ancestrais:
+   - Se o usuario estava na posicao `left` do pai, subtrair de `left_points` e `total_left_points`
+   - Se estava na `right`, subtrair de `right_points` e `total_right_points`
+   - Continuar subindo ate a raiz
 
-5. **Ajustar exportCSV** para usar `filteredContracts` em vez de `contracts`
+4. **Reconectar filhos:**
+   - **Sem filhos**: apenas limpar `left_child_id` ou `right_child_id` no pai
+   - **1 filho**: promover esse filho para a posicao de B no pai
+     - Atualizar `parent_contract_id` e `position` do filho
+     - Atualizar `left_child_id`/`right_child_id` do pai (avo)
+   - **2 filhos**: promover o filho esquerdo para a posicao de B, e reposicionar o filho direito na extremidade da subarvore do filho esquerdo (mesma logica de spillover)
+     - Atualizar referencias no pai (avo)
+     - Atualizar `parent_contract_id` do filho esquerdo
+     - Encontrar extremidade direita da subarvore do filho esquerdo
+     - Posicionar filho direito la, atualizando `parent_contract_id`, `position`, e `right_child_id` do no extremo
 
-6. **Nenhuma alteracao** em outros componentes, hooks, banco de dados ou edge functions.
+5. **Deletar logs de pontos** (`binary_points_log`) do contrato deletado
+
+6. **Deletar a posicao binaria** do contrato deletado
+
+**Nenhuma alteracao** em outros componentes, hooks, banco de dados, RLS ou UI. Apenas a edge function `admin-delete-user` sera modificada.
