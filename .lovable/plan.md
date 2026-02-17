@@ -1,35 +1,48 @@
 
-## Exclusao em Lote de Usuarios
+
+## Filtros para a Tabela de Contratos de Parceiros
 
 ### O que sera feito
-Adicionar checkboxes na lista de usuarios para permitir selecionar varios e exclui-los de uma vez, seguindo o mesmo padrao visual ja usado na aba de Leiloes.
+Adicionar filtros acima da tabela "Todos os Contratos" na aba Contratos do Gerenciamento de Parceiros, permitindo buscar e filtrar contratos de forma rapida.
+
+### Filtros propostos
+1. **Busca por nome/email** - Campo de texto para buscar pelo nome ou email do parceiro
+2. **Filtro por Plano** - Select com todos os planos disponiveis (Start, Pro, Elite, Legend, etc.)
+3. **Filtro por Status** - Select com as opcoes: Todos, Ativo, Suspenso, Encerrado, Pendente
+4. **Botao "Limpar Filtros"** - Para resetar todos os filtros de uma vez
 
 ### Como vai funcionar
-1. Cada usuario na lista tera um checkbox ao lado do nome
-2. Ao selecionar um ou mais usuarios, aparecera uma barra de acoes com:
-   - Contador de usuarios selecionados
-   - Botao "Limpar Selecao"
-   - Botao "Excluir Selecionados" (vermelho)
-3. Ao clicar em "Excluir Selecionados", um dialogo de confirmacao sera exibido
-4. A exclusao chamara a edge function `admin-delete-user` para cada usuario selecionado (sequencialmente, para respeitar as dependencias de FK)
-5. Ao final, a lista sera atualizada automaticamente
+- Os filtros serao combinaveis (AND): busca + plano + status funcionam juntos
+- A lista sera filtrada em tempo real no frontend (sem nova chamada ao banco)
+- O contador de resultados sera exibido (ex: "Exibindo 5 de 13 contratos")
+- O CSV exportara apenas os contratos filtrados (nao todos)
 
 ### Detalhes Tecnicos
 
-**Arquivo:** `src/components/AdminDashboard.tsx`
+**Arquivo:** `src/components/Admin/AdminPartnerManagement.tsx`
 
-1. **Novos estados:**
-   - `selectedUsers: Set<string>` - IDs dos usuarios selecionados
-   - `isDeletingUsers: boolean` - flag de loading durante exclusao em lote
+1. **Novos estados** (junto aos estados existentes, ~linha 90):
+   - `contractSearch: string` - texto de busca
+   - `contractStatusFilter: string` - filtro de status ('all' | 'ACTIVE' | 'SUSPENDED' | 'CLOSED' | 'PENDING')
+   - `contractPlanFilter: string` - filtro de plano ('all' | nome do plano)
 
-2. **Novas funcoes:**
-   - `handleSelectUser(userId, checked)` - adiciona/remove usuario da selecao
-   - `handleSelectAllUsers(checked)` - seleciona/deseleciona todos os usuarios filtrados (excluindo admins e o proprio usuario logado)
-   - `deleteSelectedUsers()` - itera sobre os IDs selecionados, chama `admin-delete-user` para cada um, mostra progresso e atualiza a lista ao final
+2. **Novo useMemo** para contratos filtrados:
+   ```
+   filteredContracts = contracts filtrados por:
+     - search (nome ou email, case-insensitive)
+     - status (se diferente de 'all')
+     - plan_name (se diferente de 'all')
+   ```
 
-3. **Alteracoes na UI (aba Usuarios):**
-   - Adicionar barra de selecao/acoes acima da lista (mesmo estilo da aba Leiloes - card laranja)
-   - Adicionar checkbox em cada item da lista de usuarios
-   - Protecao: usuarios admin e o proprio usuario logado nao poderao ser selecionados para exclusao
+3. **UI dos filtros** - Inseridos entre o CardHeader e a Table (linha ~543), com:
+   - Input de busca com icone de lupa
+   - Select de Status
+   - Select de Plano (populado dinamicamente a partir dos planos existentes)
+   - Botao "Limpar" (visivel apenas quando ha filtros ativos)
+   - Texto "Exibindo X de Y contratos"
 
-4. **Nenhuma alteracao** na edge function, no banco de dados ou em outros componentes.
+4. **Substituir** `contracts.map(...)` por `filteredContracts.map(...)` na tabela
+
+5. **Ajustar exportCSV** para usar `filteredContracts` em vez de `contracts`
+
+6. **Nenhuma alteracao** em outros componentes, hooks, banco de dados ou edge functions.
