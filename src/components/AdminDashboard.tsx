@@ -127,7 +127,7 @@ interface BidPackage {
 }
 
 const AdminDashboard = () => {
-  const { signOut } = useAuth();
+  const { signOut, user: currentUser } = useAuth();
   
   // Financial analytics hook - moved to top to fix hooks order
   const { 
@@ -184,6 +184,8 @@ const AdminDashboard = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isDeletingUsers, setIsDeletingUsers] = useState(false);
   
   // Bid Package Management States
   const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
@@ -241,6 +243,19 @@ const AdminDashboard = () => {
       setIsDeleting(false);
     }
   };
+
+  // Funções para seleção múltipla de usuários
+  const handleSelectUser = (userId: string, checked: boolean) => {
+    const newSelected = new Set(selectedUsers);
+    if (checked) {
+      newSelected.add(userId);
+    } else {
+      newSelected.delete(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  
 
   useEffect(() => {
     fetchAdminData();
@@ -726,6 +741,78 @@ const AdminDashboard = () => {
     }
     return matchesSearch;
   });
+
+  const selectableUsers = filteredUsers.filter(
+    u => !u.is_admin && u.user_id !== currentUser?.id
+  );
+
+  const handleSelectAllUsers = (checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(new Set(selectableUsers.map(u => u.user_id)));
+    } else {
+      setSelectedUsers(new Set());
+    }
+  };
+
+  const deleteSelectedUsers = async () => {
+    if (selectedUsers.size === 0) return;
+
+    setIsDeletingUsers(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      for (const userId of Array.from(selectedUsers)) {
+        try {
+          const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+            body: { userId },
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`
+            }
+          });
+
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+
+          successCount++;
+        } catch (err: any) {
+          console.error(`Error deleting user ${userId}:`, err);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Exclusão concluída",
+          description: failCount > 0
+            ? `${successCount} usuário(s) excluído(s) com sucesso. ${failCount} falha(s).`
+            : `${successCount} usuário(s) excluído(s) com sucesso!`
+        });
+      }
+
+      if (failCount > 0 && successCount === 0) {
+        toast({
+          title: "Erro",
+          description: "Nenhum usuário pôde ser excluído.",
+          variant: "destructive"
+        });
+      }
+
+      setSelectedUsers(new Set());
+      fetchAdminData();
+    } catch (error) {
+      console.error('Error in batch delete:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir usuários selecionados",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeletingUsers(false);
+    }
+  };
 
   const refreshData = () => {
     fetchAdminData();
@@ -1286,6 +1373,70 @@ const AdminDashboard = () => {
               </div>
             </div>
 
+            {/* Controles de seleção múltipla de usuários */}
+            {selectedUsers.size > 0 && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-orange-600" />
+                      <span className="font-medium text-orange-800">
+                        {selectedUsers.size} usuário(s) selecionado(s)
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setSelectedUsers(new Set())}
+                      >
+                        Limpar Seleção
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            disabled={isDeletingUsers}
+                          >
+                            {isDeletingUsers ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Excluindo...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir Selecionados
+                              </>
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar exclusão em lote</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir permanentemente {selectedUsers.size} usuário(s)? 
+                              Esta ação não pode ser desfeita. Todos os dados relacionados (lances, compras, pedidos, afiliados, contratos) serão removidos.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={deleteSelectedUsers}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir {selectedUsers.size} usuário(s)
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Lista de usuários */}
               <Card>
@@ -1294,25 +1445,49 @@ const AdminDashboard = () => {
                     <Users className="h-5 w-5" />
                     Usuários ({filteredUsers.length})
                   </CardTitle>
+                  {selectableUsers.length > 0 && (
+                    <div className="flex items-center gap-2 pt-2">
+                      <Checkbox
+                        checked={selectableUsers.length > 0 && selectableUsers.every(u => selectedUsers.has(u.user_id))}
+                        onCheckedChange={handleSelectAllUsers}
+                        aria-label="Selecionar todos os usuários"
+                      />
+                      <span className="text-xs text-muted-foreground">Selecionar todos</span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredUsers.map((user) => (
-                    <Button
-                      key={user.user_id}
-                      variant={selectedUserForProfile?.user_id === user.user_id ? "default" : "outline"}
-                      className="w-full justify-start"
-                      onClick={() => setSelectedUserForProfile(user)}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium flex items-center gap-2">
-                          {user.full_name || 'Usuário'}
-                          {user.is_bot && <Bot className="h-3 w-3 text-orange-500" />}
-                          {user.is_admin && <Shield className="h-3 w-3 text-blue-500" />}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                  {filteredUsers.map((user) => {
+                    const isSelectable = !user.is_admin && user.user_id !== currentUser?.id;
+                    return (
+                      <div key={user.user_id} className="flex items-center gap-2">
+                        {isSelectable ? (
+                          <Checkbox
+                            checked={selectedUsers.has(user.user_id)}
+                            onCheckedChange={(checked) => handleSelectUser(user.user_id, checked as boolean)}
+                            aria-label={`Selecionar ${user.full_name || user.email}`}
+                            className="shrink-0"
+                          />
+                        ) : (
+                          <div className="w-4 shrink-0" />
+                        )}
+                        <Button
+                          variant={selectedUserForProfile?.user_id === user.user_id ? "default" : "outline"}
+                          className="w-full justify-start"
+                          onClick={() => setSelectedUserForProfile(user)}
+                        >
+                          <div className="text-left">
+                            <div className="font-medium flex items-center gap-2">
+                              {user.full_name || 'Usuário'}
+                              {user.is_bot && <Bot className="h-3 w-3 text-orange-500" />}
+                              {user.is_admin && <Shield className="h-3 w-3 text-blue-500" />}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                          </div>
+                        </Button>
                       </div>
-                    </Button>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 
