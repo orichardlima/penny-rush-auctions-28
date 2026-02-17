@@ -2185,14 +2185,24 @@ export type Database = {
         Args: { p_referred_contract_id: string; p_referrer_user_id: string }
         Returns: Json
       }
-      propagate_binary_points: {
-        Args: {
-          p_points: number
-          p_reason?: string
-          p_source_contract_id: string
-        }
-        Returns: number
-      }
+      propagate_binary_points:
+        | {
+            Args: {
+              p_points: number
+              p_reason?: string
+              p_source_contract_id: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_points: number
+              p_reason: string
+              p_source_contract_id: string
+              p_sponsor_contract_id?: string
+            }
+            Returns: number
+          }
     }
     Enums: {
       [_ in never]: never
