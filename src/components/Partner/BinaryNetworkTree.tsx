@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   GitBranch, 
   User, 
@@ -16,7 +17,8 @@ import {
   Trophy,
   RefreshCw,
   Search,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -167,7 +169,7 @@ export const BinaryNetworkTree: React.FC = () => {
   const { position, tree, stats, loading, refresh } = useBinaryNetwork();
   const [maxDepth, setMaxDepth] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
-
+  const isBinaryActive = position?.left_child_id && position?.right_child_id;
   const rootNode = useMemo(() => {
     return tree.find(n => n.depth === 0) || null;
   }, [tree]);
@@ -266,6 +268,17 @@ export const BinaryNetworkTree: React.FC = () => {
               <p className="text-xs text-muted-foreground">Total Recebido</p>
             </div>
           </div>
+        )}
+
+        {/* Binary Activation Warning */}
+        {position && !isBinaryActive && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Seu binário ainda não está ativado.</strong> Indique pelo menos 1 parceiro em cada lado 
+              (esquerda e direita) para começar a receber bônus de rede. Seus pontos continuam acumulando normalmente.
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Weaker Leg Indicator */}
