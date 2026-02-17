@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +55,14 @@ export const SystemSettings: React.FC = () => {
   const [bannerMobileCtaText, setBannerMobileCtaText] = useState<string>('Participar');
   const [bannerExpiresAt, setBannerExpiresAt] = useState<string>('');
   const [savingBanner, setSavingBanner] = useState(false);
+
+  // Auto-Replenish State
+  const [autoReplenishEnabled, setAutoReplenishEnabled] = useState<boolean>(true);
+  const [autoReplenishMinActive, setAutoReplenishMinActive] = useState<string>('3');
+  const [autoReplenishBatchSize, setAutoReplenishBatchSize] = useState<string>('3');
+  const [autoReplenishInterval, setAutoReplenishInterval] = useState<string>('30');
+  const [autoReplenishDuration, setAutoReplenishDuration] = useState<string>('3');
+  const [savingAutoReplenish, setSavingAutoReplenish] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
   const [isInitialized, setIsInitialized] = useState(false);
@@ -108,6 +116,13 @@ export const SystemSettings: React.FC = () => {
           setBannerExpiresAt(date.toISOString().slice(0, 16));
         }
       }
+      
+      // Auto-Replenish
+      setAutoReplenishEnabled(getSettingValue('auto_replenish_enabled', true));
+      setAutoReplenishMinActive(getSettingValue('auto_replenish_min_active', 3).toString());
+      setAutoReplenishBatchSize(getSettingValue('auto_replenish_batch_size', 3).toString());
+      setAutoReplenishInterval(getSettingValue('auto_replenish_interval_minutes', 30).toString());
+      setAutoReplenishDuration(getSettingValue('auto_replenish_duration_hours', 3).toString());
       
       setIsInitialized(true);
     }
@@ -227,6 +242,31 @@ export const SystemSettings: React.FC = () => {
       });
     } finally {
       setSavingBanner(false);
+    }
+  };
+
+  const handleSaveAutoReplenish = async () => {
+    setSavingAutoReplenish(true);
+    try {
+      await Promise.all([
+        updateSetting('auto_replenish_enabled', autoReplenishEnabled.toString()),
+        updateSetting('auto_replenish_min_active', autoReplenishMinActive),
+        updateSetting('auto_replenish_batch_size', autoReplenishBatchSize),
+        updateSetting('auto_replenish_interval_minutes', autoReplenishInterval),
+        updateSetting('auto_replenish_duration_hours', autoReplenishDuration)
+      ]);
+      toast({
+        title: "Configurações salvas!",
+        description: autoReplenishEnabled ? "Reposição automática de leilões ativa." : "Reposição automática desativada.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingAutoReplenish(false);
     }
   };
 
@@ -1119,6 +1159,130 @@ export const SystemSettings: React.FC = () => {
                 {bannerEnabled ? 'Ativo' : 'Inativo'}
               </div>
             </div>
+            <div>
+              <div className="font-medium">Auto-Reposição</div>
+              <div className={autoReplenishEnabled ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
+                {autoReplenishEnabled ? 'Ativo' : 'Inativo'}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reposição Automática de Leilões */}
+      <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-emerald-500" />
+            <CardTitle className="text-emerald-600">Reposição Automática de Leilões</CardTitle>
+          </div>
+          <CardDescription>
+            Cria leilões automaticamente a partir dos templates quando a quantidade de leilões ativos ficar abaixo do mínimo
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="auto-replenish-enabled">Ativar reposição automática</Label>
+              <p className="text-sm text-muted-foreground">
+                A cada 5 minutos, o sistema verifica e cria leilões se necessário
+              </p>
+            </div>
+            <Switch
+              id="auto-replenish-enabled"
+              checked={autoReplenishEnabled}
+              onCheckedChange={setAutoReplenishEnabled}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="auto-replenish-min">Mínimo de leilões ativos</Label>
+              <Input
+                id="auto-replenish-min"
+                type="number"
+                min="1"
+                max="20"
+                value={autoReplenishMinActive}
+                onChange={(e) => setAutoReplenishMinActive(e.target.value)}
+                disabled={!autoReplenishEnabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                Novos leilões serão criados quando houver menos que este número
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="auto-replenish-batch">Tamanho do lote</Label>
+              <Input
+                id="auto-replenish-batch"
+                type="number"
+                min="1"
+                max="10"
+                value={autoReplenishBatchSize}
+                onChange={(e) => setAutoReplenishBatchSize(e.target.value)}
+                disabled={!autoReplenishEnabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                Máximo de leilões criados por execução
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="auto-replenish-interval">Intervalo entre leilões</Label>
+              <Select
+                value={autoReplenishInterval}
+                onValueChange={setAutoReplenishInterval}
+                disabled={!autoReplenishEnabled}
+              >
+                <SelectTrigger id="auto-replenish-interval">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 minutos</SelectItem>
+                  <SelectItem value="15">15 minutos</SelectItem>
+                  <SelectItem value="30">30 minutos</SelectItem>
+                  <SelectItem value="60">1 hora</SelectItem>
+                  <SelectItem value="120">2 horas</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Tempo entre o início de cada leilão criado
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="auto-replenish-duration">Duração de cada leilão</Label>
+              <Select
+                value={autoReplenishDuration}
+                onValueChange={setAutoReplenishDuration}
+                disabled={!autoReplenishEnabled}
+              >
+                <SelectTrigger id="auto-replenish-duration">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 hora</SelectItem>
+                  <SelectItem value="2">2 horas</SelectItem>
+                  <SelectItem value="3">3 horas</SelectItem>
+                  <SelectItem value="6">6 horas</SelectItem>
+                  <SelectItem value="12">12 horas</SelectItem>
+                  <SelectItem value="24">24 horas</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Duração total de cada leilão (ends_at)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSaveAutoReplenish} disabled={savingAutoReplenish || updating}>
+              <Save className="h-4 w-4 mr-2" />
+              {savingAutoReplenish ? 'Salvando...' : 'Salvar Configurações'}
+            </Button>
           </div>
         </CardContent>
       </Card>
