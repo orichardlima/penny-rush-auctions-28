@@ -130,13 +130,193 @@ serve(async (req) => {
         await supabaseAdmin.from('binary_bonuses').delete().eq('partner_contract_id', cid);
         await supabaseAdmin.from('binary_points_log').delete().eq('partner_contract_id', cid);
         await supabaseAdmin.from('binary_points_log').delete().eq('source_contract_id', cid);
-        // Binary positions: clear references first
-        await supabaseAdmin.from('partner_binary_positions').update({ left_child_id: null }).eq('left_child_id', cid);
-        await supabaseAdmin.from('partner_binary_positions').update({ right_child_id: null }).eq('right_child_id', cid);
-        await supabaseAdmin.from('partner_binary_positions').update({ parent_contract_id: null }).eq('parent_contract_id', cid);
-        await supabaseAdmin.from('partner_binary_positions').update({ sponsor_contract_id: null }).eq('sponsor_contract_id', cid);
-        await supabaseAdmin.from('partner_binary_positions').update({ pending_position_for: null }).eq('pending_position_for', cid);
-        await supabaseAdmin.from('partner_binary_positions').delete().eq('partner_contract_id', cid);
+        // === Binary tree reconnection logic ===
+        // 1. Fetch the binary position of the contract being deleted
+        const { data: deletedPos } = await supabaseAdmin
+          .from('partner_binary_positions')
+          .select('parent_contract_id, position, left_child_id, right_child_id, partner_contract_id')
+          .eq('partner_contract_id', cid)
+          .maybeSingle();
+
+        if (deletedPos) {
+          console.log(`[ADMIN-DELETE] Binary position found for contract ${cid}:`, JSON.stringify(deletedPos));
+
+          // 2. Get plan points for this contract
+          const { data: contractData } = await supabaseAdmin
+            .from('partner_contracts')
+            .select('plan_name')
+            .eq('id', cid)
+            .maybeSingle();
+
+          let planPoints = 0;
+          if (contractData?.plan_name) {
+            const { data: pointsData } = await supabaseAdmin
+              .from('partner_level_points')
+              .select('points')
+              .eq('plan_name', contractData.plan_name)
+              .maybeSingle();
+            planPoints = pointsData?.points || 0;
+          }
+
+          // 3. Subtract points from entire upline
+          if (planPoints > 0 && deletedPos.parent_contract_id && deletedPos.position) {
+            console.log(`[ADMIN-DELETE] Subtracting ${planPoints} points from upline (position: ${deletedPos.position})`);
+            let currentParentId: string | null = deletedPos.parent_contract_id;
+            let currentPosition: string = deletedPos.position;
+
+            while (currentParentId) {
+              const updateFields: Record<string, any> = {};
+              if (currentPosition === 'left') {
+                updateFields.left_points = Math.max(0, 0); // will be computed below
+                updateFields.total_left_points = Math.max(0, 0);
+              } else {
+                updateFields.right_points = Math.max(0, 0);
+                updateFields.total_right_points = Math.max(0, 0);
+              }
+
+              // Fetch current values to subtract
+              const { data: parentPos } = await supabaseAdmin
+                .from('partner_binary_positions')
+                .select('left_points, right_points, total_left_points, total_right_points, parent_contract_id, position')
+                .eq('partner_contract_id', currentParentId)
+                .maybeSingle();
+
+              if (!parentPos) break;
+
+              const subtractFields: Record<string, number> = {};
+              if (currentPosition === 'left') {
+                subtractFields.left_points = Math.max(0, parentPos.left_points - planPoints);
+                subtractFields.total_left_points = Math.max(0, parentPos.total_left_points - planPoints);
+              } else {
+                subtractFields.right_points = Math.max(0, parentPos.right_points - planPoints);
+                subtractFields.total_right_points = Math.max(0, parentPos.total_right_points - planPoints);
+              }
+
+              await supabaseAdmin
+                .from('partner_binary_positions')
+                .update(subtractFields)
+                .eq('partner_contract_id', currentParentId);
+
+              // Move up the tree
+              currentParentId = parentPos.parent_contract_id;
+              currentPosition = parentPos.position || 'left';
+            }
+          }
+
+          // 4. Reconnect children
+          const leftChild = deletedPos.left_child_id;
+          const rightChild = deletedPos.right_child_id;
+          const parentId = deletedPos.parent_contract_id;
+          const deletedPosition = deletedPos.position; // 'left' or 'right'
+
+          if (!leftChild && !rightChild) {
+            // No children: just clear reference in parent
+            console.log(`[ADMIN-DELETE] No children, clearing parent reference`);
+            if (parentId && deletedPosition) {
+              const clearField = deletedPosition === 'left' ? 'left_child_id' : 'right_child_id';
+              await supabaseAdmin
+                .from('partner_binary_positions')
+                .update({ [clearField]: null })
+                .eq('partner_contract_id', parentId);
+            }
+          } else if (leftChild && !rightChild) {
+            // Only left child: promote it to deleted position
+            console.log(`[ADMIN-DELETE] One child (left), promoting to parent`);
+            if (parentId && deletedPosition) {
+              const parentField = deletedPosition === 'left' ? 'left_child_id' : 'right_child_id';
+              await supabaseAdmin
+                .from('partner_binary_positions')
+                .update({ [parentField]: leftChild })
+                .eq('partner_contract_id', parentId);
+            }
+            await supabaseAdmin
+              .from('partner_binary_positions')
+              .update({ parent_contract_id: parentId, position: deletedPosition })
+              .eq('partner_contract_id', leftChild);
+          } else if (!leftChild && rightChild) {
+            // Only right child: promote it to deleted position
+            console.log(`[ADMIN-DELETE] One child (right), promoting to parent`);
+            if (parentId && deletedPosition) {
+              const parentField = deletedPosition === 'left' ? 'left_child_id' : 'right_child_id';
+              await supabaseAdmin
+                .from('partner_binary_positions')
+                .update({ [parentField]: rightChild })
+                .eq('partner_contract_id', parentId);
+            }
+            await supabaseAdmin
+              .from('partner_binary_positions')
+              .update({ parent_contract_id: parentId, position: deletedPosition })
+              .eq('partner_contract_id', rightChild);
+          } else if (leftChild && rightChild) {
+            // Two children: promote left child, spillover right child
+            console.log(`[ADMIN-DELETE] Two children, promoting left and spillover right`);
+            
+            // Promote left child to deleted position
+            if (parentId && deletedPosition) {
+              const parentField = deletedPosition === 'left' ? 'left_child_id' : 'right_child_id';
+              await supabaseAdmin
+                .from('partner_binary_positions')
+                .update({ [parentField]: leftChild })
+                .eq('partner_contract_id', parentId);
+            }
+            await supabaseAdmin
+              .from('partner_binary_positions')
+              .update({ parent_contract_id: parentId, position: deletedPosition })
+              .eq('partner_contract_id', leftChild);
+
+            // Find rightmost extremity of left child's subtree for spillover
+            let extremityId = leftChild;
+            let maxDepth = 0;
+            while (maxDepth < 100) { // safety limit
+              const { data: extremityPos } = await supabaseAdmin
+                .from('partner_binary_positions')
+                .select('right_child_id')
+                .eq('partner_contract_id', extremityId)
+                .maybeSingle();
+
+              if (!extremityPos || !extremityPos.right_child_id) break;
+              extremityId = extremityPos.right_child_id;
+              maxDepth++;
+            }
+
+            // Place right child at the extremity
+            await supabaseAdmin
+              .from('partner_binary_positions')
+              .update({ right_child_id: rightChild })
+              .eq('partner_contract_id', extremityId);
+
+            await supabaseAdmin
+              .from('partner_binary_positions')
+              .update({ parent_contract_id: extremityId, position: 'right' })
+              .eq('partner_contract_id', rightChild);
+          }
+
+          // 5. Clear sponsor references pointing to this contract
+          await supabaseAdmin
+            .from('partner_binary_positions')
+            .update({ sponsor_contract_id: null })
+            .eq('sponsor_contract_id', cid);
+
+          // Clear pending position references
+          await supabaseAdmin
+            .from('partner_binary_positions')
+            .update({ pending_position_for: null })
+            .eq('pending_position_for', cid);
+
+          // 6. Delete the binary position of the deleted contract
+          await supabaseAdmin
+            .from('partner_binary_positions')
+            .delete()
+            .eq('partner_contract_id', cid);
+
+          console.log(`[ADMIN-DELETE] ✅ Binary tree reconnected for contract ${cid}`);
+        } else {
+          // No binary position found, just clean up any stale references
+          await supabaseAdmin.from('partner_binary_positions').update({ left_child_id: null }).eq('left_child_id', cid);
+          await supabaseAdmin.from('partner_binary_positions').update({ right_child_id: null }).eq('right_child_id', cid);
+          await supabaseAdmin.from('partner_binary_positions').update({ sponsor_contract_id: null }).eq('sponsor_contract_id', cid);
+          await supabaseAdmin.from('partner_binary_positions').update({ pending_position_for: null }).eq('pending_position_for', cid);
+        }
       }
       // Delete contracts
       await supabaseAdmin.from('partner_contracts').delete().eq('user_id', userId);
