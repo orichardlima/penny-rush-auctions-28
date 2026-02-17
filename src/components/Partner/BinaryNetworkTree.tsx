@@ -18,7 +18,10 @@ import {
   RefreshCw,
   Search,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  Home,
+  ChevronLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +33,7 @@ interface TreeNodeProps {
   maxDepth: number;
   searchQuery: string;
   matchingNodeIds: Set<string>;
+  onDrillDown: (contractId: string, name: string) => void;
 }
 
 const hasMatchingDescendant = (nodeId: string, allNodes: BinaryTreeNode[], matchingIds: Set<string>): boolean => {
@@ -41,7 +45,7 @@ const hasMatchingDescendant = (nodeId: string, allNodes: BinaryTreeNode[], match
   return left || right;
 };
 
-const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, depth, maxDepth, searchQuery, matchingNodeIds }) => {
+const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, depth, maxDepth, searchQuery, matchingNodeIds, onDrillDown }) => {
   const shouldAutoExpand = node && searchQuery && hasMatchingDescendant(node.contract_id, allNodes, matchingNodeIds);
   const [expanded, setExpanded] = useState(depth < 2);
   const isExpanded = expanded || !!shouldAutoExpand;
@@ -65,6 +69,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
     : null;
 
   const hasChildren = leftChild || rightChild;
+  const hasRegisteredChildren = node.left_child_id || node.right_child_id;
+  const isLeafButHasChildren = !hasChildren && hasRegisteredChildren && depth >= maxDepth - 1;
   const weakerLeg = node.left_points < node.right_points ? 'left' : node.right_points < node.left_points ? 'right' : 'balanced';
 
   const getPositionColor = () => {
@@ -125,7 +131,33 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
             <ArrowRight className="w-2.5 h-2.5" />
           </div>
         </div>
+
+        {/* Drill-down button */}
+        {hasRegisteredChildren && depth > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDrillDown(node.contract_id, node.partner_name || 'N/A');
+            }}
+            className="mt-1 w-full flex items-center justify-center gap-1 text-[10px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 rounded py-0.5 transition-colors"
+            title="Entrar neste nó"
+          >
+            <Eye className="w-3 h-3" />
+            Entrar
+          </button>
+        )}
       </div>
+
+      {/* Leaf indicator for nodes with children beyond depth */}
+      {isLeafButHasChildren && (
+        <button
+          onClick={() => onDrillDown(node.contract_id, node.partner_name || 'N/A')}
+          className="mt-2 flex items-center gap-1 text-[10px] text-primary hover:underline cursor-pointer"
+        >
+          <ChevronDown className="w-3 h-3" />
+          <span>Mais níveis abaixo</span>
+        </button>
+      )}
 
       {/* Children */}
       {hasChildren && isExpanded && depth < maxDepth && (
@@ -148,6 +180,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
               maxDepth={maxDepth}
               searchQuery={searchQuery}
               matchingNodeIds={matchingNodeIds}
+              onDrillDown={onDrillDown}
             />
             <TreeNode 
               node={rightChild} 
@@ -157,6 +190,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
               maxDepth={maxDepth}
               searchQuery={searchQuery}
               matchingNodeIds={matchingNodeIds}
+              onDrillDown={onDrillDown}
             />
           </div>
         </div>
@@ -166,10 +200,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
 };
 
 export const BinaryNetworkTree: React.FC = () => {
-  const { position, tree, stats, loading, refresh } = useBinaryNetwork();
-  const [maxDepth, setMaxDepth] = useState(3);
+  const { position, tree, stats, loading, contractId, viewRootContractId, navigationStack, refresh, refreshTree, navigateToNode, navigateBack, resetToRoot } = useBinaryNetwork();
+  const [maxDepth, setMaxDepth] = useState(5);
   const [searchQuery, setSearchQuery] = useState('');
   const isBinaryActive = position?.left_child_id && position?.right_child_id;
+  const isNavigated = navigationStack.length > 0;
+
   const rootNode = useMemo(() => {
     return tree.find(n => n.depth === 0) || null;
   }, [tree]);
@@ -181,6 +217,15 @@ export const BinaryNetworkTree: React.FC = () => {
       tree.filter(n => n.partner_name?.toLowerCase().includes(query)).map(n => n.contract_id)
     );
   }, [tree, searchQuery]);
+
+  const handleDrillDown = (targetContractId: string, name: string) => {
+    navigateToNode(targetContractId, name, maxDepth);
+  };
+
+  const handleDepthChange = (d: number) => {
+    setMaxDepth(d);
+    refreshTree(d);
+  };
 
   if (loading) {
     return (
@@ -296,15 +341,65 @@ export const BinaryNetworkTree: React.FC = () => {
           </div>
         )}
 
+        {/* Navigation Breadcrumb */}
+        {isNavigated && (
+          <div className="flex items-center gap-2 mb-4 p-3 bg-muted/50 rounded-lg flex-wrap">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => resetToRoot(maxDepth)}
+              className="h-7 px-2 text-xs"
+            >
+              <Home className="w-3.5 h-3.5 mr-1" />
+              Você
+            </Button>
+            {navigationStack.map((item, index) => (
+              <React.Fragment key={index}>
+                <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                <span className={cn(
+                  "text-xs px-2 py-1 rounded",
+                  index === navigationStack.length - 1 
+                    ? "bg-primary/10 text-primary font-medium" 
+                    : "text-muted-foreground"
+                )}>
+                  {item.name.split(' ').slice(0, 2).join(' ')}
+                </span>
+              </React.Fragment>
+            ))}
+            <div className="ml-auto flex gap-1">
+              {navigationStack.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateBack(maxDepth)}
+                  className="h-7 px-2 text-xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                  Voltar
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => resetToRoot(maxDepth)}
+                className="h-7 px-2 text-xs"
+              >
+                <Home className="w-3.5 h-3.5 mr-1" />
+                Topo
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Depth Selector */}
         <div className="flex items-center justify-center gap-2 mb-6">
           <span className="text-sm text-muted-foreground">Profundidade:</span>
-          {[2, 3, 4, 5].map(d => (
+          {[2, 3, 4, 5, 7, 10].map(d => (
             <Button
               key={d}
               variant={maxDepth === d ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setMaxDepth(d)}
+              onClick={() => handleDepthChange(d)}
             >
               {d}
             </Button>
@@ -346,6 +441,7 @@ export const BinaryNetworkTree: React.FC = () => {
               maxDepth={maxDepth}
               searchQuery={searchQuery}
               matchingNodeIds={matchingNodeIds}
+              onDrillDown={handleDrillDown}
             />
           </div>
         </div>
@@ -354,7 +450,7 @@ export const BinaryNetworkTree: React.FC = () => {
         <div className="flex flex-wrap items-center justify-center gap-4 mt-6 pt-4 border-t text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-primary/30 border border-primary" />
-            <span>Você</span>
+            <span>Raiz</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-blue-500/30 border border-blue-500" />
@@ -371,6 +467,10 @@ export const BinaryNetworkTree: React.FC = () => {
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-destructive/30" />
             <span>Menor Perna</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Eye className="w-3 h-3" />
+            <span>Clique "Entrar" para navegar</span>
           </div>
         </div>
       </CardContent>
