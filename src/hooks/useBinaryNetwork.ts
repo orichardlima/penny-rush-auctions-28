@@ -72,6 +72,8 @@ export const useBinaryNetwork = () => {
   const [stats, setStats] = useState<BinaryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [contractId, setContractId] = useState<string | null>(null);
+  const [viewRootContractId, setViewRootContractId] = useState<string | null>(null);
+  const [navigationStack, setNavigationStack] = useState<Array<{ contractId: string; name: string }>>([]);
 
   const fetchContractId = useCallback(async () => {
     if (!profile?.user_id) return null;
@@ -194,10 +196,15 @@ export const useBinaryNetwork = () => {
       }
 
       setContractId(id);
+      if (!viewRootContractId) {
+        setViewRootContractId(id);
+      }
+
+      const currentRoot = viewRootContractId || id;
 
       const [positionData, treeData, bonusesData] = await Promise.all([
         fetchBinaryPosition(id),
-        fetchBinaryTree(id),
+        fetchBinaryTree(currentRoot),
         fetchBinaryBonuses(id)
       ]);
 
@@ -303,6 +310,67 @@ export const useBinaryNetwork = () => {
     return data || [];
   }, [contractId]);
 
+  const navigateToNode = useCallback(async (targetContractId: string, nodeName: string, depth: number = 5) => {
+    setLoading(true);
+    try {
+      setNavigationStack(prev => [...prev, { contractId: targetContractId, name: nodeName }]);
+      setViewRootContractId(targetContractId);
+      const treeData = await fetchBinaryTree(targetContractId, depth);
+      setTree(treeData);
+    } catch (error) {
+      console.error('Error navigating to node:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchBinaryTree]);
+
+  const navigateBack = useCallback(async (depth: number = 5) => {
+    if (navigationStack.length <= 1) return resetToRoot(depth);
+    setLoading(true);
+    try {
+      const newStack = [...navigationStack];
+      newStack.pop();
+      const target = newStack[newStack.length - 1];
+      setNavigationStack(newStack);
+      setViewRootContractId(target.contractId);
+      const treeData = await fetchBinaryTree(target.contractId, depth);
+      setTree(treeData);
+    } catch (error) {
+      console.error('Error navigating back:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [navigationStack, fetchBinaryTree]);
+
+  const resetToRoot = useCallback(async (depth: number = 5) => {
+    if (!contractId) return;
+    setLoading(true);
+    try {
+      setNavigationStack([]);
+      setViewRootContractId(contractId);
+      const treeData = await fetchBinaryTree(contractId, depth);
+      setTree(treeData);
+    } catch (error) {
+      console.error('Error resetting to root:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [contractId, fetchBinaryTree]);
+
+  const refreshTree = useCallback(async (depth: number = 5) => {
+    const currentRoot = viewRootContractId || contractId;
+    if (!currentRoot) return;
+    setLoading(true);
+    try {
+      const treeData = await fetchBinaryTree(currentRoot, depth);
+      setTree(treeData);
+    } catch (error) {
+      console.error('Error refreshing tree:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [viewRootContractId, contractId, fetchBinaryTree]);
+
   return {
     position,
     tree,
@@ -310,8 +378,14 @@ export const useBinaryNetwork = () => {
     stats,
     loading,
     contractId,
+    viewRootContractId,
+    navigationStack,
     refresh: fetchAllData,
+    refreshTree,
     positionPartner,
-    getPendingPositioning
+    getPendingPositioning,
+    navigateToNode,
+    navigateBack,
+    resetToRoot
   };
 };
