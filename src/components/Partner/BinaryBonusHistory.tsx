@@ -50,7 +50,8 @@ const getStatusBadge = (status: BinaryBonus['status']) => {
 };
 
 export const BinaryBonusHistory: React.FC = () => {
-  const { bonuses, loading } = useBinaryNetwork();
+  const { bonuses, position, loading } = useBinaryNetwork();
+  const isBinaryActive = position?.left_child_id && position?.right_child_id;
 
   if (loading) {
     return (
@@ -94,9 +95,15 @@ export const BinaryBonusHistory: React.FC = () => {
           <div className="text-center py-8 text-muted-foreground">
             <Trophy className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p>Você ainda não recebeu nenhum bônus binário.</p>
-            <p className="text-sm mt-1">
-              Os bônus são gerados quando o admin fecha um ciclo e você tem pontos pareados.
-            </p>
+            {!isBinaryActive ? (
+              <p className="text-sm mt-1">
+                Seu binário ainda não está ativado. Indique pelo menos 1 parceiro em cada lado (esquerda e direita) para começar a receber bônus.
+              </p>
+            ) : (
+              <p className="text-sm mt-1">
+                Os bônus são gerados quando o admin fecha um ciclo e você tem pontos pareados.
+              </p>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
