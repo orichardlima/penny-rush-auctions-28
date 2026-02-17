@@ -1,70 +1,35 @@
 
+## Exclusao em Lote de Usuarios
 
-## Correção: Tratamento de erro na exclusão de usuários
+### O que sera feito
+Adicionar checkboxes na lista de usuarios para permitir selecionar varios e exclui-los de uma vez, seguindo o mesmo padrao visual ja usado na aba de Leiloes.
 
-### Problema Identificado
+### Como vai funcionar
+1. Cada usuario na lista tera um checkbox ao lado do nome
+2. Ao selecionar um ou mais usuarios, aparecera uma barra de acoes com:
+   - Contador de usuarios selecionados
+   - Botao "Limpar Selecao"
+   - Botao "Excluir Selecionados" (vermelho)
+3. Ao clicar em "Excluir Selecionados", um dialogo de confirmacao sera exibido
+4. A exclusao chamara a edge function `admin-delete-user` para cada usuario selecionado (sequencialmente, para respeitar as dependencias de FK)
+5. Ao final, a lista sera atualizada automaticamente
 
-O mecanismo de hard delete **funciona** (confirmado nos logs: "binário 11" foi deletado com sucesso). Porém, o "Binário 10" ainda existe no banco, o que indica que a exclusão dele falhou silenciosamente.
+### Detalhes Tecnicos
 
-A causa raiz está no tratamento de erros do frontend: quando a edge function retorna um erro no corpo da resposta (ex: `{ error: "User not found" }` com HTTP 404), o `supabase.functions.invoke` **não lança exceção** -- apenas popula o campo `data` com o corpo da resposta. O código atual só verifica `error` (erro de rede), mas não verifica `data.error` (erro lógico retornado pela edge function). Resultado: o toast mostra "sucesso" mesmo quando a exclusão falhou.
+**Arquivo:** `src/components/AdminDashboard.tsx`
 
-### Solução
+1. **Novos estados:**
+   - `selectedUsers: Set<string>` - IDs dos usuarios selecionados
+   - `isDeletingUsers: boolean` - flag de loading durante exclusao em lote
 
-Ajustar a função `deleteUser` em `AdminUserManagement.tsx` para verificar **também** o campo `data.error` retornado pela edge function.
+2. **Novas funcoes:**
+   - `handleSelectUser(userId, checked)` - adiciona/remove usuario da selecao
+   - `handleSelectAllUsers(checked)` - seleciona/deseleciona todos os usuarios filtrados (excluindo admins e o proprio usuario logado)
+   - `deleteSelectedUsers()` - itera sobre os IDs selecionados, chama `admin-delete-user` para cada um, mostra progresso e atualiza a lista ao final
 
-### Detalhes Técnicos
+3. **Alteracoes na UI (aba Usuarios):**
+   - Adicionar barra de selecao/acoes acima da lista (mesmo estilo da aba Leiloes - card laranja)
+   - Adicionar checkbox em cada item da lista de usuarios
+   - Protecao: usuarios admin e o proprio usuario logado nao poderao ser selecionados para exclusao
 
-**Arquivo:** `src/components/AdminUserManagement.tsx` (função `deleteUser`, linhas 156-189)
-
-Alterar o bloco de tratamento de resposta para:
-
-```typescript
-const deleteUser = async () => {
-  setLoading(true);
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    const { data, error } = await supabase.functions.invoke('admin-delete-user', {
-      body: { userId: user.user_id },
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`
-      }
-    });
-
-    if (error) throw error;
-
-    // NOVO: verificar erro lógico retornado pela edge function
-    if (data?.error) {
-      throw new Error(data.error);
-    }
-
-    if (data?.warning) {
-      console.warn('Delete warning:', data.warning);
-    }
-
-    toast({
-      title: "Sucesso",
-      description: "Usuário deletado permanentemente com sucesso"
-    });
-
-    onUserUpdated();
-  } catch (error: any) {
-    console.error('Error deleting user:', error);
-    toast({
-      title: "Erro ao deletar",
-      description: error.message || "Erro ao deletar usuário. Tente novamente.",
-      variant: "destructive"
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-```
-
-A unica mudanca e adicionar a verificacao `if (data?.error) throw new Error(data.error);` na linha 169, para que erros logicos da edge function sejam tratados corretamente e exibidos ao admin.
-
-### Resultado Esperado
-
-- Se a exclusao falhar por qualquer motivo (usuario nao encontrado, erro de FK, etc.), o admin vera a mensagem de erro real
-- Se a exclusao for bem-sucedida, o usuario sera removido e a lista atualizada
-- Para o "Binario 10" especificamente: basta clicar novamente no botao de deletar -- agora qualquer erro sera exibido claramente
+4. **Nenhuma alteracao** na edge function, no banco de dados ou em outros componentes.
