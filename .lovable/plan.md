@@ -1,104 +1,96 @@
 
 
-## Regra: Primeiros 2 Indicados Nao Pontuam para o Sponsor
+## Auto-Reposicao de Leiloes - Nunca Ficar com a Home Vazia
 
-### Contexto
+### Problema
 
-Atualmente, quando um novo parceiro entra na rede, a funcao `propagate_binary_points` sobe pela arvore e adiciona pontos a TODOS os uplines, incluindo o sponsor direto. A nova regra estabelece que os 2 primeiros indicados diretos de cada sponsor sao "qualificadores" e nao geram pontos binarios para ele.
+Atualmente, voce precisa criar leiloes manualmente. Quando todos encerram, a home fica sem leiloes ativos.
 
-### Regra de Negocio Detalhada
+### Solucao: Sistema de Auto-Reposicao
 
-- 1o indicado direto: nao gera pontos binarios para o sponsor
-- 2o indicado direto: nao gera pontos binarios para o sponsor
-- 3o indicado em diante: gera pontos binarios normalmente para o sponsor
-- Em TODOS os casos, os pontos sao propagados normalmente para os uplines ACIMA do sponsor
-- O Bonus de Indicacao (comissao em dinheiro) continua sendo pago normalmente para todos os indicados
+Criar uma **Edge Function** (`auto-replenish-auctions`) executada via **cron job a cada 5 minutos** que:
 
-### Como Contar os Indicados Diretos
+1. Conta quantos leiloes estao `active` ou `waiting`
+2. Se a quantidade estiver abaixo de um minimo configuravel (ex: 3), cria novos leiloes automaticamente a partir dos templates ativos
+3. Os novos leiloes sao agendados com intervalos entre si para nao iniciar todos ao mesmo tempo
 
-A contagem sera feita consultando quantos registros em `partner_binary_positions` possuem `sponsor_contract_id` igual ao sponsor em questao. Isso inclui indicados em ambos os lados (esquerda e direita).
+### Configuracoes pelo Admin (system_settings)
 
-### Mudancas Necessarias
+Novas configuracoes na tabela `system_settings`:
 
-**1. Funcao SQL `propagate_binary_points`**
+| Chave | Descricao | Valor Padrao |
+|-------|-----------|--------------|
+| `auto_replenish_enabled` | Ativar/desativar o sistema | `true` |
+| `auto_replenish_min_active` | Minimo de leiloes ativos+waiting | `3` |
+| `auto_replenish_batch_size` | Quantos criar de cada vez | `3` |
+| `auto_replenish_interval_minutes` | Intervalo entre os novos leiloes | `30` |
+| `auto_replenish_duration_hours` | Duracao de cada leilao (ends_at) | `3` |
 
-Alterar a funcao para receber um parametro adicional opcional `p_sponsor_contract_id` (o sponsor direto do novo parceiro). Durante o loop de propagacao, ao chegar no sponsor direto, verificar quantos indicados diretos ele ja possui. Se tiver 2 ou menos (contando o atual), pular a adicao de pontos PARA ESSE SPONSOR APENAS, mas continuar subindo normalmente.
+### UI no Painel Admin
 
-Logica no loop:
+Adicionar uma secao no `SystemSettings.tsx` para o admin ligar/desligar e configurar os parametros acima sem precisar mexer no banco.
 
-```sql
-WHILE v_parent_id IS NOT NULL LOOP
-  -- Verificar se este upline eh o sponsor direto
-  v_skip_points := false;
-  
-  IF v_parent_id = p_sponsor_contract_id THEN
-    -- Contar indicados diretos deste sponsor
-    SELECT COUNT(*) INTO v_direct_referrals_count
-    FROM public.partner_binary_positions
-    WHERE sponsor_contract_id = v_parent_id;
-    
-    -- Se tem 2 ou menos indicados, este ainda eh qualificador
-    IF v_direct_referrals_count <= 2 THEN
-      v_skip_points := true;
-    END IF;
-  END IF;
-  
-  IF NOT v_skip_points THEN
-    -- Adicionar pontos normalmente
-    UPDATE partner_binary_positions SET ...
-  END IF;
-  
-  -- Registrar no log (mesmo se pulou)
-  INSERT INTO binary_points_log ...
-  
-  -- Continuar subindo SEMPRE
-  v_current_id := v_parent_id;
-  SELECT parent_contract_id, position INTO v_parent_id, v_position
-  FROM partner_binary_positions WHERE partner_contract_id = v_current_id;
-END LOOP;
-```
+### Detalhes Tecnicos
 
-**2. Funcao SQL `position_partner_binary`**
-
-Alterar a chamada de `propagate_binary_points` para passar o `sponsor_contract_id`:
-
-```sql
--- Antes:
-PERFORM public.propagate_binary_points(p_contract_id, v_points, 'new_partner');
-
--- Depois:
-PERFORM public.propagate_binary_points(p_contract_id, v_points, 'new_partner', p_sponsor_contract_id);
-```
-
-**3. Nenhuma alteracao no frontend**
-
-A regra eh puramente backend/SQL. O alerta de "binario nao ativado" ja foi implementado na etapa anterior. Os pontos simplesmente nao aparecerao para o sponsor ate o 3o indicado.
-
-### Arquivos Modificados
-
-- `supabase/migrations/[nova].sql` - Recriar `propagate_binary_points` com logica de skip e atualizar `position_partner_binary` para passar o sponsor
-- `src/integrations/supabase/types.ts` - Atualizado automaticamente
-
-### Impacto nos Dados Existentes
-
-- A regra se aplica somente a NOVOS posicionamentos
-- Parceiros ja posicionados mantem seus pontos atuais
-- Para corrigir pontos historicos, seria necessaria uma correcao manual caso a caso
-
-### Resumo Visual
+**1. Edge Function `auto-replenish-auctions`**
 
 ```text
-Sponsor: Richard (0 indicados diretos)
-
-Joao entra (1o indicado):
-  Richard: 0 pts (qualificador - pulou)
-  Upline de Richard: +1000 pts
-
-Maria entra (2o indicado):
-  Richard: 0 pts (qualificador - pulou)
-  Upline de Richard: +500 pts
-
-Pedro entra (3o indicado):
-  Richard: +1000 pts (ja qualificado!)
-  Upline de Richard: +1000 pts
+- Busca settings do system_settings
+- Se auto_replenish_enabled = false, retorna sem fazer nada
+- Conta leiloes com status IN ('active', 'waiting')
+- Se count >= min_active, retorna sem fazer nada
+- Calcula quantos faltam: needed = min_active - count
+- Limita a batch_size
+- Busca templates ativos (is_active = true), embaralha, pega os N primeiros
+- Cria leiloes com starts_at escalonado (agora + i * intervalo)
+- Cada leilao recebe ends_at = starts_at + duration_hours (com offset aleatorio ±15min)
+- Incrementa times_used nos templates usados
 ```
+
+**2. Cron Job (migracao SQL)**
+
+Agendar via `pg_cron` + `pg_net` para chamar a edge function a cada 5 minutos.
+
+**3. UI no SystemSettings**
+
+Nova secao "Reposicao Automatica de Leiloes" com:
+- Toggle on/off
+- Campo numerico para minimo de leiloes ativos
+- Campo numerico para tamanho do lote
+- Select para intervalo entre leiloes
+- Select para duracao de cada leilao
+
+**4. Atualizacao do hook useSystemSettings**
+
+Adicionar os novos campos de configuracao.
+
+### Arquivos Modificados/Criados
+
+- `supabase/functions/auto-replenish-auctions/index.ts` (novo) - Edge function
+- `supabase/migrations/[nova].sql` - Inserir settings padrao + cron job
+- `src/components/SystemSettings.tsx` - Nova secao de configuracao
+- `src/hooks/useSystemSettings.ts` - Novos campos
+
+### Fluxo
+
+```text
+Cron (5min) --> Edge Function --> Verifica count(active+waiting)
+                                    |
+                            count < minimo?
+                           /              \
+                         Sim              Nao --> Nada a fazer
+                          |
+                   Busca templates ativos
+                          |
+                   Cria N leiloes escalonados
+                          |
+                   Home sempre com leiloes!
+```
+
+### Impacto
+
+- Nenhuma alteracao nas funcionalidades existentes de leilao
+- O admin pode desligar a qualquer momento pelo painel
+- Templates existentes sao reutilizados automaticamente
+- Os leiloes criados automaticamente funcionam exatamente como os criados manualmente
+
