@@ -89,6 +89,11 @@ const AdminPartnerManagement = () => {
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [suspendReason, setSuspendReason] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+
+  // Contract filters
+  const [contractSearch, setContractSearch] = useState('');
+  const [contractStatusFilter, setContractStatusFilter] = useState('all');
+  const [contractPlanFilter, setContractPlanFilter] = useState('all');
   
   // Manual mode state
   const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual' | 'daily'>('automatic');
@@ -206,6 +211,25 @@ const AdminPartnerManagement = () => {
     
     return { planStats, grandTotal, totalContracts, hasAnyCapped };
   }, [plans, eligibleContracts, manualBase, manualPercentage]);
+
+  // Filtered contracts
+  const filteredContracts = useMemo(() => {
+    return contracts.filter(contract => {
+      const searchLower = contractSearch.toLowerCase();
+      const matchesSearch = !contractSearch || 
+        contract.user_name?.toLowerCase().includes(searchLower) ||
+        contract.user_email?.toLowerCase().includes(searchLower);
+      const matchesStatus = contractStatusFilter === 'all' || contract.status === contractStatusFilter;
+      const matchesPlan = contractPlanFilter === 'all' || contract.plan_name === contractPlanFilter;
+      return matchesSearch && matchesStatus && matchesPlan;
+    });
+  }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter]);
+
+  const hasActiveFilters = contractSearch !== '' || contractStatusFilter !== 'all' || contractPlanFilter !== 'all';
+
+  const uniquePlanNames = useMemo(() => {
+    return [...new Set(contracts.map(c => c.plan_name))].sort();
+  }, [contracts]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -332,7 +356,7 @@ const AdminPartnerManagement = () => {
   };
 
   const exportContracts = () => {
-    const data = contracts.map(c => ({
+    const data = filteredContracts.map(c => ({
       parceiro: c.user_name,
       email: c.user_email,
       plano: c.plan_name,
@@ -541,6 +565,61 @@ const AdminPartnerManagement = () => {
               </Button>
             </CardHeader>
             <CardContent className="overflow-x-auto">
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="Buscar por nome ou email..."
+                    value={contractSearch}
+                    onChange={(e) => setContractSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                  <Eye className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
+                <Select value={contractStatusFilter} onValueChange={setContractStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Status</SelectItem>
+                    <SelectItem value="ACTIVE">Ativo</SelectItem>
+                    <SelectItem value="SUSPENDED">Suspenso</SelectItem>
+                    <SelectItem value="CLOSED">Encerrado</SelectItem>
+                    <SelectItem value="PENDING">Pendente</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={contractPlanFilter} onValueChange={setContractPlanFilter}>
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder="Plano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Planos</SelectItem>
+                    {uniquePlanNames.map(plan => (
+                      <SelectItem key={plan} value={plan}>{plan}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setContractSearch('');
+                      setContractStatusFilter('all');
+                      setContractPlanFilter('all');
+                    }}
+                    className="shrink-0"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Limpar
+                  </Button>
+                )}
+              </div>
+              {hasActiveFilters && (
+                <p className="text-sm text-muted-foreground mb-3">
+                  Exibindo {filteredContracts.length} de {contracts.length} contratos
+                </p>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -555,7 +634,7 @@ const AdminPartnerManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contracts.map((contract) => {
+                  {filteredContracts.map((contract) => {
                     const progress = (contract.total_received / contract.total_cap) * 100;
                     return (
                       <TableRow key={contract.id}>
