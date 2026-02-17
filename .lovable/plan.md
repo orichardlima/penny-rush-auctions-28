@@ -1,75 +1,50 @@
 
 
-## Reconexao Automatica da Arvore Binaria ao Excluir Usuario
+## Reparar a Arvore Binaria de Richard Lima
 
-### Problema Atual
-Ao excluir um usuario, a edge function simplesmente anula as referencias (`left_child_id`, `right_child_id`, `parent_contract_id`) e deleta o registro. Isso causa:
-- Filhos (downline) ficam orfaos, desconectados da arvore
-- Pontos propagados pelo usuario deletado permanecem inflados no upline
-- A estrutura da arvore binaria se fragmenta
+### Problema Diagnosticado
+A exclusao de usuarios intermediarios (feita antes da correcao da edge function) desconectou os filhos de Richard Lima. O estado atual no banco:
+
+| Parceiro | parent_contract_id | position | sponsor |
+|---|---|---|---|
+| Richard Lima | NULL (raiz) | - | - |
+| Administrador | **NULL** (deveria ser Richard) | left | Richard |
+| Adailton Mascarenhas | **NULL** (deveria ser Richard) | right | Richard |
+| Luciano Deiro | Adailton | right | Adailton |
+
+Richard tem pontos acumulados (1950 esq / 2550 dir) mas `left_child_id` e `right_child_id` sao NULL, entao a arvore aparece vazia na visualizacao.
 
 ### Solucao
-Antes de deletar a posicao binaria do usuario, o sistema ira:
-1. Reconectar os filhos ao no pai (avo)
-2. Subtrair os pontos do usuario deletado de todo o upline
-3. Manter a arvore integra e os pontos consistentes
+Executar um SQL de reparo para reconectar os nos orfaos de volta a Richard:
 
-### Logica de Reconexao
+1. **Reconectar Administrador** como filho esquerdo de Richard
+   - Atualizar `parent_contract_id` do Administrador para Richard
+   - Atualizar `left_child_id` de Richard para Administrador
 
-```text
-ANTES da exclusao (deletando B):
-
-       A
-      / \
-     B   ...
-    / \
-   C   D
-
-DEPOIS da exclusao:
-
-       A
-      / \
-     C   ...
-      \
-       D (reposicionado na extremidade direita de C)
-```
-
-**Regras:**
-- Se B era filho esquerdo de A: o filho esquerdo de B (C) assume a posicao de B como filho esquerdo de A
-- Se B era filho direito de A: mesma logica, filho esquerdo de B assume
-- O outro filho de B (D) e reposicionado na extremidade da subarvore do primeiro filho (spillover)
-- Se B tinha apenas 1 filho, esse filho assume diretamente a posicao de B
-- Se B nao tinha filhos, apenas remove e limpa a referencia no pai
+2. **Reconectar Adailton Mascarenhas** como filho direito de Richard
+   - Atualizar `parent_contract_id` do Adailton para Richard
+   - Atualizar `right_child_id` de Richard para Adailton
 
 ### Detalhes Tecnicos
 
-**Arquivo:** `supabase/functions/admin-delete-user/index.ts`
+Sera executada uma unica migracao SQL com os seguintes comandos:
 
-Substituir o bloco atual de tratamento binario (linhas 133-139) por uma logica expandida:
+```
+-- Reconectar Administrador como filho esquerdo de Richard
+UPDATE partner_binary_positions
+SET parent_contract_id = 'c42ad205-3e35-40ff-a292-c888a6a5011b'
+WHERE partner_contract_id = '1de6fd0d-030c-4501-b022-dacb8108d869';
 
-1. **Buscar a posicao binaria do contrato** sendo deletado:
-   - `parent_contract_id`, `position`, `left_child_id`, `right_child_id`
+-- Reconectar Adailton como filho direito de Richard
+UPDATE partner_binary_positions
+SET parent_contract_id = 'c42ad205-3e35-40ff-a292-c888a6a5011b'
+WHERE partner_contract_id = '9d9db00f-5d02-4e44-8f32-a771220c8b1e';
 
-2. **Buscar os pontos do plano** do usuario deletado na tabela `partner_level_points`
+-- Atualizar referencias de filhos em Richard
+UPDATE partner_binary_positions
+SET left_child_id = '1de6fd0d-030c-4501-b022-dacb8108d869',
+    right_child_id = '9d9db00f-5d02-4e44-8f32-a771220c8b1e'
+WHERE partner_contract_id = 'c42ad205-3e35-40ff-a292-c888a6a5011b';
+```
 
-3. **Subtrair pontos do upline** - Percorrer toda a cadeia de ancestrais:
-   - Se o usuario estava na posicao `left` do pai, subtrair de `left_points` e `total_left_points`
-   - Se estava na `right`, subtrair de `right_points` e `total_right_points`
-   - Continuar subindo ate a raiz
-
-4. **Reconectar filhos:**
-   - **Sem filhos**: apenas limpar `left_child_id` ou `right_child_id` no pai
-   - **1 filho**: promover esse filho para a posicao de B no pai
-     - Atualizar `parent_contract_id` e `position` do filho
-     - Atualizar `left_child_id`/`right_child_id` do pai (avo)
-   - **2 filhos**: promover o filho esquerdo para a posicao de B, e reposicionar o filho direito na extremidade da subarvore do filho esquerdo (mesma logica de spillover)
-     - Atualizar referencias no pai (avo)
-     - Atualizar `parent_contract_id` do filho esquerdo
-     - Encontrar extremidade direita da subarvore do filho esquerdo
-     - Posicionar filho direito la, atualizando `parent_contract_id`, `position`, e `right_child_id` do no extremo
-
-5. **Deletar logs de pontos** (`binary_points_log`) do contrato deletado
-
-6. **Deletar a posicao binaria** do contrato deletado
-
-**Nenhuma alteracao** em outros componentes, hooks, banco de dados, RLS ou UI. Apenas a edge function `admin-delete-user` sera modificada.
+Isso restaura a arvore ao estado correto sem alterar pontos (que ja estao consistentes). Nenhuma alteracao em codigo, componentes ou edge functions - apenas reparo de dados.
