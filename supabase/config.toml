@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.admin-delete-user]
 verify_jwt = false
+
+[functions.auto-replenish-auctions]
+verify_jwt = false
