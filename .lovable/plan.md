@@ -1,65 +1,61 @@
 
 
-## Naturalizar a Duracao dos Leiloes Automaticos
+## Mostrar Impacto da Central de Anuncios na Aba de Repasses
 
 ### Problema
-A duracao dos leiloes automaticos e fixa em 3 horas (configuravel), com apenas +/-15 minutos de variacao. Isso resulta em leiloes visivelmente semelhantes (3h0min, 3h14min, 3h4min), o que pode gerar desconfianca nos usuarios.
+O parceiro ve o "Acumulado: R$ 111,99" na aba Repasses, mas esse valor representa 100% do rendimento bruto. O valor real que ele recebera depende do progresso na Central de Anuncios (70% base + ate 30% bonus). Hoje, essa informacao so aparece na aba "Central de Anuncios", obrigando o parceiro a cruzar dados mentalmente entre duas abas.
 
-### Solucao: Faixa de Duracao Minima e Maxima
+### Solucao
+Adicionar um mini-resumo do impacto da Central de Anuncios diretamente no card "Semana em Andamento", logo abaixo do acumulado. Isso mostra ao parceiro, de forma clara:
 
-Substituir o campo unico "Duracao (horas)" por dois campos: **Duracao Minima** e **Duracao Maxima**. O sistema sorteara uma duracao aleatoria dentro dessa faixa para cada leilao, gerando variacoes naturais.
+1. O valor bruto acumulado (como ja esta)
+2. O percentual de desbloqueio atual (ex: 76%)
+3. O valor estimado do repasse real (bruto x percentual)
+4. Um link para a aba "Central de Anuncios" caso queira melhorar o percentual
 
-Exemplo com min=1h e max=5h:
-- Leilao A: 1h42min
-- Leilao B: 4h18min
-- Leilao C: 2h55min
-- Leilao D: 3h37min
-
-### Mudancas
-
-**1. Edge Function `supabase/functions/auto-replenish-auctions/index.ts`**
-
-- Substituir a leitura de `auto_replenish_duration_hours` por dois novos settings: `auto_replenish_duration_min_hours` e `auto_replenish_duration_max_hours`
-- Calcular duracao aleatoria para cada leilao:
-  ```text
-  durationMs = random entre (minHours * 3600000) e (maxHours * 3600000)
-  endsAt = startsAt + durationMs
-  ```
-- Remover o offset aleatorio de +/-15 min (ja nao e necessario pois a variacao esta embutida na faixa)
-
-**2. Configuracoes do Sistema `src/components/SystemSettings.tsx`**
-
-- Substituir o campo "Duracao media (horas)" por dois campos:
-  - "Duracao minima (horas)" - default: 1
-  - "Duracao maxima (horas)" - default: 5
-- Validar que minimo < maximo
-
-**3. Settings no banco de dados (migracao SQL)**
-
-- Inserir dois novos registros em `system_settings`:
-  - `auto_replenish_duration_min_hours` = '1'
-  - `auto_replenish_duration_max_hours` = '5'
-- Remover (ou manter como fallback) o antigo `auto_replenish_duration_hours`
-
-### Resultado Esperado
-
-Com faixa de 1h a 5h, os leiloes terao duracoes visivelmente diferentes, eliminando o padrao suspeito de "todos duram ~3 horas". Exemplo de como ficaria na tela:
+### Exemplo Visual
 
 ```text
-Leilao 1: Duracao total: 1h 42min
-Leilao 2: Duracao total: 4h 18min  
-Leilao 3: Duracao total: 2h 55min
-Leilao 4: Duracao total: 3h 37min
+Acumulado: R$ 111,99
+1.12% do aporte
+
+  Desbloqueio: 76% (3 de 5 dias)
+  Repasse estimado: R$ 85,11
+  [Completar na Central de Anuncios ->]
+
+Sera pago em: Domingo, 22/02
 ```
 
-### Arquivos Modificados
-- `supabase/functions/auto-replenish-auctions/index.ts` - logica de duracao aleatoria
-- `src/components/SystemSettings.tsx` - dois campos de duracao (min/max)
-- Nova migracao SQL - novos settings no banco
+Se o parceiro tiver 100% desbloqueado, a mensagem muda para:
+
+```text
+Acumulado: R$ 111,99
+1.12% do aporte
+
+  100% desbloqueado - Voce recebera o valor integral!
+
+Sera pago em: Domingo, 22/02
+```
+
+### Mudancas Tecnicas
+
+**Arquivo: `src/components/Partner/PartnerDashboard.tsx`**
+
+- Importar o hook `useAdCenter` (ja existente) para obter `weekProgress`
+- Abaixo do bloco "Acumulado" (linha ~810), adicionar um pequeno bloco informativo com:
+  - `weekProgress.unlockPercentage` para mostrar o percentual
+  - `totalPartnerShare * (unlockPercentage / 100)` para o valor estimado
+  - `weekProgress.completedDays` / `weekProgress.requiredDays` para o progresso
+  - Botao/link que muda a aba ativa para "ads" (Central de Anuncios)
+- Estilizar com cores condicionais: verde se 100%, amarelo/laranja se abaixo
+
+**Arquivo: `src/hooks/useAdCenter.ts`**
+
+- Nenhuma alteracao necessaria - o hook ja retorna `weekProgress` com `unlockPercentage`, `completedDays`, `requiredDays` e `bonusPercentage`
 
 ### Impacto
-- Nenhuma alteracao em leiloes ja existentes
-- Nenhuma alteracao na UI de leiloes, cards, ou outras funcionalidades
-- Apenas leiloes criados automaticamente apos a mudanca terao duracao variada
-- O gerador de lotes manual (BatchAuctionGenerator) nao e afetado
+- Apenas a aba "Repasses" do PartnerDashboard e alterada
+- Nenhuma alteracao na Central de Anuncios, Saques, Indicacoes ou Rede Binaria
+- Nenhuma alteracao no calculo real de repasses (edge function)
+- Apenas informacao visual adicional para o parceiro
 
