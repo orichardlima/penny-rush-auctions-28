@@ -17,7 +17,7 @@ export interface PartnerPlan {
 }
 
 export interface PartnerPaymentData {
-  contractId: string;
+  intentId: string;
   paymentId: string;
   qrCode?: string;
   qrCodeBase64?: string;
@@ -247,21 +247,19 @@ export const usePartnerContract = () => {
       return { success: false };
     }
 
-    // Verificar se já existe contrato ativo ou pendente
+    // Verificar se já existe contrato ativo
     const { data: existingActive } = await supabase
       .from('partner_contracts')
       .select('id, status')
       .eq('user_id', profile.user_id)
-      .in('status', ['ACTIVE', 'PENDING'])
+      .eq('status', 'ACTIVE')
       .maybeSingle();
 
     if (existingActive) {
       toast({
         variant: "destructive",
-        title: existingActive.status === 'ACTIVE' ? "Contrato já existe" : "Pagamento pendente",
-        description: existingActive.status === 'ACTIVE' 
-          ? "Você já possui um contrato ativo. Aguarde seu encerramento para criar outro."
-          : "Você já possui um pagamento pendente. Conclua o pagamento ou aguarde a expiração."
+        title: "Contrato já existe",
+        description: "Você já possui um contrato ativo. Aguarde seu encerramento para criar outro."
       });
       return { success: false };
     }
@@ -301,12 +299,12 @@ export const usePartnerContract = () => {
       }
 
       console.log('[usePartnerContract] Pagamento PIX gerado com sucesso:', {
-        contractId: data.contractId,
+        intentId: data.intentId,
         paymentId: data.paymentId
       });
 
       const paymentData: PartnerPaymentData = {
-        contractId: data.contractId,
+        intentId: data.intentId,
         paymentId: data.paymentId,
         qrCode: data.qrCode,
         qrCodeBase64: data.qrCodeBase64,

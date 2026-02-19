@@ -1370,6 +1370,65 @@ export type Database = {
           },
         ]
       }
+      partner_payment_intents: {
+        Row: {
+          aporte_value: number
+          bonus_bids: number
+          created_at: string
+          expires_at: string | null
+          id: string
+          payment_id: string | null
+          payment_status: string
+          plan_id: string
+          plan_name: string
+          referral_code: string | null
+          referred_by_user_id: string | null
+          total_cap: number
+          user_id: string
+          weekly_cap: number
+        }
+        Insert: {
+          aporte_value: number
+          bonus_bids?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          payment_id?: string | null
+          payment_status?: string
+          plan_id: string
+          plan_name: string
+          referral_code?: string | null
+          referred_by_user_id?: string | null
+          total_cap: number
+          user_id: string
+          weekly_cap: number
+        }
+        Update: {
+          aporte_value?: number
+          bonus_bids?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          payment_id?: string | null
+          payment_status?: string
+          plan_id?: string
+          plan_name?: string
+          referral_code?: string | null
+          referred_by_user_id?: string | null
+          total_cap?: number
+          user_id?: string
+          weekly_cap?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_payment_intents_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "partner_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_payouts: {
         Row: {
           amount: number

@@ -462,7 +462,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               aporteValue: paymentData.aporteValue,
               bonusBids: paymentData.bonusBids
             }}
-            contractId={paymentData.contractId}
+            intentId={paymentData.intentId}
             onSuccess={handlePaymentSuccess}
           />
         )}
