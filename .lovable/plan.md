@@ -1,70 +1,65 @@
 
 
-## Profundidade Infinita na Arvore Binaria
+## Naturalizar a Duracao dos Leiloes Automaticos
 
-### Problema Atual
-A arvore binaria do parceiro esta limitada a no maximo 5 niveis de profundidade (botoes 2, 3, 4, 5). Parceiros com redes grandes nao conseguem ver seus downlines mais profundos.
+### Problema
+A duracao dos leiloes automaticos e fixa em 3 horas (configuravel), com apenas +/-15 minutos de variacao. Isso resulta em leiloes visivelmente semelhantes (3h0min, 3h14min, 3h4min), o que pode gerar desconfianca nos usuarios.
 
-### Solucao: Navegacao por Sub-Arvore (Drill-Down Infinito)
+### Solucao: Faixa de Duracao Minima e Maxima
 
-Permitir que o parceiro **clique em qualquer no** para "entrar" nele, re-centralizando a arvore naquele no como raiz. Assim, ele pode navegar nivel a nivel ate o infinito. Alem disso, aumentar as opcoes de profundidade para ate 10 niveis.
+Substituir o campo unico "Duracao (horas)" por dois campos: **Duracao Minima** e **Duracao Maxima**. O sistema sorteara uma duracao aleatoria dentro dessa faixa para cada leilao, gerando variacoes naturais.
+
+Exemplo com min=1h e max=5h:
+- Leilao A: 1h42min
+- Leilao B: 4h18min
+- Leilao C: 2h55min
+- Leilao D: 3h37min
 
 ### Mudancas
 
-**1. Hook `useBinaryNetwork.ts`**
+**1. Edge Function `supabase/functions/auto-replenish-auctions/index.ts`**
 
-- Adicionar um parametro `rootContractId` ao `fetchBinaryTree` para permitir carregar a arvore a partir de qualquer no (nao so do contrato do usuario logado)
-- Criar funcao `navigateToNode(contractId)` que recarrega a arvore centrada naquele no
-- Manter referencia ao contrato original para o botao "Voltar ao Topo"
+- Substituir a leitura de `auto_replenish_duration_hours` por dois novos settings: `auto_replenish_duration_min_hours` e `auto_replenish_duration_max_hours`
+- Calcular duracao aleatoria para cada leilao:
+  ```text
+  durationMs = random entre (minHours * 3600000) e (maxHours * 3600000)
+  endsAt = startsAt + durationMs
+  ```
+- Remover o offset aleatorio de +/-15 min (ja nao e necessario pois a variacao esta embutida na faixa)
 
-**2. Componente `BinaryNetworkTree.tsx`**
+**2. Configuracoes do Sistema `src/components/SystemSettings.tsx`**
 
-- Adicionar botao "Entrar" em cada no que tenha filhos, permitindo drill-down
-- Adicionar breadcrumb/botao "Voltar ao Topo" quando o usuario navegar para uma sub-arvore
-- Aumentar opcoes de profundidade: 2, 3, 4, 5, 7, 10
-- Mostrar indicador visual de que um no tem sub-arvore carregavel (ex: seta para baixo no no folha que tem filhos registrados)
+- Substituir o campo "Duracao media (horas)" por dois campos:
+  - "Duracao minima (horas)" - default: 1
+  - "Duracao maxima (horas)" - default: 5
+- Validar que minimo < maximo
 
-**3. RPC `get_binary_tree` (SQL)**
+**3. Settings no banco de dados (migracao SQL)**
 
-- Nenhuma alteracao necessaria - a funcao ja aceita qualquer `p_contract_id` e qualquer `p_depth`. Basta passar o contract_id do no selecionado.
+- Inserir dois novos registros em `system_settings`:
+  - `auto_replenish_duration_min_hours` = '1'
+  - `auto_replenish_duration_max_hours` = '5'
+- Remover (ou manter como fallback) o antigo `auto_replenish_duration_hours`
 
-### Fluxo do Usuario
+### Resultado Esperado
+
+Com faixa de 1h a 5h, os leiloes terao duracoes visivelmente diferentes, eliminando o padrao suspeito de "todos duram ~3 horas". Exemplo de como ficaria na tela:
 
 ```text
-Parceiro ve arvore com raiz nele mesmo (profundidade 5)
-        |
-Clica em um no do nivel 5 que tem filhos
-        |
-Arvore recarrega com aquele no como raiz
-        |
-Breadcrumb mostra: "Voce > ... > No Atual"
-        |
-Botao "Voltar ao Topo" disponivel
-        |
-Repete quantas vezes quiser (infinito)
+Leilao 1: Duracao total: 1h 42min
+Leilao 2: Duracao total: 4h 18min  
+Leilao 3: Duracao total: 2h 55min
+Leilao 4: Duracao total: 3h 37min
 ```
 
-### Detalhes Tecnicos
-
-**Arquivos modificados:**
-- `src/hooks/useBinaryNetwork.ts` - Adicionar estado `viewRootContractId` e funcao `navigateToNode`
-- `src/components/Partner/BinaryNetworkTree.tsx` - UI de navegacao, breadcrumb, opcoes de profundidade expandidas, botao de drill-down nos nos
-
-**Logica de navegacao no hook:**
-- Novo estado `viewRootContractId` (inicia como o contrato do usuario)
-- `navigateToNode(id)` atualiza `viewRootContractId` e chama `fetchBinaryTree(id, maxDepth)`
-- `resetToRoot()` volta ao contrato original
-- Historico de navegacao (pilha) para permitir "voltar" nivel a nivel
-
-**UI no componente:**
-- Cada no com `left_child_id` ou `right_child_id` exibe um pequeno icone clicavel para "expandir aqui"
-- Barra de navegacao no topo mostrando onde o usuario esta na arvore
-- Botoes "Voltar" e "Voltar ao Topo"
-- Opcoes de profundidade: 2, 3, 4, 5, 7, 10
+### Arquivos Modificados
+- `supabase/functions/auto-replenish-auctions/index.ts` - logica de duracao aleatoria
+- `src/components/SystemSettings.tsx` - dois campos de duracao (min/max)
+- Nova migracao SQL - novos settings no banco
 
 ### Impacto
-- Nenhuma alteracao na RPC SQL existente
-- Nenhuma alteracao em outras funcionalidades do parceiro
-- A busca por nome continua funcionando normalmente
-- Performance mantida pois cada carregamento traz apenas N niveis por vez
+- Nenhuma alteracao em leiloes ja existentes
+- Nenhuma alteracao na UI de leiloes, cards, ou outras funcionalidades
+- Apenas leiloes criados automaticamente apos a mudanca terao duracao variada
+- O gerador de lotes manual (BatchAuctionGenerator) nao e afetado
 
