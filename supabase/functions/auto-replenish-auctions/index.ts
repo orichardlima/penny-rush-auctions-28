@@ -24,7 +24,8 @@ Deno.serve(async (req) => {
         'auto_replenish_min_active',
         'auto_replenish_batch_size',
         'auto_replenish_interval_minutes',
-        'auto_replenish_duration_hours',
+        'auto_replenish_duration_min_hours',
+        'auto_replenish_duration_max_hours',
       ])
 
     if (settingsError) throw settingsError
@@ -44,7 +45,8 @@ Deno.serve(async (req) => {
     const minActive = parseInt(settings['auto_replenish_min_active'] || '3')
     const batchSize = parseInt(settings['auto_replenish_batch_size'] || '3')
     const intervalMinutes = parseInt(settings['auto_replenish_interval_minutes'] || '30')
-    const durationHours = parseInt(settings['auto_replenish_duration_hours'] || '3')
+    const durationMinHours = parseFloat(settings['auto_replenish_duration_min_hours'] || '1')
+    const durationMaxHours = parseFloat(settings['auto_replenish_duration_max_hours'] || '5')
 
     // 2. Count active + waiting auctions
     const { count, error: countError } = await supabase
@@ -92,9 +94,9 @@ Deno.serve(async (req) => {
       const template = selected[i]
       const startsAt = new Date(now.getTime() + i * intervalMinutes * 60 * 1000)
       
-      // Random offset ±15 min for ends_at
-      const randomOffset = (Math.random() - 0.5) * 30 * 60 * 1000
-      const endsAt = new Date(startsAt.getTime() + durationHours * 60 * 60 * 1000 + randomOffset)
+      // Random duration between min and max hours
+      const randomDurationMs = (durationMinHours + Math.random() * (durationMaxHours - durationMinHours)) * 60 * 60 * 1000
+      const endsAt = new Date(startsAt.getTime() + randomDurationMs)
 
       const auctionData = {
         title: template.title,

@@ -61,7 +61,8 @@ export const SystemSettings: React.FC = () => {
   const [autoReplenishMinActive, setAutoReplenishMinActive] = useState<string>('3');
   const [autoReplenishBatchSize, setAutoReplenishBatchSize] = useState<string>('3');
   const [autoReplenishInterval, setAutoReplenishInterval] = useState<string>('30');
-  const [autoReplenishDuration, setAutoReplenishDuration] = useState<string>('3');
+  const [autoReplenishDurationMin, setAutoReplenishDurationMin] = useState<string>('1');
+  const [autoReplenishDurationMax, setAutoReplenishDurationMax] = useState<string>('5');
   const [savingAutoReplenish, setSavingAutoReplenish] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
@@ -122,7 +123,8 @@ export const SystemSettings: React.FC = () => {
       setAutoReplenishMinActive(getSettingValue('auto_replenish_min_active', 3).toString());
       setAutoReplenishBatchSize(getSettingValue('auto_replenish_batch_size', 3).toString());
       setAutoReplenishInterval(getSettingValue('auto_replenish_interval_minutes', 30).toString());
-      setAutoReplenishDuration(getSettingValue('auto_replenish_duration_hours', 3).toString());
+      setAutoReplenishDurationMin(getSettingValue('auto_replenish_duration_min_hours', 1).toString());
+      setAutoReplenishDurationMax(getSettingValue('auto_replenish_duration_max_hours', 5).toString());
       
       setIsInitialized(true);
     }
@@ -253,7 +255,8 @@ export const SystemSettings: React.FC = () => {
         updateSetting('auto_replenish_min_active', autoReplenishMinActive),
         updateSetting('auto_replenish_batch_size', autoReplenishBatchSize),
         updateSetting('auto_replenish_interval_minutes', autoReplenishInterval),
-        updateSetting('auto_replenish_duration_hours', autoReplenishDuration)
+        updateSetting('auto_replenish_duration_min_hours', autoReplenishDurationMin),
+        updateSetting('auto_replenish_duration_max_hours', autoReplenishDurationMax)
       ]);
       toast({
         title: "Configurações salvas!",
@@ -1254,27 +1257,55 @@ export const SystemSettings: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="auto-replenish-duration">Duração de cada leilão</Label>
+              <Label htmlFor="auto-replenish-duration-min">Duração mínima (horas)</Label>
               <Select
-                value={autoReplenishDuration}
-                onValueChange={setAutoReplenishDuration}
+                value={autoReplenishDurationMin}
+                onValueChange={setAutoReplenishDurationMin}
                 disabled={!autoReplenishEnabled}
               >
-                <SelectTrigger id="auto-replenish-duration">
+                <SelectTrigger id="auto-replenish-duration-min">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">1 hora</SelectItem>
                   <SelectItem value="2">2 horas</SelectItem>
                   <SelectItem value="3">3 horas</SelectItem>
+                  <SelectItem value="4">4 horas</SelectItem>
                   <SelectItem value="6">6 horas</SelectItem>
+                  <SelectItem value="12">12 horas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="auto-replenish-duration-max">Duração máxima (horas)</Label>
+              <Select
+                value={autoReplenishDurationMax}
+                onValueChange={setAutoReplenishDurationMax}
+                disabled={!autoReplenishEnabled}
+              >
+                <SelectTrigger id="auto-replenish-duration-max">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2">2 horas</SelectItem>
+                  <SelectItem value="3">3 horas</SelectItem>
+                  <SelectItem value="4">4 horas</SelectItem>
+                  <SelectItem value="5">5 horas</SelectItem>
+                  <SelectItem value="6">6 horas</SelectItem>
+                  <SelectItem value="8">8 horas</SelectItem>
                   <SelectItem value="12">12 horas</SelectItem>
                   <SelectItem value="24">24 horas</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Duração total de cada leilão (ends_at)
+                Cada leilão terá uma duração aleatória entre o mínimo e o máximo
               </p>
+              {Number(autoReplenishDurationMin) >= Number(autoReplenishDurationMax) && (
+                <p className="text-xs text-destructive font-medium">
+                  ⚠️ A duração mínima deve ser menor que a máxima
+                </p>
+              )}
             </div>
           </div>
 
