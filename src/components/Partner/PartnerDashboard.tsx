@@ -47,6 +47,7 @@ import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryBonusHistory from './BinaryBonusHistory';
 import DailyRevenueBars from './DailyRevenueBars';
 import AdCenterDashboard from './AdCenterDashboard';
+import { useAdCenter } from '@/hooks/useAdCenter';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PartnerPixPaymentModal } from './PartnerPixPaymentModal';
@@ -80,9 +81,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   
   // Current week revenue for animated bars
   const currentWeekRevenue = useCurrentWeekRevenue(contract);
+  const { weekProgress } = useAdCenter(contract?.id);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState('payouts');
   const [creatingContract, setCreatingContract] = useState(false);
   
   // Estado para modal de pagamento PIX
@@ -655,7 +658,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       </Card>
 
       {/* Tabs de Conteúdo */}
-      <Tabs defaultValue="payouts" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full overflow-x-auto flex flex-nowrap h-auto p-1">
           <TabsTrigger value="payouts" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -824,6 +827,33 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   </p>
                 </div>
               </div>
+
+              {/* Mini-resumo do impacto da Central de Anúncios */}
+              {weekProgress.unlockPercentage >= 100 ? (
+                <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 rounded-md p-2.5 border border-green-200 dark:border-green-800">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span><strong>100% desbloqueado</strong> — Você receberá o valor integral!</span>
+                </div>
+              ) : (
+                <div className="rounded-md p-2.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                      <Lock className="h-3.5 w-3.5 shrink-0" />
+                      <strong>Desbloqueio: {weekProgress.unlockPercentage.toFixed(0)}%</strong>
+                      <span className="text-muted-foreground">({weekProgress.completedDays} de {weekProgress.requiredDays} dias)</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Repasse estimado: <strong>{formatPrice(currentWeekRevenue.totalPartnerShare * (weekProgress.unlockPercentage / 100))}</strong>
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('ads')}
+                    className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+                  >
+                    Completar na Central de Anúncios <ArrowUpRight className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
               
               <p className="text-xs text-muted-foreground">
                 💵 Será pago em: <span className="capitalize font-medium">{getCurrentWeekPaymentDate.formatted}</span>
