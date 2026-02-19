@@ -7,7 +7,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -24,7 +23,6 @@ serve(async (req) => {
     const body = await req.json()
     console.log('📨 Webhook payload:', body)
 
-    // Verificar se é notificação de pagamento
     if (body.type !== 'payment') {
       console.log('ℹ️ Not a payment notification, ignoring')
       return new Response('OK', { status: 200, headers: corsHeaders })
@@ -40,9 +38,7 @@ serve(async (req) => {
 
     // 1. Buscar dados do pagamento no Mercado Pago
     const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: {
-        'Authorization': `Bearer ${mercadoPagoAccessToken}`
-      }
+      headers: { 'Authorization': `Bearer ${mercadoPagoAccessToken}` }
     })
 
     if (!mpResponse.ok) {
@@ -65,8 +61,8 @@ serve(async (req) => {
       return await processUpgradePayment(supabase, paymentData, externalReference)
     }
 
-    // 3. Caso contrário, é pagamento de NOVO CONTRATO
-    console.log('🆕 Processing NEW CONTRACT payment')
+    // 3. Caso contrário, é pagamento de NOVO CONTRATO (via payment intent)
+    console.log('🆕 Processing NEW CONTRACT payment via intent')
     return await processNewContractPayment(supabase, paymentData, paymentId)
 
   } catch (error) {
@@ -75,96 +71,113 @@ serve(async (req) => {
   }
 })
 
-// Processar pagamento de NOVO CONTRATO
+// Processar pagamento de NOVO CONTRATO (agora via payment_intents)
 async function processNewContractPayment(supabase: any, paymentData: any, paymentId: string) {
-  // Buscar contrato pelo payment_id
-  const { data: contract, error: contractError } = await supabase
-    .from('partner_contracts')
+  // Buscar payment intent pelo payment_id
+  const { data: intent, error: intentError } = await supabase
+    .from('partner_payment_intents')
     .select('*')
     .eq('payment_id', paymentId.toString())
     .single()
 
-  if (contractError || !contract) {
-    console.error('❌ Contract not found:', contractError)
-    return new Response('Contract not found', { status: 404, headers: corsHeaders })
+  if (intentError || !intent) {
+    // Fallback: tentar buscar contrato antigo (compatibilidade com contratos PENDING pré-existentes)
+    console.log('ℹ️ Intent not found, trying legacy contract lookup...')
+    return await processLegacyContractPayment(supabase, paymentData, paymentId)
   }
 
-  console.log('📄 Contract found:', contract.id, 'current status:', contract.status, 'payment_status:', contract.payment_status)
+  console.log('📄 Intent found:', intent.id, 'status:', intent.payment_status)
 
-  // Processar baseado no status do pagamento
-  if (paymentData.status === 'approved' && contract.payment_status !== 'completed') {
-    console.log('✅ Payment approved, activating contract')
-    
-    // Buscar dados do plano para bônus de lances
-    const { data: planData } = await supabase
-      .from('partner_plans')
-      .select('bonus_bids')
-      .eq('name', contract.plan_name)
+  if (paymentData.status === 'approved' && intent.payment_status !== 'approved') {
+    console.log('✅ Payment approved, creating real contract')
+
+    // 1. Verificar se já não existe contrato ACTIVE para este usuário (segurança)
+    const { data: existingActive } = await supabase
+      .from('partner_contracts')
+      .select('id')
+      .eq('user_id', intent.user_id)
+      .eq('status', 'ACTIVE')
       .maybeSingle()
 
-    // Atualizar status do contrato para ACTIVE
-    const { error: updateError } = await supabase
-      .from('partner_contracts')
-      .update({ 
-        status: 'ACTIVE',
-        payment_status: 'completed'
-      })
-      .eq('id', contract.id)
-
-    if (updateError) {
-      console.error('❌ Failed to update contract:', updateError)
-      return new Response('Update failed', { status: 500, headers: corsHeaders })
+    if (existingActive) {
+      console.log('⚠️ User already has active contract, skipping creation')
+      await supabase
+        .from('partner_payment_intents')
+        .update({ payment_status: 'approved' })
+        .eq('id', intent.id)
+      return new Response('OK', { status: 200, headers: corsHeaders })
     }
 
-    console.log('✅ Contract activated successfully')
+    // 2. Gerar código de indicação único
+    const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase()
 
-    // Creditar bônus de lances se o plano tiver
-    const bonusBids = planData?.bonus_bids || 0
+    // 3. Criar contrato REAL com status ACTIVE
+    const { data: contractData, error: contractError } = await supabase
+      .from('partner_contracts')
+      .insert({
+        user_id: intent.user_id,
+        plan_name: intent.plan_name,
+        aporte_value: intent.aporte_value,
+        weekly_cap: intent.weekly_cap,
+        total_cap: intent.total_cap,
+        status: 'ACTIVE',
+        payment_status: 'completed',
+        payment_id: paymentId.toString(),
+        referred_by_user_id: intent.referred_by_user_id,
+        referral_code: newReferralCode
+      })
+      .select()
+      .single()
+
+    if (contractError) {
+      console.error('❌ Failed to create contract:', contractError)
+      return new Response('Contract creation failed', { status: 500, headers: corsHeaders })
+    }
+
+    console.log('✅ Contract created (ACTIVE):', contractData.id, 'referral_code:', newReferralCode)
+
+    // 4. Creditar bônus de lances
+    const bonusBids = intent.bonus_bids || 0
     if (bonusBids > 0) {
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('bids_balance')
-        .eq('user_id', contract.user_id)
+        .eq('user_id', intent.user_id)
         .single()
 
-      if (!profileError && profile) {
+      if (profile) {
         const newBalance = (profile.bids_balance || 0) + bonusBids
-        
-        const { error: balanceError } = await supabase
+        await supabase
           .from('profiles')
           .update({ bids_balance: newBalance })
-          .eq('user_id', contract.user_id)
+          .eq('user_id', intent.user_id)
 
-        if (!balanceError) {
-          // Atualizar o contrato com o bônus recebido
-          await supabase
-            .from('partner_contracts')
-            .update({ bonus_bids_received: bonusBids })
-            .eq('id', contract.id)
+        await supabase
+          .from('partner_contracts')
+          .update({ bonus_bids_received: bonusBids })
+          .eq('id', contractData.id)
 
-          console.log('✅ Bonus bids credited:', bonusBids)
-        } else {
-          console.error('❌ Failed to credit bonus bids:', balanceError)
-        }
+        console.log('✅ Bonus bids credited:', bonusBids)
       }
     }
 
-    // Bônus de indicação em cascata é criado automaticamente pelo trigger
+    // 5. Atualizar intent como aprovado
+    await supabase
+      .from('partner_payment_intents')
+      .update({ payment_status: 'approved' })
+      .eq('id', intent.id)
+
+    // 6. Bônus de indicação em cascata é criado pelo trigger
     console.log('ℹ️ Cascade referral bonuses will be created by database trigger')
     console.log('✅ Partner contract activation completed successfully')
-    
-  } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
-    console.log('❌ Payment cancelled/rejected, updating contract')
-    
-    await supabase
-      .from('partner_contracts')
-      .update({ 
-        status: 'SUSPENDED',
-        payment_status: 'failed'
-      })
-      .eq('id', contract.id)
 
-    console.log('✅ Contract marked as suspended/failed')
+  } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
+    console.log('❌ Payment cancelled/rejected, updating intent')
+    await supabase
+      .from('partner_payment_intents')
+      .update({ payment_status: paymentData.status === 'cancelled' ? 'expired' : 'rejected' })
+      .eq('id', intent.id)
+
   } else if (paymentData.status === 'pending') {
     console.log('ℹ️ Payment still pending, no action needed')
   }
@@ -173,9 +186,69 @@ async function processNewContractPayment(supabase: any, paymentData: any, paymen
   return new Response('OK', { status: 200, headers: corsHeaders })
 }
 
-// Processar pagamento de UPGRADE
+// Compatibilidade: processar contratos PENDING criados antes da migração
+async function processLegacyContractPayment(supabase: any, paymentData: any, paymentId: string) {
+  const { data: contract, error: contractError } = await supabase
+    .from('partner_contracts')
+    .select('*')
+    .eq('payment_id', paymentId.toString())
+    .single()
+
+  if (contractError || !contract) {
+    console.error('❌ Neither intent nor legacy contract found for payment:', paymentId)
+    return new Response('Not found', { status: 404, headers: corsHeaders })
+  }
+
+  console.log('📄 Legacy contract found:', contract.id, 'status:', contract.status)
+
+  if (paymentData.status === 'approved' && contract.payment_status !== 'completed') {
+    console.log('✅ Legacy payment approved, activating contract')
+
+    const { data: planData } = await supabase
+      .from('partner_plans')
+      .select('bonus_bids')
+      .eq('name', contract.plan_name)
+      .maybeSingle()
+
+    await supabase
+      .from('partner_contracts')
+      .update({ status: 'ACTIVE', payment_status: 'completed' })
+      .eq('id', contract.id)
+
+    const bonusBids = planData?.bonus_bids || 0
+    if (bonusBids > 0) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('bids_balance')
+        .eq('user_id', contract.user_id)
+        .single()
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({ bids_balance: (profile.bids_balance || 0) + bonusBids })
+          .eq('user_id', contract.user_id)
+
+        await supabase
+          .from('partner_contracts')
+          .update({ bonus_bids_received: bonusBids })
+          .eq('id', contract.id)
+      }
+    }
+
+    console.log('✅ Legacy contract activated')
+  } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
+    await supabase
+      .from('partner_contracts')
+      .update({ status: 'SUSPENDED', payment_status: 'failed' })
+      .eq('id', contract.id)
+  }
+
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
+
+// Processar pagamento de UPGRADE (sem alteração)
 async function processUpgradePayment(supabase: any, paymentData: any, externalReference: string) {
-  // Formato: upgrade:contractId:newPlanId
   const parts = externalReference.split(':')
   if (parts.length !== 3) {
     console.error('❌ Invalid upgrade external_reference format:', externalReference)
@@ -187,7 +260,6 @@ async function processUpgradePayment(supabase: any, paymentData: any, externalRe
 
   console.log('📄 Upgrade details - Contract:', contractId, 'New Plan:', newPlanId)
 
-  // Buscar contrato
   const { data: contract, error: contractError } = await supabase
     .from('partner_contracts')
     .select('*')
@@ -199,7 +271,6 @@ async function processUpgradePayment(supabase: any, paymentData: any, externalRe
     return new Response('Contract not found', { status: 404, headers: corsHeaders })
   }
 
-  // Buscar novo plano
   const { data: newPlan, error: planError } = await supabase
     .from('partner_plans')
     .select('*')
@@ -216,32 +287,22 @@ async function processUpgradePayment(supabase: any, paymentData: any, externalRe
 
     const differencePaid = newPlan.aporte_value - contract.aporte_value
 
-    // 1. Registrar o upgrade na tabela de auditoria
-    const { error: upgradeError } = await supabase
-      .from('partner_upgrades')
-      .insert({
-        partner_contract_id: contract.id,
-        previous_plan_name: contract.plan_name,
-        previous_aporte_value: contract.aporte_value,
-        previous_weekly_cap: contract.weekly_cap,
-        previous_total_cap: contract.total_cap,
-        new_plan_name: newPlan.name,
-        new_aporte_value: newPlan.aporte_value,
-        new_weekly_cap: newPlan.weekly_cap,
-        new_total_cap: newPlan.total_cap,
-        total_received_at_upgrade: contract.total_received,
-        difference_paid: differencePaid,
-        notes: `Pagamento PIX ID: ${paymentData.id}`
-      })
+    await supabase.from('partner_upgrades').insert({
+      partner_contract_id: contract.id,
+      previous_plan_name: contract.plan_name,
+      previous_aporte_value: contract.aporte_value,
+      previous_weekly_cap: contract.weekly_cap,
+      previous_total_cap: contract.total_cap,
+      new_plan_name: newPlan.name,
+      new_aporte_value: newPlan.aporte_value,
+      new_weekly_cap: newPlan.weekly_cap,
+      new_total_cap: newPlan.total_cap,
+      total_received_at_upgrade: contract.total_received,
+      difference_paid: differencePaid,
+      notes: `Pagamento PIX ID: ${paymentData.id}`
+    })
 
-    if (upgradeError) {
-      console.error('❌ Failed to insert upgrade record:', upgradeError)
-    } else {
-      console.log('✅ Upgrade record created')
-    }
-
-    // 2. Atualizar o contrato com novo plano
-    const { error: updateError } = await supabase
+    await supabase
       .from('partner_contracts')
       .update({
         plan_name: newPlan.name,
@@ -252,16 +313,9 @@ async function processUpgradePayment(supabase: any, paymentData: any, externalRe
       })
       .eq('id', contract.id)
 
-    if (updateError) {
-      console.error('❌ Failed to update contract with upgrade:', updateError)
-      return new Response('Update failed', { status: 500, headers: corsHeaders })
-    }
-
-    console.log('✅ Contract upgraded successfully:', contract.plan_name, '→', newPlan.name)
-    console.log('=== PARTNER UPGRADE PAYMENT WEBHOOK END ===')
-    
+    console.log('✅ Contract upgraded:', contract.plan_name, '→', newPlan.name)
   } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
-    console.log('❌ Upgrade payment cancelled/rejected - no changes made')
+    console.log('❌ Upgrade payment cancelled/rejected')
   } else if (paymentData.status === 'pending') {
     console.log('ℹ️ Upgrade payment still pending')
   }

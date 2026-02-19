@@ -66,22 +66,18 @@ serve(async (req) => {
 
     console.log('✅ Plan found:', planData.name, planData.aporte_value)
 
-    // 2. Verificar se usuário já tem contrato ativo ou pendente
+    // 2. Verificar se usuário já tem contrato ativo
     const { data: existingContract } = await supabase
       .from('partner_contracts')
-      .select('id, status, payment_status')
+      .select('id, status')
       .eq('user_id', userId)
-      .in('status', ['ACTIVE', 'PENDING'])
+      .eq('status', 'ACTIVE')
       .maybeSingle()
 
     if (existingContract) {
-      console.log('❌ User already has active/pending contract:', existingContract.id)
+      console.log('❌ User already has active contract:', existingContract.id)
       return new Response(
-        JSON.stringify({ 
-          error: existingContract.status === 'ACTIVE' 
-            ? 'Você já possui um contrato ativo' 
-            : 'Você já possui um pagamento pendente'
-        }),
+        JSON.stringify({ error: 'Você já possui um contrato ativo' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -89,7 +85,17 @@ serve(async (req) => {
       )
     }
 
-    // 3. Buscar patrocinador se houver código de referral
+    // 3. Limpar intents expirados do mesmo usuário
+    await supabase
+      .from('partner_payment_intents')
+      .delete()
+      .eq('user_id', userId)
+      .eq('payment_status', 'pending')
+      .lt('expires_at', new Date().toISOString())
+
+    console.log('🧹 Cleaned up expired intents')
+
+    // 4. Buscar patrocinador se houver código de referral
     let referredByUserId: string | null = null
     
     if (referralCode) {
@@ -117,30 +123,62 @@ serve(async (req) => {
       }
     }
 
-    // 4. Gerar código de indicação único para o novo parceiro
-    const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase()
+    // 4b. Fallback: herdar referral de intent ou contrato anterior
+    if (!referredByUserId) {
+      // Tentar herdar de intent anterior
+      const { data: prevIntent } = await supabase
+        .from('partner_payment_intents')
+        .select('referred_by_user_id')
+        .eq('user_id', userId)
+        .not('referred_by_user_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-    // 5. Criar contrato com status PENDING e payment_status pending
-    const { data: contractData, error: contractError } = await supabase
-      .from('partner_contracts')
+      if (prevIntent?.referred_by_user_id) {
+        referredByUserId = prevIntent.referred_by_user_id
+        console.log('✅ Referral herdado de intent anterior:', referredByUserId)
+      } else {
+        // Tentar herdar de contrato anterior (SUSPENDED/CLOSED)
+        const { data: prevContract } = await supabase
+          .from('partner_contracts')
+          .select('referred_by_user_id')
+          .eq('user_id', userId)
+          .not('referred_by_user_id', 'is', null)
+          .in('status', ['SUSPENDED', 'CLOSED'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (prevContract?.referred_by_user_id) {
+          referredByUserId = prevContract.referred_by_user_id
+          console.log('✅ Referral herdado de contrato anterior:', referredByUserId)
+        }
+      }
+    }
+
+    // 5. Criar payment intent (NÃO contrato)
+    const { data: intentData, error: intentError } = await supabase
+      .from('partner_payment_intents')
       .insert({
         user_id: userId,
+        plan_id: planId,
         plan_name: planData.name,
         aporte_value: planData.aporte_value,
         weekly_cap: planData.weekly_cap,
         total_cap: planData.total_cap,
-        status: 'PENDING',
-        payment_status: 'pending',
+        bonus_bids: planData.bonus_bids || 0,
+        referral_code: referralCode?.trim().toUpperCase() || null,
         referred_by_user_id: referredByUserId,
-        referral_code: newReferralCode
+        payment_status: 'pending'
       })
       .select()
       .single()
 
-    if (contractError) {
-      console.error('❌ Contract creation failed:', contractError)
+    if (intentError) {
+      console.error('❌ Payment intent creation failed:', intentError)
       return new Response(
-        JSON.stringify({ error: 'Erro ao criar contrato' }),
+        JSON.stringify({ error: 'Erro ao criar intenção de pagamento' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -148,7 +186,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('✅ Contract created (PENDING):', contractData.id)
+    console.log('✅ Payment intent created:', intentData.id)
 
     // 6. Criar pagamento no Mercado Pago
     const paymentPayload = {
@@ -160,14 +198,13 @@ serve(async (req) => {
         first_name: userName || 'Usuario',
         last_name: ''
       },
-      external_reference: contractData.id,
+      external_reference: intentData.id,
       notification_url: `${supabaseUrl}/functions/v1/partner-payment-webhook`
     }
 
     console.log('💳 Creating Mercado Pago payment:', paymentPayload)
 
-    // Gerar chave de idempotência única
-    const idempotencyKey = `partner-${contractData.id}-${Date.now()}`
+    const idempotencyKey = `partner-intent-${intentData.id}-${Date.now()}`
 
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -183,11 +220,11 @@ serve(async (req) => {
 
     if (!mpResponse.ok) {
       console.error('❌ Mercado Pago API error:', mpData)
-      // Deletar contrato se falhou
+      // Deletar intent se falhou
       await supabase
-        .from('partner_contracts')
+        .from('partner_payment_intents')
         .delete()
-        .eq('id', contractData.id)
+        .eq('id', intentData.id)
       
       return new Response(
         JSON.stringify({ error: 'Erro ao gerar pagamento PIX' }),
@@ -200,21 +237,15 @@ serve(async (req) => {
 
     console.log('✅ Mercado Pago payment created:', mpData.id)
 
-    // 7. Atualizar contrato com dados do pagamento
-    const { error: updateError } = await supabase
-      .from('partner_contracts')
-      .update({
-        payment_id: mpData.id.toString()
-      })
-      .eq('id', contractData.id)
-
-    if (updateError) {
-      console.error('❌ Contract update failed:', updateError)
-    }
+    // 7. Atualizar intent com dados do pagamento
+    await supabase
+      .from('partner_payment_intents')
+      .update({ payment_id: mpData.id.toString() })
+      .eq('id', intentData.id)
 
     // 8. Retornar dados para o frontend
     const response = {
-      contractId: contractData.id,
+      intentId: intentData.id,
       paymentId: mpData.id,
       qrCode: mpData.point_of_interaction?.transaction_data?.qr_code,
       qrCodeBase64: mpData.point_of_interaction?.transaction_data?.qr_code_base64,
