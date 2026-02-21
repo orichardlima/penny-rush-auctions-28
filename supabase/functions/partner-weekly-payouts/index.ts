@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
         }
 
         // 11. Atualizar contrato
-        const newTotalReceived = contract.total_received + finalAmount
+        const newTotalReceived = contract.total_received + amountAfterCaps
         const newAvailableBalance = contract.available_balance + finalAmount
         const shouldClose = newTotalReceived >= contract.total_cap
 
