@@ -1,49 +1,42 @@
 
 
-# Plano: Informar o Parceiro sobre o Prazo de Carencia dos Bonus
+# Exibir data de liberacao no modal de detalhes do parceiro (Admin)
 
-## Problema
+## Objetivo
 
-O parceiro ve o status "Em validacao" nos bonus de indicacao, mas nao recebe nenhuma informacao sobre o motivo (carencia de 7 dias) nem a data prevista de liberacao.
+No modal `PartnerDetailModal`, na aba "Indicacao", exibir a data prevista de liberacao (`available_at`) ao lado do badge "Pendente", para que o admin saiba quando o bonus sera liberado.
 
-## Alteracoes
+## Alteracao
 
-Apenas o arquivo `src/components/Partner/PartnerReferralSection.tsx` sera modificado. Nenhum outro arquivo, funcionalidade ou interface sera alterado.
+Apenas o arquivo `src/components/Admin/PartnerDetailModal.tsx` sera modificado.
 
-### 1. Adicionar coluna "Liberacao" na tabela de historico
+### O que muda (linha ~223)
 
-Na tabela de bonus de indicacao, adicionar uma nova coluna entre "Data" e "Status" chamada "Liberacao", que exibe:
-- A data formatada de `available_at` quando o status for `PENDING`
-- Um icone de check quando o status for `AVAILABLE` ou `PAID`
-- Traco (-) quando nao houver data
+Na celula de Status dos bonus de indicacao, quando o status for `PENDING` e existir `available_at`, exibir a data formatada ao lado do badge. Exemplo visual: **Pendente** (libera 26/02/2026)
 
-### 2. Tooltip no badge de status "Em validacao"
+### Detalhe tecnico
 
-Quando o status for `PENDING`, o badge tera um tooltip explicando:
-"Bonus em periodo de carencia de 7 dias. Sera liberado automaticamente apos a validacao."
+Substituir a linha:
+```
+<TableCell>{getStatusBadge(b.status)}</TableCell>
+```
 
-### 3. Melhorar o disclaimer no final
-
-Substituir o texto vago atual por uma mensagem mais clara:
-"O bonus de indicacao possui um periodo de carencia de 7 dias antes de ficar disponivel. Este e um beneficio comercial independente do seu contrato de participacao."
-
-## Detalhes Tecnicos
-
-### Arquivo: `src/components/Partner/PartnerReferralSection.tsx`
-
-**Alteracao 1 - Tabela (linhas ~205-258):**
-- Adicionar `<TableHead>Liberacao</TableHead>` apos a coluna "Data"
-- Adicionar `<TableCell>` correspondente que renderiza `formatDate(bonus.available_at)` se existir, ou "-"
-
-**Alteracao 2 - Tooltip no badge PENDING (linhas ~252-255):**
-- Importar `Tooltip, TooltipContent, TooltipProvider, TooltipTrigger` de `@/components/ui/tooltip`
-- Envolver o Badge de status PENDING em um Tooltip com a mensagem explicativa
-
-**Alteracao 3 - Disclaimer (linhas ~266-268):**
-- Atualizar o texto para mencionar explicitamente os 7 dias de carencia
+Por:
+```
+<TableCell>
+  <div className="flex items-center gap-1.5">
+    {getStatusBadge(b.status)}
+    {b.status === 'PENDING' && b.available_at && (
+      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+        (libera {formatDate(b.available_at)})
+      </span>
+    )}
+  </div>
+</TableCell>
+```
 
 ### Nenhuma outra alteracao
 - Nenhuma mudanca no banco de dados
-- Nenhuma mudanca em hooks ou outros componentes
+- Nenhuma mudanca em outros componentes ou hooks
 - Nenhuma mudanca na logica de negocio
 
