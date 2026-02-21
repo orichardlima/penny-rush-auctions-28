@@ -49,6 +49,7 @@ import {
   Rocket
 } from 'lucide-react';
 import BinaryNetworkManager from './BinaryNetworkManager';
+import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
 import FastStartTiersManager from './FastStartTiersManager';
 import { supabase } from '@/integrations/supabase/client';
@@ -123,6 +124,9 @@ const AdminPartnerManagement = () => {
   const [creditType, setCreditType] = useState<'bonus' | 'correction' | 'compensation' | 'other'>('bonus');
   const [creditDescription, setCreditDescription] = useState('');
   const [creditConsumesCap, setCreditConsumesCap] = useState(true);
+
+  // Partner Detail Modal State
+  const [selectedPartnerForDetail, setSelectedPartnerForDetail] = useState<any>(null);
 
   // Calculate preview for manual mode with Pro Rata eligibility
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
@@ -662,6 +666,15 @@ const AdminPartnerManagement = () => {
                         <TableCell>{getStatusBadge(contract.status)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
+                            {/* Detail View Button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedPartnerForDetail(contract)}
+                              title="Ver detalhes do parceiro"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             {/* Manual Credit Button - Only for ACTIVE contracts */}
                             {contract.status === 'ACTIVE' && (
                               <Button 
@@ -2035,6 +2048,14 @@ const AdminPartnerManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Partner Detail Modal */}
+      {selectedPartnerForDetail && (
+        <PartnerDetailModal
+          contract={selectedPartnerForDetail}
+          open={!!selectedPartnerForDetail}
+          onClose={() => setSelectedPartnerForDetail(null)}
+        />
+      )}
     </div>
   );
 };
