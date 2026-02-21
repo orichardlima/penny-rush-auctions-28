@@ -10,6 +10,7 @@ import { usePartnerContract } from '@/hooks/usePartnerContract';
 import PartnerLevelProgress from './PartnerLevelProgress';
 import ReferralNetworkTree from './ReferralNetworkTree';
 import FastStartProgress from './FastStartProgress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Users, 
   Copy, 
@@ -19,7 +20,8 @@ import {
   DollarSign,
   Star,
   GitBranch,
-  ChevronDown
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 
 interface PartnerReferralSectionProps {
@@ -210,6 +212,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                   <TableHead>Bônus</TableHead>
                   <TableHead>Pontos</TableHead>
                   <TableHead>Data</TableHead>
+                  <TableHead>Liberação</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -250,9 +253,32 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                       {formatDate(bonus.created_at)}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(bonus.status)}>
-                        {getStatusLabel(bonus.status)}
-                      </Badge>
+                      {bonus.status === 'PENDING' && (bonus as any).available_at
+                        ? <span className="text-yellow-600 text-sm">{formatDate((bonus as any).available_at)}</span>
+                        : (bonus.status === 'AVAILABLE' || bonus.status === 'PAID')
+                          ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          : <span className="text-muted-foreground">-</span>
+                      }
+                    </TableCell>
+                    <TableCell>
+                      {bonus.status === 'PENDING' ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className={getStatusColor(bonus.status) + ' cursor-help'}>
+                                {getStatusLabel(bonus.status)}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">Bônus em período de carência de 7 dias. Será liberado automaticamente após a validação.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <Badge className={getStatusColor(bonus.status)}>
+                          {getStatusLabel(bonus.status)}
+                        </Badge>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -264,8 +290,8 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
       {/* Disclaimer */}
       <p className="text-xs text-center text-muted-foreground">
-        O bônus de indicação é um benefício comercial independente do seu contrato de participação.
-        Os bônus podem ter período de validação antes de ficarem disponíveis.
+        O bônus de indicação possui um período de carência de 7 dias antes de ficar disponível.
+        Este é um benefício comercial independente do seu contrato de participação.
       </p>
     </div>
   );
