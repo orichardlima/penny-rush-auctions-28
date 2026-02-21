@@ -220,7 +220,16 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                           <TableCell className="text-xs">{formatPrice(b.aporte_value)}</TableCell>
                           <TableCell className="text-xs">{b.bonus_percentage}%</TableCell>
                           <TableCell className="text-xs font-medium">{formatPrice(b.bonus_value)}</TableCell>
-                          <TableCell>{getStatusBadge(b.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              {getStatusBadge(b.status)}
+                              {b.status === 'PENDING' && b.available_at && (
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  (libera {formatDate(b.available_at)})
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs">{formatDate(b.created_at)}</TableCell>
                         </TableRow>
                       ))}
