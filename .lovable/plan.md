@@ -1,65 +1,49 @@
 
 
-# Plano: Visao Detalhada por Parceiro no Painel Admin
+# Plano: Informar o Parceiro sobre o Prazo de Carencia dos Bonus
 
-## Objetivo
+## Problema
 
-Adicionar um botao "Ver detalhes" em cada linha da tabela de contratos no admin. Ao clicar, abre um modal com o resumo consolidado de todos os ganhos do parceiro: repasses, bonus de indicacao, bonus binario, creditos manuais e saques, com totais e historico.
+O parceiro ve o status "Em validacao" nos bonus de indicacao, mas nao recebe nenhuma informacao sobre o motivo (carencia de 7 dias) nem a data prevista de liberacao.
 
-## O que sera criado
+## Alteracoes
 
-### 1. Novo componente: `PartnerDetailModal.tsx`
+Apenas o arquivo `src/components/Partner/PartnerReferralSection.tsx` sera modificado. Nenhum outro arquivo, funcionalidade ou interface sera alterado.
 
-Um modal (Dialog) que recebe o `contract` selecionado e busca todos os dados financeiros do parceiro:
+### 1. Adicionar coluna "Liberacao" na tabela de historico
 
-**Dados buscados (por `partner_contract_id`):**
-- `partner_payouts` - repasses semanais (pagos e pendentes)
-- `partner_referral_bonuses` - bonus de indicacao (por `referrer_contract_id`)
-- `binary_bonuses` - bonus binarios
-- `partner_manual_credits` - creditos manuais do admin
-- `partner_withdrawals` - saques solicitados
+Na tabela de bonus de indicacao, adicionar uma nova coluna entre "Data" e "Status" chamada "Liberacao", que exibe:
+- A data formatada de `available_at` quando o status for `PENDING`
+- Um icone de check quando o status for `AVAILABLE` ou `PAID`
+- Traco (-) quando nao houver data
 
-**Layout do modal:**
-- Cabecalho com nome do parceiro, plano, aporte e status
-- Cards de resumo: Total Repasses, Total Bonus Indicacao, Total Bonus Binario, Total Creditos Manuais, Total Saques, Saldo Disponivel
-- Abas (Tabs) com historico detalhado de cada tipo:
-  - Repasses: tabela com semana, valor, status, data pagamento
-  - Bonus Indicacao: tabela com indicado, nivel, %, valor, status
-  - Bonus Binario: tabela com ciclo, pontos, valor, status
-  - Creditos Manuais: tabela com tipo, descricao, valor, data
-  - Saques: tabela com valor, status, data solicitacao, data pagamento
+### 2. Tooltip no badge de status "Em validacao"
 
-### 2. Alteracao em `AdminPartnerManagement.tsx`
+Quando o status for `PENDING`, o badge tera um tooltip explicando:
+"Bonus em periodo de carencia de 7 dias. Sera liberado automaticamente apos a validacao."
 
-- Adicionar estado para controlar o modal (`selectedPartnerForDetail`)
-- Adicionar botao com icone `Eye` na coluna de acoes de cada contrato
-- Renderizar o `PartnerDetailModal` quando um parceiro for selecionado
+### 3. Melhorar o disclaimer no final
+
+Substituir o texto vago atual por uma mensagem mais clara:
+"O bonus de indicacao possui um periodo de carencia de 7 dias antes de ficar disponivel. Este e um beneficio comercial independente do seu contrato de participacao."
 
 ## Detalhes Tecnicos
 
-### Arquivo novo: `src/components/Admin/PartnerDetailModal.tsx`
+### Arquivo: `src/components/Partner/PartnerReferralSection.tsx`
 
-- Recebe props: `contract` (dados do contrato), `open` (boolean), `onClose` (callback)
-- Usa `useEffect` para buscar dados ao abrir, com `Promise.all` para queries paralelas
-- Todas as queries filtram por `partner_contract_id = contract.id`
-- Para bonus de indicacao, filtra por `referrer_contract_id = contract.id`
-- Exibe totais calculados no frontend
-- Usa componentes existentes: Dialog, Card, Tabs, Table, Badge
+**Alteracao 1 - Tabela (linhas ~205-258):**
+- Adicionar `<TableHead>Liberacao</TableHead>` apos a coluna "Data"
+- Adicionar `<TableCell>` correspondente que renderiza `formatDate(bonus.available_at)` se existir, ou "-"
 
-### Arquivo alterado: `src/components/Admin/AdminPartnerManagement.tsx`
+**Alteracao 2 - Tooltip no badge PENDING (linhas ~252-255):**
+- Importar `Tooltip, TooltipContent, TooltipProvider, TooltipTrigger` de `@/components/ui/tooltip`
+- Envolver o Badge de status PENDING em um Tooltip com a mensagem explicativa
 
-- Adiciona estado: `const [selectedPartnerForDetail, setSelectedPartnerForDetail] = useState<any>(null)`
-- Na coluna de acoes da tabela de contratos (linha ~664), adiciona um novo botao `Eye` antes dos botoes existentes
-- Renderiza `<PartnerDetailModal>` no final do componente
+**Alteracao 3 - Disclaimer (linhas ~266-268):**
+- Atualizar o texto para mencionar explicitamente os 7 dias de carencia
 
-### Nenhuma alteracao no banco de dados
-
-Todas as tabelas necessarias ja existem e as politicas RLS para admins ja permitem acesso total (ALL com `is_admin_user(auth.uid())`).
-
-## Resumo de arquivos
-
-| Arquivo | Acao |
-|---------|------|
-| `src/components/Admin/PartnerDetailModal.tsx` | Criar (modal com resumo e historico) |
-| `src/components/Admin/AdminPartnerManagement.tsx` | Alterar (adicionar botao + importar modal) |
+### Nenhuma outra alteracao
+- Nenhuma mudanca no banco de dados
+- Nenhuma mudanca em hooks ou outros componentes
+- Nenhuma mudanca na logica de negocio
 
