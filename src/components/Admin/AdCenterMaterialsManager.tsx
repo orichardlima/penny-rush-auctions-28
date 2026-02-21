@@ -21,8 +21,19 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Eye
+  Eye,
+  Smartphone,
+  LayoutGrid,
+  MessageCircle
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const TEMPLATE_OPTIONS = [
+  { value: '', label: 'Sem template', icon: ImageIcon, dimensions: '', color: 'text-muted-foreground' },
+  { value: 'stories', label: 'Stories', icon: Smartphone, dimensions: '1080 x 1920 px', color: 'text-pink-500' },
+  { value: 'feed', label: 'Feed', icon: LayoutGrid, dimensions: '1080 x 1080 px', color: 'text-blue-500' },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, dimensions: '800 x 800 px', color: 'text-green-500' },
+];
 
 const AdCenterMaterialsManager: React.FC = () => {
   const {
@@ -48,7 +59,8 @@ const AdCenterMaterialsManager: React.FC = () => {
     title: '',
     description: '',
     image_url: '',
-    target_date: ''
+    target_date: '',
+    template_type: ''
   });
 
   const resetForm = () => {
@@ -56,7 +68,8 @@ const AdCenterMaterialsManager: React.FC = () => {
       title: '',
       description: '',
       image_url: '',
-      target_date: ''
+      target_date: '',
+      template_type: ''
     });
     setSelectedFile(null);
   };
@@ -83,7 +96,8 @@ const AdCenterMaterialsManager: React.FC = () => {
         title: formData.title,
         description: formData.description || undefined,
         image_url: imageUrl || undefined,
-        target_date: formData.target_date || undefined
+        target_date: formData.target_date || undefined,
+        template_type: formData.template_type || undefined
       });
 
       if (success) {
@@ -117,8 +131,9 @@ const AdCenterMaterialsManager: React.FC = () => {
         title: formData.title,
         description: formData.description || null,
         image_url: imageUrl || null,
-        target_date: formData.target_date || null
-      });
+        target_date: formData.target_date || null,
+        template_type: formData.template_type || null
+      } as any);
 
       if (success) {
         setEditingMaterial(null);
@@ -135,7 +150,8 @@ const AdCenterMaterialsManager: React.FC = () => {
       title: material.title,
       description: material.description || '',
       image_url: material.image_url || '',
-      target_date: material.target_date || ''
+      target_date: material.target_date || '',
+      template_type: material.template_type || ''
     });
     setSelectedFile(null);
   };
@@ -281,6 +297,36 @@ const AdCenterMaterialsManager: React.FC = () => {
                     Se preenchido, este material será exibido apenas nesta data. Deixe vazio para material genérico.
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Template (formato)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TEMPLATE_OPTIONS.map((opt) => {
+                      const Icon = opt.icon;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, template_type: opt.value })}
+                          className={cn(
+                            'flex items-center gap-2 p-2.5 rounded-lg border text-left text-sm transition-colors',
+                            formData.template_type === opt.value
+                              ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                              : 'border-input hover:bg-accent'
+                          )}
+                        >
+                          <Icon className={cn('h-4 w-4 shrink-0', opt.color)} />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{opt.label}</p>
+                            {opt.dimensions && (
+                              <p className="text-xs text-muted-foreground">{opt.dimensions}</p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <DialogFooter>
@@ -325,7 +371,20 @@ const AdCenterMaterialsManager: React.FC = () => {
                             </div>
                           )}
                           <div>
-                            <p className="font-medium">{material.title}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{material.title}</p>
+                              {material.template_type && (() => {
+                                const tmpl = TEMPLATE_OPTIONS.find(t => t.value === material.template_type);
+                                if (!tmpl) return null;
+                                const TIcon = tmpl.icon;
+                                return (
+                                  <Badge variant="outline" className="text-xs gap-1">
+                                    <TIcon className={cn('h-3 w-3', tmpl.color)} />
+                                    {tmpl.label}
+                                  </Badge>
+                                );
+                              })()}
+                            </div>
                             {material.description && (
                               <p className="text-xs text-muted-foreground line-clamp-1">
                                 {material.description}
@@ -440,6 +499,36 @@ const AdCenterMaterialsManager: React.FC = () => {
                                     value={formData.target_date}
                                     onChange={(e) => setFormData({ ...formData, target_date: e.target.value })}
                                   />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label>Template (formato)</Label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {TEMPLATE_OPTIONS.map((opt) => {
+                                      const Icon = opt.icon;
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          onClick={() => setFormData({ ...formData, template_type: opt.value })}
+                                          className={cn(
+                                            'flex items-center gap-2 p-2.5 rounded-lg border text-left text-sm transition-colors',
+                                            formData.template_type === opt.value
+                                              ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                                              : 'border-input hover:bg-accent'
+                                          )}
+                                        >
+                                          <Icon className={cn('h-4 w-4 shrink-0', opt.color)} />
+                                          <div className="min-w-0">
+                                            <p className="font-medium truncate">{opt.label}</p>
+                                            {opt.dimensions && (
+                                              <p className="text-xs text-muted-foreground">{opt.dimensions}</p>
+                                            )}
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               </div>
 

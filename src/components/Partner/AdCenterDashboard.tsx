@@ -16,10 +16,18 @@ import {
   Facebook,
   MessageCircle,
   Share2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Smartphone,
+  LayoutGrid
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+
+const TEMPLATE_INFO: Record<string, { label: string; dimensions: string; icon: React.ElementType; color: string }> = {
+  stories: { label: 'Stories', dimensions: '1080 x 1920 px', icon: Smartphone, color: 'text-pink-500' },
+  feed: { label: 'Feed', dimensions: '1080 x 1080 px', icon: LayoutGrid, color: 'text-blue-500' },
+  whatsapp: { label: 'WhatsApp', dimensions: '800 x 800 px', icon: MessageCircle, color: 'text-green-500' },
+};
 
 interface AdCenterDashboardProps {
   partnerContractId: string;
@@ -177,7 +185,19 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
                 {/* Detalhes e ações */}
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-semibold text-lg">{todayMaterial.title}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-lg">{todayMaterial.title}</h3>
+                      {todayMaterial.template_type && TEMPLATE_INFO[todayMaterial.template_type] && (() => {
+                        const tmpl = TEMPLATE_INFO[todayMaterial.template_type!];
+                        const TIcon = tmpl.icon;
+                        return (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <TIcon className={cn('h-3 w-3', tmpl.color)} />
+                            {tmpl.label} {tmpl.dimensions}
+                          </Badge>
+                        );
+                      })()}
+                    </div>
                     {todayMaterial.description && (
                       <div className="mt-2 p-3 bg-muted rounded-lg">
                         <p className="text-sm text-muted-foreground whitespace-pre-wrap">
