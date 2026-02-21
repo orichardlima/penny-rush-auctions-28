@@ -1,42 +1,50 @@
 
 
-# Exibir data de liberacao no modal de detalhes do parceiro (Admin)
+# Plano: Contabilizar 30% perdido no cap de 200%
 
-## Objetivo
+## Situacao Atual
 
-No modal `PartnerDetailModal`, na aba "Indicacao", exibir a data prevista de liberacao (`available_at`) ao lado do badge "Pendente", para que o admin saiba quando o bonus sera liberado.
+Quando o parceiro nao faz a divulgacao na Central de Anuncios, o sistema:
+1. Calcula o repasse completo (ex: R$ 100)
+2. Aplica o multiplicador da Central (ex: 70% = R$ 70)
+3. Paga R$ 70 ao parceiro
+4. Soma R$ 70 ao `total_received` (progresso do cap 200%)
+
+Resultado: o parceiro recebe menos, mas o cap "anda devagar", como se ele tivesse mais tempo para receber.
+
+## Nova Regra
+
+O valor COMPLETO (antes do desconto da Central de Anuncios) sera contabilizado no `total_received`, independente do quanto o parceiro efetivamente recebeu.
+
+Exemplo com aporte de R$ 1.000 (cap 200% = R$ 2.000):
+- Repasse calculado da semana: R$ 100
+- Parceiro nao divulgou: recebe 70% = R$ 70
+- `available_balance` recebe +R$ 70 (valor real creditado)
+- `total_received` recebe +R$ 100 (valor completo, consumindo o cap)
+
+Isso significa que os 30% perdidos sao "queimados" do teto, penalizando o parceiro que nao divulga.
 
 ## Alteracao
 
-Apenas o arquivo `src/components/Admin/PartnerDetailModal.tsx` sera modificado.
+Apenas o arquivo `supabase/functions/partner-weekly-payouts/index.ts` sera modificado.
 
-### O que muda (linha ~223)
+### Detalhe tecnico (linha 351)
 
-Na celula de Status dos bonus de indicacao, quando o status for `PENDING` e existir `available_at`, exibir a data formatada ao lado do badge. Exemplo visual: **Pendente** (libera 26/02/2026)
-
-### Detalhe tecnico
-
-Substituir a linha:
+Alterar de:
 ```
-<TableCell>{getStatusBadge(b.status)}</TableCell>
+const newTotalReceived = contract.total_received + finalAmount
 ```
 
-Por:
+Para:
 ```
-<TableCell>
-  <div className="flex items-center gap-1.5">
-    {getStatusBadge(b.status)}
-    {b.status === 'PENDING' && b.available_at && (
-      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-        (libera {formatDate(b.available_at)})
-      </span>
-    )}
-  </div>
-</TableCell>
+const newTotalReceived = contract.total_received + amountAfterCaps
 ```
 
-### Nenhuma outra alteracao
-- Nenhuma mudanca no banco de dados
-- Nenhuma mudanca em outros componentes ou hooks
-- Nenhuma mudanca na logica de negocio
+A variavel `amountAfterCaps` contem o valor completo (apos tetos semanal/total, mas ANTES do desconto da Central de Anuncios). Ja a variavel `finalAmount` continua sendo usada para o `available_balance` (o que o parceiro efetivamente recebe).
 
+### O que NAO muda
+- O valor creditado ao parceiro (`available_balance`) continua sendo o `finalAmount`
+- A logica de teto semanal e total permanece a mesma
+- A logica da Central de Anuncios permanece a mesma
+- A verificacao de fechamento do contrato (`shouldClose`) usara o novo `total_received` mais agressivo
+- Nenhuma mudanca no frontend, banco de dados ou outros componentes
