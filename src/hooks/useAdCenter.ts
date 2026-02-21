@@ -11,6 +11,7 @@ export interface AdCenterMaterial {
   target_date: string | null;
   is_active: boolean;
   created_at: string;
+  template_type: string | null;
 }
 
 export interface AdCenterCompletion {
@@ -383,6 +384,7 @@ export const useAdCenterAdmin = () => {
     description?: string;
     image_url?: string;
     target_date?: string;
+    template_type?: string;
   }): Promise<boolean> => {
     setProcessing(true);
     try {
@@ -393,8 +395,9 @@ export const useAdCenterAdmin = () => {
           description: material.description || null,
           image_url: material.image_url || null,
           target_date: material.target_date || null,
+          template_type: material.template_type || null,
           is_active: true
-        });
+        } as any);
 
       if (error) throw error;
 
@@ -426,7 +429,7 @@ export const useAdCenterAdmin = () => {
         .update({
           ...updates,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', id);
 
       if (error) throw error;

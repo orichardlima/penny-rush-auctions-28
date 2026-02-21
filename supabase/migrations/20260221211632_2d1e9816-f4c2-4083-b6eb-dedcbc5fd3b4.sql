@@ -1,0 +1,1 @@
+ALTER TABLE ad_center_materials ADD COLUMN template_type text DEFAULT NULL;
