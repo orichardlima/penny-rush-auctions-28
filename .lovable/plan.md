@@ -1,128 +1,65 @@
 
 
-# Plano: Separar Pedido de Pagamento de Contrato
+# Plano: Visao Detalhada por Parceiro no Painel Admin
 
-## Problema Atual
+## Objetivo
 
-Hoje, ao clicar em "Contratar Plano", o sistema cria imediatamente um registro na tabela `partner_contracts` com status PENDING -- mesmo antes do pagamento. Isso causa:
+Adicionar um botao "Ver detalhes" em cada linha da tabela de contratos no admin. Ao clicar, abre um modal com o resumo consolidado de todos os ganhos do parceiro: repasses, bonus de indicacao, bonus binario, creditos manuais e saques, com totais e historico.
 
-- Contratos "fantasma" que nunca foram pagos ficam poluindo o banco
-- Se o usuario tenta novamente, pode perder o referral code e criar um segundo contrato sem vinculo de indicacao
-- O trigger de posicionamento binaria (`auto_create_binary_position`) pode ser acionado indevidamente
-- Confusao conceitual: um contrato so deveria existir apos o pagamento confirmado
+## O que sera criado
 
-## Solucao Proposta
+### 1. Novo componente: `PartnerDetailModal.tsx`
 
-Criar uma tabela intermediaria `partner_payment_intents` para armazenar os dados do pedido de pagamento (QR Code PIX). O contrato real so sera criado no webhook, apos confirmacao do Mercado Pago.
+Um modal (Dialog) que recebe o `contract` selecionado e busca todos os dados financeiros do parceiro:
 
-### Fluxo Novo
+**Dados buscados (por `partner_contract_id`):**
+- `partner_payouts` - repasses semanais (pagos e pendentes)
+- `partner_referral_bonuses` - bonus de indicacao (por `referrer_contract_id`)
+- `binary_bonuses` - bonus binarios
+- `partner_manual_credits` - creditos manuais do admin
+- `partner_withdrawals` - saques solicitados
 
-```text
-ANTES (problematico):
-  Usuario escolhe plano --> Cria CONTRATO (PENDING) --> Gera PIX --> Webhook ativa contrato
-  
-DEPOIS (correto):
-  Usuario escolhe plano --> Cria PAYMENT INTENT --> Gera PIX --> Webhook cria CONTRATO (ACTIVE)
-```
+**Layout do modal:**
+- Cabecalho com nome do parceiro, plano, aporte e status
+- Cards de resumo: Total Repasses, Total Bonus Indicacao, Total Bonus Binario, Total Creditos Manuais, Total Saques, Saldo Disponivel
+- Abas (Tabs) com historico detalhado de cada tipo:
+  - Repasses: tabela com semana, valor, status, data pagamento
+  - Bonus Indicacao: tabela com indicado, nivel, %, valor, status
+  - Bonus Binario: tabela com ciclo, pontos, valor, status
+  - Creditos Manuais: tabela com tipo, descricao, valor, data
+  - Saques: tabela com valor, status, data solicitacao, data pagamento
 
-## Etapas de Implementacao
+### 2. Alteracao em `AdminPartnerManagement.tsx`
 
-### 1. Criar tabela `partner_payment_intents`
+- Adicionar estado para controlar o modal (`selectedPartnerForDetail`)
+- Adicionar botao com icone `Eye` na coluna de acoes de cada contrato
+- Renderizar o `PartnerDetailModal` quando um parceiro for selecionado
 
-Nova tabela para armazenar apenas a intencao de pagamento:
+## Detalhes Tecnicos
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid (PK) | Identificador do intent |
-| user_id | uuid | Usuario que solicitou |
-| plan_id | uuid | Plano escolhido |
-| plan_name | text | Nome do plano (snapshot) |
-| aporte_value | numeric | Valor do aporte |
-| weekly_cap | numeric | Cap semanal (snapshot) |
-| total_cap | numeric | Cap total (snapshot) |
-| referral_code | text | Codigo de indicacao usado (se houver) |
-| referred_by_user_id | uuid | User ID do indicador resolvido |
-| payment_id | text | ID do pagamento no Mercado Pago |
-| payment_status | text | pending, approved, rejected, expired |
-| expires_at | timestamptz | Expiracao do QR Code |
-| created_at | timestamptz | Data de criacao |
+### Arquivo novo: `src/components/Admin/PartnerDetailModal.tsx`
 
-Nao precisara de triggers de posicionamento binario, pois nao e um contrato.
+- Recebe props: `contract` (dados do contrato), `open` (boolean), `onClose` (callback)
+- Usa `useEffect` para buscar dados ao abrir, com `Promise.all` para queries paralelas
+- Todas as queries filtram por `partner_contract_id = contract.id`
+- Para bonus de indicacao, filtra por `referrer_contract_id = contract.id`
+- Exibe totais calculados no frontend
+- Usa componentes existentes: Dialog, Card, Tabs, Table, Badge
 
-### 2. Alterar Edge Function `partner-payment`
+### Arquivo alterado: `src/components/Admin/AdminPartnerManagement.tsx`
 
-Em vez de inserir na `partner_contracts`, inserir na `partner_payment_intents`:
+- Adiciona estado: `const [selectedPartnerForDetail, setSelectedPartnerForDetail] = useState<any>(null)`
+- Na coluna de acoes da tabela de contratos (linha ~664), adiciona um novo botao `Eye` antes dos botoes existentes
+- Renderiza `<PartnerDetailModal>` no final do componente
 
-- Verificar se ja existe contrato ACTIVE (manter essa validacao)
-- Limpar intents expirados do mesmo usuario (evitar duplicatas)
-- Resolver o `referred_by_user_id` a partir do `referralCode`
-- Inserir na `partner_payment_intents`
-- Gerar PIX no Mercado Pago com `external_reference` = ID do intent
-- Retornar dados do QR Code para o frontend
+### Nenhuma alteracao no banco de dados
 
-### 3. Alterar Edge Function `partner-payment-webhook`
+Todas as tabelas necessarias ja existem e as politicas RLS para admins ja permitem acesso total (ALL com `is_admin_user(auth.uid())`).
 
-Na funcao `processNewContractPayment`:
+## Resumo de arquivos
 
-- Buscar o `partner_payment_intents` pelo `payment_id` (em vez de `partner_contracts`)
-- Se pagamento aprovado:
-  - Criar o contrato real na `partner_contracts` com status ACTIVE e payment_status completed
-  - Copiar os dados do intent (plan_name, aporte_value, caps, referred_by_user_id)
-  - Gerar o referral_code unico neste momento
-  - Creditar bonus de lances
-  - O trigger `auto_create_binary_position` sera acionado corretamente porque o contrato ja nasce ACTIVE com `referred_by_user_id` preenchido
-- Se pagamento rejeitado/cancelado:
-  - Apenas atualizar o status do intent para `rejected`/`expired`
-  - Nenhum contrato e criado
-- Atualizar o intent com o status final
+| Arquivo | Acao |
+|---------|------|
+| `src/components/Admin/PartnerDetailModal.tsx` | Criar (modal com resumo e historico) |
+| `src/components/Admin/AdminPartnerManagement.tsx` | Alterar (adicionar botao + importar modal) |
 
-### 4. Alterar Frontend (minimo)
-
-No `usePartnerContract.ts`:
-
-- A funcao `createContract` passara a retornar `intentId` em vez de `contractId`
-- O modal de PIX (`PartnerPixPaymentModal`) monitorara o status do intent (ou do contrato que sera criado)
-- Apos pagamento confirmado, o frontend faz refresh para carregar o contrato real
-
-No `PartnerPixPaymentModal.tsx`:
-
-- Ajustar o listener Realtime para escutar mudancas na `partner_payment_intents` OU na `partner_contracts` (quando criado pelo webhook)
-
-### 5. Verificacao de duplicidade (simplificada)
-
-- Na edge function: checar se existe contrato ACTIVE (bloquear)
-- Intents pendentes antigos (mais de 30 min) sao ignorados/limpos automaticamente
-- O usuario pode gerar quantos intents quiser, so o primeiro pagamento aprovado gera contrato
-
-## Beneficios
-
-1. **Contrato so existe apos pagamento**: Elimina contratos fantasma
-2. **Referral sempre preservado**: O intent guarda o referral desde a primeira tentativa
-3. **Posicionamento binario correto**: O trigger so dispara quando o contrato nasce ACTIVE com todos os dados
-4. **Sem duplicatas**: Intents expirados nao bloqueiam novas tentativas
-5. **Auditoria limpa**: A tabela de contratos so contem contratos reais
-
-## Secao Tecnica
-
-### Arquivos modificados
-
-| Arquivo | Tipo de mudanca |
-|---------|----------------|
-| Migration SQL | Criar tabela `partner_payment_intents` com RLS |
-| `supabase/functions/partner-payment/index.ts` | Inserir em `payment_intents` em vez de `partner_contracts` |
-| `supabase/functions/partner-payment-webhook/index.ts` | Buscar intent e criar contrato real no webhook |
-| `src/hooks/usePartnerContract.ts` | Ajustar retorno (intentId) e verificacao de duplicidade |
-| `src/components/Partner/PartnerPixPaymentModal.tsx` | Ajustar listener para nova tabela/fluxo |
-
-### RLS da nova tabela
-
-- Usuarios podem INSERT seus proprios intents
-- Usuarios podem SELECT seus proprios intents
-- Admins podem ALL
-- Sem UPDATE/DELETE por usuarios comuns
-
-### Compatibilidade
-
-- Contratos ACTIVE existentes nao sao afetados
-- O trigger `auto_create_binary_position` nao precisa ser alterado (ele ja verifica `status = 'ACTIVE'`)
-- A verificacao na edge function contra contratos ACTIVE existentes permanece igual
