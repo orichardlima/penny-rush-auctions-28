@@ -1,50 +1,55 @@
 
 
-# Plano: Contabilizar 30% perdido no cap de 200%
+# Adicionar Templates Pre-definidos na Central de Anuncios
 
-## Situacao Atual
+## Objetivo
 
-Quando o parceiro nao faz a divulgacao na Central de Anuncios, o sistema:
-1. Calcula o repasse completo (ex: R$ 100)
-2. Aplica o multiplicador da Central (ex: 70% = R$ 70)
-3. Paga R$ 70 ao parceiro
-4. Soma R$ 70 ao `total_received` (progresso do cap 200%)
+Permitir que o admin selecione um tipo de template (Stories, Feed, WhatsApp) ao cadastrar materiais promocionais, facilitando a organizacao do conteudo e orientando os parceiros sobre onde usar cada material.
 
-Resultado: o parceiro recebe menos, mas o cap "anda devagar", como se ele tivesse mais tempo para receber.
+## Alteracoes
 
-## Nova Regra
+### 1. Migracao no banco de dados
 
-O valor COMPLETO (antes do desconto da Central de Anuncios) sera contabilizado no `total_received`, independente do quanto o parceiro efetivamente recebeu.
+Adicionar coluna `template_type` na tabela `ad_center_materials`:
 
-Exemplo com aporte de R$ 1.000 (cap 200% = R$ 2.000):
-- Repasse calculado da semana: R$ 100
-- Parceiro nao divulgou: recebe 70% = R$ 70
-- `available_balance` recebe +R$ 70 (valor real creditado)
-- `total_received` recebe +R$ 100 (valor completo, consumindo o cap)
-
-Isso significa que os 30% perdidos sao "queimados" do teto, penalizando o parceiro que nao divulga.
-
-## Alteracao
-
-Apenas o arquivo `supabase/functions/partner-weekly-payouts/index.ts` sera modificado.
-
-### Detalhe tecnico (linha 351)
-
-Alterar de:
-```
-const newTotalReceived = contract.total_received + finalAmount
+```sql
+ALTER TABLE ad_center_materials
+ADD COLUMN template_type text DEFAULT NULL;
 ```
 
-Para:
-```
-const newTotalReceived = contract.total_received + amountAfterCaps
-```
+Valores possiveis: `stories`, `feed`, `whatsapp`, ou `NULL` (sem template especifico).
 
-A variavel `amountAfterCaps` contem o valor completo (apos tetos semanal/total, mas ANTES do desconto da Central de Anuncios). Ja a variavel `finalAmount` continua sendo usada para o `available_balance` (o que o parceiro efetivamente recebe).
+### 2. Hook `useAdCenter.ts`
 
-### O que NAO muda
-- O valor creditado ao parceiro (`available_balance`) continua sendo o `finalAmount`
-- A logica de teto semanal e total permanece a mesma
-- A logica da Central de Anuncios permanece a mesma
-- A verificacao de fechamento do contrato (`shouldClose`) usara o novo `total_received` mais agressivo
-- Nenhuma mudanca no frontend, banco de dados ou outros componentes
+- Adicionar `template_type` a interface `AdCenterMaterial`
+- Incluir `template_type` nas funcoes `createMaterial` e `updateMaterial`
+
+### 3. Componente Admin `AdCenterMaterialsManager.tsx`
+
+No formulario de criacao/edicao:
+- Adicionar seletor visual com 3 opcoes de template (Stories, Feed, WhatsApp) + opcao "Sem template"
+- Cada opcao mostra icone, nome e dimensoes recomendadas
+- O template selecionado sera salvo na coluna `template_type`
+
+Na tabela de listagem:
+- Exibir badge com o tipo de template ao lado do titulo do material
+
+### 4. Dashboard do Parceiro `AdCenterDashboard.tsx`
+
+- Exibir badge do template no card "Material de Hoje" para o parceiro saber o formato ideal (ex: "Stories 1080x1920")
+
+## Templates pre-definidos
+
+| Template  | Dimensoes recomendadas | Icone       |
+|-----------|----------------------|-------------|
+| Stories   | 1080 x 1920 px       | Smartphone  |
+| Feed      | 1080 x 1080 px       | LayoutGrid  |
+| WhatsApp  | 800 x 800 px         | MessageCircle |
+
+## O que NAO muda
+
+- Logica de confirmacao de divulgacao
+- Calculo do progresso semanal e desbloqueio dos 30%
+- Regra de queima do cap de 200%
+- Nenhuma outra tabela ou componente fora do escopo
+
