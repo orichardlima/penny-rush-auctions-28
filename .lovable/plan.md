@@ -1,58 +1,64 @@
 
-# Corrigir Auto-Posicionamento Binario: Considerar Filhos Diretos
+# Mover Lavinia para a perna direita de Luciano
 
-## Problema
-
-A funcao `auto_create_binary_position` decide a perna (left/right) comparando apenas `left_points` vs `right_points` do sponsor. Quando ambos sao 0 (como acontece com os dois primeiros indicados pela regra de qualificacao), a condicao `<=` sempre resulta em `left`, colocando todos os indicados na mesma perna.
-
-Foi exatamente o que aconteceu com Luciano: Valentina foi para a esquerda (0 <= 0), e Lavinia tambem foi para a esquerda (0 <= 0).
-
-## Solucao
-
-Alterar a logica de decisao para considerar tambem os filhos diretos (`left_child_id` / `right_child_id`) do sponsor. A nova logica sera:
-
-1. Se o sponsor ja tem filho esquerdo mas NAO tem filho direito -> vai para `right`
-2. Se o sponsor ja tem filho direito mas NAO tem filho esquerdo -> vai para `left`
-3. Se ambos os lados estao livres ou ambos ocupados -> usa `left_points <= right_points` como desempate (comportamento atual)
-
-Isso garante que mesmo com pontos zerados, o segundo indicado ira para o lado oposto.
-
-## Alteracao Tecnica
-
-Arquivo: Nova migration SQL
-
-A migration vai fazer `CREATE OR REPLACE FUNCTION public.auto_create_binary_position()` com a logica atualizada. As variaveis adicionais serao:
-
-- `v_sponsor_has_left boolean`
-- `v_sponsor_has_right boolean`
-
-A logica de decisao (que aparece em dois lugares na funcao -- linhas 44-53 para sponsor real e linhas 84-93 para sponsor padrao) sera atualizada para:
+## Situacao Atual
 
 ```text
-SELECT 
-  COALESCE(left_points, 0), 
-  COALESCE(right_points, 0),
-  (left_child_id IS NOT NULL),
-  (right_child_id IS NOT NULL)
-INTO v_sponsor_left_points, v_sponsor_right_points, v_sponsor_has_left, v_sponsor_has_right
-FROM partner_binary_positions
-WHERE partner_contract_id = v_sponsor_contract_id;
+Luciano (60eda7ef)
+  left_child: Valentina (efbce3be)  |  right_child: NULL
+  left_points: 0  |  right_points: 0
 
-IF v_sponsor_has_left AND NOT v_sponsor_has_right THEN
-  v_preferred_side := 'right';
-ELSIF v_sponsor_has_right AND NOT v_sponsor_has_left THEN
-  v_preferred_side := 'left';
-ELSIF v_sponsor_left_points <= v_sponsor_right_points THEN
-  v_preferred_side := 'left';
-ELSE
-  v_preferred_side := 'right';
-END IF;
+Valentina (efbce3be)
+  parent: Luciano  |  position: left
+  left_child: Lavinia (04ec1858)  |  right_child: NULL
+  left_points: 50  |  right_points: 0
+
+Lavinia (04ec1858)
+  parent: Valentina  |  position: left
+  sponsor: Luciano
 ```
+
+## Situacao Desejada
+
+```text
+Luciano (60eda7ef)
+  left_child: Valentina  |  right_child: Lavinia
+  left_points: 0  |  right_points: 0
+
+Valentina (efbce3be)
+  parent: Luciano  |  position: left
+  left_child: NULL  |  right_child: NULL
+  left_points: 0  |  right_points: 0
+
+Lavinia (04ec1858)
+  parent: Luciano  |  position: right
+  sponsor: Luciano
+```
+
+## Operacoes (3 UPDATEs)
+
+Todas sao operacoes de dados (UPDATE), nao de schema. Serao executadas via ferramenta de insert/update.
+
+1. **Valentina** (`efbce3be-0071-49f2-b9ac-fec8e8ecb11e`): remover Lavinia como filha esquerda e zerar os 50 pontos esquerdos que vieram dela
+   - `left_child_id = NULL`
+   - `left_points = 0`
+
+2. **Luciano** (`60eda7ef-1d6d-4927-9d32-7feadc650bb3`): registrar Lavinia como filha direita
+   - `right_child_id = '04ec1858-1e74-424b-8738-c2a18eef53ef'`
+
+3. **Lavinia** (`04ec1858-1e74-424b-8738-c2a18eef53ef`): atualizar parent e posicao
+   - `parent_contract_id = '60eda7ef-1d6d-4927-9d32-7feadc650bb3'` (Luciano)
+   - `position = 'right'`
+
+## Por que os uplines NAO precisam de ajuste
+
+Os pontos de Lavinia propagaram para os ancestrais de Luciano na posicao `right` (50 pontos para o pai de Luciano e acima). Como Lavinia continua na mesma subarvore do ponto de vista desses uplines, os pontos deles permanecem corretos.
+
+O unico ajuste de pontos necessario e em **Valentina**, que tinha 50 left_points vindos de Lavinia ser sua filha esquerda.
 
 ## O que NAO muda
 
 - Nenhuma interface (UI) sera alterada
-- A funcao `position_partner_binary` (spillover/propagacao) permanece identica
-- O fluxo de criacao de contrato permanece identico
-- Os triggers existentes permanecem iguais
-- Nenhuma outra funcionalidade e afetada
+- Nenhuma funcao ou trigger sera modificada
+- O sponsor de Lavinia continua sendo Luciano
+- Os pontos dos uplines acima de Luciano permanecem inalterados
