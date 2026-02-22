@@ -128,16 +128,33 @@ export const usePartnerContract = () => {
     if (!profile?.user_id) return;
 
     try {
-      const { data, error } = await supabase
+      // Priorizar contrato ACTIVE
+      const { data: activeData, error: activeError } = await supabase
         .from('partner_contracts')
         .select('*')
         .eq('user_id', profile.user_id)
-        .order('created_at', { ascending: false })
+        .eq('status', 'ACTIVE')
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
-      
+      if (activeError) throw activeError;
+
+      let data = activeData;
+
+      // Fallback: buscar o mais recente (qualquer status)
+      if (!data) {
+        const { data: latestData, error: latestError } = await supabase
+          .from('partner_contracts')
+          .select('*')
+          .eq('user_id', profile.user_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestError) throw latestError;
+        data = latestData;
+      }
+
       if (!data) {
         setContract(null);
         return;
