@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
     }
 
     // 5b. Determine the actual referrer (who referred the user, not who is paying)
-    // Priority: 1) Existing intent with referred_by_user_id, 2) Previous contract, 3) The payer
-    let actualReferrerId: string | null = sponsorUserId;
+    // Priority: 1) Existing intent with referred_by_user_id, 2) Previous contract. Payer is NEVER the referrer.
+    let actualReferrerId: string | null = null;
 
     // Check partner_payment_intents for a previous referral link
     const { data: previousIntent } = await adminClient
