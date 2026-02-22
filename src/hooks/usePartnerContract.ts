@@ -51,6 +51,7 @@ export interface PartnerContract {
   weekly_cap: number;
   total_cap: number;
   total_received: number;
+  available_balance: number;
   status: 'ACTIVE' | 'CLOSED' | 'SUSPENDED';
   closed_at: string | null;
   closed_reason: string | null;
@@ -193,6 +194,7 @@ export const usePartnerContract = () => {
         weekly_cap: data.weekly_cap,
         total_cap: data.total_cap,
         total_received: data.total_received,
+        available_balance: data.available_balance ?? 0,
         status: data.status as 'ACTIVE' | 'CLOSED' | 'SUSPENDED',
         closed_at: data.closed_at,
         closed_reason: data.closed_reason,

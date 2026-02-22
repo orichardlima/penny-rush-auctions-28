@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { usePartnerContract } from '@/hooks/usePartnerContract';
 import PartnerLevelProgress from './PartnerLevelProgress';
 import ReferralNetworkTree from './ReferralNetworkTree';
 import FastStartProgress from './FastStartProgress';
+import SponsorActivateDialog from './SponsorActivateDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Users, 
@@ -21,7 +22,8 @@ import {
   Star,
   GitBranch,
   ChevronDown,
-  CheckCircle2
+  CheckCircle2,
+  UserPlus
 } from 'lucide-react';
 
 interface PartnerReferralSectionProps {
@@ -44,9 +46,11 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
     getLevelColor
   } = usePartnerReferrals();
   
-  const { plans } = usePartnerContract();
+  const { plans, contract, refreshData } = usePartnerContract();
   const currentPlan = plans.find(p => p.name === planName);
   const referralBonusPercentage = currentPlan?.referral_bonus_percentage || 10;
+  const [sponsorDialogOpen, setSponsorDialogOpen] = useState(false);
+  const availableBalance = contract?.available_balance ?? 0;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -119,6 +123,18 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               <Copy className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Botão Ativar Indicado com Saldo */}
+          {availableBalance > 0 && contract?.status === 'ACTIVE' && (
+            <Button
+              variant="default"
+              className="w-full"
+              onClick={() => setSponsorDialogOpen(true)}
+            >
+              <UserPlus className="h-4 w-4" />
+              Ativar indicado com saldo ({formatPrice(availableBalance)})
+            </Button>
+          )}
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Seu código:</span>
@@ -293,6 +309,15 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
         O bônus de indicação possui um período de carência de 7 dias antes de ficar disponível.
         Este é um benefício comercial independente do seu contrato de participação.
       </p>
+
+      {/* Dialog de ativação por saldo */}
+      <SponsorActivateDialog
+        open={sponsorDialogOpen}
+        onOpenChange={setSponsorDialogOpen}
+        plans={plans}
+        availableBalance={availableBalance}
+        onSuccess={refreshData}
+      />
     </div>
   );
 };
