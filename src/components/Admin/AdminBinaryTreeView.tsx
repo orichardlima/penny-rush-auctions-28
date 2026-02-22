@@ -7,10 +7,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2, Calculator, Search } from 'lucide-react';
+import { RefreshCw, Users, GitBranch, AlertTriangle, ChevronRight, ChevronDown, TreePine, Link2, Calculator, Search, Info, User, Mail, FileText, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 
@@ -310,7 +310,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           <CardContent>
             <div className="space-y-2">
               {trees.map(tree => (
-                <TreeNodeView key={tree.id} node={tree} depth={0} />
+                <TreeNodeView key={tree.id} node={tree} depth={0} posMap={posMap} />
               ))}
             </div>
           </CardContent>
@@ -436,36 +436,170 @@ const SummaryCard: React.FC<{ icon: React.ReactNode; value: string | number; lab
   </div>
 );
 
-const TreeNodeView: React.FC<{ node: TreeNode; depth: number }> = ({ node, depth }) => {
-  const [open, setOpen] = useState(depth < 2);
-  const hasChildren = node.children.left || node.children.right;
+const PointsBar: React.FC<{ leftPts: number; rightPts: number }> = ({ leftPts, rightPts }) => {
+  const max = Math.max(leftPts, rightPts, 1);
+  const leftPct = Math.max((leftPts / max) * 100, 4);
+  const rightPct = Math.max((rightPts / max) * 100, 4);
+  const weakerLeg = leftPts < rightPts ? 'left' : rightPts < leftPts ? 'right' : null;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 24}px` }}>
-        {hasChildren ? (
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
-              {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </Button>
-          </CollapsibleTrigger>
-        ) : (
-          <span className="inline-block w-6" />
-        )}
-        <Badge variant={node.contractStatus === 'ACTIVE' ? 'default' : 'secondary'} className="text-xs">
-          {node.position?.toUpperCase() || 'RAIZ'}
-        </Badge>
-        <span className="font-medium text-sm">{node.partnerName}</span>
-        <Badge variant="outline" className="text-xs ml-1">{node.planName}</Badge>
-        <span className="text-xs text-muted-foreground ml-auto">E:{formatPoints(node.left_points)} D:{formatPoints(node.right_points)}</span>
+    <div className="space-y-1 w-full">
+      <div className="flex items-center gap-2">
+        <span className={`text-[10px] font-semibold w-8 text-right ${weakerLeg === 'left' ? 'text-destructive' : 'text-blue-500'}`}>E</span>
+        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${weakerLeg === 'left' ? 'bg-destructive/70' : 'bg-blue-400'}`} style={{ width: `${leftPct}%` }} />
+        </div>
+        <span className={`text-[10px] font-mono w-14 text-right ${weakerLeg === 'left' ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>{formatPoints(leftPts)}</span>
       </div>
-      {hasChildren && (
-        <CollapsibleContent>
-          {node.children.left && <TreeNodeView node={node.children.left} depth={depth + 1} />}
-          {node.children.right && <TreeNodeView node={node.children.right} depth={depth + 1} />}
-        </CollapsibleContent>
+      <div className="flex items-center gap-2">
+        <span className={`text-[10px] font-semibold w-8 text-right ${weakerLeg === 'right' ? 'text-destructive' : 'text-amber-500'}`}>D</span>
+        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${weakerLeg === 'right' ? 'bg-destructive/70' : 'bg-amber-400'}`} style={{ width: `${rightPct}%` }} />
+        </div>
+        <span className={`text-[10px] font-mono w-14 text-right ${weakerLeg === 'right' ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>{formatPoints(rightPts)}</span>
+      </div>
+    </div>
+  );
+};
+
+const EmptySlot: React.FC<{ side: 'left' | 'right' }> = ({ side }) => (
+  <div className={`flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 p-3 min-w-[180px]`}>
+    <div className="text-center">
+      <Badge className={`text-[10px] mb-1 ${side === 'left' ? 'bg-blue-500/20 text-blue-500 border-blue-500/30' : 'bg-amber-500/20 text-amber-500 border-amber-500/30'}`} variant="outline">
+        {side === 'left' ? 'ESQ' : 'DIR'}
+      </Badge>
+      <p className="text-xs text-muted-foreground">Vaga disponível</p>
+    </div>
+  </div>
+);
+
+const NodeDetailPopover: React.FC<{ node: TreeNode; posMap: Map<string, EnrichedPosition> }> = ({ node, posMap }) => {
+  const sponsorName = node.sponsor_contract_id ? posMap.get(node.sponsor_contract_id)?.partnerName || '—' : '—';
+  const parentName = node.parent_contract_id ? posMap.get(node.parent_contract_id)?.partnerName || '—' : '—';
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-5 w-5 opacity-60 hover:opacity-100">
+          <Info className="w-3 h-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 text-xs space-y-2" side="right">
+        <div className="flex items-center gap-2 font-semibold text-sm">
+          <User className="w-3.5 h-3.5" />
+          {node.partnerName}
+        </div>
+        {node.partnerEmail && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Mail className="w-3 h-3" />{node.partnerEmail}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <FileText className="w-3 h-3 text-muted-foreground" />
+          <span>{node.planName}</span>
+          <Badge variant={node.contractStatus === 'ACTIVE' ? 'default' : 'secondary'} className="text-[10px] ml-auto">{node.contractStatus}</Badge>
+        </div>
+        <div className="border-t pt-2 space-y-1">
+          <p><span className="text-muted-foreground">Sponsor:</span> {sponsorName}</p>
+          <p><span className="text-muted-foreground">Pai:</span> {parentName}</p>
+          <p><span className="text-muted-foreground">Pts totais E:</span> {formatPoints(node.total_left_points)}</p>
+          <p><span className="text-muted-foreground">Pts totais D:</span> {formatPoints(node.total_right_points)}</p>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Calendar className="w-3 h-3" />
+            {new Date(node.created_at).toLocaleDateString('pt-BR')}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const TreeNodeView: React.FC<{ node: TreeNode; depth: number; posMap: Map<string, EnrichedPosition> }> = ({ node, depth, posMap }) => {
+  const [open, setOpen] = useState(depth < 2);
+  const hasChildren = node.children.left || node.children.right;
+  const showChildren = hasChildren || depth < 2; // show empty slots for first 2 levels
+
+  const borderColor = !node.position
+    ? 'border-l-green-500'
+    : node.position === 'left'
+    ? 'border-l-blue-500'
+    : 'border-l-amber-500';
+
+  const positionBadge = !node.position
+    ? 'bg-green-500 text-white hover:bg-green-600'
+    : node.position === 'left'
+    ? 'bg-blue-500 text-white hover:bg-blue-600'
+    : 'bg-amber-500 text-white hover:bg-amber-600';
+
+  const sponsorName = node.sponsor_contract_id ? posMap.get(node.sponsor_contract_id)?.partnerName : null;
+
+  return (
+    <div className="relative">
+      {/* Connection line from parent */}
+      {depth > 0 && (
+        <div className="absolute -top-3 left-6 w-px h-3 bg-border" />
       )}
-    </Collapsible>
+
+      <Collapsible open={open} onOpenChange={setOpen}>
+        {/* Node card */}
+        <div className={`rounded-lg border border-l-4 ${borderColor} bg-card p-3 shadow-sm hover:shadow-md transition-shadow`}>
+          <div className="flex items-start gap-2">
+            {/* Expand/collapse */}
+            {showChildren ? (
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 mt-0.5">
+                  {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </Button>
+              </CollapsibleTrigger>
+            ) : (
+              <span className="inline-block w-6 shrink-0" />
+            )}
+
+            <div className="flex-1 min-w-0 space-y-1.5">
+              {/* Row 1: Position badge + Name + Plan + Info */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge className={`text-[10px] ${positionBadge}`}>
+                  {node.position?.toUpperCase() || 'RAIZ'}
+                </Badge>
+                <span className="font-semibold text-sm truncate">{node.partnerName}</span>
+                <Badge variant="outline" className="text-[10px]">{node.planName}</Badge>
+                <NodeDetailPopover node={node} posMap={posMap} />
+              </div>
+
+              {/* Row 2: Points bars */}
+              <PointsBar leftPts={node.left_points} rightPts={node.right_points} />
+
+              {/* Row 3: Sponsor info */}
+              {sponsorName && (
+                <p className="text-[10px] text-muted-foreground">
+                  Sponsor: <span className="font-medium text-foreground/80">{sponsorName}</span>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Children */}
+        {showChildren && (
+          <CollapsibleContent>
+            <div className="ml-6 mt-1 pl-4 border-l-2 border-border space-y-2 pt-2">
+              {/* Left child or empty slot */}
+              {node.children.left ? (
+                <TreeNodeView node={node.children.left} depth={depth + 1} posMap={posMap} />
+              ) : (
+                <EmptySlot side="left" />
+              )}
+              {/* Right child or empty slot */}
+              {node.children.right ? (
+                <TreeNodeView node={node.children.right} depth={depth + 1} posMap={posMap} />
+              ) : (
+                <EmptySlot side="right" />
+              )}
+            </div>
+          </CollapsibleContent>
+        )}
+      </Collapsible>
+    </div>
   );
 };
 
