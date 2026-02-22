@@ -86,9 +86,42 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Usuário indicado não encontrado. Ele precisa estar cadastrado na plataforma.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 5. Cannot sponsor yourself
+    // 5. Cannot activate yourself
     if (referredUser.id === sponsorUserId) {
       return new Response(JSON.stringify({ error: 'Você não pode ativar seu próprio contrato' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // 5b. Determine the actual referrer (who referred the user, not who is paying)
+    // Priority: 1) Existing intent with referred_by_user_id, 2) Previous contract, 3) The payer
+    let actualReferrerId: string | null = sponsorUserId;
+
+    // Check partner_payment_intents for a previous referral link
+    const { data: previousIntent } = await adminClient
+      .from('partner_payment_intents')
+      .select('referred_by_user_id')
+      .eq('user_id', referredUser.id)
+      .not('referred_by_user_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (previousIntent?.referred_by_user_id) {
+      actualReferrerId = previousIntent.referred_by_user_id;
+    } else {
+      // Check previous contracts (SUSPENDED/CLOSED) for referral info
+      const { data: previousContract } = await adminClient
+        .from('partner_contracts')
+        .select('referred_by_user_id')
+        .eq('user_id', referredUser.id)
+        .not('referred_by_user_id', 'is', null)
+        .in('status', ['SUSPENDED', 'CLOSED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (previousContract?.referred_by_user_id) {
+        actualReferrerId = previousContract.referred_by_user_id;
+      }
     }
 
     // 6. Check if referred already has ACTIVE contract
@@ -150,7 +183,7 @@ Deno.serve(async (req) => {
         weekly_cap: plan.weekly_cap,
         total_cap: plan.total_cap,
         status: 'ACTIVE',
-        referred_by_user_id: sponsorUserId,
+        referred_by_user_id: actualReferrerId,
         referral_code: referralCode,
         payment_status: 'completed',
         bonus_bids_received: plan.bonus_bids || 0,
