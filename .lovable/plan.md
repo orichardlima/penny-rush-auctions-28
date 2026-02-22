@@ -1,55 +1,27 @@
 
+# Corrigir query do usePartnerContract para priorizar contratos ACTIVE
 
-# Adicionar Templates Pre-definidos na Central de Anuncios
+## Problema
 
-## Objetivo
-
-Permitir que o admin selecione um tipo de template (Stories, Feed, WhatsApp) ao cadastrar materiais promocionais, facilitando a organizacao do conteudo e orientando os parceiros sobre onde usar cada material.
+Quando um usuario tem multiplos contratos (ex: tentativas de pagamento que geraram contratos SUSPENDED), a query atual busca apenas o mais recente por `created_at`. Se o mais recente for SUSPENDED, o usuario ve "Suspenso" mesmo tendo um contrato ACTIVE anterior.
 
 ## Alteracoes
 
-### 1. Migracao no banco de dados
+### 1. `src/hooks/usePartnerContract.ts` - fetchContract (linhas 131-137)
 
-Adicionar coluna `template_type` na tabela `ad_center_materials`:
+Alterar a query para buscar primeiro um contrato ACTIVE. Se nao encontrar, buscar o mais recente (qualquer status).
 
-```sql
-ALTER TABLE ad_center_materials
-ADD COLUMN template_type text DEFAULT NULL;
-```
+Logica:
+1. Primeiro tenta: `WHERE user_id = X AND status = 'ACTIVE' LIMIT 1`
+2. Se nao encontrar: `WHERE user_id = X ORDER BY created_at DESC LIMIT 1` (comportamento atual como fallback)
 
-Valores possiveis: `stories`, `feed`, `whatsapp`, ou `NULL` (sem template especifico).
+### 2. `src/pages/Dashboard.tsx` - checkPartnerContract (linhas 28-33)
 
-### 2. Hook `useAdCenter.ts`
+Esta query ja filtra por `status = 'ACTIVE'`, entao nao precisa de alteracao.
 
-- Adicionar `template_type` a interface `AdCenterMaterial`
-- Incluir `template_type` nas funcoes `createMaterial` e `updateMaterial`
+### O que NAO muda
 
-### 3. Componente Admin `AdCenterMaterialsManager.tsx`
-
-No formulario de criacao/edicao:
-- Adicionar seletor visual com 3 opcoes de template (Stories, Feed, WhatsApp) + opcao "Sem template"
-- Cada opcao mostra icone, nome e dimensoes recomendadas
-- O template selecionado sera salvo na coluna `template_type`
-
-Na tabela de listagem:
-- Exibir badge com o tipo de template ao lado do titulo do material
-
-### 4. Dashboard do Parceiro `AdCenterDashboard.tsx`
-
-- Exibir badge do template no card "Material de Hoje" para o parceiro saber o formato ideal (ex: "Stories 1080x1920")
-
-## Templates pre-definidos
-
-| Template  | Dimensoes recomendadas | Icone       |
-|-----------|----------------------|-------------|
-| Stories   | 1080 x 1920 px       | Smartphone  |
-| Feed      | 1080 x 1080 px       | LayoutGrid  |
-| WhatsApp  | 800 x 800 px         | MessageCircle |
-
-## O que NAO muda
-
-- Logica de confirmacao de divulgacao
-- Calculo do progresso semanal e desbloqueio dos 30%
-- Regra de queima do cap de 200%
-- Nenhuma outra tabela ou componente fora do escopo
-
+- Nenhuma tabela ou coluna no banco de dados
+- Nenhum outro componente ou hook
+- Logica de payouts, upgrades, Central de Anuncios
+- Interface visual do dashboard do parceiro
