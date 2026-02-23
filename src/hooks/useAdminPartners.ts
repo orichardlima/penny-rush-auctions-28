@@ -1053,46 +1053,35 @@ export const useAdminPartners = () => {
       const withdrawal = withdrawals.find(w => w.id === withdrawalId);
       if (!withdrawal) throw new Error('Saque não encontrado');
 
-      const { error } = await supabase
-        .from('partner_withdrawals')
-        .update({
-          status: 'PAID',
-          paid_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', withdrawalId);
+      // Call edge function to process PIX payment via Mercado Pago
+      const { data, error } = await supabase.functions.invoke('process-partner-withdrawal', {
+        body: { withdrawalId }
+      });
 
-      if (error) throw error;
+      // Check for invocation error
+      if (error) throw new Error(error.message || 'Erro ao chamar a função de pagamento');
 
-      // Update contract total_withdrawn
-      const { data: contractData, error: contractError } = await supabase
-        .from('partner_contracts')
-        .select('total_withdrawn')
-        .eq('id', withdrawal.partner_contract_id)
-        .single();
-
-      if (!contractError && contractData) {
-        await supabase
-          .from('partner_contracts')
-          .update({
-            total_withdrawn: (contractData.total_withdrawn || 0) + withdrawal.amount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', withdrawal.partner_contract_id);
+      // Check for logical error returned by the function
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
+      const mpTransactionId = data?.mp_transaction_id;
+
       toast({
-        title: "Pagamento confirmado",
-        description: "O saque foi marcado como pago."
+        title: "PIX enviado com sucesso! ✅",
+        description: mpTransactionId 
+          ? `Transação MP: ${mpTransactionId} - Valor: R$ ${withdrawal.amount.toFixed(2)}`
+          : `Pagamento de R$ ${withdrawal.amount.toFixed(2)} processado.`
       });
 
       await Promise.all([fetchWithdrawals(), fetchContracts()]);
     } catch (error: any) {
-      console.error('Error marking withdrawal as paid:', error);
+      console.error('Error processing withdrawal payment:', error);
       toast({
         variant: "destructive",
-        title: "Erro",
-        description: error.message
+        title: "Erro ao enviar PIX",
+        description: error.message || 'Erro desconhecido ao processar pagamento'
       });
     } finally {
       setProcessing(false);

@@ -1263,8 +1263,12 @@ const AdminPartnerManagement = () => {
                                 onClick={() => markWithdrawalAsPaid(withdrawal.id)}
                                 disabled={processing}
                               >
-                                <DollarSign className="h-4 w-4 mr-1" />
-                                Pagar
+                                {processing ? (
+                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <DollarSign className="h-4 w-4 mr-1" />
+                                )}
+                                {processing ? 'Enviando PIX...' : 'Enviar PIX'}
                               </Button>
                               <Dialog>
                                 <DialogTrigger asChild>
