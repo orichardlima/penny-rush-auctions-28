@@ -1,28 +1,69 @@
 
 
-# Corrigir agendamento do cron job partner-weekly-payouts
+# Repasses automaticamente disponiveis para saque (sem aprovacao admin)
 
-## Problema
+## Situacao Atual
 
-O cron job atual esta configurado com schedule `5 23 * * 0` (domingo 23:05 UTC), que corresponde a domingo 20:05 BRT. A Edge Function rejeita a execucao porque verifica se e domingo apos 23h no horario de Brasilia, e nesse horario ainda sao 20h.
-
-## Solucao
-
-Executar um comando SQL via SQL Editor para atualizar o schedule do cron job:
+O fluxo atual exige que o administrador aprove manualmente cada repasse semanal (mudando de PENDING para PAID) antes que o parceiro possa solicitar saque. Isso e lento e desnecessario, pois os repasses sao calculados automaticamente com base no faturamento real.
 
 ```text
-SELECT cron.alter_job(
-  job_id := (SELECT jobid FROM cron.job WHERE jobname = 'weekly-partner-payouts'),
-  schedule := '5 2 * * 1'
-);
+Cron gera repasse (PENDING) --> Admin aprova (PAID) --> Parceiro solicita saque --> Admin paga
 ```
 
-Isso altera o agendamento para segunda-feira 02:05 UTC, que equivale a domingo 23:05 BRT -- o horario correto para o processamento semanal.
+## Nova Abordagem
+
+Os repasses serao gerados diretamente como PAID, ficando imediatamente disponiveis para saque. O admin apenas aprova/processa o saque final (transferencia PIX).
+
+```text
+Cron gera repasse (PAID) --> Parceiro solicita saque --> Admin paga saque
+```
+
+## Mudancas Necessarias
+
+### 1. Edge Function `partner-weekly-payouts/index.ts`
+- Linha 342: Alterar `status: 'PENDING'` para `status: 'PAID'`
+- Adicionar `paid_at: new Date().toISOString()` no insert do payout
+
+### 2. Dashboard do Parceiro `src/components/Partner/PartnerDashboard.tsx`
+- Remover referencias ao status "Pendente" nos cards de resumo de repasses
+- Remover o filtro "Pendentes" da lista de repasses
+- Ajustar os totais para nao separar entre "Pago" e "Pendente" (tudo sera "Creditado")
+
+### 3. Admin Partner Management `src/components/Admin/AdminPartnerManagement.tsx`
+- Remover botoes "Aprovar" e "Cancelar" dos repasses (nao faz mais sentido aprovar)
+- Manter a visualizacao dos repasses apenas como historico informativo
+
+### 4. Hook `src/hooks/useAdminPartners.ts`
+- Remover ou simplificar funcao de aprovar/cancelar repasses (approvePayouts, cancelPayouts)
+- Remover contagem de "pendingPayouts" do summary
+
+### 5. Cashflow Dashboard `src/hooks/usePartnerCashflow.ts`
+- Unificar `totalPayoutsPaid` e `totalPayoutsPending` em um unico total
+- Remover separacao de status nos calculos
+
+### 6. Analytics Charts `src/components/Admin/PartnerAnalyticsCharts.tsx`
+- Remover separacao entre "pendingAmount" e "paidAmount" nos graficos
+
+### 7. Hook de Saldo `src/hooks/usePartnerWithdrawals.ts`
+- Nenhuma mudanca necessaria: ja calcula saldo baseado em payouts com status PAID, que agora serao todos
 
 ## O que NAO muda
 
-- Nenhuma interface (UI) sera alterada
-- A Edge Function `partner-weekly-payouts` permanece identica
-- A logica de verificacao `isSundayAfter23h` continua funcionando normalmente
-- Nenhum outro cron job sera afetado
+- Interface de saques (PartnerWithdrawalSection) permanece identica
+- Fluxo de aprovacao de saques pelo admin continua igual
+- Calculo de rendimentos, pro rata, tetos e Central de Anuncios permanecem inalterados
+- Bonus de indicacao e bonus binario continuam com fluxo proprio
+- Todas as demais telas e funcionalidades permanecem intactas
+
+## Secao Tecnica
+
+**Arquivos modificados:**
+1. `supabase/functions/partner-weekly-payouts/index.ts` - status PENDING -> PAID
+2. `src/components/Partner/PartnerDashboard.tsx` - remover UI de pendentes
+3. `src/components/Admin/AdminPartnerManagement.tsx` - remover botoes aprovar/cancelar repasse
+4. `src/hooks/useAdminPartners.ts` - remover logica de aprovacao de repasses
+5. `src/hooks/usePartnerCashflow.ts` - simplificar calculo
+6. `src/components/Admin/PartnerAnalyticsCharts.tsx` - simplificar graficos
+
+**Dados existentes:** Os repasses ja gerados com status PENDING precisarao ser atualizados para PAID via SQL (UPDATE) para ficarem disponiveis retroativamente.
 
