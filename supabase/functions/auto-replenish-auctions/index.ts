@@ -82,9 +82,30 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Shuffle templates
-    const shuffled = [...templates].sort(() => Math.random() - 0.5)
-    const selected = shuffled.slice(0, needed)
+    // 4b. Fetch titles of active/waiting auctions to avoid duplicates
+    const { data: activeAuctions, error: activeError } = await supabase
+      .from('auctions')
+      .select('title')
+      .in('status', ['active', 'waiting'])
+
+    if (activeError) throw activeError
+
+    const activeTitles = new Set((activeAuctions || []).map(a => a.title))
+    console.log(`Active/waiting auction titles: ${activeTitles.size}`)
+
+    // Filter out templates already in use
+    const availableTemplates = templates.filter(t => !activeTitles.has(t.title))
+    console.log(`Available templates (not duplicated): ${availableTemplates.length}`)
+
+    if (availableTemplates.length === 0) {
+      return new Response(JSON.stringify({ message: 'All templates already have active auctions' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Shuffle available templates and select what's needed
+    const shuffled = [...availableTemplates].sort(() => Math.random() - 0.5)
+    const selected = shuffled.slice(0, Math.min(needed, availableTemplates.length))
 
     // 5. Create auctions with staggered starts
     const now = new Date()
