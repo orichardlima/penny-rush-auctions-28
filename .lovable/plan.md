@@ -1,69 +1,65 @@
 
 
-# Repasses automaticamente disponiveis para saque (sem aprovacao admin)
+# Automatizar pagamento PIX de saques (semi-automatico)
 
-## Situacao Atual
-
-O fluxo atual exige que o administrador aprove manualmente cada repasse semanal (mudando de PENDING para PAID) antes que o parceiro possa solicitar saque. Isso e lento e desnecessario, pois os repasses sao calculados automaticamente com base no faturamento real.
+## Como vai funcionar
 
 ```text
-Cron gera repasse (PENDING) --> Admin aprova (PAID) --> Parceiro solicita saque --> Admin paga
+Parceiro solicita saque --> Admin clica "Pagar" --> Edge Function envia PIX via API MP --> Status atualizado automaticamente
 ```
 
-## Nova Abordagem
+O admin continua tendo controle (pode rejeitar ou aprovar), mas ao clicar "Pagar", o PIX e enviado automaticamente sem precisar fazer transferencia manual.
 
-Os repasses serao gerados diretamente como PAID, ficando imediatamente disponiveis para saque. O admin apenas aprova/processa o saque final (transferencia PIX).
+## Mudancas necessarias
 
-```text
-Cron gera repasse (PAID) --> Parceiro solicita saque --> Admin paga saque
-```
+### 1. Nova Edge Function: `process-partner-withdrawal`
+Criar `supabase/functions/process-partner-withdrawal/index.ts` que:
+- Recebe o `withdrawal_id` do admin autenticado
+- Valida que o saque esta com status APPROVED
+- Busca os dados PIX do saque (chave, tipo, valor)
+- Chama a API do Mercado Pago (endpoint `POST /v1/transaction-intents/process`) para enviar o PIX
+- Se o MP retornar sucesso: atualiza o saque para PAID e incrementa `total_withdrawn` no contrato
+- Se falhar: mantem o status APPROVED e retorna o erro para o admin tentar novamente
+- Registra o `transaction_id` do MP no campo `payment_details` do saque para rastreabilidade
 
-## Mudancas Necessarias
+### 2. Atualizar Admin UI: `src/components/Admin/AdminPartnerManagement.tsx`
+- O botao "Marcar como Pago" passa a chamar a Edge Function ao inves de apenas atualizar o status no banco
+- Adicionar feedback visual de loading enquanto o PIX esta sendo processado
+- Mostrar mensagem de sucesso com o ID da transacao MP ou erro detalhado
 
-### 1. Edge Function `partner-weekly-payouts/index.ts`
-- Linha 342: Alterar `status: 'PENDING'` para `status: 'PAID'`
-- Adicionar `paid_at: new Date().toISOString()` no insert do payout
+### 3. Atualizar Hook: `src/hooks/useAdminPartners.ts`
+- Modificar a funcao `markWithdrawalAsPaid` para invocar `supabase.functions.invoke('process-partner-withdrawal', ...)` ao inves de fazer update direto no banco
+- Tratar erros retornados pela Edge Function (saldo insuficiente no MP, chave PIX invalida, etc.)
 
-### 2. Dashboard do Parceiro `src/components/Partner/PartnerDashboard.tsx`
-- Remover referencias ao status "Pendente" nos cards de resumo de repasses
-- Remover o filtro "Pendentes" da lista de repasses
-- Ajustar os totais para nao separar entre "Pago" e "Pendente" (tudo sera "Creditado")
-
-### 3. Admin Partner Management `src/components/Admin/AdminPartnerManagement.tsx`
-- Remover botoes "Aprovar" e "Cancelar" dos repasses (nao faz mais sentido aprovar)
-- Manter a visualizacao dos repasses apenas como historico informativo
-
-### 4. Hook `src/hooks/useAdminPartners.ts`
-- Remover ou simplificar funcao de aprovar/cancelar repasses (approvePayouts, cancelPayouts)
-- Remover contagem de "pendingPayouts" do summary
-
-### 5. Cashflow Dashboard `src/hooks/usePartnerCashflow.ts`
-- Unificar `totalPayoutsPaid` e `totalPayoutsPending` em um unico total
-- Remover separacao de status nos calculos
-
-### 6. Analytics Charts `src/components/Admin/PartnerAnalyticsCharts.tsx`
-- Remover separacao entre "pendingAmount" e "paidAmount" nos graficos
-
-### 7. Hook de Saldo `src/hooks/usePartnerWithdrawals.ts`
-- Nenhuma mudanca necessaria: ja calcula saldo baseado em payouts com status PAID, que agora serao todos
+### 4. Configuracao: `supabase/config.toml`
+- Adicionar `[functions.process-partner-withdrawal]` com `verify_jwt = false` (validacao manual no codigo)
 
 ## O que NAO muda
 
-- Interface de saques (PartnerWithdrawalSection) permanece identica
-- Fluxo de aprovacao de saques pelo admin continua igual
-- Calculo de rendimentos, pro rata, tetos e Central de Anuncios permanecem inalterados
-- Bonus de indicacao e bonus binario continuam com fluxo proprio
-- Todas as demais telas e funcionalidades permanecem intactas
+- Interface do parceiro para solicitar saque permanece identica
+- Fluxo de rejeicao de saque permanece igual
+- Historico de saques, dados de pagamento e calculo de saldo continuam inalterados
+- Nenhuma outra tela ou funcionalidade e afetada
 
 ## Secao Tecnica
 
-**Arquivos modificados:**
-1. `supabase/functions/partner-weekly-payouts/index.ts` - status PENDING -> PAID
-2. `src/components/Partner/PartnerDashboard.tsx` - remover UI de pendentes
-3. `src/components/Admin/AdminPartnerManagement.tsx` - remover botoes aprovar/cancelar repasse
-4. `src/hooks/useAdminPartners.ts` - remover logica de aprovacao de repasses
-5. `src/hooks/usePartnerCashflow.ts` - simplificar calculo
-6. `src/components/Admin/PartnerAnalyticsCharts.tsx` - simplificar graficos
+**API do Mercado Pago utilizada:**
+- Endpoint: `POST https://api.mercadopago.com/v1/transaction-intents/process`
+- Secret ja configurada: `MERCADO_PAGO_ACCESS_TOKEN`
+- Formato do corpo da requisicao: inclui valor, chave PIX destino e referencia externa (withdrawal_id)
 
-**Dados existentes:** Os repasses ja gerados com status PENDING precisarao ser atualizados para PAID via SQL (UPDATE) para ficarem disponiveis retroativamente.
+**Mapeamento de tipo de chave PIX:**
+- CPF, CNPJ, email, telefone, chave aleatoria -- cada um tem um formato especifico na API do MP
+
+**Tratamento de erros:**
+- Saldo insuficiente na conta MP
+- Chave PIX invalida ou inexistente
+- Timeout/falha de rede (saque permanece APPROVED para retry)
+- Resposta inesperada do MP (log detalhado para debug)
+
+**Arquivos criados/modificados:**
+1. `supabase/functions/process-partner-withdrawal/index.ts` (novo)
+2. `supabase/config.toml` (adicionar config da nova funcao)
+3. `src/hooks/useAdminPartners.ts` (alterar markWithdrawalAsPaid)
+4. `src/components/Admin/AdminPartnerManagement.tsx` (ajustar botao e feedback)
 
