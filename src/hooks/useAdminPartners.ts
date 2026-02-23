@@ -842,7 +842,8 @@ export const useAdminPartners = () => {
               period_end: weekEnd,
               calculated_amount: calculatedAmount,
               amount: amount,
-              status: 'PENDING',
+              status: 'PAID',
+              paid_at: new Date().toISOString(),
               weekly_cap_applied: weeklyCapApplied,
               total_cap_applied: totalCapApplied
             });
@@ -1193,7 +1194,7 @@ export const useAdminPartners = () => {
     activeContracts: contracts.filter(c => c.status === 'ACTIVE').length,
     totalAportes: contracts.filter(c => c.status === 'ACTIVE').reduce((sum, c) => sum + c.aporte_value, 0),
     totalPaid: contracts.reduce((sum, c) => sum + c.total_received, 0),
-    pendingPayouts: payouts.filter(p => p.status === 'PENDING').length,
+    pendingPayouts: 0,
     pendingTerminations: terminations.filter(t => t.status === 'PENDING').length,
     pendingWithdrawals: withdrawals.filter(w => w.status === 'APPROVED').length
   };
