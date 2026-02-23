@@ -1,92 +1,60 @@
 
 
-# Melhorias Visuais na Arvore Binaria Administrativa
+# Corrigir produtos repetidos na reposicao automatica de leiloes
 
-## 1. Cards visuais em vez de linhas de texto
+## Problema
 
-Substituir o layout de lista indentada por cards estruturados para cada no. Cada card tera:
-- Nome do parceiro em destaque
-- Badge do plano com cor distinta por tipo (Start, Legend, etc.)
-- Pontos esquerda/direita com icones e barras visuais proporcionais
-- Indicador de sponsor (quem indicou) em texto pequeno
+A funcao `auto-replenish-auctions` seleciona templates aleatoriamente sem verificar quais produtos ja possuem leiloes ativos ou em espera. Isso resulta em produtos duplicados aparecendo simultaneamente na pagina inicial (como os 2 Lenovo IdeaPad Slim 3i atuais).
 
-## 2. Cores por perna seguindo a convencao do sistema
+## Causa raiz
 
-Aplicar a convencao visual ja existente:
-- **Azul** para a perna esquerda (badge, borda do card)
-- **Amarelo/ambar** para a perna direita (badge, borda do card)
-- **Verde** para o no raiz
-
-Isso substitui os badges vermelhos genericos atuais.
-
-## 3. Mostrar vagas vazias
-
-Quando um no tem apenas um filho, exibir um placeholder visual (card tracejado/fantasma) na posicao vazia, com texto "Vaga disponivel". Isso permite ao admin ver imediatamente onde ha espaco na rede.
-
-## 4. Barras visuais de pontos
-
-Substituir o texto "E:1.000 D:3.100" por:
-- Duas barras horizontais coloridas (azul esquerda, amarela direita)
-- Proporcao visual entre elas
-- Valores numericos ao lado
-- Highlight na perna menor (borda vermelha ou icone de alerta)
-
-## 5. Tooltip com detalhes completos
-
-Ao passar o mouse ou clicar em um no, mostrar um popover com:
-- Nome completo e email
-- Plano e status do contrato
-- Sponsor (quem indicou)
-- Parent (pai na arvore)
-- Pontos acumulados totais
-- Data de entrada na rede
-
-## 6. Linhas de conexao entre nos
-
-Adicionar linhas verticais e horizontais com CSS (border-left + pseudo-elements) para conectar visualmente pai e filhos, tornando a hierarquia mais clara que apenas indentacao.
-
----
-
-## Detalhes Tecnicos
-
-### Arquivo alterado
-- `src/components/Admin/AdminBinaryTreeView.tsx` -- apenas o componente `TreeNodeView` e estilos associados
-
-### Componente TreeNodeView atualizado
-
-O componente `TreeNodeView` sera reescrito para renderizar:
+Na linha 86 do arquivo, os templates sao embaralhados e selecionados sem nenhum filtro:
 
 ```text
-+-- Card com borda colorida (azul/amarela/verde)
-|   |-- Nome + Badge do plano
-|   |-- Barra de pontos E/D proporcional
-|   |-- Texto "Sponsor: Nome" (se diferente do parent)
-|   +-- Tooltip com detalhes
-|
-+-- Filhos com linhas de conexao CSS
-    |-- [Card filho esquerdo] ou [Placeholder vazio tracejado]
-    +-- [Card filho direito] ou [Placeholder vazio tracejado]
+const shuffled = [...templates].sort(() => Math.random() - 0.5)
+const selected = shuffled.slice(0, needed)
 ```
 
-### Estilo das linhas de conexao
-Usar `border-left` e `::before` pseudo-elements com Tailwind + classes customizadas para desenhar as conexoes visuais da arvore.
+Nao ha verificacao se o template ja esta em uso em um leilao ativo/waiting.
 
-### Badges por perna
-- Raiz: `bg-green-500 text-white`
-- Left: `bg-blue-500 text-white`
-- Right: `bg-amber-500 text-white`
+## Solucao
 
-### Vagas vazias
-Card com `border-dashed border-muted-foreground/30` e texto "Vaga disponivel" em cinza claro.
+Adicionar uma verificacao na Edge Function `auto-replenish-auctions` que:
 
-### Barras de pontos
-Duas divs com `h-2 rounded-full` e largura proporcional ao maximo entre left/right points, usando `bg-blue-400` e `bg-amber-400`.
+1. Busca os titulos de todos os leiloes com status `active` ou `waiting`
+2. Filtra os templates disponiveis, removendo aqueles cujo titulo ja esta em uso
+3. Somente entao embaralha e seleciona os templates restantes
+
+## Arquivo alterado
+
+- `supabase/functions/auto-replenish-auctions/index.ts`
+
+## Mudanca especifica
+
+Apos o passo 4 (fetch de templates ativos), antes do shuffle, sera adicionada a logica:
+
+1. Buscar os titulos dos leiloes ativos/waiting:
+   ```text
+   SELECT title FROM auctions WHERE status IN ('active', 'waiting')
+   ```
+
+2. Criar um Set com esses titulos
+
+3. Filtrar os templates removendo os que ja possuem leilao ativo:
+   ```text
+   templates.filter(t => !activeTitles.has(t.title))
+   ```
+
+4. Se nao houver templates disponiveis apos o filtro, retornar mensagem informando que todos os templates ja estao em uso
+
+5. Se houver menos templates disponiveis do que o necessario, criar apenas a quantidade possivel (sem duplicar)
 
 ## O que NAO muda
 
-- Nenhuma funcionalidade existente sera alterada (vincular, recalcular, buscar)
-- As tabelas de "Parceiros Isolados" e "Todos os Registros" permanecem identicas
-- Os summary cards no topo permanecem identicos
-- Os dialogs de vinculacao e recalculo permanecem identicos
-- Nenhuma query ou hook sera modificado
+- Nenhuma interface (UI) sera alterada
+- A logica de escalonamento de horarios permanece identica
+- A logica de duracao aleatoria permanece identica
+- O incremento de `times_used` permanece identico
+- Todas as configuracoes do sistema continuam funcionando normalmente
+- A funcao `sync-timers-and-protection` nao sera tocada
 
