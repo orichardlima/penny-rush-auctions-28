@@ -60,27 +60,24 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
     .slice(0, 12)
     .reverse()
     .map((s, index, arr) => {
-      const periodPayouts = payouts.filter(p => p.period_start === s.period_start);
-      const pendingAmount = periodPayouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
-      const paidAmount = periodPayouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
+      const periodPayouts = payouts.filter(p => p.period_start === s.period_start && p.status === 'PAID');
+      const creditedAmount = periodPayouts.reduce((sum, p) => sum + p.amount, 0);
       
       // Calculate accumulated
-      const previousPaid = arr.slice(0, index).reduce((sum, prev) => {
+      const previousCredited = arr.slice(0, index).reduce((sum, prev) => {
         const prevPayouts = payouts.filter(p => p.period_start === prev.period_start && p.status === 'PAID');
         return sum + prevPayouts.reduce((s, p) => s + p.amount, 0);
       }, 0);
       
       return {
         period: formatPeriod(s.period_start, s.period_end),
-        pago: paidAmount,
-        pendente: pendingAmount,
-        acumulado: previousPaid + paidAmount
+        creditado: creditedAmount,
+        acumulado: previousCredited + creditedAmount
       };
     });
 
   // Summary metrics
-  const totalPaidAllTime = payouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
-  const totalPendingAllTime = payouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
+  const totalCreditedAllTime = payouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
   const averageMonthlyPayout = snapshots.length > 0 
     ? snapshots.reduce((sum, s) => sum + s.partner_fund_value, 0) / snapshots.length 
     : 0;
@@ -89,8 +86,7 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
   const chartConfig = {
     faturamento: { label: 'Faturamento', color: 'hsl(var(--muted-foreground))' },
     fundo: { label: 'Fundo Parceiros', color: 'hsl(var(--primary))' },
-    pago: { label: 'Pago', color: 'hsl(var(--primary))' },
-    pendente: { label: 'Pendente', color: 'hsl(var(--chart-2))' },
+    creditado: { label: 'Creditado', color: 'hsl(var(--primary))' },
     acumulado: { label: 'Acumulado', color: 'hsl(var(--chart-3))' },
     period: { label: 'Período', color: 'hsl(var(--primary))' },
   };
@@ -101,23 +97,12 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pago</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Creditado</CardTitle>
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatPrice(totalPaidAllTime)}</div>
+            <div className="text-2xl font-bold text-green-600">{formatPrice(totalCreditedAllTime)}</div>
             <p className="text-xs text-muted-foreground">Em todos os repasses</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendente</CardTitle>
-            <DollarSign className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{formatPrice(totalPendingAllTime)}</div>
-            <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
           </CardContent>
         </Card>
         
@@ -256,21 +241,11 @@ export const PartnerAnalyticsCharts: React.FC<PartnerAnalyticsChartsProps> = ({
                   />
                   <Area 
                     type="monotone" 
-                    dataKey="pago" 
-                    stackId="1"
+                    dataKey="creditado" 
                     stroke="hsl(var(--primary))" 
                     fill="hsl(var(--primary))" 
                     fillOpacity={0.6}
-                    name="Pago"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="pendente" 
-                    stackId="1"
-                    stroke="hsl(var(--chart-2))" 
-                    fill="hsl(var(--chart-2))" 
-                    fillOpacity={0.6}
-                    name="Pendente"
+                    name="Creditado"
                   />
                 </AreaChart>
               </ResponsiveContainer>

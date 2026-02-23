@@ -339,7 +339,8 @@ Deno.serve(async (req) => {
             amount: finalAmount, // Valor final com desconto aplicado
             weekly_cap_applied: weeklyCapApplied,
             total_cap_applied: totalCapApplied,
-            status: 'PENDING'
+            status: 'PAID',
+            paid_at: new Date().toISOString()
           })
 
         if (payoutError) {

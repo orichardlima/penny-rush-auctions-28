@@ -128,9 +128,8 @@ export const usePartnerCashflow = () => {
       const totalEntradas = totalAportes + totalUpgrades;
 
       const paidPayouts = payouts.filter(p => p.status === 'PAID');
-      const pendingPayouts = payouts.filter(p => p.status === 'PENDING');
       const totalPayoutsPaid = paidPayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      const totalPayoutsPending = pendingPayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalPayoutsPending = 0;
 
       const paidWithdrawals = withdrawals.filter(w => w.status === 'PAID' || w.status === 'APPROVED');
       const pendingWithdrawals = withdrawals.filter(w => w.status === 'PENDING');

@@ -315,9 +315,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const payoutTotals = React.useMemo(() => {
     const paidPayouts = payouts.filter(p => p.status === 'PAID');
     const totalPaid = paidPayouts.reduce((sum, p) => sum + p.amount, 0);
-    const totalPending = payouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
     const averagePayout = paidPayouts.length > 0 ? totalPaid / paidPayouts.length : 0;
-    return { totalPaid, totalPending, totalWeeks: payouts.length, averagePayout, paidCount: paidPayouts.length, pendingCount: payouts.filter(p => p.status === 'PENDING').length };
+    return { totalPaid, totalWeeks: payouts.length, averagePayout, paidCount: paidPayouts.length };
   }, [payouts]);
 
   // Filter payouts based on status
@@ -359,10 +358,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
   const getPayoutStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING':
-        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pendente</Badge>;
       case 'PAID':
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Pago</Badge>;
+        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Creditado</Badge>;
       case 'CANCELLED':
         return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Cancelado</Badge>;
       default:
@@ -869,12 +866,12 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <p className="text-lg sm:text-2xl font-bold">{payoutTotals.totalWeeks}</p>
               </div>
               <div className="flex items-center justify-between sm:flex-col sm:text-center py-2 border-b sm:border-b-0 sm:py-0">
-                <p className="text-xs sm:text-sm text-muted-foreground">Total Pago</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Creditado</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">{formatPrice(payoutTotals.totalPaid)}</p>
               </div>
               <div className="flex items-center justify-between sm:flex-col sm:text-center py-2 sm:py-0">
-                <p className="text-xs sm:text-sm text-muted-foreground">Pendente</p>
-                <p className="text-lg sm:text-2xl font-bold text-yellow-600">{formatPrice(payoutTotals.totalPending)}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Média por Semana</p>
+                <p className="text-lg sm:text-2xl font-bold">{formatPrice(payoutTotals.averagePayout)}</p>
               </div>
             </CardContent>
           </Card>
@@ -897,20 +894,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                       formatter={(value: number) => [formatPrice(value), 'Valor']}
                       labelFormatter={(label) => `Semana de ${label}`}
                     />
-                    <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-                      {chartData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.status === 'PAID' ? '#22c55e' : entry.status === 'PENDING' ? '#eab308' : '#6b7280'} 
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="flex justify-center gap-4 mt-2 text-xs">
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500"></span> Pago</span>
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500"></span> Pendente</span>
-                </div>
+                     <Bar dataKey="valor" radius={[4, 4, 0, 0]} fill="#22c55e" />
+                   </BarChart>
+                 </ResponsiveContainer>
               </CardContent>
             </Card>
           )}
@@ -930,29 +916,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   </CardDescription>
                 </div>
                 {payouts.length > 0 && (
-                  <div className="flex gap-2 flex-wrap">
-                    <Button 
-                      variant={statusFilter === 'all' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setStatusFilter('all')}
-                    >
-                      Todos ({payoutTotals.totalWeeks})
-                    </Button>
-                    <Button 
-                      variant={statusFilter === 'PAID' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setStatusFilter('PAID')}
-                    >
-                      Pagos ({payoutTotals.paidCount})
-                    </Button>
-                    <Button 
-                      variant={statusFilter === 'PENDING' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setStatusFilter('PENDING')}
-                    >
-                      Pendentes ({payoutTotals.pendingCount})
-                    </Button>
-                  </div>
+                  <Badge variant="outline" className="text-sm">
+                    {payoutTotals.paidCount} repasses creditados
+                  </Badge>
                 )}
               </div>
             </CardHeader>

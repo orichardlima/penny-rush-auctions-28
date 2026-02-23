@@ -448,12 +448,12 @@ const AdminPartnerManagement = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Repasses Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
+            <CardTitle className="text-sm font-medium">Repasses Processados</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pendingPayouts}</div>
-            <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
+            <div className="text-2xl font-bold text-green-600">{payouts.length}</div>
+            <p className="text-xs text-muted-foreground">Creditados automaticamente</p>
           </CardContent>
         </Card>
 
@@ -1177,71 +1177,15 @@ const AdminPartnerManagement = () => {
                         <TableCell>{formatPrice(payout.calculated_amount)}</TableCell>
                         <TableCell className="font-medium">{formatPrice(payout.amount)}</TableCell>
                         <TableCell>
-                          <Badge variant={payout.status === 'PAID' ? 'default' : payout.status === 'PENDING' ? 'secondary' : 'destructive'}>
-                            {payout.status === 'PAID' ? 'Pago' : payout.status === 'PENDING' ? 'Pendente' : 'Cancelado'}
+                          <Badge variant={payout.status === 'PAID' ? 'default' : 'destructive'}>
+                            {payout.status === 'PAID' ? 'Creditado' : 'Cancelado'}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            {payout.status === 'PENDING' && (
-                              <>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => markPayoutAsPaid(payout.id)}
-                                  disabled={processing}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Pago
-                                </Button>
-                                
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                      <XCircle className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Cancelar Repasse</DialogTitle>
-                                      <DialogDescription>
-                                        O valor será subtraído do total recebido do parceiro. Informe o motivo do cancelamento.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-4">
-                                      <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                                        <p className="text-sm">
-                                          <strong>Valor:</strong> {formatPrice(payout.amount)}
-                                        </p>
-                                        <p className="text-sm">
-                                          <strong>Parceiro:</strong> {contract?.user_name}
-                                        </p>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label>Motivo do cancelamento</Label>
-                                        <Input 
-                                          value={cancelReason}
-                                          onChange={(e) => setCancelReason(e.target.value)}
-                                          placeholder="Ex: Erro no cálculo, fraude detectada..."
-                                        />
-                                      </div>
-                                    </div>
-                                    <DialogFooter>
-                                      <Button 
-                                        variant="destructive"
-                                        onClick={() => handleCancelPayout(payout.id)}
-                                        disabled={processing || !cancelReason.trim()}
-                                      >
-                                        Cancelar Repasse
-                                      </Button>
-                                    </DialogFooter>
-                                  </DialogContent>
-                                </Dialog>
-                              </>
-                            )}
                             {payout.paid_at && (
                               <span className="text-xs text-muted-foreground">
-                                Pago em {formatDate(payout.paid_at)}
+                                Creditado em {formatDate(payout.paid_at)}
                               </span>
                             )}
                           </div>
