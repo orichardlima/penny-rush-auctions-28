@@ -1053,7 +1053,7 @@ export const useAdminPartners = () => {
       const withdrawal = withdrawals.find(w => w.id === withdrawalId);
       if (!withdrawal) throw new Error('Saque não encontrado');
 
-      // Call edge function to process PIX payment via Mercado Pago
+      // Call edge function to mark withdrawal as PAID
       const { data, error } = await supabase.functions.invoke('process-partner-withdrawal', {
         body: { withdrawalId }
       });
@@ -1066,13 +1066,9 @@ export const useAdminPartners = () => {
         throw new Error(data.error);
       }
 
-      const mpTransactionId = data?.mp_transaction_id;
-
       toast({
-        title: "PIX enviado com sucesso! ✅",
-        description: mpTransactionId 
-          ? `Transação MP: ${mpTransactionId} - Valor: R$ ${withdrawal.amount.toFixed(2)}`
-          : `Pagamento de R$ ${withdrawal.amount.toFixed(2)} processado.`
+        title: "Saque marcado como pago ✅",
+        description: `Valor: R$ ${withdrawal.amount.toFixed(2)} — Faça o PIX manualmente.`
       });
 
       await Promise.all([fetchWithdrawals(), fetchContracts()]);
