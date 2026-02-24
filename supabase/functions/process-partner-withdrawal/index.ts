@@ -138,35 +138,48 @@ serve(async (req) => {
       }
     }
 
-    // Try the disbursement/payout endpoint
-    console.log('💳 Sending PIX via Mercado Pago:', { amount: withdrawal.amount, pixKey, pixKeyType: mpPixKeyType })
+    // Use the Payouts API (transaction-intents/process) for sending PIX
+    console.log('💳 Sending PIX payout via Mercado Pago:', { amount: withdrawal.amount, pixKey, pixKeyType: mpPixKeyType })
 
-    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+    const mpResponse = await fetch('https://api.mercadopago.com/v1/transaction-intents/process', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${mercadoPagoAccessToken}`,
         'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey
+        'X-Idempotency-Key': idempotencyKey,
+        'x-enforce-signature': 'false'
       },
       body: JSON.stringify({
-        transaction_amount: withdrawal.amount,
-        description: `Saque parceiro - ${paymentDetails?.holder_name || 'N/A'}`,
-        payment_method_id: "pix",
-        payer: {
-          email: "pagamento@sistema.com"
-        },
-        additional_info: {
-          payer: {
-            first_name: paymentDetails?.holder_name || 'Parceiro'
-          }
-        },
         external_reference: `withdrawal:${withdrawalId}`,
         point_of_interaction: {
-          type: "PIX",
-          transaction_data: {
-            bank_transfer_id: pixKey,
-            financial_institution: mpPixKeyType
-          }
+          type: "PSP_TRANSFER"
+        },
+        transaction: {
+          from: {
+            accounts: [
+              {
+                amount: withdrawal.amount
+              }
+            ]
+          },
+          to: {
+            accounts: [
+              {
+                amount: withdrawal.amount,
+                bank_id: "0",
+                type: "current",
+                number: "0",
+                owner: {
+                  identification: {
+                    type: mpPixKeyType,
+                    number: pixKey
+                  }
+                }
+              }
+            ]
+          },
+          total_amount: withdrawal.amount,
+          statement_descriptor: `Saque parceiro`
         }
       })
     })
