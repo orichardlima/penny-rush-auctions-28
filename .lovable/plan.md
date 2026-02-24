@@ -1,28 +1,60 @@
 
+# Simplificar Edge Function para fluxo semi-automatico
 
-# Corrigir cron do sync-timers-and-protection (5min para 1min)
+## O que muda
 
-## Problema
-O cron job `sync-timers-and-protection` esta rodando a cada 5 minutos (`*/5 * * * *`). Quando o bot da um lance e reseta o timer para 15 segundos, apos esses 15s o timer zera e a UI mostra "Verificando lances validos" por ate ~4 minutos e 45 segundos ate o proximo ciclo do cron.
+A Edge Function `process-partner-withdrawal` sera simplificada para apenas marcar o saque como PAID no banco de dados e atualizar o contrato, sem chamar a API do Mercado Pago. O admin faz o PIX manualmente fora do sistema.
 
-## Solucao
-Atualizar o schedule do cron job existente (jobid: 42) de `*/5 * * * *` para `* * * * *` (a cada 1 minuto).
+## Mudancas
 
-## Mudanca necessaria
+### 1. Edge Function: `supabase/functions/process-partner-withdrawal/index.ts`
 
-Uma unica operacao SQL no banco de dados:
+Remover toda a logica do Mercado Pago:
+- Remover a verificacao do `MERCADO_PAGO_ACCESS_TOKEN`
+- Remover o mapeamento de tipos de chave PIX para formato MP
+- Remover a chamada `fetch` para `api.mercadopago.com`
+- Remover o tratamento de resposta do Mercado Pago
 
+Manter:
+- Validacao de autenticacao admin
+- Busca do withdrawal e verificacao de status APPROVED
+- Atualizacao do withdrawal para PAID com `paid_at` e `paid_by`
+- Atualizacao do `total_withdrawn` no contrato
+
+O `payment_details` sera atualizado com `paid_via: 'manual'` em vez de dados do Mercado Pago.
+
+### 2. Frontend: `src/hooks/useAdminPartners.ts`
+
+Ajuste minimo na funcao `markWithdrawalAsPaid`:
+- Atualizar a mensagem de sucesso de "PIX enviado com sucesso" para "Saque marcado como pago"
+- Remover referencia ao `mp_transaction_id` no toast
+
+### Nenhuma outra mudanca
+
+- Interface visual do parceiro (`PartnerWithdrawalSection`) permanece identica
+- Nenhum outro componente, hook ou pagina sera alterado
+
+## Secao tecnica
+
+**Edge Function -- antes:**
 ```text
-UPDATE cron.job SET schedule = '* * * * *' WHERE jobid = 42;
+1. Valida admin
+2. Busca withdrawal (status=APPROVED)
+3. Extrai dados PIX
+4. Mapeia tipo chave -> formato MP
+5. Chama API Mercado Pago (transaction-intents/process)
+6. Trata resposta MP
+7. Atualiza withdrawal -> PAID
+8. Atualiza contrato total_withdrawn
 ```
 
-## Resultado esperado
+**Edge Function -- depois:**
+```text
+1. Valida admin
+2. Busca withdrawal (status=APPROVED)
+3. Atualiza withdrawal -> PAID (paid_via: 'manual')
+4. Atualiza contrato total_withdrawn
+5. Retorna sucesso com dados PIX para o admin copiar
+```
 
-- O estado "Verificando lances validos" vai durar no maximo ~45 segundos (ao inves de ~5 minutos)
-- Nenhum arquivo de codigo sera alterado
-- Nenhuma interface sera modificada
-- A Edge Function permanece identica
-
-## Impacto
-- A Edge Function sera chamada 5x mais frequentemente (1x/min vs 1x/5min)
-- Cada execucao leva ~3-8 segundos, entao o impacto e minimo
+A resposta da funcao incluira os dados PIX do saque (`pix_key`, `pix_key_type`, `holder_name`, `amount`) para que o admin possa facilmente fazer o PIX manual.
