@@ -1,60 +1,54 @@
 
-# Simplificar Edge Function para fluxo semi-automatico
 
-## O que muda
+# Simplificar o processo manual de PIX para o Admin
 
-A Edge Function `process-partner-withdrawal` sera simplificada para apenas marcar o saque como PAID no banco de dados e atualizar o contrato, sem chamar a API do Mercado Pago. O admin faz o PIX manualmente fora do sistema.
+## Problema atual
 
-## Mudancas
+Quando o admin precisa fazer um PIX manualmente, ele tem que:
+1. Olhar a chave PIX na tabela
+2. Copiar manualmente (selecionando texto)
+3. Ir ao app do banco e digitar/colar os dados
+4. Voltar ao sistema e clicar "Enviar PIX" para marcar como pago
 
-### 1. Edge Function: `supabase/functions/process-partner-withdrawal/index.ts`
+Nao ha facilidade para copiar os dados rapidamente.
 
-Remover toda a logica do Mercado Pago:
-- Remover a verificacao do `MERCADO_PAGO_ACCESS_TOKEN`
-- Remover o mapeamento de tipos de chave PIX para formato MP
-- Remover a chamada `fetch` para `api.mercadopago.com`
-- Remover o tratamento de resposta do Mercado Pago
+## Solucao proposta
 
-Manter:
-- Validacao de autenticacao admin
-- Busca do withdrawal e verificacao de status APPROVED
-- Atualizacao do withdrawal para PAID com `paid_at` e `paid_by`
-- Atualizacao do `total_withdrawn` no contrato
+Adicionar dois recursos na tabela de "Solicitacoes de Saque":
 
-O `payment_details` sera atualizado com `paid_via: 'manual'` em vez de dados do Mercado Pago.
+### 1. Botao "Copiar PIX" ao lado da chave PIX
 
-### 2. Frontend: `src/hooks/useAdminPartners.ts`
+Na coluna PIX da tabela, adicionar um pequeno icone de copiar que, ao ser clicado, copia a chave PIX para a area de transferencia com feedback visual (toast "Chave PIX copiada!").
 
-Ajuste minimo na funcao `markWithdrawalAsPaid`:
-- Atualizar a mensagem de sucesso de "PIX enviado com sucesso" para "Saque marcado como pago"
-- Remover referencia ao `mp_transaction_id` no toast
+### 2. Dialog de confirmacao antes de marcar como Pago
 
-### Nenhuma outra mudanca
+Ao clicar em "Marcar como Pago" (renomear de "Enviar PIX"), abrir um dialog com:
+- Dados do parceiro (nome, email)
+- Valor formatado em destaque
+- Chave PIX com botao de copiar
+- Tipo da chave (CPF, CNPJ, email, etc.)
+- Nome do titular (se disponivel)
+- Botao "Copiar Todos os Dados" que copia um texto formatado: `PIX: 05311193514 (Cpf) | Valor: R$ 20,00 | Nome: Richard Lima`
+- Checkbox ou botao "Ja fiz o PIX - Confirmar Pagamento"
 
-- Interface visual do parceiro (`PartnerWithdrawalSection`) permanece identica
-- Nenhum outro componente, hook ou pagina sera alterado
+Isso evita que o admin marque como pago acidentalmente sem ter feito a transferencia.
 
-## Secao tecnica
+## Mudancas tecnicas
 
-**Edge Function -- antes:**
-```text
-1. Valida admin
-2. Busca withdrawal (status=APPROVED)
-3. Extrai dados PIX
-4. Mapeia tipo chave -> formato MP
-5. Chama API Mercado Pago (transaction-intents/process)
-6. Trata resposta MP
-7. Atualiza withdrawal -> PAID
-8. Atualiza contrato total_withdrawn
-```
+### Arquivo: `src/components/Admin/AdminPartnerManagement.tsx`
 
-**Edge Function -- depois:**
-```text
-1. Valida admin
-2. Busca withdrawal (status=APPROVED)
-3. Atualiza withdrawal -> PAID (paid_via: 'manual')
-4. Atualiza contrato total_withdrawn
-5. Retorna sucesso com dados PIX para o admin copiar
-```
+**Coluna PIX (linha ~1238-1242):**
+- Adicionar botao com icone `Copy` do lucide-react ao lado da chave PIX
+- Ao clicar, usa `navigator.clipboard.writeText()` e exibe toast
 
-A resposta da funcao incluira os dados PIX do saque (`pix_key`, `pix_key_type`, `holder_name`, `amount`) para que o admin possa facilmente fazer o PIX manual.
+**Botao "Enviar PIX" (linhas ~1260-1272):**
+- Renomear para "Marcar como Pago"
+- Em vez de chamar `markWithdrawalAsPaid` diretamente, abrir um novo Dialog de confirmacao
+- O dialog exibe todos os dados PIX com botoes de copiar
+- Somente ao clicar "Confirmar Pagamento" no dialog e que chama `markWithdrawalAsPaid`
+
+### Nenhum outro arquivo sera alterado
+- A Edge Function permanece igual (ja faz apenas a marcacao no banco)
+- O hook `useAdminPartners.ts` permanece igual
+- Nenhuma outra tela ou componente sera modificado
+
