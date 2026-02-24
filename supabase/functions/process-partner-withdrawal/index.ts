@@ -16,15 +16,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
-
-    if (!mercadoPagoAccessToken) {
-      console.error('❌ MERCADO_PAGO_ACCESS_TOKEN não configurado')
-      return new Response(
-        JSON.stringify({ error: 'Mercado Pago não configurado' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
 
     // Validate admin auth
     const authHeader = req.headers.get('Authorization')
@@ -90,130 +81,11 @@ serve(async (req) => {
       )
     }
 
-    // 2. Extract PIX details
+    // 2. Update withdrawal to PAID (manual flow)
     const paymentDetails = withdrawal.payment_details as any
-    const pixKey = paymentDetails?.pix_key
-    const pixKeyType = paymentDetails?.pix_key_type
-
-    if (!pixKey || !pixKeyType) {
-      return new Response(
-        JSON.stringify({ error: 'Dados PIX incompletos no saque (chave ou tipo ausente)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // 3. Map PIX key type to Mercado Pago format
-    const pixKeyTypeMap: Record<string, string> = {
-      'cpf': 'CPF',
-      'cnpj': 'CNPJ',
-      'email': 'EMAIL',
-      'phone': 'PHONE',
-      'random': 'EVP'
-    }
-
-    const mpPixKeyType = pixKeyTypeMap[pixKeyType]
-    if (!mpPixKeyType) {
-      return new Response(
-        JSON.stringify({ error: `Tipo de chave PIX "${pixKeyType}" não suportado` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // 4. Send PIX via Mercado Pago Disbursements API
-    const idempotencyKey = `withdrawal-${withdrawalId}-${Date.now()}`
-
-    const mpPayload = {
-      amount: withdrawal.amount,
-      external_reference: `withdrawal:${withdrawalId}`,
-      description: `Saque parceiro - ${paymentDetails?.holder_name || 'N/A'}`,
-      point_of_interaction: {
-        type: "PIX_TRANSFER",
-        transaction_data: {
-          first_time_use: false
-        }
-      },
-      payment_method_id: "pix_transfer",
-      receiver: {
-        id: pixKey
-      }
-    }
-
-    // Use the Payouts API (transaction-intents/process) for sending PIX
-    console.log('💳 Sending PIX payout via Mercado Pago:', { amount: withdrawal.amount, pixKey, pixKeyType: mpPixKeyType })
-
-    const mpResponse = await fetch('https://api.mercadopago.com/v1/transaction-intents/process', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${mercadoPagoAccessToken}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey,
-        'x-enforce-signature': 'false'
-      },
-      body: JSON.stringify({
-        external_reference: `withdrawal:${withdrawalId}`,
-        point_of_interaction: {
-          type: "PSP_TRANSFER"
-        },
-        transaction: {
-          from: {
-            accounts: [
-              {
-                amount: withdrawal.amount
-              }
-            ]
-          },
-          to: {
-            accounts: [
-              {
-                amount: withdrawal.amount,
-                bank_id: "0",
-                type: "current",
-                number: "0",
-                owner: {
-                  identification: {
-                    type: mpPixKeyType,
-                    number: pixKey
-                  }
-                }
-              }
-            ]
-          },
-          total_amount: withdrawal.amount,
-          statement_descriptor: `Saque parceiro`
-        }
-      })
-    })
-
-    const mpData = await mpResponse.json()
-
-    if (!mpResponse.ok) {
-      console.error('❌ Mercado Pago API error:', JSON.stringify(mpData))
-      
-      let errorMessage = 'Erro ao enviar PIX via Mercado Pago'
-      if (mpData?.message) {
-        errorMessage = mpData.message
-      } else if (mpData?.cause?.[0]?.description) {
-        errorMessage = mpData.cause[0].description
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          error: errorMessage,
-          mp_error: mpData
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('✅ Mercado Pago payment created:', mpData.id, 'Status:', mpData.status)
-
-    // 5. Update withdrawal to PAID with transaction details
     const updatedPaymentDetails = {
       ...paymentDetails,
-      mp_transaction_id: mpData.id,
-      mp_status: mpData.status,
-      mp_status_detail: mpData.status_detail,
-      paid_via: 'mercado_pago_api'
+      paid_via: 'manual'
     }
 
     const { error: updateError } = await supabase
@@ -229,18 +101,13 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('❌ Error updating withdrawal:', updateError)
-      // PIX was sent but DB update failed - log this critical issue
       return new Response(
-        JSON.stringify({ 
-          error: 'PIX enviado mas erro ao atualizar status no banco. ID da transação MP: ' + mpData.id,
-          mp_transaction_id: mpData.id,
-          warning: 'CRITICAL: Payment was sent but status not updated'
-        }),
+        JSON.stringify({ error: 'Erro ao atualizar status do saque' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 6. Update contract total_withdrawn
+    // 3. Update contract total_withdrawn
     const { data: contractData } = await supabase
       .from('partner_contracts')
       .select('total_withdrawn')
@@ -257,15 +124,16 @@ serve(async (req) => {
         .eq('id', withdrawal.partner_contract_id)
     }
 
-    console.log('✅ Withdrawal processed successfully')
+    console.log('✅ Withdrawal marked as PAID (manual)')
     console.log('=== PROCESS PARTNER WITHDRAWAL END ===')
 
     return new Response(
       JSON.stringify({
         success: true,
-        mp_transaction_id: mpData.id,
-        mp_status: mpData.status,
-        amount: withdrawal.amount
+        amount: withdrawal.amount,
+        pix_key: paymentDetails?.pix_key || null,
+        pix_key_type: paymentDetails?.pix_key_type || null,
+        holder_name: paymentDetails?.holder_name || null
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
