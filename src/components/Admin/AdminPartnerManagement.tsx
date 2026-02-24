@@ -46,8 +46,11 @@ import {
   Eye,
   Coins,
   Megaphone,
-  Rocket
+  Rocket,
+  Copy,
+  ClipboardCopy
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
@@ -127,6 +130,24 @@ const AdminPartnerManagement = () => {
 
   // Partner Detail Modal State
   const [selectedPartnerForDetail, setSelectedPartnerForDetail] = useState<any>(null);
+
+  // PIX Payment Confirmation Dialog State
+  const [pixConfirmWithdrawal, setPixConfirmWithdrawal] = useState<any>(null);
+
+  const copyToClipboard = (text: string, label: string = 'Texto') => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: `${label} copiado!`, description: text });
+    });
+  };
+
+  const copyAllPixData = (withdrawal: any) => {
+    const pixKey = withdrawal.payment_details?.pix_key || '';
+    const pixType = withdrawal.payment_details?.pix_key_type || '';
+    const holderName = withdrawal.payment_details?.holder_name || withdrawal.user_name || '';
+    const amount = formatPrice(withdrawal.amount);
+    const text = `PIX: ${pixKey} (${pixType}) | Valor: ${amount} | Nome: ${holderName}`;
+    copyToClipboard(text, 'Dados PIX');
+  };
 
   // Calculate preview for manual mode with Pro Rata eligibility
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
@@ -1236,9 +1257,21 @@ const AdminPartnerManagement = () => {
                       <TableCell className="hidden md:table-cell">{withdrawal.plan_name}</TableCell>
                       <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <div className="text-sm">
-                          <p>{withdrawal.payment_details?.pix_key || '-'}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{withdrawal.payment_details?.pix_key_type || '-'}</p>
+                        <div className="text-sm flex items-center gap-1">
+                          <div>
+                            <p>{withdrawal.payment_details?.pix_key || '-'}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{withdrawal.payment_details?.pix_key_type || '-'}</p>
+                          </div>
+                          {withdrawal.payment_details?.pix_key && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => copyToClipboard(withdrawal.payment_details.pix_key, 'Chave PIX')}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1260,15 +1293,11 @@ const AdminPartnerManagement = () => {
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={() => markWithdrawalAsPaid(withdrawal.id)}
+                                onClick={() => setPixConfirmWithdrawal(withdrawal)}
                                 disabled={processing}
                               >
-                                {processing ? (
-                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                                ) : (
-                                  <DollarSign className="h-4 w-4 mr-1" />
-                                )}
-                                {processing ? 'Enviando PIX...' : 'Enviar PIX'}
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                Marcar como Pago
                               </Button>
                               <Dialog>
                                 <DialogTrigger asChild>
@@ -1338,6 +1367,82 @@ const AdminPartnerManagement = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog de Confirmação de Pagamento PIX */}
+          <Dialog open={!!pixConfirmWithdrawal} onOpenChange={(open) => !open && setPixConfirmWithdrawal(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Confirmar Pagamento PIX</DialogTitle>
+                <DialogDescription>
+                  Copie os dados abaixo, faça o PIX manualmente e confirme.
+                </DialogDescription>
+              </DialogHeader>
+              {pixConfirmWithdrawal && (
+                <div className="space-y-4 py-2">
+                  {/* Parceiro info */}
+                  <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><strong>Parceiro:</strong> {pixConfirmWithdrawal.user_name}</p>
+                    <p><strong>Email:</strong> {pixConfirmWithdrawal.user_email}</p>
+                  </div>
+
+                  {/* Valor em destaque */}
+                  <div className="p-4 bg-primary/10 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Valor do Saque</p>
+                    <p className="text-2xl font-bold text-primary">{formatPrice(pixConfirmWithdrawal.amount)}</p>
+                  </div>
+
+                  {/* Dados PIX */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Chave PIX ({pixConfirmWithdrawal.payment_details?.pix_key_type || '-'})</p>
+                        <p className="font-mono font-medium">{pixConfirmWithdrawal.payment_details?.pix_key || '-'}</p>
+                      </div>
+                      {pixConfirmWithdrawal.payment_details?.pix_key && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => copyToClipboard(pixConfirmWithdrawal.payment_details.pix_key, 'Chave PIX')}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {pixConfirmWithdrawal.payment_details?.holder_name && (
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Titular</p>
+                          <p className="font-medium">{pixConfirmWithdrawal.payment_details.holder_name}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => copyToClipboard(pixConfirmWithdrawal.payment_details.holder_name, 'Nome do titular')}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Copiar tudo */}
+                  <Button variant="outline" className="w-full" onClick={() => copyAllPixData(pixConfirmWithdrawal)}>
+                    <ClipboardCopy className="h-4 w-4 mr-2" />
+                    Copiar Todos os Dados
+                  </Button>
+
+                  {/* Confirmar */}
+                  <Button
+                    className="w-full"
+                    onClick={async () => {
+                      await markWithdrawalAsPaid(pixConfirmWithdrawal.id);
+                      setPixConfirmWithdrawal(null);
+                    }}
+                    disabled={processing}
+                  >
+                    {processing ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    {processing ? 'Processando...' : 'Já fiz o PIX — Confirmar Pagamento'}
+                  </Button>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Encerramentos Tab */}
