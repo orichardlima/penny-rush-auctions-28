@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Ref to track instance ID without causing channel recreation
+
 interface FuryVaultInstance {
   id: string;
   auction_id: string;
@@ -47,6 +49,8 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
     loading: true,
   });
 
+  // Ref to track instance ID without causing channel recreation
+  const instanceIdRef = useRef<string | null>(null);
   // Debounce ref for qualification updates
   const qualDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -67,6 +71,9 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
 
       const instance = instanceRes.data as FuryVaultInstance | null;
       const config = configRes.data as FuryVaultConfig | null;
+      
+      // Update ref so realtime listener always has current instance ID
+      instanceIdRef.current = instance?.id ?? null;
 
       let isQualified = false;
       let userBidsInAuction = 0;
@@ -122,6 +129,8 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
         (payload) => {
           if (payload.new) {
             const newInstance = payload.new as FuryVaultInstance;
+            // Keep ref in sync so qualification listener always has current ID
+            instanceIdRef.current = newInstance.id;
             setData(prev => {
               // Dedupe: skip if values haven't changed
               if (
@@ -161,8 +170,9 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
               vault_instance_id: string;
             };
 
-            // Only process if it's for the current vault instance
-            if (data.instance && newQual.vault_instance_id !== data.instance.id) return;
+            // Only process if it's for the current vault instance (use ref to avoid stale closure)
+            const currentInstanceId = instanceIdRef.current;
+            if (currentInstanceId && newQual.vault_instance_id !== currentInstanceId) return;
 
             // Debounce 150ms to batch rapid updates during bidding wars
             if (qualDebounceRef.current) {
@@ -197,7 +207,7 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
       }
       supabase.removeChannel(channelBuilder);
     };
-  }, [auctionId, user?.id, data.instance?.id]);
+  }, [auctionId, user?.id]);
 
   // Correct bidsUntilNextIncrement using totalBids prop
   const interval = data.config?.accumulation_interval ?? 20;

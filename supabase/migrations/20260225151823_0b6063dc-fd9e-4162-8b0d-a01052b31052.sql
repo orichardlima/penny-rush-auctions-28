@@ -1,0 +1,1 @@
+ALTER TABLE fury_vault_qualifications REPLICA IDENTITY FULL;
