@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, Gavel, TrendingUp, Trophy } from 'lucide-react';
+import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
 
 interface AuctionCardProps {
   id: string;
@@ -328,6 +329,15 @@ export const AuctionCard = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Fury Vault Display */}
+        <div className="mb-3">
+          <FuryVaultDisplay
+            auctionId={id}
+            auctionStatus={displayStatus}
+            totalBids={displayTotalBids}
+          />
         </div>
 
         {/* Winner Section - Only show for finished auctions */}

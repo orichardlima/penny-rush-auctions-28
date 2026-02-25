@@ -15,6 +15,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Helper: distribute fury vault for a finalized auction
+async function distributeFuryVault(supabase: any, auctionId: string, auctionTitle: string) {
+  try {
+    const { data, error } = await supabase.rpc('fury_vault_distribute', { p_auction_id: auctionId });
+    if (error) {
+      console.error(`❌ [FURY-VAULT] Erro ao distribuir cofre do leilão "${auctionTitle}":`, error.message);
+    } else if (data?.status === 'distributed') {
+      console.log(`🏆 [FURY-VAULT] Cofre distribuído para "${auctionTitle}": top=R$${data.top_bidder_amount}, sorteio=R$${data.raffle_winner_amount}, qualificados=${data.qualified_count}`);
+    } else {
+      console.log(`📦 [FURY-VAULT] Cofre "${auctionTitle}": ${data?.status}`);
+    }
+  } catch (e) {
+    console.error(`💥 [FURY-VAULT] Exceção ao distribuir cofre:`, e);
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -125,6 +141,9 @@ Deno.serve(async (req) => {
             })
             .eq('id', auction.id);
 
+          // Distribute fury vault
+          await distributeFuryVault(supabase, auction.id, auction.title);
+
           console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - horário limite`);
           finalizedCount++;
           continue;
@@ -159,6 +178,9 @@ Deno.serve(async (req) => {
           })
           .eq('id', auction.id);
 
+        // Distribute fury vault
+        await distributeFuryVault(supabase, auction.id, auction.title);
+
         console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - preço máximo`);
         finalizedCount++;
         continue;
@@ -191,6 +213,9 @@ Deno.serve(async (req) => {
             winner_name: winnerProfile?.full_name || null
           })
           .eq('id', auction.id);
+
+        // Distribute fury vault
+        await distributeFuryVault(supabase, auction.id, auction.title);
 
         console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - meta atingida`);
         finalizedCount++;
@@ -272,6 +297,9 @@ Deno.serve(async (req) => {
                   winner_name: winnerProfile?.full_name || null
                 })
                 .eq('id', auction.id);
+
+              // Distribute fury vault
+              await distributeFuryVault(supabase, auction.id, auction.title);
 
               console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - prejuízo evitado`);
               finalizedCount++;

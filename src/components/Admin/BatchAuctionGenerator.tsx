@@ -178,6 +178,32 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
 
       if (error) throw error;
 
+      // Create fury vault instances for each auction
+      if (data && data.length > 0) {
+        const { data: vaultConfig } = await supabase
+          .from('fury_vault_config')
+          .select('default_initial_value, max_cap_value, is_active')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (vaultConfig?.is_active) {
+          const vaultInstances = data.map((auction: any) => ({
+            auction_id: auction.id,
+            initial_value: vaultConfig.default_initial_value || 0,
+            current_value: vaultConfig.default_initial_value || 0,
+            max_cap: vaultConfig.max_cap_value || 500,
+          }));
+
+          const { error: vaultError } = await supabase
+            .from('fury_vault_instances')
+            .insert(vaultInstances);
+
+          if (vaultError) {
+            console.error('Error creating vault instances:', vaultError);
+          }
+        }
+      }
+
       // Increment times_used for each template
       for (const id of selectedIds) {
         const template = templates.find(t => t.id === id);
