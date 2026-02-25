@@ -27,6 +27,7 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, ends
     recencySeconds,
   } = useFuryVault(auctionId, totalBids);
 
+  // Recency countdown state
   const [recencyCountdown, setRecencyCountdown] = useState<number | null>(null);
 
   useEffect(() => {
@@ -60,111 +61,101 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, ends
       minimumFractionDigits: 2,
     }).format(value);
 
+  // Calculate progress to next increment
   const interval = config?.accumulation_interval ?? 20;
   const bidsIntoCurrentInterval = totalBids % interval;
   const progressPercent = (bidsIntoCurrentInterval / interval) * 100;
   const bidsRemaining = bidsUntilNextIncrement;
-  const minBids = config?.min_bids_to_qualify ?? 15;
 
-  // Finished auction: compact results
+  // Finished auction: show results
   if (status === 'completed' && auctionStatus === 'finished') {
     return (
-      <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-accent" />
-            <span className="font-semibold text-sm text-foreground">Cofre Fúria</span>
+      <div className="rounded-lg border-2 border-accent/30 bg-accent/5 p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <Lock className="w-4 h-4 text-accent" />
+          <span className="font-semibold text-sm text-foreground">Cofre Fúria</span>
+          <span className="ml-auto font-bold text-accent">{formatPrice(currentValue)}</span>
+        </div>
+        {instance?.top_bidder_amount > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Trophy className="w-3 h-3 text-yellow-500" />
+            <span>Top participante: {formatPrice(instance.top_bidder_amount)}</span>
           </div>
-          <span className="font-bold text-base text-accent">{formatPrice(currentValue)}</span>
-        </div>
-        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          {instance?.top_bidder_amount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <Trophy className="w-3.5 h-3.5 text-yellow-500" />
-              Top: {formatPrice(instance.top_bidder_amount)}
-            </span>
-          )}
-          {instance?.raffle_winner_amount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <Gift className="w-3.5 h-3.5 text-primary" />
-              Sorteio: {formatPrice(instance.raffle_winner_amount)}
-            </span>
-          )}
-        </div>
+        )}
+        {instance?.raffle_winner_amount > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Gift className="w-3 h-3 text-primary" />
+            <span>Sorteio: {formatPrice(instance.raffle_winner_amount)}</span>
+          </div>
+        )}
       </div>
     );
   }
 
+  // Active/accumulating vault
   if (status !== 'accumulating') return null;
 
   return (
     <div
-      className={`rounded-lg border p-3 space-y-2.5 transition-all duration-300 ${
+      className={`rounded-lg border-2 p-3 space-y-2 transition-all duration-300 ${
         isFuryMode
-          ? 'border-destructive/60 bg-destructive/5'
+          ? 'border-destructive/60 bg-destructive/5 animate-pulse'
           : 'border-accent/30 bg-accent/5'
       }`}
     >
-      {/* Header: title + value */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {isFuryMode ? (
-            <Flame className="w-4 h-4 text-destructive" />
-          ) : (
-            <Lock className="w-4 h-4 text-accent" />
-          )}
-          <span className="font-semibold text-sm text-foreground">Cofre Fúria</span>
-        </div>
-        <span className={`font-bold text-base ${isFuryMode ? 'text-destructive' : 'text-accent'}`}>
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        {isFuryMode ? (
+          <Flame className="w-4 h-4 text-destructive" />
+        ) : (
+          <Lock className="w-4 h-4 text-accent" />
+        )}
+        <span className="font-semibold text-sm text-foreground">
+          {isFuryMode ? '🔥 MODO FÚRIA!' : 'Cofre Fúria'}
+        </span>
+        <span className="ml-auto font-bold text-lg text-accent">
           {formatPrice(currentValue)}
         </span>
       </div>
 
-      {/* Fury mode badge */}
-      {isFuryMode && (
-        <Badge variant="destructive" className="text-[10px] px-2 py-0.5">
-          🔥 MODO FÚRIA ATIVO!
-        </Badge>
-      )}
-
-      {/* Next increment progress */}
+      {/* Progress bar */}
       {auctionStatus === 'active' && (
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Próximo {formatPrice(config?.accumulation_value ?? 0)}:</span>
-            <span className="font-medium text-foreground">{bidsRemaining} lances</span>
+          <Progress value={progressPercent} className="h-2" />
+          <div className="flex justify-between items-center text-xs text-muted-foreground">
+            <span>
+              Faltam <strong className="text-foreground">{bidsRemaining}</strong> lances para +incremento
+            </span>
+            <div className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              <span>{qualifiedCount > 50 ? '50+' : qualifiedCount} qualificados</span>
+            </div>
           </div>
-          <Progress value={progressPercent} className="h-1.5 [&>div]:bg-accent" />
         </div>
       )}
 
-      {/* Qualified count + user status */}
+      {/* User qualification status */}
       {auctionStatus === 'active' && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="w-3.5 h-3.5" />
-            <span>{qualifiedCount > 50 ? '50+' : qualifiedCount} {qualifiedCount === 1 ? 'qualificado' : 'qualificados'}</span>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            {isQualified ? (
+              <Badge variant="default" className="text-xs bg-success text-success-foreground">
+                ✓ Você está qualificado ({userBidsInAuction} lances)
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">
+                {userBidsInAuction}/{config?.min_bids_to_qualify ?? 15} lances para qualificar
+              </Badge>
+            )}
           </div>
 
-          {/* Recency countdown replaces qualification status */}
-          {recencyCountdown !== null && recencyCountdown > 0 ? (
+          {/* Recency countdown */}
+          {recencyCountdown !== null && recencyCountdown > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-              <Timer className="w-3.5 h-3.5" />
+              <Timer className="w-3 h-3" />
               <span>
-                Lance em <strong>{recencyCountdown}s</strong> para manter sua qualificação!
+                Lance nos próximos <strong>{recencyCountdown}s</strong> para manter qualificação
               </span>
-            </div>
-          ) : isQualified ? (
-            <div className="text-xs text-success font-medium">
-              ✓ Você está qualificado ({userBidsInAuction}/{minBids} lances)
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Sua qualificação:</span>
-                <span className="font-medium text-foreground">{userBidsInAuction}/{minBids}</span>
-              </div>
-              <Progress value={(userBidsInAuction / minBids) * 100} className="h-1.5 [&>div]:bg-accent" />
             </div>
           )}
         </div>

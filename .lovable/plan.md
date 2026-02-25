@@ -1,59 +1,70 @@
 
 
-# Correção: "Próximo +R$" sem valor
-
-## Problema
-
-A label "Próximo +R$:" não mostra o valor real do incremento (ex: R$0,20) porque o hook `useFuryVault` não busca o campo `accumulation_value` da tabela `fury_vault_config`. O resultado é um texto incompleto: "Próximo +R$:" seguido de nada, com apenas "3 lances" no lado direito.
+# Fix: Qualificação do Cofre Fúria não atualiza em tempo real
 
 ## Causa Raiz
 
-No `useFuryVault.ts`, linha 67, a query seleciona apenas 4 campos:
+Dois bugs identificados:
+
+### Bug 1 — Replica Identity (Database)
+
+A tabela `fury_vault_qualifications` tem `REPLICA IDENTITY DEFAULT` (apenas primary key). Isso significa que em eventos UPDATE no WAL, o registro antigo só contém a coluna `id`. O filtro Realtime `user_id=eq.{userId}` precisa encontrar `user_id` no registro para fazer o match.
+
+- **INSERT** (primeiro lance): todos os campos estão disponíveis, filtro funciona
+- **UPDATE** (lances seguintes): `user_id` não está no old record, filtro falha silenciosamente
+
+Comparação: a tabela `auctions` tem `REPLICA IDENTITY FULL` — por isso o Realtime dela funciona perfeitamente.
+
+### Bug 2 — Stale Closure + Channel Recreation (Frontend)
+
+```text
+Linha 165:  if (data.instance && newQual.vault_instance_id !== data.instance.id) return;
+Linha 200:  }, [auctionId, user?.id, data.instance?.id]);
 ```
-.select('accumulation_interval, min_bids_to_qualify, is_active, recency_seconds')
-```
-Falta `accumulation_value` (o valor em reais adicionado a cada intervalo de lances).
+
+- `data.instance` na closure é capturado no momento que o useEffect executa
+- `data.instance?.id` no array de dependências causa teardown/recreação do canal quando a instância carrega (undefined → UUID), arriscando perda de eventos durante a transição
+- Solução: usar um `useRef` para armazenar o instance ID, removendo-o das dependências
 
 ## Correções
 
-### 1. `src/hooks/useFuryVault.ts`
+### 1. Migration SQL
 
-- Adicionar `accumulation_value` na query do config (linha 67)
-- Adicionar `accumulation_value` na interface `FuryVaultConfig`
+```sql
+ALTER TABLE fury_vault_qualifications REPLICA IDENTITY FULL;
+```
 
-### 2. `src/components/FuryVaultDisplay.tsx`
+Uma linha. Garante que UPDATE events incluam todos os campos no WAL, permitindo que o filtro `user_id` funcione.
 
-- Linha 134: Trocar `<span>Próximo +R$:</span>` por `<span>Próximo {formatPrice(config.accumulation_value)}:</span>`
-- Isso exibirá, por exemplo: **"Próximo R$0,20:"** seguido de **"3 lances"**
+### 2. Refatorar `useFuryVault.ts`
 
-### 3. Correções adicionais (do plano anterior aprovado)
+Mudanças cirúrgicas:
 
-- Cor das barras de progresso: adicionar `[&>div]:bg-accent` nas duas barras `Progress` (linhas 137 e 167) para ficarem douradas em vez de vermelhas
-- Plural: corrigir "1 qualificados" → "1 qualificado" (linha 146)
-
-## Resultado Visual Esperado
+- Adicionar `const instanceIdRef = useRef<string | null>(null)` para rastrear o instance ID
+- Atualizar o ref no fetchData e no listener de `fury_vault_instances`
+- Na closure do listener de qualifications, usar `instanceIdRef.current` ao invés de `data.instance.id`
+- Remover `data.instance?.id` do array de dependências do useEffect (evita recreação desnecessária do canal)
 
 ```text
-┌───────────────────────────────────┐
-│ 🔒 Cofre Fúria          R$25,60  │
-│                                   │
-│ Próximo R$0,20:                   │
-│ [████████████████████░░░] 3 lances│
-│                                   │
-│ 👥 1 qualificado                  │
-│ ✓ Você está qualificado (24/15)   │
-└───────────────────────────────────┘
+Antes:
+  deps: [auctionId, user?.id, data.instance?.id]  ← causa teardown/recreate
+  check: data.instance.id                          ← stale closure
+
+Depois:
+  deps: [auctionId, user?.id]                      ← canal estável
+  check: instanceIdRef.current                     ← sempre atualizado
 ```
 
 ## Arquivos Alterados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/hooks/useFuryVault.ts` | Adicionar `accumulation_value` na query e interface |
-| `src/components/FuryVaultDisplay.tsx` | Mostrar valor do incremento, cor accent nas barras, plural correto |
+| Nova migration SQL | `REPLICA IDENTITY FULL` em `fury_vault_qualifications` |
+| `src/hooks/useFuryVault.ts` | Ref para instance ID + remover dep do useEffect |
 
 ## Sem Impacto Em
 
-- Nenhuma funcionalidade alterada
-- Nenhum outro componente ou workflow afetado
+- `FuryVaultDisplay.tsx` — nenhuma mudança
+- Outros componentes ou workflows — nenhum
+- Performance Realtime — `REPLICA IDENTITY FULL` aumenta marginalmente o tamanho do WAL para esta tabela, mas o volume é baixo (1 update por lance, mesma escala que `auctions`)
 
