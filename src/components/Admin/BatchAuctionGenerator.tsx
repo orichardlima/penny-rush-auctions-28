@@ -178,20 +178,27 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
 
       if (error) throw error;
 
-      // Create fury vault instances for each auction
+      // Create fury vault instances for each auction with config snapshot
       if (data && data.length > 0) {
         const { data: vaultConfig } = await supabase
           .from('fury_vault_config')
-          .select('default_initial_value, max_cap_value, is_active')
+          .select('*')
           .eq('is_active', true)
           .maybeSingle();
 
         if (vaultConfig?.is_active) {
+          const vcAny = vaultConfig as any;
+          // Calculate effective cap: LEAST of both caps
+          const effectiveCap = vcAny.max_cap_type === 'percentage_of_volume'
+            ? Math.min(vcAny.max_cap_value, vcAny.max_cap_absolute || 9999999)
+            : Math.min(vcAny.max_cap_value, vcAny.max_cap_absolute || 9999999);
+
           const vaultInstances = data.map((auction: any) => ({
             auction_id: auction.id,
             initial_value: vaultConfig.default_initial_value || 0,
             current_value: vaultConfig.default_initial_value || 0,
-            max_cap: vaultConfig.max_cap_value || 500,
+            max_cap: effectiveCap,
+            config_snapshot: vaultConfig,
           }));
 
           const { error: vaultError } = await supabase

@@ -115,12 +115,29 @@ export const FuryVaultUserSection: React.FC = () => {
       return;
     }
 
+    // Client-side anti-abuse validations
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('cpf, is_blocked')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profile?.is_blocked) {
+      toast({ title: 'Conta bloqueada', description: 'Sua conta está bloqueada. Entre em contato com o suporte.', variant: 'destructive' });
+      return;
+    }
+
+    if (!profile?.cpf || profile.cpf.trim() === '') {
+      toast({ title: 'CPF obrigatório', description: 'Complete seu cadastro (CPF) para solicitar saques.', variant: 'destructive' });
+      return;
+    }
+
     setWithdrawing(true);
     try {
-      // We need a source vault - use the most recent completed vault the user won from
       const recentWin = wins[0];
       if (!recentWin) {
         toast({ title: 'Erro', description: 'Nenhum prêmio encontrado para saque.', variant: 'destructive' });
+        setWithdrawing(false);
         return;
       }
 
@@ -133,15 +150,20 @@ export const FuryVaultUserSection: React.FC = () => {
           status: 'pending',
         });
 
-      if (error) throw error;
+      if (error) {
+        // Parse server-side trigger errors
+        const errorMsg = error.message || 'Erro ao solicitar saque.';
+        toast({ title: 'Erro', description: errorMsg, variant: 'destructive' });
+        return;
+      }
 
       toast({ title: 'Solicitação enviada!', description: `Saque de R$ ${amount.toFixed(2)} solicitado com sucesso.` });
       setWithdrawAmount('');
       setDialogOpen(false);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error requesting withdrawal:', error);
-      toast({ title: 'Erro', description: 'Erro ao solicitar saque.', variant: 'destructive' });
+      toast({ title: 'Erro', description: error?.message || 'Erro ao solicitar saque.', variant: 'destructive' });
     } finally {
       setWithdrawing(false);
     }
