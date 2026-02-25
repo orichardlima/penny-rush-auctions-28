@@ -24,6 +24,7 @@ interface FuryVaultInstance {
 
 interface FuryVaultConfig {
   accumulation_interval: number;
+  accumulation_value: number;
   min_bids_to_qualify: number;
   is_active: boolean;
   recency_seconds: number;
@@ -64,7 +65,7 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
           .maybeSingle(),
         supabase
           .from('fury_vault_config')
-          .select('accumulation_interval, min_bids_to_qualify, is_active, recency_seconds')
+          .select('accumulation_interval, accumulation_value, min_bids_to_qualify, is_active, recency_seconds')
           .eq('is_active', true)
           .maybeSingle(),
       ]);

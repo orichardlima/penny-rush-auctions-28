@@ -131,10 +131,10 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, ends
       {auctionStatus === 'active' && (
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Próximo +R$:</span>
+            <span>Próximo {formatPrice(config?.accumulation_value ?? 0)}:</span>
             <span className="font-medium text-foreground">{bidsRemaining} lances</span>
           </div>
-          <Progress value={progressPercent} className="h-1.5" />
+          <Progress value={progressPercent} className="h-1.5 [&>div]:bg-accent" />
         </div>
       )}
 
@@ -143,7 +143,7 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, ends
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="w-3.5 h-3.5" />
-            <span>{qualifiedCount > 50 ? '50+' : qualifiedCount} qualificados</span>
+            <span>{qualifiedCount > 50 ? '50+' : qualifiedCount} {qualifiedCount === 1 ? 'qualificado' : 'qualificados'}</span>
           </div>
 
           {/* Recency countdown replaces qualification status */}
@@ -164,7 +164,7 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, ends
                 <span>Sua qualificação:</span>
                 <span className="font-medium text-foreground">{userBidsInAuction}/{minBids}</span>
               </div>
-              <Progress value={(userBidsInAuction / minBids) * 100} className="h-1.5" />
+              <Progress value={(userBidsInAuction / minBids) * 100} className="h-1.5 [&>div]:bg-accent" />
             </div>
           )}
         </div>
