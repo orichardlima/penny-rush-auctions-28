@@ -38,6 +38,8 @@ import { SignupBonusWelcome } from '@/components/SignupBonusWelcome';
 import { UserOrders } from '@/components/UserOrders';
 import { PersonalAnalytics } from '@/components/PersonalAnalytics';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import { FuryVaultUserSection } from '@/components/FuryVaultUserSection';
+import { FuryVaultStats } from '@/components/FuryVaultStats';
 
 interface Bid {
   id: string;
@@ -364,12 +366,13 @@ const UserDashboard = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={isMobile 
             ? "flex w-full overflow-x-auto overflow-y-hidden scrollbar-hide" 
-            : "grid w-full grid-cols-9"
+            : "grid w-full grid-cols-10"
           }>
             <TabsTrigger value="overview" className={isMobile ? "flex-shrink-0" : ""}>Visão Geral</TabsTrigger>
             <TabsTrigger value="orders" className={isMobile ? "flex-shrink-0" : ""}>Pedidos</TabsTrigger>
             <TabsTrigger value="bids" className={isMobile ? "flex-shrink-0" : ""}>Lances</TabsTrigger>
             <TabsTrigger value="auctions" className={isMobile ? "flex-shrink-0" : ""}>Leilões</TabsTrigger>
+            <TabsTrigger value="vault" className={isMobile ? "flex-shrink-0" : ""}>Cofre Fúria</TabsTrigger>
             <TabsTrigger value="financial" className={isMobile ? "flex-shrink-0" : ""}>Financeiro</TabsTrigger>
             <TabsTrigger value="packages" className={isMobile ? "flex-shrink-0" : ""}>Pacotes</TabsTrigger>
             <TabsTrigger value="analytics" className={isMobile ? "flex-shrink-0" : ""}>Analytics</TabsTrigger>
@@ -536,6 +539,11 @@ const UserDashboard = () => {
 
           <TabsContent value="auctions">
             <AuctionHistory />
+          </TabsContent>
+
+          <TabsContent value="vault" className="space-y-6">
+            <FuryVaultUserSection />
+            <FuryVaultStats />
           </TabsContent>
 
           <TabsContent value="financial">

@@ -85,12 +85,12 @@ Uma **linha de configuração padrão** foi inserida automaticamente com os valo
 
 ---
 
-## O que NÃO foi implantado ainda
+## Implantado nesta iteração
 
 | Item | Status |
 |---|---|
-| Tela admin para editar `fury_vault_config` (`FuryVaultConfigManager`) | Pendente |
-| Seção de saque no dashboard do usuário | Pendente |
-| Campo `fury_vault_balance` em `profiles` (saldo dedicado) | Não criado; prêmios vão para `bids_balance` |
-| Estatísticas visuais (recorde, ranking) | Estrutura pronta, sem UI |
+| Tela admin para editar `fury_vault_config` (`FuryVaultConfigManager`) | ✅ Implementado |
+| Seção de saque no dashboard do usuário (`FuryVaultUserSection`) | ✅ Implementado |
+| Estatísticas visuais (recorde, ranking) (`FuryVaultStats`) | ✅ Implementado |
+| Campo `fury_vault_balance` em `profiles` (saldo dedicado) | Não criado; prêmios vão para `bids_balance`, saldo calculado via logs |
 
