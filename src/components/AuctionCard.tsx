@@ -289,29 +289,20 @@ export const AuctionCard = ({
               <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
               <span aria-label={`Total de ${displayTotalBids} lances`}>{displayTotalBids} lances</span>
             </div>
+            {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
+              <div className="flex items-center text-muted-foreground">
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
+                {displayStatus === 'active' ? `Ativo há ${getActiveTime()}` : `Duração: ${getActiveTime()}`}
+              </div>
+            )}
           </div>
 
-          {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
-          displayStatus === 'active' ?
-          <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-                Ativo há {getActiveTime()}
-              </div> :
-
-          <div className="space-y-1">
-                <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-                  Duração total: {getActiveTime()}
-                </div>
-                {finished_at &&
+          {displayStatus === 'finished' && finished_at && (
             <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-                    Encerrado às {formatDateTime(finished_at)}
-                  </div>
-            }
-              </div>)
-
-          }
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
+              Encerrado às {formatDateTime(finished_at)}
+            </div>
+          )}
 
           {displayRecentBidders.length > 0 &&
           <div className="pt-2 border-t border-border">
