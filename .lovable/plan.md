@@ -1,37 +1,34 @@
 
 
-# Mover tempo de atividade para ao lado dos lances totais
+# Mover "Economia" para a linha dos lances e tempo ativo
 
 ## Mudança
 
-Colocar o "Ativo há Xh Xmin" (ou "Duração total: Xh Xmin") na mesma linha dos lances totais, dentro do `grid grid-cols-2` que já existe nas linhas 287-292.
+Transformar o grid de `grid-cols-2` em `grid-cols-3` e adicionar o "Economia: X% OFF" como terceiro item na mesma linha.
 
-## Antes (linhas 287-313)
+## Antes
 
 ```text
-┌──────────────────────────────┐
-│ ✏ 2778 lances                │  ← grid com 1 item só
-├──────────────────────────────┤
-│ ⏰ Ativo há 8h 6min           │  ← bloco separado abaixo
-└──────────────────────────────┘
+Economia:                    100% OFF   ← linha própria
+✏ 2792 lances    ⏰ Ativo há 8h 10min   ← grid-cols-2
 ```
 
 ## Depois
 
 ```text
-┌──────────────────────────────────────┐
-│ ✏ 2778 lances    ⏰ Ativo há 8h 6min │  ← mesma linha no grid
-└──────────────────────────────────────┘
+✏ 2792 lances    ⏰ Ativo há 8h 10min    100% OFF   ← grid-cols-3, tudo numa linha
 ```
 
-Para leilões finalizados, a segunda coluna mostra "Duração: Xh Xmin" e a linha "Encerrado às..." fica abaixo do grid.
+## Alteração em `src/components/AuctionCard.tsx`
 
-## Arquivo alterado
-
-`src/components/AuctionCard.tsx` — linhas 287-313:
-- Mover o conteúdo de "Ativo há" / "Duração total" para dentro do `grid grid-cols-2` como segundo item
-- Remover o bloco separado que hoje ocupa uma linha própria
-- Manter o "Encerrado às..." como linha separada para leilões finalizados (informação extra)
+- **Remover** o bloco da "Economia" (linhas 282-285) que ocupa uma linha inteira
+- **Alterar** o grid de `grid-cols-2` para `grid-cols-3` (linha 287)
+- **Adicionar** o "Economia" como terceiro item do grid:
+  ```tsx
+  <div className="flex items-center justify-end text-muted-foreground">
+    <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
+  </div>
+  ```
 
 Nenhum outro arquivo é alterado.
 
