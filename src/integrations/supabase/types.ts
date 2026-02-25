@@ -969,6 +969,7 @@ export type Database = {
           hybrid_top_percentage: number
           id: string
           is_active: boolean
+          max_cap_absolute: number
           max_cap_type: string
           max_cap_value: number
           max_monthly_withdrawal_pct: number
@@ -994,6 +995,7 @@ export type Database = {
           hybrid_top_percentage?: number
           id?: string
           is_active?: boolean
+          max_cap_absolute?: number
           max_cap_type?: string
           max_cap_value?: number
           max_monthly_withdrawal_pct?: number
@@ -1019,6 +1021,7 @@ export type Database = {
           hybrid_top_percentage?: number
           id?: string
           is_active?: boolean
+          max_cap_absolute?: number
           max_cap_type?: string
           max_cap_value?: number
           max_monthly_withdrawal_pct?: number
@@ -1035,6 +1038,7 @@ export type Database = {
       fury_vault_instances: {
         Row: {
           auction_id: string
+          config_snapshot: Json | null
           created_at: string
           current_value: number
           distributed_at: string | null
@@ -1053,6 +1057,7 @@ export type Database = {
         }
         Insert: {
           auction_id: string
+          config_snapshot?: Json | null
           created_at?: string
           current_value?: number
           distributed_at?: string | null
@@ -1071,6 +1076,7 @@ export type Database = {
         }
         Update: {
           auction_id?: string
+          config_snapshot?: Json | null
           created_at?: string
           current_value?: number
           distributed_at?: string | null
@@ -2308,7 +2314,14 @@ export type Database = {
         Args: { p_referral_code: string; p_referred_contract_id: string }
         Returns: Json
       }
-      fury_vault_distribute: { Args: { p_auction_id: string }; Returns: Json }
+      fury_vault_distribute: {
+        Args: { p_auction_id: string }
+        Returns: undefined
+      }
+      fury_vault_on_bid: {
+        Args: { p_auction_id: string; p_bid_number: number }
+        Returns: undefined
+      }
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
