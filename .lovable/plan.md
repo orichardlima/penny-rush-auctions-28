@@ -1,96 +1,184 @@
 
 
-# Detalhamento do que foi implantado -- Cofre Furia
+# Plano de Implementacao -- Ajustes Estrategicos do Cofre Furia
 
-## Banco de Dados (Migration SQL)
+## Escopo Total
 
-Foram criadas **5 tabelas** e **2 funções** no banco:
+7 mudancas organizadas em 3 categorias: banco de dados, backend SQL, e frontend.
 
-### Tabelas
+---
 
-| Tabela | Finalidade | RLS |
+## 1. Migration SQL (uma unica migration)
+
+### 1.1 Novo campo `config_snapshot` em `fury_vault_instances`
+
+```sql
+ALTER TABLE fury_vault_instances
+  ADD COLUMN config_snapshot jsonb NULL;
+```
+
+Armazena uma copia congelada da `fury_vault_config` no momento da criacao do leilao. O trigger e o RPC passam a ler daqui em vez da tabela global.
+
+### 1.2 Novo campo `max_cap_absolute` em `fury_vault_config`
+
+```sql
+ALTER TABLE fury_vault_config
+  ADD COLUMN max_cap_absolute numeric NOT NULL DEFAULT 50;
+```
+
+Teto de seguranca absoluto. Quando `max_cap_type = 'percentage_of_volume'`, o sistema calcula o teto percentual e aplica `LEAST(percentual_calculado, max_cap_absolute)`. Quando `max_cap_type = 'absolute'`, usa `max_cap_value` direto (o campo `max_cap_absolute` fica como backup).
+
+### 1.3 Atualizar preset inicial da config existente
+
+```sql
+UPDATE fury_vault_config SET
+  accumulation_type = 'fixed_per_x_bids',
+  accumulation_value = 0.20,
+  accumulation_interval = 20,
+  default_initial_value = 0,
+  max_cap_type = 'percentage_of_volume',
+  max_cap_value = 6,
+  max_cap_absolute = 50,
+  min_bids_to_qualify = 15,
+  recency_seconds = 60,
+  distribution_mode = 'hybrid',
+  hybrid_top_percentage = 50,
+  hybrid_raffle_percentage = 50,
+  fury_mode_enabled = true,
+  fury_mode_seconds = 120,
+  fury_mode_multiplier = 2
+WHERE is_active = true;
+```
+
+### 1.4 Recriar `fury_vault_on_bid()` -- Ler do snapshot + modo percentual + teto duplo
+
+Mudancas na funcao trigger:
+
+- Em vez de `SELECT * FROM fury_vault_config`, ler `v_instance.config_snapshot` e parsear os campos.
+- Adicionar bloco `ELSIF accumulation_type = 'percentage'` que calcula `v_increment := (NEW.cost_paid * snapshot.accumulation_value / 100) * v_multiplier`.
+- Para o cap: calcular `effective_cap` como `LEAST(snapshot.max_cap_value_calculated, snapshot.max_cap_absolute)`.
+- Na qualificacao do usuario, ler `min_bids_to_qualify` do snapshot.
+
+### 1.5 Recriar `fury_vault_distribute()` -- Ler do snapshot + desempate deterministico + auditoria enriquecida
+
+Mudancas na funcao RPC:
+
+- Ler config do `config_snapshot` do instance em vez da tabela global.
+- Desempate do top participante: `ORDER BY total_bids_in_auction DESC, last_bid_at DESC, user_id ASC` (mais lances > lance mais recente > user_id menor como tiebreaker deterministico).
+- Nos logs de distribuicao, incluir `user_name` (JOIN com profiles.full_name) e `auction_title` (do v_auction.title) no campo `details`.
+- Adicionar log `distribution_summary` com o calculo completo da divisao.
+
+### 1.6 Anti-abuso de saque -- Validacao reforçada via trigger
+
+Criar trigger `BEFORE INSERT` na tabela `fury_vault_withdrawals` que valida:
+
+1. **Conta bloqueada**: rejeita se `profiles.is_blocked = true`.
+2. **CPF obrigatorio**: rejeita se `profiles.cpf IS NULL`.
+3. **Chave PIX unica**: verifica se outra conta com mesmo CPF ja tem saques pendentes/processados (previne multiplas contas).
+4. **Saque minimo**: compara com `config_snapshot` ou `fury_vault_config`.
+5. **Cooldown**: verifica se ja existe saque do mesmo usuario nos ultimos X dias.
+6. **Limite mensal**: calcula percentual sacado no mes corrente vs total ganho.
+
+Isso garante validacao server-side que nao pode ser burlada pelo frontend.
+
+---
+
+## 2. Frontend -- Mudancas
+
+### 2.1 `FuryVaultDisplay.tsx` -- UX aprimorada
+
+- Mostrar "Faltam **X** lances para proximo incremento" (ja existe parcialmente, refinar calculo usando `totalBids` e `config.accumulation_interval`).
+- Exibir status de qualificacao com detalhe: "X/15 lances" + badge "Qualificado" ou "Faltam Y lances".
+- Adicionar countdown de recency: quando o leilao tem `ends_at`, mostrar "Lance nos ultimos 60s para manter qualificacao" com indicador visual.
+- Valor do cofre exibido com 2 casas decimais (R$ XX,XX) -- ja esta assim, manter.
+
+### 2.2 `FuryVaultConfigManager.tsx` -- Campo teto absoluto + aviso
+
+- Adicionar campo "Teto absoluto de seguranca (R$)" (`max_cap_absolute`) que aparece sempre (independente do tipo de teto).
+- Exibir nota explicativa: "O sistema sempre aplica o menor entre o teto configurado e o teto absoluto."
+- Ao salvar, consultar se existem `fury_vault_instances` com `status = 'accumulating'`. Se sim, exibir alerta: "Existem X leiloes ativos. Alteracoes so afetam leiloes futuros."
+- Adicionar interface do `VaultConfig` o campo `max_cap_absolute`.
+
+### 2.3 `BatchAuctionGenerator.tsx` -- Gravar snapshot
+
+Ao criar vault instances, buscar a config completa (todos os campos) e gravar como `config_snapshot` jsonb no insert:
+
+```typescript
+const vaultInstances = data.map((auction) => ({
+  auction_id: auction.id,
+  initial_value: vaultConfig.default_initial_value || 0,
+  current_value: vaultConfig.default_initial_value || 0,
+  max_cap: effectiveCap, // LEAST dos dois tetos
+  config_snapshot: vaultConfig, // copia completa
+}));
+```
+
+### 2.4 `FuryVaultUserSection.tsx` -- Validacao anti-abuso no modal de saque
+
+- Antes de permitir saque, validar client-side: CPF preenchido, conta nao bloqueada.
+- Mostrar mensagem clara se bloqueado: "Complete seu cadastro (CPF) para solicitar saques."
+- Validar cooldown client-side (ultima solicitacao vs dias configurados).
+- O trigger SQL garante a validacao server-side como camada final.
+
+### 2.5 `useFuryVault.ts` -- Retornar `bidsUntilNextIncrement` correto
+
+Corrigir calculo de `bidsUntilNextIncrement` usando `totalBids` (que vem do AuctionCard) em vez de estimar do `last_increment_at_bid`. Adicionar campo `recencySeconds` do config para o countdown de recency.
+
+---
+
+## 3. Nenhuma alteracao em
+
+- `FuryVaultStats.tsx` (sem mudanca)
+- Edge Function `sync-timers-and-protection` (sem mudanca, ja chama o RPC que sera atualizado)
+- Nenhuma outra tela/componente existente
+
+---
+
+## Resumo das alteracoes por arquivo
+
+| Arquivo | Tipo | Descricao |
 |---|---|---|
-| `fury_vault_config` | Configuração global (tipo de acúmulo, intervalo, teto, modo fúria, distribuição, regras de saque) | Admins: ALL / Autenticados: SELECT |
-| `fury_vault_instances` | Estado do cofre por leilão (valor atual, teto, status, vencedores) | Admins: ALL / Todos: SELECT |
-| `fury_vault_logs` | Histórico de eventos (incrementos, distribuições, ativação do modo fúria) | Admins: ALL / Todos: SELECT |
-| `fury_vault_qualifications` | Qualificação por usuário por cofre (total de lances, último lance, se qualificado) | Admins: ALL / Todos: SELECT |
-| `fury_vault_withdrawals` | Saques de prêmios do cofre | Admins: ALL / Próprio usuário: SELECT + INSERT |
-
-Uma **linha de configuração padrão** foi inserida automaticamente com os valores:
-- Acúmulo: R$ 0,20 a cada 20 lances
-- Teto: R$ 500 (absoluto)
-- Qualificação: mínimo 15 lances + lance nos últimos 60 segundos
-- Distribuição: híbrida 50/50 (top participante + sorteio)
-- Modo Fúria: desativado (configurável para últimos 120s com multiplicador 2x)
-- Saque: mínimo R$ 100, máx 50% mensal, cooldown 30 dias, 3 dias processamento
-
-### Funções SQL
-
-1. **`fury_vault_on_bid()`** -- Trigger AFTER INSERT na tabela `bids`
-   - Busca o vault_instance do leilão
-   - Conta total de lances do leilão
-   - Verifica Modo Fúria (últimos X segundos antes de `ends_at`)
-   - A cada X lances (módulo do intervalo), incrementa `current_value` respeitando o teto
-   - Faz upsert na qualificação do usuário (contagem + timestamp)
-   - Registra logs de incremento, ativação de fúria e teto atingido
-
-2. **`fury_vault_distribute(p_auction_id)`** -- Chamada via RPC pela Edge Function
-   - Atualiza qualificações com base em recência (lance nos últimos Y segundos antes de `finished_at`)
-   - Conta qualificados; se zero, marca como completed sem distribuir
-   - Encontra top participante qualificado (mais lances)
-   - Calcula valores conforme modo de distribuição (100% top, 100% sorteio, ou híbrido)
-   - Sorteio auditável: usa `md5(seed || user_id)` com seed de `gen_random_uuid()`
-   - Credita valores em `profiles.bids_balance`
-   - Registra tudo em `fury_vault_logs`
-   - Atualiza instance com vencedores e status `completed`
-
-### Realtime
-
-- `fury_vault_instances` adicionada à publicação `supabase_realtime` para atualizações em tempo real no frontend.
+| Migration SQL | DB | 6 operacoes: add columns, update preset, recriar 2 funcoes, criar trigger anti-abuso |
+| `BatchAuctionGenerator.tsx` | Frontend | Gravar config_snapshot ao criar vaults |
+| `FuryVaultConfigManager.tsx` | Frontend | Campo max_cap_absolute + aviso leiloes ativos |
+| `FuryVaultDisplay.tsx` | Frontend | "Faltam X lances", countdown recency, status qualificacao |
+| `FuryVaultUserSection.tsx` | Frontend | Validacao anti-abuso no modal de saque |
+| `useFuryVault.ts` | Frontend | Corrigir bidsUntilNextIncrement + recencySeconds |
 
 ---
 
-## Frontend
+## Secao Tecnica -- Detalhes de Implementacao
 
-### Hook: `src/hooks/useFuryVault.ts`
-- Busca `fury_vault_instances` e `fury_vault_config` para um `auctionId`
-- Busca contagem de qualificados e qualificação do usuário atual
-- Subscription Realtime na tabela `fury_vault_instances` (atualiza valor do cofre em tempo real)
-- Retorna: `currentValue`, `isFuryMode`, `qualifiedCount`, `isQualified`, `userBidsInAuction`, `hasVault`, `status`
+### Trigger anti-abuso (`validate_fury_vault_withdrawal`)
 
-### Componente: `src/components/FuryVaultDisplay.tsx`
-- Exibido dentro do `AuctionCard` quando existe vault instance e config ativo
-- **Leilão ativo**: mostra valor do cofre, barra de progresso até próximo incremento, contagem de qualificados, badge de qualificação do usuário, indicador visual de Modo Fúria (borda vermelha pulsante)
-- **Leilão finalizado**: mostra valor final, prêmio do top participante e do sorteio
+```text
+BEFORE INSERT ON fury_vault_withdrawals
+FOR EACH ROW:
+  1. SELECT is_blocked, cpf FROM profiles WHERE user_id = NEW.user_id
+  2. IF is_blocked → RAISE EXCEPTION 'Conta bloqueada'
+  3. IF cpf IS NULL → RAISE EXCEPTION 'CPF obrigatorio'
+  4. SELECT COUNT(*) FROM fury_vault_withdrawals
+     WHERE user_id != NEW.user_id
+     AND status IN ('pending','processing','completed')
+     AND user_id IN (SELECT user_id FROM profiles WHERE cpf = v_cpf)
+     → Se > 0 → RAISE EXCEPTION 'CPF ja utilizado em outra conta'
+  5. SELECT MAX(created_at) FROM fury_vault_withdrawals
+     WHERE user_id = NEW.user_id AND status != 'rejected'
+     → Se dentro do cooldown → RAISE EXCEPTION
+  6. Calcular total sacado no mes / total ganho
+     → Se excede max_monthly_withdrawal_pct → RAISE EXCEPTION
+```
 
-### Integração: `src/components/AuctionCard.tsx`
-- `FuryVaultDisplay` renderizado abaixo dos dados de preço/lances e acima do botão de lance
-- Recebe `auctionId`, `auctionStatus` e `totalBids` como props
-- Nenhuma outra alteração no card
+### Desempate Top Participante
 
----
+```sql
+ORDER BY total_bids_in_auction DESC,  -- mais lances primeiro
+         last_bid_at DESC,             -- lance mais recente primeiro
+         user_id ASC                   -- deterministico por UUID
+LIMIT 1;
+```
 
-## Edge Function: `sync-timers-and-protection`
+### Snapshot -- Campos congelados
 
-- Nova função auxiliar `distributeFuryVault()` adicionada
-- Chama `supabase.rpc('fury_vault_distribute', { p_auction_id })` sempre que um leilão é finalizado (por timer, preço máximo ou meta de receita)
-- Logs no console indicando sucesso/erro da distribuição
-
----
-
-## Automação: `BatchAuctionGenerator.tsx`
-
-- Após criar leilões em lote, busca a `fury_vault_config` ativa
-- Se ativa, cria automaticamente um `fury_vault_instance` para cada leilão com `initial_value` e `max_cap` da config global
-
----
-
-## Implantado nesta iteração
-
-| Item | Status |
-|---|---|
-| Tela admin para editar `fury_vault_config` (`FuryVaultConfigManager`) | ✅ Implementado |
-| Seção de saque no dashboard do usuário (`FuryVaultUserSection`) | ✅ Implementado |
-| Estatísticas visuais (recorde, ranking) (`FuryVaultStats`) | ✅ Implementado |
-| Campo `fury_vault_balance` em `profiles` (saldo dedicado) | Não criado; prêmios vão para `bids_balance`, saldo calculado via logs |
+O `config_snapshot` jsonb contera todos os campos da `fury_vault_config` no momento da criacao. Os campos relevantes lidos pelo trigger: `accumulation_type`, `accumulation_value`, `accumulation_interval`, `max_cap_value`, `max_cap_absolute`, `max_cap_type`, `min_bids_to_qualify`, `recency_seconds`, `fury_mode_enabled`, `fury_mode_seconds`, `fury_mode_multiplier`, `distribution_mode`, `hybrid_top_percentage`, `hybrid_raffle_percentage`.
 
