@@ -23,6 +23,7 @@ interface FuryVaultConfig {
   accumulation_interval: number;
   min_bids_to_qualify: number;
   is_active: boolean;
+  recency_seconds: number;
 }
 
 interface FuryVaultData {
@@ -34,7 +35,7 @@ interface FuryVaultData {
   loading: boolean;
 }
 
-export const useFuryVault = (auctionId: string) => {
+export const useFuryVault = (auctionId: string, totalBids?: number) => {
   const { user } = useAuth();
   const [data, setData] = useState<FuryVaultData>({
     instance: null,
@@ -47,7 +48,6 @@ export const useFuryVault = (auctionId: string) => {
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetch instance + config + qualifications in parallel
       const [instanceRes, configRes] = await Promise.all([
         supabase
           .from('fury_vault_instances')
@@ -56,7 +56,7 @@ export const useFuryVault = (auctionId: string) => {
           .maybeSingle(),
         supabase
           .from('fury_vault_config')
-          .select('accumulation_interval, min_bids_to_qualify, is_active')
+          .select('accumulation_interval, min_bids_to_qualify, is_active, recency_seconds')
           .eq('is_active', true)
           .maybeSingle(),
       ]);
@@ -138,25 +138,11 @@ export const useFuryVault = (auctionId: string) => {
     };
   }, [auctionId]);
 
-  // Derived values
-  const nextIncrementIn = data.config && data.instance
-    ? data.config.accumulation_interval - ((data.instance.last_increment_at_bid || 0) % data.config.accumulation_interval === 0
-        ? 0
-        : (data.instance.last_increment_at_bid || 0) % data.config.accumulation_interval)
-    : null;
-
-  // Calculate how many bids until next increment based on total auction bids
-  const bidsUntilNextIncrement = data.config && data.instance
-    ? (() => {
-        const interval = data.config.accumulation_interval;
-        const lastBid = data.instance.last_increment_at_bid || 0;
-        // We need to estimate total bids from last_increment_at_bid
-        // The next increment happens at lastBid + interval
-        const nextAt = lastBid + interval;
-        // We don't have total_bids on instance, so approximate from increments
-        return Math.max(interval - (lastBid > 0 ? 0 : 0), 0);
-      })()
-    : null;
+  // Correct bidsUntilNextIncrement using totalBids prop
+  const interval = data.config?.accumulation_interval ?? 20;
+  const currentTotalBids = totalBids ?? 0;
+  const bidsIntoCurrentInterval = currentTotalBids > 0 ? currentTotalBids % interval : 0;
+  const bidsUntilNextIncrement = bidsIntoCurrentInterval === 0 && currentTotalBids > 0 ? 0 : interval - bidsIntoCurrentInterval;
 
   return {
     ...data,
@@ -167,7 +153,8 @@ export const useFuryVault = (auctionId: string) => {
     topBidderAmount: data.instance?.top_bidder_amount ?? 0,
     rafflWinnerAmount: data.instance?.raffle_winner_amount ?? 0,
     hasVault: !!data.instance,
-    nextIncrementIn,
+    bidsUntilNextIncrement,
+    recencySeconds: data.config?.recency_seconds ?? 60,
     refetch: fetchData,
   };
 };

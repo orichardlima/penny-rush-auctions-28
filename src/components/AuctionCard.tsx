@@ -337,6 +337,7 @@ export const AuctionCard = ({
             auctionId={id}
             auctionStatus={displayStatus}
             totalBids={displayTotalBids}
+            endsAt={ends_at}
           />
         </div>
 

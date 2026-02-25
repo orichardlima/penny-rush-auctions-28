@@ -20,6 +20,7 @@ interface VaultConfig {
   default_initial_value: number;
   max_cap_type: string;
   max_cap_value: number;
+  max_cap_absolute: number;
   min_bids_to_qualify: number;
   recency_seconds: number;
   distribution_mode: string;
@@ -44,6 +45,7 @@ const defaultConfig: VaultConfig = {
   default_initial_value: 0,
   max_cap_type: 'absolute',
   max_cap_value: 500,
+  max_cap_absolute: 50,
   min_bids_to_qualify: 15,
   recency_seconds: 60,
   distribution_mode: 'hybrid',
@@ -79,7 +81,7 @@ export const FuryVaultConfigManager: React.FC = () => {
 
       if (error) throw error;
       if (data) {
-        setConfig(data as VaultConfig);
+        setConfig(data as unknown as VaultConfig);
       }
     } catch (error) {
       console.error('Error fetching vault config:', error);
@@ -97,6 +99,22 @@ export const FuryVaultConfigManager: React.FC = () => {
         const total = config.hybrid_top_percentage + config.hybrid_raffle_percentage;
         if (Math.abs(total - 100) > 0.01) {
           toast({ title: 'Erro', description: 'Os percentuais híbridos devem somar 100%.', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Check for active auctions
+      const { count: activeCount } = await supabase
+        .from('fury_vault_instances')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'accumulating');
+
+      if (activeCount && activeCount > 0) {
+        const confirmed = window.confirm(
+          `Existem ${activeCount} leilão(ões) com cofre ativo. Alterações só afetam leilões futuros. Deseja continuar?`
+        );
+        if (!confirmed) {
           setSaving(false);
           return;
         }
@@ -232,6 +250,21 @@ export const FuryVaultConfigManager: React.FC = () => {
                 onChange={(e) => updateField('max_cap_value', Number(e.target.value))}
               />
             </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>Teto absoluto de segurança (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={config.max_cap_absolute}
+              onChange={(e) => updateField('max_cap_absolute', Number(e.target.value))}
+            />
+            <p className="text-xs text-muted-foreground">
+              O sistema sempre aplica o menor entre o teto configurado e o teto absoluto. Alterações só afetam leilões futuros.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFuryVault } from '@/hooks/useFuryVault';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Flame, Lock, Trophy, Gift, Users } from 'lucide-react';
+import { Flame, Lock, Trophy, Gift, Users, Timer } from 'lucide-react';
 
 interface FuryVaultDisplayProps {
   auctionId: string;
   auctionStatus?: string;
   totalBids?: number;
+  endsAt?: string | null;
 }
 
-export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0 }: FuryVaultDisplayProps) => {
+export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, endsAt }: FuryVaultDisplayProps) => {
   const {
     hasVault,
     currentValue,
@@ -22,7 +23,34 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0 }: Fu
     config,
     instance,
     loading,
-  } = useFuryVault(auctionId);
+    bidsUntilNextIncrement,
+    recencySeconds,
+  } = useFuryVault(auctionId, totalBids);
+
+  // Recency countdown state
+  const [recencyCountdown, setRecencyCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!endsAt || auctionStatus !== 'active' || !recencySeconds) return;
+
+    const updateCountdown = () => {
+      const endsAtDate = new Date(endsAt);
+      const now = new Date();
+      const secondsUntilEnd = (endsAtDate.getTime() - now.getTime()) / 1000;
+
+      if (secondsUntilEnd > 0 && secondsUntilEnd <= recencySeconds) {
+        setRecencyCountdown(Math.ceil(secondsUntilEnd));
+      } else if (secondsUntilEnd > recencySeconds) {
+        setRecencyCountdown(null);
+      } else {
+        setRecencyCountdown(0);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [endsAt, auctionStatus, recencySeconds]);
 
   if (loading || !hasVault || !config?.is_active) return null;
 
@@ -37,7 +65,7 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0 }: Fu
   const interval = config?.accumulation_interval ?? 20;
   const bidsIntoCurrentInterval = totalBids % interval;
   const progressPercent = (bidsIntoCurrentInterval / interval) * 100;
-  const bidsRemaining = interval - bidsIntoCurrentInterval;
+  const bidsRemaining = bidsUntilNextIncrement;
 
   // Finished auction: show results
   if (status === 'completed' && auctionStatus === 'finished') {
@@ -108,15 +136,27 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0 }: Fu
 
       {/* User qualification status */}
       {auctionStatus === 'active' && (
-        <div className="flex items-center gap-2">
-          {isQualified ? (
-            <Badge variant="default" className="text-xs bg-success text-success-foreground">
-              ✓ Você está qualificado
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-xs">
-              {userBidsInAuction}/{config?.min_bids_to_qualify ?? 15} lances para qualificar
-            </Badge>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            {isQualified ? (
+              <Badge variant="default" className="text-xs bg-success text-success-foreground">
+                ✓ Você está qualificado ({userBidsInAuction} lances)
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">
+                {userBidsInAuction}/{config?.min_bids_to_qualify ?? 15} lances para qualificar
+              </Badge>
+            )}
+          </div>
+
+          {/* Recency countdown */}
+          {recencyCountdown !== null && recencyCountdown > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+              <Timer className="w-3 h-3" />
+              <span>
+                Lance nos próximos <strong>{recencyCountdown}s</strong> para manter qualificação
+              </span>
+            </div>
           )}
         </div>
       )}
