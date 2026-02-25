@@ -77,7 +77,8 @@ import { AdminAffiliateManagement } from '@/components/AdminAffiliateManagement'
 import { ProductTemplatesManager } from '@/components/Admin/ProductTemplatesManager';
 import AdminPartnerManagement from '@/components/Admin/AdminPartnerManagement';
 import { Footer } from '@/components/Footer';
-import { Handshake, LayoutTemplate, Wallet } from 'lucide-react';
+import { Handshake, LayoutTemplate, Wallet, Flame } from 'lucide-react';
+import { FuryVaultConfigManager } from '@/components/Admin/FuryVaultConfigManager';
 
 interface Auction {
   id: string;
@@ -955,6 +956,10 @@ const AdminDashboard = () => {
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Config</span>
             </TabsTrigger>
+            <TabsTrigger value="vault-config" title="Cofre Fúria" className="flex items-center gap-2 shrink-0">
+              <Flame className="h-4 w-4" />
+              <span className="hidden sm:inline">Cofre</span>
+            </TabsTrigger>
             <TabsTrigger value="my-history" title="Histórico" className="flex items-center gap-2 shrink-0">
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Histórico</span>
@@ -1637,6 +1642,11 @@ const AdminDashboard = () => {
           {/* Nova aba: Configurações do Sistema */}
           <TabsContent value="settings" className="space-y-6">
             <SystemSettings />
+          </TabsContent>
+
+          {/* Cofre Fúria Config */}
+          <TabsContent value="vault-config" className="space-y-6">
+            <FuryVaultConfigManager />
           </TabsContent>
 
           {/* Nova aba: Afiliados */}
