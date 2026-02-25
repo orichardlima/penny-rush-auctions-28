@@ -178,7 +178,7 @@ export const AuctionCard = ({
       role="article"
       aria-labelledby={`auction-title-${id}`}
     >
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/10 to-muted/30">
+      <div className="relative aspect-[16/10] bg-gradient-to-br from-muted/10 to-muted/30">
         <img 
           src={image} 
           alt={`Imagem do produto: ${title}`}
@@ -239,16 +239,16 @@ export const AuctionCard = ({
         )}
       </div>
       
-      <div className="p-3 sm:p-6">
+      <div className="p-3 sm:p-4">
         <h3 
           id={`auction-title-${id}`}
-          className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground"
+          className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-foreground"
         >
           {title}
         </h3>
         
         {description && (
-          <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
+          <p className="text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2">
             {description}
           </p>
         )}
@@ -264,7 +264,7 @@ export const AuctionCard = ({
           </div>
         )}
         
-        <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
+        <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm sm:text-base">Preço atual:</span>
             <span className="text-xl sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
@@ -332,7 +332,7 @@ export const AuctionCard = ({
         </div>
 
         {/* Fury Vault Display */}
-        <div className="mb-3">
+        <div className="mb-2">
           <FuryVaultDisplay
             auctionId={id}
             auctionStatus={displayStatus}
