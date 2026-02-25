@@ -279,12 +279,7 @@ export const AuctionCard = ({
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground text-sm sm:text-base">Economia:</span>
-            <span className="text-base sm:text-lg font-bold text-success">{calculateDiscount()}% OFF</span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
             <div className="flex items-center text-muted-foreground">
               <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
               <span aria-label={`Total de ${displayTotalBids} lances`}>{displayTotalBids} lances</span>
@@ -295,6 +290,9 @@ export const AuctionCard = ({
                 {displayStatus === 'active' ? `Ativo há ${getActiveTime()}` : `Duração: ${getActiveTime()}`}
               </div>
             )}
+            <div className="flex items-center justify-end">
+              <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
+            </div>
           </div>
 
           {displayStatus === 'finished' && finished_at && (
