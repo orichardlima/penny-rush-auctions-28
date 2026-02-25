@@ -1,245 +1,96 @@
 
 
-# Plano de Implementacao — Cofre Furia
+# Detalhamento do que foi implantado -- Cofre Furia
 
-## Resumo
+## Banco de Dados (Migration SQL)
 
-Sistema de premio acumulativo vinculado a cada leilao ativo. O cofre cresce conforme lances sao dados, e ao final do leilao distribui o valor entre o maior participante e/ou um sorteio entre qualificados. O valor e creditado como saldo interno.
+Foram criadas **5 tabelas** e **2 funções** no banco:
 
----
+### Tabelas
 
-## Arquitetura do Banco de Dados
+| Tabela | Finalidade | RLS |
+|---|---|---|
+| `fury_vault_config` | Configuração global (tipo de acúmulo, intervalo, teto, modo fúria, distribuição, regras de saque) | Admins: ALL / Autenticados: SELECT |
+| `fury_vault_instances` | Estado do cofre por leilão (valor atual, teto, status, vencedores) | Admins: ALL / Todos: SELECT |
+| `fury_vault_logs` | Histórico de eventos (incrementos, distribuições, ativação do modo fúria) | Admins: ALL / Todos: SELECT |
+| `fury_vault_qualifications` | Qualificação por usuário por cofre (total de lances, último lance, se qualificado) | Admins: ALL / Todos: SELECT |
+| `fury_vault_withdrawals` | Saques de prêmios do cofre | Admins: ALL / Próprio usuário: SELECT + INSERT |
 
-### Tabela 1: `fury_vault_config` (configuracao global/padrao)
+Uma **linha de configuração padrão** foi inserida automaticamente com os valores:
+- Acúmulo: R$ 0,20 a cada 20 lances
+- Teto: R$ 500 (absoluto)
+- Qualificação: mínimo 15 lances + lance nos últimos 60 segundos
+- Distribuição: híbrida 50/50 (top participante + sorteio)
+- Modo Fúria: desativado (configurável para últimos 120s com multiplicador 2x)
+- Saque: mínimo R$ 100, máx 50% mensal, cooldown 30 dias, 3 dias processamento
 
-| Coluna | Tipo | Default | Descricao |
-|---|---|---|---|
-| id | uuid | gen_random_uuid() | PK |
-| accumulation_type | text | 'fixed_per_x_bids' | 'fixed_per_x_bids' ou 'percentage' |
-| accumulation_value | numeric | 0.20 | Valor fixo ou percentual |
-| accumulation_interval | integer | 20 | A cada X lances (modo fixo) |
-| default_initial_value | numeric | 0 | Valor inicial padrao |
-| max_cap_type | text | 'absolute' | 'absolute' ou 'percentage_of_volume' |
-| max_cap_value | numeric | 500 | Teto absoluto em R$ ou % |
-| min_bids_to_qualify | integer | 15 | Minimo de lances para concorrer |
-| recency_seconds | integer | 60 | Lance nos ultimos X segundos |
-| distribution_mode | text | 'hybrid' | '100_raffle', '100_top', 'hybrid' |
-| hybrid_top_percentage | numeric | 50 | % para maior participante (modo hibrido) |
-| hybrid_raffle_percentage | numeric | 50 | % para sorteio (modo hibrido) |
-| fury_mode_enabled | boolean | false | Ativar Modo Furia Final |
-| fury_mode_seconds | integer | 120 | Ultimos X segundos |
-| fury_mode_multiplier | numeric | 2 | Multiplicador de acumulo |
-| is_active | boolean | true | Se o cofre esta ativo globalmente |
-| created_at | timestamptz | now() | |
-| updated_at | timestamptz | now() | |
+### Funções SQL
 
-RLS: Admins ALL, authenticated SELECT.
+1. **`fury_vault_on_bid()`** -- Trigger AFTER INSERT na tabela `bids`
+   - Busca o vault_instance do leilão
+   - Conta total de lances do leilão
+   - Verifica Modo Fúria (últimos X segundos antes de `ends_at`)
+   - A cada X lances (módulo do intervalo), incrementa `current_value` respeitando o teto
+   - Faz upsert na qualificação do usuário (contagem + timestamp)
+   - Registra logs de incremento, ativação de fúria e teto atingido
 
-### Tabela 2: `fury_vault_instances` (cofre por leilao)
+2. **`fury_vault_distribute(p_auction_id)`** -- Chamada via RPC pela Edge Function
+   - Atualiza qualificações com base em recência (lance nos últimos Y segundos antes de `finished_at`)
+   - Conta qualificados; se zero, marca como completed sem distribuir
+   - Encontra top participante qualificado (mais lances)
+   - Calcula valores conforme modo de distribuição (100% top, 100% sorteio, ou híbrido)
+   - Sorteio auditável: usa `md5(seed || user_id)` com seed de `gen_random_uuid()`
+   - Credita valores em `profiles.bids_balance`
+   - Registra tudo em `fury_vault_logs`
+   - Atualiza instance com vencedores e status `completed`
 
-| Coluna | Tipo | Default | Descricao |
-|---|---|---|---|
-| id | uuid | gen_random_uuid() | PK |
-| auction_id | uuid | NOT NULL | FK para auctions |
-| current_value | numeric | 0 | Valor acumulado atual |
-| initial_value | numeric | 0 | Valor inicial definido |
-| max_cap | numeric | 500 | Teto deste cofre |
-| total_increments | integer | 0 | Quantas vezes incrementou |
-| last_increment_at_bid | integer | 0 | Em qual lance foi o ultimo incremento |
-| fury_mode_active | boolean | false | Se modo furia esta ativo agora |
-| status | text | 'accumulating' | 'accumulating', 'distributing', 'completed' |
-| top_bidder_user_id | uuid | NULL | Quem mais deu lances |
-| top_bidder_amount | numeric | 0 | Valor do top bidder |
-| raffle_winner_user_id | uuid | NULL | Ganhador do sorteio |
-| raffle_winner_amount | numeric | 0 | Valor do sorteio |
-| distributed_at | timestamptz | NULL | Quando foi distribuido |
-| created_at | timestamptz | now() | |
-| updated_at | timestamptz | now() | |
+### Realtime
 
-RLS: Admins ALL, anyone SELECT.
-
-### Tabela 3: `fury_vault_logs` (historico de acumulo)
-
-| Coluna | Tipo | Default | Descricao |
-|---|---|---|---|
-| id | uuid | gen_random_uuid() | PK |
-| vault_instance_id | uuid | NOT NULL | FK |
-| event_type | text | NOT NULL | 'increment', 'fury_activated', 'distribution_top', 'distribution_raffle', 'cap_reached' |
-| amount | numeric | 0 | Valor do evento |
-| bid_number | integer | NULL | Numero do lance que disparou |
-| details | jsonb | NULL | Dados extras (user_id do sorteio, etc) |
-| created_at | timestamptz | now() | |
-
-RLS: Admins ALL, anyone SELECT.
-
-### Tabela 4: `fury_vault_qualifications` (usuarios qualificados)
-
-| Coluna | Tipo | Default | Descricao |
-|---|---|---|---|
-| id | uuid | gen_random_uuid() | PK |
-| vault_instance_id | uuid | NOT NULL | FK |
-| user_id | uuid | NOT NULL | |
-| total_bids_in_auction | integer | 0 | |
-| last_bid_at | timestamptz | NULL | |
-| is_qualified | boolean | false | Atende min_bids + recency |
-| created_at | timestamptz | now() | |
-| updated_at | timestamptz | now() | |
-
-RLS: Admins ALL, users own SELECT, anyone SELECT (count only via vault_instances).
-UNIQUE constraint em (vault_instance_id, user_id).
-
-### Tabela 5: `fury_vault_withdrawals` (saques de premios do cofre)
-
-| Coluna | Tipo | Default | Descricao |
-|---|---|---|---|
-| id | uuid | gen_random_uuid() | PK |
-| user_id | uuid | NOT NULL | |
-| amount | numeric | NOT NULL | |
-| status | text | 'pending' | 'pending', 'processing', 'completed', 'rejected' |
-| source_vault_id | uuid | NOT NULL | De qual cofre veio |
-| processed_at | timestamptz | NULL | |
-| created_at | timestamptz | now() | |
-
-RLS: Admins ALL, users own SELECT + INSERT.
-
----
-
-## Logica de Backend
-
-### Trigger 1: Acumulo automatico (na tabela `bids`)
-
-Apos cada INSERT em `bids`:
-1. Buscar vault_instance para o auction_id
-2. Se nao existe ou status != 'accumulating', sair
-3. Buscar config do cofre
-4. Verificar se atingiu intervalo (total_bids % interval == 0)
-5. Se sim e nao atingiu teto: incrementar current_value
-6. Atualizar/inserir qualificacao do usuario em fury_vault_qualifications
-7. Se Modo Furia ativo (ultimos X segundos antes de ends_at): aplicar multiplicador
-8. Inserir log em fury_vault_logs
-
-### Trigger/Funcao 2: Distribuicao (quando leilao finaliza)
-
-Na edge function `sync-timers-and-protection` (onde leiloes sao finalizados), apos marcar status='finished':
-1. Buscar vault_instance do leilao
-2. Calcular qualificados (min_bids + lance nos ultimos Y segundos antes de finished_at)
-3. Conforme distribution_mode:
-   - `100_top`: creditar tudo ao maior participante qualificado
-   - `100_raffle`: sortear entre qualificados
-   - `hybrid`: dividir conforme percentuais configurados
-4. Creditar valor em `profiles.bids_balance` (como credito interno)
-5. Registrar em fury_vault_logs
-6. Atualizar vault_instance com winners e status='completed'
-
-### Sorteio auditavel
-
-Usar funcao SQL `random()` com seed registrado, ou gerar indice aleatorio via `gen_random_uuid()` convertido a inteiro, registrando o calculo completo no log.
+- `fury_vault_instances` adicionada à publicação `supabase_realtime` para atualizações em tempo real no frontend.
 
 ---
 
 ## Frontend
 
-### 1. Componente `FuryVaultDisplay` (dentro do AuctionCard)
+### Hook: `src/hooks/useFuryVault.ts`
+- Busca `fury_vault_instances` e `fury_vault_config` para um `auctionId`
+- Busca contagem de qualificados e qualificação do usuário atual
+- Subscription Realtime na tabela `fury_vault_instances` (atualiza valor do cofre em tempo real)
+- Retorna: `currentValue`, `isFuryMode`, `qualifiedCount`, `isQualified`, `userBidsInAuction`, `hasVault`, `status`
 
-Exibido apenas quando ha vault_instance para o leilao:
-- Icone de cofre com valor atual animado (R$ XX,XX)
-- Barra de progresso ate o proximo incremento ("Faltam 7 lances!")
-- Badge com numero de qualificados
-- Indicador visual quando Modo Furia esta ativo (cor vermelha pulsante)
+### Componente: `src/components/FuryVaultDisplay.tsx`
+- Exibido dentro do `AuctionCard` quando existe vault instance e config ativo
+- **Leilão ativo**: mostra valor do cofre, barra de progresso até próximo incremento, contagem de qualificados, badge de qualificação do usuário, indicador visual de Modo Fúria (borda vermelha pulsante)
+- **Leilão finalizado**: mostra valor final, prêmio do top participante e do sorteio
 
-**Arquivo:** `src/components/FuryVaultDisplay.tsx`
-
-### 2. Modificacao em `AuctionCard.tsx`
-
-- Importar e renderizar `FuryVaultDisplay` abaixo dos dados de preco, acima do botao de lance
-- Passar auction_id como prop
-- Nenhuma outra alteracao no card
-
-### 3. Hook `useFuryVault.ts`
-
-- Query para buscar vault_instance por auction_id
-- Subscription Realtime na tabela fury_vault_instances para atualizacoes em tempo real
-- Calcular progresso ate proximo incremento
-- Retornar: currentValue, nextIncrementIn, qualifiedCount, isFuryMode, isQualified (usuario atual)
-
-### 4. Tela de Admin: Configuracao do Cofre
-
-Novo tab ou secao em `SystemSettings.tsx` ou componente dedicado:
-- Formulario para editar fury_vault_config
-- Toggle on/off global
-- Todos os campos configuraveis listados na tabela 1
-
-### 5. Criacao automatica do vault_instance
-
-Ao criar/ativar um leilao (no BatchAuctionGenerator ou manualmente), criar automaticamente um registro em fury_vault_instances com os valores da config global. O admin pode opcionalmente sobrescrever o valor inicial.
-
-### 6. Secao de resultados do Cofre (pos-leilao)
-
-No AuctionCard (status finished) ou AuctionDetailView:
-- Mostrar valor final do cofre
-- Nome do maior participante e valor recebido
-- Nome do ganhador do sorteio e valor recebido
+### Integração: `src/components/AuctionCard.tsx`
+- `FuryVaultDisplay` renderizado abaixo dos dados de preço/lances e acima do botão de lance
+- Recebe `auctionId`, `auctionStatus` e `totalBids` como props
+- Nenhuma outra alteração no card
 
 ---
 
-## Modulo de Saque (Secao 6 da especificacao)
+## Edge Function: `sync-timers-and-protection`
 
-### Configuracoes em `fury_vault_config`:
-- `min_withdrawal_amount` (numeric, default 100)
-- `max_monthly_withdrawal_pct` (numeric, default 50)
-- `withdrawal_cooldown_days` (integer, default 30)
-- `processing_days` (integer, default 3)
-- `require_verified_account` (boolean, default true)
-
-### Frontend:
-- Secao no Dashboard do usuario mostrando saldo acumulado de premios do cofre
-- Botao "Solicitar Saque" com validacoes client-side
-- Historico de saques
-
-### Backend:
-- Saldo de premios do cofre armazenado em `profiles` (novo campo `fury_vault_balance`) ou calculado via SUM dos logs
-- Validacoes server-side no INSERT da tabela de saques via RLS + trigger
+- Nova função auxiliar `distributeFuryVault()` adicionada
+- Chama `supabase.rpc('fury_vault_distribute', { p_auction_id })` sempre que um leilão é finalizado (por timer, preço máximo ou meta de receita)
+- Logs no console indicando sucesso/erro da distribuição
 
 ---
 
-## Estatisticas Futuras (estrutura preparada)
+## Automação: `BatchAuctionGenerator.tsx`
 
-As tabelas de logs e instances ja permitem calcular:
-- Recorde historico (MAX de current_value em vault_instances completed)
-- Maior cofre da semana (filtro por data)
-- Ranking de maiores ganhos (query em fury_vault_logs por distribution)
-
-Nenhum componente visual sera criado agora, mas a estrutura de dados suporta.
+- Após criar leilões em lote, busca a `fury_vault_config` ativa
+- Se ativa, cria automaticamente um `fury_vault_instance` para cada leilão com `initial_value` e `max_cap` da config global
 
 ---
 
-## Arquivos criados/modificados
+## O que NÃO foi implantado ainda
 
-### Novos:
-- `src/components/FuryVaultDisplay.tsx`
-- `src/components/Admin/FuryVaultConfigManager.tsx`
-- `src/hooks/useFuryVault.ts`
-- 1 migration SQL (5 tabelas + trigger de acumulo + funcao de distribuicao + RLS)
-
-### Modificados:
-- `src/components/AuctionCard.tsx` — adicionar FuryVaultDisplay
-- `supabase/functions/sync-timers-and-protection/index.ts` — chamar distribuicao ao finalizar leilao
-- `src/components/Admin/BatchAuctionGenerator.tsx` — criar vault_instance ao gerar leiloes
-- `src/components/SystemSettings.tsx` ou `src/components/AdminDashboard.tsx` — link para config do cofre
-
-### NAO modificados:
-- Nenhum outro componente, hook ou edge function existente
-
----
-
-## Ordem de implementacao sugerida
-
-1. Migration SQL (tabelas, trigger, funcoes, RLS, dados iniciais da config)
-2. Hook `useFuryVault.ts`
-3. Componente `FuryVaultDisplay.tsx`
-4. Integracao no `AuctionCard.tsx`
-5. Logica de distribuicao no `sync-timers-and-protection`
-6. Criacao automatica no `BatchAuctionGenerator`
-7. Tela admin `FuryVaultConfigManager.tsx`
-8. Modulo de saque (tabela + UI)
+| Item | Status |
+|---|---|
+| Tela admin para editar `fury_vault_config` (`FuryVaultConfigManager`) | Pendente |
+| Seção de saque no dashboard do usuário | Pendente |
+| Campo `fury_vault_balance` em `profiles` (saldo dedicado) | Não criado; prêmios vão para `bids_balance` |
+| Estatísticas visuais (recorde, ranking) | Estrutura pronta, sem UI |
 
