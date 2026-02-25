@@ -1,112 +1,59 @@
 
 
-# Redesign: Cofre Fúria integrado ao card de leilão
+# Correção: "Próximo +R$" sem valor
 
 ## Problema
 
-O layout compacto atual do Cofre Fúria ficou confuso e minimalista demais. Ele aparece como um bloco separado e desconectado das informações do leilão. O usuário quer que as informações do cofre estejam integradas naturalmente ao card, ao lado dos dados de lances.
+A label "Próximo +R$:" não mostra o valor real do incremento (ex: R$0,20) porque o hook `useFuryVault` não busca o campo `accumulation_value` da tabela `fury_vault_config`. O resultado é um texto incompleto: "Próximo +R$:" seguido de nada, com apenas "3 lances" no lado direito.
 
-## Proposta — Cofre integrado na seção de dados do card
+## Causa Raiz
 
-Em vez de um bloco separado, o Cofre Fúria vira uma **seção visual dentro da área de dados do card**, com título claro, valor em destaque e informações didáticas:
+No `useFuryVault.ts`, linha 67, a query seleciona apenas 4 campos:
+```
+.select('accumulation_interval, min_bids_to_qualify, is_active, recency_seconds')
+```
+Falta `accumulation_value` (o valor em reais adicionado a cada intervalo de lances).
+
+## Correções
+
+### 1. `src/hooks/useFuryVault.ts`
+
+- Adicionar `accumulation_value` na query do config (linha 67)
+- Adicionar `accumulation_value` na interface `FuryVaultConfig`
+
+### 2. `src/components/FuryVaultDisplay.tsx`
+
+- Linha 134: Trocar `<span>Próximo +R$:</span>` por `<span>Próximo {formatPrice(config.accumulation_value)}:</span>`
+- Isso exibirá, por exemplo: **"Próximo R$0,20:"** seguido de **"3 lances"**
+
+### 3. Correções adicionais (do plano anterior aprovado)
+
+- Cor das barras de progresso: adicionar `[&>div]:bg-accent` nas duas barras `Progress` (linhas 137 e 167) para ficarem douradas em vez de vermelhas
+- Plural: corrigir "1 qualificados" → "1 qualificado" (linha 146)
+
+## Resultado Visual Esperado
 
 ```text
 ┌───────────────────────────────────┐
-│         IMAGEM 16:10              │
-├───────────────────────────────────┤
-│ iPhone 15 Pro                     │
-│ Câmera 48MP, chip A17 Pro...      │
+│ 🔒 Cofre Fúria          R$25,60  │
 │                                   │
-│ Preço atual:          R$ 24,65    │
-│ Valor na loja:       R$ 5.999,00  │
-│ Economia:               97% OFF   │
-│ 🔨 2464 lances                    │
-│ 🕐 Ativo há 2h 15min             │
-│ Últimos: Ana, Bob, Carlos         │
+│ Próximo R$0,20:                   │
+│ [████████████████████░░░] 3 lances│
 │                                   │
-│ ┌───────────────────────────────┐ │
-│ │ 🔒 Cofre Fúria      R$12,50  │ │
-│ │                               │ │
-│ │ Próximo +R$:                  │ │
-│ │ [████████████░░░░] 8 lances   │ │
-│ │                               │ │
-│ │ 👥 23 qualificados            │ │
-│ │ ✓ Você está qualificado       │ │
-│ │   (18/15 lances)              │ │
-│ └───────────────────────────────┘ │
-│                                   │
-│ [      DAR LANCE (R$ 1,00)      ] │
+│ 👥 1 qualificado                  │
+│ ✓ Você está qualificado (24/15)   │
 └───────────────────────────────────┘
 ```
-
-### Variação: Usuário NÃO qualificado
-
-```text
-│ ┌───────────────────────────────┐ │
-│ │ 🔒 Cofre Fúria      R$12,50  │ │
-│ │                               │ │
-│ │ Próximo +R$:                  │ │
-│ │ [████████████░░░░] 8 lances   │ │
-│ │                               │ │
-│ │ 👥 23 qualificados            │ │
-│ │ Sua qualificação:             │ │
-│ │ [██████░░░░░░░░░░] 7/15       │ │
-│ └───────────────────────────────┘ │
-```
-
-### Variação: Modo Fúria
-
-```text
-│ ┌───────────────────────────────┐ │
-│ │ 🔥 Cofre Fúria      R$18,30  │ │  ← borda vermelha
-│ │    MODO FÚRIA ATIVO!          │ │  ← badge vermelho
-│ │                               │ │
-│ │ Próximo +R$:                  │ │
-│ │ [████████████░░░░] 3 lances   │ │
-│ │                               │ │
-│ │ 👥 31 qualificados            │ │
-│ │ ✓ Você está qualificado       │ │
-│ └───────────────────────────────┘ │
-```
-
-### Recency countdown (substitui status de qualificação)
-
-```text
-│ │ ⏱ Lance em 12s para manter    │ │
-│ │   sua qualificação!            │ │
-```
-
-### Leilão finalizado (sem mudança, já compacto)
-
-```text
-│ ┌───────────────────────────────┐ │
-│ │ 🔒 Cofre Fúria      R$45,00  │ │
-│ │ 🏆 Top: R$22,50              │ │
-│ │ 🎁 Sorteio: R$22,50          │ │
-│ └───────────────────────────────┘ │
-```
-
-## O que muda vs. layout atual
-
-| Aspecto | Antes (compacto) | Agora (integrado) |
-|---|---|---|
-| Valor do cofre | Inline críptico `R$12,50 • +1 em 8` | Título claro + valor em destaque |
-| Próximo incremento | `+1 em 8` (confuso) | Barra de progresso com label "Próximo +R$" |
-| Qualificados | `23 qual.` (abreviado) | `👥 23 qualificados` (legível) |
-| Status do usuário | `✓ Qualificado` tiny ou barra h-1 | Seção clara com label + progresso visível |
-| Detalhes extras | Botão ⓘ abrindo drawer | Removido — tudo visível no card |
-| Altura estimada | ~40px | ~100-110px |
 
 ## Arquivos Alterados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/FuryVaultDisplay.tsx` | Reescrever layout: seção card integrada com título, barra de progresso, qualificados e status do usuário. Remover Drawer/Dialog. |
-| `src/components/AuctionCard.tsx` | Nenhuma mudança (já renderiza FuryVaultDisplay no lugar certo) |
+| `src/hooks/useFuryVault.ts` | Adicionar `accumulation_value` na query e interface |
+| `src/components/FuryVaultDisplay.tsx` | Mostrar valor do incremento, cor accent nas barras, plural correto |
 
 ## Sem Impacto Em
 
-- `useFuryVault.ts` — nenhuma mudança
-- Lógica de qualificação, realtime, recency — nenhuma
-- Outros componentes, rotas ou workflows
+- Nenhuma funcionalidade alterada
+- Nenhum outro componente ou workflow afetado
 
