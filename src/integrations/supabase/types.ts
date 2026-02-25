@@ -954,6 +954,266 @@ export type Database = {
         }
         Relationships: []
       }
+      fury_vault_config: {
+        Row: {
+          accumulation_interval: number
+          accumulation_type: string
+          accumulation_value: number
+          created_at: string
+          default_initial_value: number
+          distribution_mode: string
+          fury_mode_enabled: boolean
+          fury_mode_multiplier: number
+          fury_mode_seconds: number
+          hybrid_raffle_percentage: number
+          hybrid_top_percentage: number
+          id: string
+          is_active: boolean
+          max_cap_type: string
+          max_cap_value: number
+          max_monthly_withdrawal_pct: number
+          min_bids_to_qualify: number
+          min_withdrawal_amount: number
+          processing_days: number
+          recency_seconds: number
+          require_verified_account: boolean
+          updated_at: string
+          withdrawal_cooldown_days: number
+        }
+        Insert: {
+          accumulation_interval?: number
+          accumulation_type?: string
+          accumulation_value?: number
+          created_at?: string
+          default_initial_value?: number
+          distribution_mode?: string
+          fury_mode_enabled?: boolean
+          fury_mode_multiplier?: number
+          fury_mode_seconds?: number
+          hybrid_raffle_percentage?: number
+          hybrid_top_percentage?: number
+          id?: string
+          is_active?: boolean
+          max_cap_type?: string
+          max_cap_value?: number
+          max_monthly_withdrawal_pct?: number
+          min_bids_to_qualify?: number
+          min_withdrawal_amount?: number
+          processing_days?: number
+          recency_seconds?: number
+          require_verified_account?: boolean
+          updated_at?: string
+          withdrawal_cooldown_days?: number
+        }
+        Update: {
+          accumulation_interval?: number
+          accumulation_type?: string
+          accumulation_value?: number
+          created_at?: string
+          default_initial_value?: number
+          distribution_mode?: string
+          fury_mode_enabled?: boolean
+          fury_mode_multiplier?: number
+          fury_mode_seconds?: number
+          hybrid_raffle_percentage?: number
+          hybrid_top_percentage?: number
+          id?: string
+          is_active?: boolean
+          max_cap_type?: string
+          max_cap_value?: number
+          max_monthly_withdrawal_pct?: number
+          min_bids_to_qualify?: number
+          min_withdrawal_amount?: number
+          processing_days?: number
+          recency_seconds?: number
+          require_verified_account?: boolean
+          updated_at?: string
+          withdrawal_cooldown_days?: number
+        }
+        Relationships: []
+      }
+      fury_vault_instances: {
+        Row: {
+          auction_id: string
+          created_at: string
+          current_value: number
+          distributed_at: string | null
+          fury_mode_active: boolean
+          id: string
+          initial_value: number
+          last_increment_at_bid: number
+          max_cap: number
+          raffle_winner_amount: number
+          raffle_winner_user_id: string | null
+          status: string
+          top_bidder_amount: number
+          top_bidder_user_id: string | null
+          total_increments: number
+          updated_at: string
+        }
+        Insert: {
+          auction_id: string
+          created_at?: string
+          current_value?: number
+          distributed_at?: string | null
+          fury_mode_active?: boolean
+          id?: string
+          initial_value?: number
+          last_increment_at_bid?: number
+          max_cap?: number
+          raffle_winner_amount?: number
+          raffle_winner_user_id?: string | null
+          status?: string
+          top_bidder_amount?: number
+          top_bidder_user_id?: string | null
+          total_increments?: number
+          updated_at?: string
+        }
+        Update: {
+          auction_id?: string
+          created_at?: string
+          current_value?: number
+          distributed_at?: string | null
+          fury_mode_active?: boolean
+          id?: string
+          initial_value?: number
+          last_increment_at_bid?: number
+          max_cap?: number
+          raffle_winner_amount?: number
+          raffle_winner_user_id?: string | null
+          status?: string
+          top_bidder_amount?: number
+          top_bidder_user_id?: string | null
+          total_increments?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fury_vault_instances_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: true
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fury_vault_logs: {
+        Row: {
+          amount: number
+          bid_number: number | null
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          vault_instance_id: string
+        }
+        Insert: {
+          amount?: number
+          bid_number?: number | null
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          vault_instance_id: string
+        }
+        Update: {
+          amount?: number
+          bid_number?: number | null
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          vault_instance_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fury_vault_logs_vault_instance_id_fkey"
+            columns: ["vault_instance_id"]
+            isOneToOne: false
+            referencedRelation: "fury_vault_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fury_vault_qualifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_qualified: boolean
+          last_bid_at: string | null
+          total_bids_in_auction: number
+          updated_at: string
+          user_id: string
+          vault_instance_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_qualified?: boolean
+          last_bid_at?: string | null
+          total_bids_in_auction?: number
+          updated_at?: string
+          user_id: string
+          vault_instance_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_qualified?: boolean
+          last_bid_at?: string | null
+          total_bids_in_auction?: number
+          updated_at?: string
+          user_id?: string
+          vault_instance_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fury_vault_qualifications_vault_instance_id_fkey"
+            columns: ["vault_instance_id"]
+            isOneToOne: false
+            referencedRelation: "fury_vault_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fury_vault_withdrawals: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          source_vault_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          source_vault_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          source_vault_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fury_vault_withdrawals_source_vault_id_fkey"
+            columns: ["source_vault_id"]
+            isOneToOne: false
+            referencedRelation: "fury_vault_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           auction_id: string
@@ -2048,6 +2308,7 @@ export type Database = {
         Args: { p_referral_code: string; p_referred_contract_id: string }
         Returns: Json
       }
+      fury_vault_distribute: { Args: { p_auction_id: string }; Returns: Json }
       get_admin_audit_log: {
         Args: { limit_count?: number }
         Returns: {
