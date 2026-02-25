@@ -54,13 +54,13 @@ export const AuctionCard = ({
   winnerName
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
-  
+
   // Usar timer do Context centralizado
   const { getAuctionTimer, auctions } = useAuctionRealtime();
-  
+
   // Buscar dados atualizados do Context se disponível
-  const contextAuction = auctions.find(a => a.id === id);
-  
+  const contextAuction = auctions.find((a) => a.id === id);
+
   // Timer vem do Context (decrementa localmente) - agora retorna {timeLeft, isSyncing}
   const { timeLeft: contextTimer, isSyncing } = getAuctionTimer(id);
   // Usar dados do Context quando disponíveis, props como fallback
@@ -68,12 +68,12 @@ export const AuctionCard = ({
   const displayTotalBids = contextAuction?.totalBids ?? totalBids;
   const displayWinnerName = contextAuction?.winnerName ?? winnerName;
   const displayStatus = contextAuction?.auctionStatus ?? auctionStatus;
-  
-  const displayTimeLeft = contextAuction
-    ? (displayStatus === 'active' ? contextTimer : 0)
-    : initialTimeLeft;
+
+  const displayTimeLeft = contextAuction ?
+  displayStatus === 'active' ? contextTimer : 0 :
+  initialTimeLeft;
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
-  
+
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
   // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
   const isVerifying = displayStatus === 'active' && (displayTimeLeft === 0 || isSyncing);
@@ -145,10 +145,10 @@ export const AuctionCard = ({
 
   const getActiveTime = () => {
     if (!starts_at) return null;
-    
+
     const brazilTimezone = 'America/Sao_Paulo';
     const startsAtInBrazil = toZonedTime(new Date(starts_at), brazilTimezone);
-    
+
     let endTime;
     if (displayStatus === 'finished' && finished_at) {
       endTime = toZonedTime(new Date(finished_at), brazilTimezone);
@@ -157,12 +157,12 @@ export const AuctionCard = ({
     } else {
       return null;
     }
-    
+
     const totalMinutes = Math.floor((endTime.getTime() - startsAtInBrazil.getTime()) / (1000 * 60));
     const days = Math.floor(totalMinutes / (60 * 24));
-    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+    const hours = Math.floor(totalMinutes % (60 * 24) / 60);
     const minutes = totalMinutes % 60;
-    
+
     if (days > 0) {
       return `${days} dia${days > 1 ? 's' : ''} e ${hours}h ${minutes}min`;
     } else if (hours > 0) {
@@ -173,41 +173,41 @@ export const AuctionCard = ({
   };
 
   return (
-    <Card 
+    <Card
       className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full"
       role="article"
-      aria-labelledby={`auction-title-${id}`}
-    >
+      aria-labelledby={`auction-title-${id}`}>
+
       <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/10 to-muted/30">
-        <img 
-          src={image} 
+        <img
+          src={image}
           alt={`Imagem do produto: ${title}`}
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" 
-          onError={e => {
+          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z'/%3e%3ccircle cx='12' cy='13' r='3'/%3e%3c/svg%3e";
             target.style.opacity = '0.3';
             target.style.backgroundColor = 'hsl(var(--muted))';
-          }}
-        />
+          }} />
+
         <div className="absolute top-3 right-3 flex flex-col gap-2">
-          <Badge 
+          <Badge
             variant={displayStatus === 'active' ? "default" : displayStatus === 'waiting' ? "outline" : "secondary"}
-            aria-label={`Status do leilão: ${displayStatus === 'waiting' ? 'Aguardando início' : displayStatus === 'active' ? 'Ativo' : 'Finalizado'}`}
-          >
+            aria-label={`Status do leilão: ${displayStatus === 'waiting' ? 'Aguardando início' : displayStatus === 'active' ? 'Ativo' : 'Finalizado'}`}>
+
             {displayStatus === 'waiting' ? "Aguardando" : displayStatus === 'active' ? "Ativo" : "Finalizado"}
           </Badge>
         </div>
-        {displayStatus === 'active' && (
-          <div className="absolute top-3 left-3">
+        {displayStatus === 'active' &&
+        <div className="absolute top-3 left-3">
             <div className="flex flex-col gap-2">
-              {!isVerifying ? (
-                <div 
-                  className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}
-                  role="timer"
-                  aria-live="polite"
-                  aria-label={`Tempo restante: ${displayTimeLeft} segundos`}
-                >
+              {!isVerifying ?
+            <div
+              className={`rounded-xl px-4 py-3 transition-all duration-300 ${getTimerClasses().container}`}
+              role="timer"
+              aria-live="polite"
+              aria-label={`Tempo restante: ${displayTimeLeft} segundos`}>
+
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${getTimerClasses().dot}`} aria-hidden="true"></div>
                     <div className="flex items-center gap-1">
@@ -217,12 +217,12 @@ export const AuctionCard = ({
                       </span>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div 
-                  className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg"
-                  aria-live="polite"
-                >
+                </div> :
+
+            <div
+              className="rounded-xl px-4 py-3 bg-background border-2 border-yellow-500 text-yellow-600 shadow-lg"
+              aria-live="polite">
+
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" aria-hidden="true"></div>
                     <div className="flex items-center gap-1">
@@ -233,36 +233,36 @@ export const AuctionCard = ({
                     </div>
                   </div>
                 </div>
-              )}
+            }
             </div>
           </div>
-        )}
+        }
       </div>
       
       <div className="p-3 sm:p-6">
-        <h3 
+        <h3
           id={`auction-title-${id}`}
-          className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground"
-        >
+          className="font-semibold text-base sm:text-lg mb-2 sm:mb-3 text-foreground">
+
           {title}
         </h3>
         
-        {description && (
-          <p className="text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
-            {description}
-          </p>
-        )}
+        {description
+
+
+
+        }
         
-        {displayStatus === 'waiting' && starts_at && (
-          <div 
-            className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
-            role="alert"
-          >
+        {displayStatus === 'waiting' && starts_at &&
+        <div
+          className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+          role="alert">
+
             <p className="text-yellow-800 dark:text-yellow-200 text-sm font-medium">
               🕒 Leilão inicia em: {formatDateTime(starts_at)}
             </p>
           </div>
-        )}
+        }
         
         <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
           <div className="flex justify-between items-center">
@@ -292,43 +292,43 @@ export const AuctionCard = ({
           </div>
 
           {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
-            displayStatus === 'active' ? (
-              <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+          displayStatus === 'active' ?
+          <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                 Ativo há {getActiveTime()}
-              </div>
-            ) : (
-              <div className="space-y-1">
+              </div> :
+
+          <div className="space-y-1">
                 <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
                   <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                   Duração total: {getActiveTime()}
                 </div>
-                {finished_at && (
-                  <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+                {finished_at &&
+            <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
                     <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                     Encerrado às {formatDateTime(finished_at)}
                   </div>
-                )}
-              </div>
-            )
-          )}
+            }
+              </div>)
 
-          {displayRecentBidders.length > 0 && (
-            <div className="pt-2 border-t border-border">
+          }
+
+          {displayRecentBidders.length > 0 &&
+          <div className="pt-2 border-t border-border">
               <p className="text-xs text-muted-foreground mb-1">Últimos lances:</p>
               <div className="flex flex-wrap gap-1" role="list" aria-label="Últimos participantes">
-                {displayRecentBidders.slice(0, 3).map((bidder, index) => (
-                  <span 
-                    key={index} 
-                    className="text-xs bg-muted px-2 py-1 rounded-full"
-                    role="listitem"
-                  >
+                {displayRecentBidders.slice(0, 3).map((bidder, index) =>
+              <span
+                key={index}
+                className="text-xs bg-muted px-2 py-1 rounded-full"
+                role="listitem">
+
                     {bidder}
                   </span>
-                ))}
+              )}
               </div>
             </div>
-          )}
+          }
         </div>
 
         {/* Fury Vault Display */}
@@ -337,17 +337,17 @@ export const AuctionCard = ({
             auctionId={id}
             auctionStatus={displayStatus}
             totalBids={displayTotalBids}
-            endsAt={ends_at}
-          />
+            endsAt={ends_at} />
+
         </div>
 
         {/* Winner Section - Only show for finished auctions */}
-        {displayStatus === 'finished' && displayWinnerName && (
-          <div 
-            className="mb-4 bg-gradient-to-r from-yellow-400/20 to-amber-400/20 border-2 border-yellow-400/30 rounded-lg p-4 text-center"
-            role="alert"
-            aria-label={`Ganhador: ${displayWinnerName}`}
-          >
+        {displayStatus === 'finished' && displayWinnerName &&
+        <div
+          className="mb-4 bg-gradient-to-r from-yellow-400/20 to-amber-400/20 border-2 border-yellow-400/30 rounded-lg p-4 text-center"
+          role="alert"
+          aria-label={`Ganhador: ${displayWinnerName}`}>
+
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Trophy className="h-6 w-6 text-yellow-600" aria-hidden="true" />
               <span className="font-bold text-lg text-yellow-800 dark:text-yellow-200">
@@ -361,54 +361,54 @@ export const AuctionCard = ({
               Parabéns! Produto arrematado por {formatPrice(displayCurrentPrice)}
             </p>
           </div>
-        )}
+        }
 
-        {displayStatus === 'active' && (
-          <Button 
-            onClick={handleBid} 
-            disabled={actualUserBids <= 0 || isBidding} 
-            variant={isBidding ? "success" : "bid"} 
-            size="lg" 
-            className="w-full"
-            aria-label={isBidding ? "Processando lance..." : `Dar lance de R$ 1,00 no leilão ${title}`}
-            aria-busy={isBidding}
-          >
+        {displayStatus === 'active' &&
+        <Button
+          onClick={handleBid}
+          disabled={actualUserBids <= 0 || isBidding}
+          variant={isBidding ? "success" : "bid"}
+          size="lg"
+          className="w-full"
+          aria-label={isBidding ? "Processando lance..." : `Dar lance de R$ 1,00 no leilão ${title}`}
+          aria-busy={isBidding}>
+
             <TrendingUp className="w-4 h-4 mr-2" aria-hidden="true" />
             {isBidding ? "PROCESSANDO..." : "DAR LANCE (R$ 1,00)"}
           </Button>
-        )}
+        }
 
-        {displayStatus === 'waiting' && (
-          <Button 
-            disabled 
-            variant="outline" 
-            size="lg" 
-            className="w-full"
-            aria-label="Leilão aguardando início"
-          >
+        {displayStatus === 'waiting' &&
+        <Button
+          disabled
+          variant="outline"
+          size="lg"
+          className="w-full"
+          aria-label="Leilão aguardando início">
+
             <Clock className="w-4 h-4 mr-2" aria-hidden="true" />
             AGUARDANDO INÍCIO
           </Button>
-        )}
+        }
 
-        {displayStatus === 'finished' && (
-          <div className="text-center">
-            <div 
-              className="bg-muted/50 text-muted-foreground py-3 px-4 rounded-lg border"
-              aria-label="Leilão finalizado"
-            >
+        {displayStatus === 'finished' &&
+        <div className="text-center">
+            <div
+            className="bg-muted/50 text-muted-foreground py-3 px-4 rounded-lg border"
+            aria-label="Leilão finalizado">
+
               <Trophy className="w-5 h-5 mx-auto mb-1" aria-hidden="true" />
               <span className="text-sm font-medium">LEILÃO FINALIZADO</span>
             </div>
           </div>
-        )}
+        }
 
-        {actualUserBids <= 0 && displayStatus === 'active' && (
-          <p className="text-center text-destructive text-sm mt-2" role="alert">
+        {actualUserBids <= 0 && displayStatus === 'active' &&
+        <p className="text-center text-destructive text-sm mt-2" role="alert">
             Você precisa comprar lances para participar!
           </p>
-        )}
+        }
       </div>
-    </Card>
-  );
+    </Card>);
+
 };
