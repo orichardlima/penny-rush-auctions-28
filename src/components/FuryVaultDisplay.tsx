@@ -128,7 +128,7 @@ export const FuryVaultDisplay = ({ auctionId, auctionStatus, totalBids = 0, ends
             </span>
             <div className="flex items-center gap-1">
               <Users className="w-3 h-3" />
-              <span>{qualifiedCount} qualificados</span>
+              <span>{qualifiedCount > 50 ? '50+' : qualifiedCount} qualificados</span>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -17,6 +17,7 @@ interface FuryVaultInstance {
   raffle_winner_user_id: string | null;
   raffle_winner_amount: number;
   distributed_at: string | null;
+  qualified_count: number;
 }
 
 interface FuryVaultConfig {
@@ -46,6 +47,9 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
     loading: true,
   });
 
+  // Debounce ref for qualification updates
+  const qualDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchData = useCallback(async () => {
     try {
       const [instanceRes, configRes] = await Promise.all([
@@ -64,28 +68,19 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
       const instance = instanceRes.data as FuryVaultInstance | null;
       const config = configRes.data as FuryVaultConfig | null;
 
-      let qualifiedCount = 0;
       let isQualified = false;
       let userBidsInAuction = 0;
+      const qualifiedCount = instance?.qualified_count ?? 0;
 
-      if (instance) {
-        const [qualCountRes, userQualRes] = await Promise.all([
-          supabase
-            .from('fury_vault_qualifications')
-            .select('id', { count: 'exact', head: true })
-            .eq('vault_instance_id', instance.id)
-            .eq('is_qualified', true),
-          user
-            ? supabase
-                .from('fury_vault_qualifications')
-                .select('total_bids_in_auction, is_qualified')
-                .eq('vault_instance_id', instance.id)
-                .eq('user_id', user.id)
-                .maybeSingle()
-            : Promise.resolve({ data: null }),
-        ]);
+      // Only fetch user qualification (no more count query)
+      if (instance && user) {
+        const userQualRes = await supabase
+          .from('fury_vault_qualifications')
+          .select('total_bids_in_auction, is_qualified')
+          .eq('vault_instance_id', instance.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-        qualifiedCount = qualCountRes.count ?? 0;
         if (userQualRes.data) {
           isQualified = (userQualRes.data as any).is_qualified ?? false;
           userBidsInAuction = (userQualRes.data as any).total_bids_in_auction ?? 0;
@@ -110,10 +105,12 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
     fetchData();
   }, [fetchData]);
 
-  // Realtime subscription for vault instance updates
+  // Unified Realtime subscription: reuse single channel for both tables
   useEffect(() => {
-    const channel = supabase
-      .channel(`fury-vault-${auctionId}`)
+    const channelName = `fury-vault-${auctionId}`;
+    
+    let channelBuilder = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -124,19 +121,83 @@ export const useFuryVault = (auctionId: string, totalBids?: number) => {
         },
         (payload) => {
           if (payload.new) {
-            setData(prev => ({
-              ...prev,
-              instance: payload.new as FuryVaultInstance,
-            }));
+            const newInstance = payload.new as FuryVaultInstance;
+            setData(prev => {
+              // Dedupe: skip if values haven't changed
+              if (
+                prev.instance &&
+                prev.instance.current_value === newInstance.current_value &&
+                prev.instance.fury_mode_active === newInstance.fury_mode_active &&
+                prev.instance.status === newInstance.status &&
+                prev.instance.qualified_count === newInstance.qualified_count
+              ) {
+                return prev;
+              }
+              return {
+                ...prev,
+                instance: newInstance,
+                qualifiedCount: newInstance.qualified_count ?? prev.qualifiedCount,
+              };
+            });
           }
         }
-      )
-      .subscribe();
+      );
+
+    // Add qualification listener only if user is logged in
+    if (user?.id) {
+      channelBuilder = channelBuilder.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fury_vault_qualifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            const newQual = payload.new as {
+              is_qualified: boolean;
+              total_bids_in_auction: number;
+              vault_instance_id: string;
+            };
+
+            // Only process if it's for the current vault instance
+            if (data.instance && newQual.vault_instance_id !== data.instance.id) return;
+
+            // Debounce 150ms to batch rapid updates during bidding wars
+            if (qualDebounceRef.current) {
+              clearTimeout(qualDebounceRef.current);
+            }
+            qualDebounceRef.current = setTimeout(() => {
+              setData(prev => {
+                // Dedupe: skip if values haven't changed
+                if (
+                  prev.isQualified === newQual.is_qualified &&
+                  prev.userBidsInAuction === newQual.total_bids_in_auction
+                ) {
+                  return prev;
+                }
+                return {
+                  ...prev,
+                  isQualified: newQual.is_qualified,
+                  userBidsInAuction: newQual.total_bids_in_auction,
+                };
+              });
+            }, 150);
+          }
+        }
+      );
+    }
+
+    channelBuilder.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (qualDebounceRef.current) {
+        clearTimeout(qualDebounceRef.current);
+      }
+      supabase.removeChannel(channelBuilder);
     };
-  }, [auctionId]);
+  }, [auctionId, user?.id, data.instance?.id]);
 
   // Correct bidsUntilNextIncrement using totalBids prop
   const interval = data.config?.accumulation_interval ?? 20;

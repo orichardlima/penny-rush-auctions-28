@@ -1047,6 +1047,7 @@ export type Database = {
           initial_value: number
           last_increment_at_bid: number
           max_cap: number
+          qualified_count: number
           raffle_winner_amount: number
           raffle_winner_user_id: string | null
           status: string
@@ -1066,6 +1067,7 @@ export type Database = {
           initial_value?: number
           last_increment_at_bid?: number
           max_cap?: number
+          qualified_count?: number
           raffle_winner_amount?: number
           raffle_winner_user_id?: string | null
           status?: string
@@ -1085,6 +1087,7 @@ export type Database = {
           initial_value?: number
           last_increment_at_bid?: number
           max_cap?: number
+          qualified_count?: number
           raffle_winner_amount?: number
           raffle_winner_user_id?: string | null
           status?: string
