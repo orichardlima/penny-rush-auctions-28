@@ -229,8 +229,8 @@ Deno.serve(async (req) => {
           : 0;                                                   // timer > 5s, ignora
         
         if (bidProbability === 0 || Math.random() > bidProbability) {
-          if (secondsSinceLastBid >= minThreshold) {
-            console.log(`🎲 [NATURAL] "${auction.title}" - ${secondsSinceLastBid}s inativo (threshold: ${minThreshold}s), aguardando próximo ciclo`);
+          if (secondsSinceLastBid >= 10) {
+            console.log(`🎲 [NATURAL] "${auction.title}" - ${secondsSinceLastBid}s inativo, aguardando próximo ciclo`);
           }
           continue;
         }
