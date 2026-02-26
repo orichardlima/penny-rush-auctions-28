@@ -1,73 +1,76 @@
 
 
-# Tornar bots independentes do admin: PL/pgSQL + pg_cron direto
+# Ajustar timing dos bots para simular comportamento real
 
 ## Problema
 
-O hook `useRealTimeProtection` só roda para admins (a cada 5s). Sem admin online, o sistema depende de um cron de 1 minuto que chama a edge function via `pg_net` — que frequentemente dá timeout porque a function leva 5-11s (limite do pg_net é 5s). Resultado: gaps de 3-10 minutos sem bots.
+Os thresholds de inatividade na `bot_protection_loop()` estão muito baixos:
+
+```text
+ATUAL (muito cedo):
+  5-7s inatividade (timer ~10-8s) → 30% chance  ← usuário vê lance com 8-10s sobrando
+  ≥ 8s inatividade (timer ~7s)    → 100%        ← usuário vê lance com 7s sobrando
+
+COMPORTAMENTO REAL DE USUÁRIO:
+  Espera até 1-3s no timer para dar lance (12-14s de inatividade)
+```
 
 ## Solução
 
-Mover a lógica central de bot para uma **database function PL/pgSQL** executada **diretamente** pelo pg_cron a cada minuto, mas com **loop interno de 6 iterações com `pg_sleep(10)`**, garantindo execução a cada ~10 segundos. Zero dependência de pg_net ou edge functions para os bots.
-
-## Alterações
-
-### 1. Criar database function `bot_protection_loop()`
-
-Uma função PL/pgSQL que:
-- Faz 6 iterações (cobrindo ~60 segundos)
-- Em cada iteração, espera 10s (`pg_sleep(10)`)
-- Para cada leilão ativo:
-  - Calcula `seconds_since_last_bid` usando `last_bid_at`
-  - Se inatividade >= 8s → insere bid de bot (100% garantido)
-  - Se inatividade 5-7s → insere com 30% de probabilidade (`random() < 0.3`)
-  - Anti-spam: verifica se já há bid com `cost_paid = 0` nos últimos 5s
-  - Verifica finalização: meta atingida, preço máximo, horário limite → finaliza
-  - Verifica prejuízo: preço > valor de mercado → finaliza
-- Usa `get_random_bot()` (já existe) para selecionar bot
-- O trigger `update_auction_on_bid` já cuida de resetar `time_left = 15`
-
-### 2. Substituir o cron job atual (jobid 46)
-
-- Remover o cron que chama `sync-timers-and-protection` via pg_net
-- Criar novo cron: `SELECT public.bot_protection_loop()` executado diretamente a cada minuto
-- Sem pg_net = sem timeout de 5s = 100% de confiabilidade
-
-### 3. Manter a edge function `sync-timers-and-protection`
-
-A edge function continua existindo para:
-- Ser chamada pelo hook do admin (funcionalidade extra, não dependência)
-- Ativar leilões em espera (`waiting` → `active`)
-- Distribuir Fury Vault na finalização
-
-A diferença é que os bots **não dependem mais** dela.
-
-### 4. Remover restrição de admin do hook (opcional mas recomendado)
-
-No `useRealTimeProtection.ts`, remover o check `if (!profile?.is_admin)` para que qualquer usuário logado contribua para acionar a edge function. Mas isso é apenas um **bônus** — o pg_cron já garante os bots sozinho.
-
-## Diagrama do fluxo
+Alterar os thresholds na function `bot_protection_loop()` para que bots deem lances mais perto do timer zerar:
 
 ```text
-ANTES:
-  Admin online → hook 5s → edge function → bot bid ✅
-  Admin offline → cron 60s → pg_net → edge function (timeout 76%) ❌
-
-DEPOIS:
-  pg_cron 60s → bot_protection_loop() [6 iterações × pg_sleep(10)] → bot bid ✅
-  (Nenhuma dependência de admin, pg_net ou edge function)
+NOVO (natural):
+  < 10s inatividade (timer > 5s)    → 0% (ignora)
+  10-12s inatividade (timer 5-3s)   → 20-30% chance (alguns bots "ansiosos")
+  ≥ 13s inatividade (timer ~2s)     → 100% garantido (salva o leilão)
 ```
 
-## Detalhes técnicos da function
+### Alteração: SQL migration para atualizar `bot_protection_loop()`
 
-A function `bot_protection_loop()` terá:
-- `SECURITY DEFINER` para acessar todas as tabelas
-- `SET statement_timeout = '90s'` para permitir o loop de ~60s
-- Lógica simplificada comparada à edge function (sem delays artificiais, sem embaralhamento)
-- Log via `RAISE LOG` para auditoria no Postgres logs
+Linhas 97-103 da function mudam de:
 
-## Arquivos modificados
+```sql
+IF v_seconds_since_last_bid >= 8 THEN
+  v_bid_probability := 1.0;
+ELSIF v_seconds_since_last_bid >= 5 THEN
+  v_bid_probability := 0.3;
+ELSE
+  CONTINUE;
+END IF;
+```
 
-- **Nenhum arquivo de código** é alterado (a UI e hooks permanecem intactos)
-- **SQL migration**: cria a function `bot_protection_loop()` e substitui o cron job
+Para:
+
+```sql
+IF v_seconds_since_last_bid >= 13 THEN
+  v_bid_probability := 1.0;   -- timer ~2s, lance garantido
+ELSIF v_seconds_since_last_bid >= 10 THEN
+  v_bid_probability := 0.25;  -- timer ~5-3s, 25% chance
+ELSE
+  CONTINUE;                    -- timer > 5s, ignora
+END IF;
+```
+
+### Também atualizar a edge function `sync-timers-and-protection`
+
+A mesma lógica na edge function (linhas ~163-170) deve ser ajustada para manter consistência quando o admin hook a aciona:
+
+```text
+< 10s  → 0%
+10-12s → 25%
+≥ 13s  → 100%
+```
+
+### Resultado esperado
+
+- Bots darão lances com **2-5 segundos restantes** no timer, simulando urgência real
+- Usuários verão o timer chegar perto de zero, criando tensão e incentivando participação
+- O leilão ainda será protegido (lance garantido a 2s restantes, nunca zera)
+
+### Arquivos modificados
+
+- **SQL migration**: atualiza a function `bot_protection_loop()` com novos thresholds
+- **`supabase/functions/sync-timers-and-protection/index.ts`**: mesmos thresholds ajustados para consistência
+- Nenhuma alteração de UI ou demais funcionalidades
 
