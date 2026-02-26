@@ -224,10 +224,9 @@ Deno.serve(async (req) => {
 
       // LANCE PROBABILÍSTICO: threshold e probabilidade variáveis por leilão
       {
-        const minThreshold = 4 + Math.floor(Math.random() * 4); // 4-7s
-        const bidProbability = secondsSinceLastBid >= 10 ? 1.0 
-          : secondsSinceLastBid >= minThreshold ? (0.3 + Math.random() * 0.3) // 30-60%
-          : 0;
+      const bidProbability = secondsSinceLastBid >= 13 ? 1.0   // timer ~2s, lance garantido
+          : secondsSinceLastBid >= 10 ? 0.25                    // timer ~5-3s, 25% chance
+          : 0;                                                   // timer > 5s, ignora
         
         if (bidProbability === 0 || Math.random() > bidProbability) {
           if (secondsSinceLastBid >= minThreshold) {
