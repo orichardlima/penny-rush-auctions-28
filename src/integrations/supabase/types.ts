@@ -2303,7 +2303,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      bot_protection_loop: { Args: never; Returns: undefined }
       check_affiliate_code_availability: {
         Args: { code_to_check: string }
         Returns: boolean
