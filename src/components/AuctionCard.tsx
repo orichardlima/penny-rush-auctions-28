@@ -247,11 +247,11 @@ export const AuctionCard = ({
           {title}
         </h3>
         
-        {description
-
-
-
-        }
+        {description && (
+          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+            {description}
+          </p>
+        )}
         
         {displayStatus === 'waiting' && starts_at &&
         <div
