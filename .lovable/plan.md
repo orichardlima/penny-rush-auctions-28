@@ -1,62 +1,25 @@
 
+# Finalizar manualmente os 4 leilões ativos
 
-# Corrigir bot_protection_loop — leilões não finalizam
+## Situação atual
 
-## Problema raiz
+4 leilões estão "active" há dias porque o `bot_protection_loop` estava falhando. Agora que foi corrigido, precisamos finalizá-los manualmente via SQL.
 
-A migração anterior converteu `bot_protection_loop` de FUNCTION para PROCEDURE e adicionou `COMMIT` para liberar locks. Porém, o `pg_cron` no Supabase executa procedures dentro de uma transação gerenciada que **não permite** `COMMIT` explícito:
+## Dados dos vencedores
 
-```
-ERROR: invalid transaction termination
-CONTEXT: PL/pgSQL function bot_protection_loop() line 131 at COMMIT
-```
+| Leilão | Winner ID | Winner Name |
+|---|---|---|
+| PlayStation 5 SLIM | `4a7d1978-dc04-417e-8c71-b7cb0a18ddc2` | Luciane Toledo - Juazeiro do Norte, CE (bot) |
+| JBL BOOMBOX 3 | `70c5b3c6-a7b6-4f5c-b5e9-b362f3f50cde` | Luiz Claudio - Salvador, BA |
+| iPhone 17 Pro Max | `cb85af36-0756-4ae3-9b58-5efc79ee1087` | Adailton Mascarenhas - Lauro de Freitas, BA |
+| Fone JBL Tune 510BT | `cb85af36-0756-4ae3-9b58-5efc79ee1087` | Adailton Mascarenhas - Lauro de Freitas, BA |
 
-Isso faz com que o loop falhe **a cada minuto** e nenhum leilão seja finalizado automaticamente. Há 4 leilões "ativos" sem lance há dias.
+## Plano
 
-## Solução
+Executar 4 UPDATEs na tabela `auctions` usando a ferramenta de inserção/atualização de dados, setando:
+- `status` = `'finished'`
+- `winner_id` = ID do último lance (real para 3, bot para PS5 conforme aprovado)
+- `winner_name` = nome formatado com cidade/estado
+- `finished_at` = `now()`
 
-Reverter para `FUNCTION` (compatível com pg_cron) e remover o loop de 6 iterações com `pg_sleep`. Em vez disso, a function executa **uma única passagem** por minuto (já que o cron roda a cada minuto), eliminando a necessidade de `COMMIT` e `pg_sleep`.
-
-### Migração SQL
-
-1. Dropar a procedure atual
-2. Recriar como `FUNCTION` com uma única passagem (sem loop de 6 iterações)
-3. Atualizar o cron job para `SELECT public.bot_protection_loop()`
-
-```sql
-DROP PROCEDURE IF EXISTS public.bot_protection_loop();
-
-CREATE OR REPLACE FUNCTION public.bot_protection_loop()
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public AS $$
-DECLARE
-  -- mesmas variáveis, sem v_iteration
-BEGIN
-  v_current_time_br := timezone('America/Sao_Paulo', now());
-
-  FOR v_auction IN SELECT ... FROM auctions WHERE status = 'active' LOOP
-    -- mesma lógica de finalização e bots (sem mudanças)
-    -- verificar ends_at, max_price, revenue_target
-    -- thresholds 10s/13s para bots
-    -- anti-spam, finalização por prejuízo
-  END LOOP;
-END;
-$$;
-
--- Atualizar cron
-SELECT cron.unschedule(48);
-SELECT cron.schedule('bot-protection-loop', '* * * * *',
-  'SELECT public.bot_protection_loop()');
-```
-
-### Impacto
-
-- **Frequência**: Mantém execução a cada 1 minuto (via cron), porém sem as sub-iterações a cada 10s
-- **Locks**: Sem `COMMIT` necessário — a function completa em poucos milissegundos
-- **Compatibilidade**: `SELECT function()` é totalmente suportado pelo pg_cron no Supabase
-- **Timeout anterior**: O problema original de timeout ao finalizar manualmente era causado por lock contention com o loop longo. Com uma única passagem rápida, o lock é mantido por milissegundos
-
-### Seção técnica: por que remover o loop?
-
-O loop de 6 iterações com `pg_sleep(10)` existia para simular execução a cada ~10 segundos dentro de um cron de 1 minuto. Sem `COMMIT`, o `pg_sleep` manteria locks por até 60 segundos — exatamente o problema original de timeout. A solução correta é executar uma passagem única e rápida a cada minuto.
-
+Nenhuma alteração em código ou schema — apenas atualização de dados.
