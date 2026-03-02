@@ -95,13 +95,14 @@ export const useAuctionData = () => {
       ? toZonedTime(new Date(auction.ends_at), brazilTimezone) 
       : null;
     
-    let auctionStatus: 'waiting' | 'active' | 'finished' = 'waiting';
-    if (startsAt && startsAt > nowInBrazil) {
-      auctionStatus = 'waiting';
-    } else if (auction.status === 'active' && (!endsAt || endsAt > nowInBrazil)) {
+    // Usar status do banco diretamente - nunca inferir "finished" por horário
+    let auctionStatus: 'waiting' | 'active' | 'finished';
+    if (auction.status === 'finished') {
+      auctionStatus = 'finished';
+    } else if (auction.status === 'active') {
       auctionStatus = 'active';
     } else {
-      auctionStatus = 'finished';
+      auctionStatus = 'waiting';
     }
 
     let winnerNameWithRegion = auction.winner_name;

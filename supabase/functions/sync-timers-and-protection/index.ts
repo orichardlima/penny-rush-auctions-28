@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
 
   // **FASE 1: Ativar leilões em espera cujo horário chegou**
+  // (Redundância com bot_protection_loop PL/pgSQL para garantia)
   const { data: waitingAuctions, error: waitingError } = await supabase
     .from('auctions')
     .select('id, title, starts_at')
@@ -62,6 +63,7 @@ Deno.serve(async (req) => {
         .update({ 
           status: 'active',
           time_left: 15,
+          last_bid_at: currentTimeBr,
           updated_at: currentTimeBr
         })
         .eq('id', auction.id);
