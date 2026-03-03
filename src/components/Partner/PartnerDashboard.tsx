@@ -51,6 +51,8 @@ import { useAdCenter } from '@/hooks/useAdCenter';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PartnerPixPaymentModal } from './PartnerPixPaymentModal';
+import { PartnerContractTermsDialog } from './PartnerContractTermsDialog';
+
 interface PartnerDashboardProps {
   preselectedPlanId?: string | null;
 }
@@ -96,7 +98,27 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const [upgradePaymentModalOpen, setUpgradePaymentModalOpen] = useState(false);
   const [upgradePaymentData, setUpgradePaymentData] = useState<PartnerUpgradePaymentData | null>(null);
 
-  // Função para lidar com seleção de plano
+  // Estado para dialog de contrato de participação
+  const [contractTermsOpen, setContractTermsOpen] = useState(false);
+  const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
+  const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(undefined);
+
+  // Abre o dialog de termos antes de gerar o PIX
+  const handlePlanSelectWithTerms = (planId: string, referralCode?: string) => {
+    setPendingPlanId(planId);
+    setPendingReferralCode(referralCode);
+    setContractTermsOpen(true);
+  };
+
+  // Chamado após aceitar os termos
+  const handleContractAccepted = () => {
+    setContractTermsOpen(false);
+    if (pendingPlanId) {
+      handlePlanSelect(pendingPlanId, pendingReferralCode);
+    }
+    setPendingPlanId(null);
+    setPendingReferralCode(undefined);
+  };
   const handlePlanSelect = async (planId: string, referralCode?: string) => {
     console.log('[PartnerDashboard] Selecionando plano:', planId, 'referral:', referralCode);
     
@@ -134,26 +156,19 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
   // Auto-criar contrato se tem plano pré-selecionado e não tem contrato
   React.useEffect(() => {
-    if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract && !paymentModalOpen) {
+    if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract && !paymentModalOpen && !contractTermsOpen) {
       const selectedPlan = plans.find(p => p.id === preselectedPlanId);
       if (selectedPlan) {
-        setCreatingContract(true);
         // Prioridade: URL atual > localStorage
         const referralCode = getPartnerReferralCodeFromUrlOrStorage();
         
-        // Log detalhado para debug
-        console.log('[PartnerDashboard] Iniciando criação de contrato:', {
+        console.log('[PartnerDashboard] Abrindo termos para plano pré-selecionado:', {
           planId: preselectedPlanId,
           planName: selectedPlan.name,
           referralCode: referralCode || 'NENHUM',
-          urlSearch: window.location.search,
-          localStorage: localStorage.getItem('partner_referral') || 'VAZIO'
         });
         
-        handlePlanSelect(preselectedPlanId, referralCode || undefined)
-          .finally(() => {
-            setCreatingContract(false);
-          });
+        handlePlanSelectWithTerms(preselectedPlanId, referralCode || undefined);
       }
     }
   }, [loading, contract, preselectedPlanId, plans, creatingContract, paymentModalOpen]);
@@ -392,10 +407,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               key={plan.id}
               plan={plan}
               onSelect={(planId) => {
-                // Prioridade: URL atual > localStorage
                 const referralCode = getPartnerReferralCodeFromUrlOrStorage();
                 console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode);
-                handlePlanSelect(planId, referralCode || undefined);
+                handlePlanSelectWithTerms(planId, referralCode || undefined);
               }}
               loading={submitting}
             />
@@ -439,6 +453,24 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             </p>
           </CardContent>
         </Card>
+
+        {/* Dialog de Contrato de Participação */}
+        {pendingPlanId && (() => {
+          const selectedPlan = plans.find(p => p.id === pendingPlanId);
+          return selectedPlan ? (
+            <PartnerContractTermsDialog
+              open={contractTermsOpen}
+              onClose={() => {
+                setContractTermsOpen(false);
+                setPendingPlanId(null);
+                setPendingReferralCode(undefined);
+              }}
+              onAccept={handleContractAccepted}
+              plan={selectedPlan}
+              loading={submitting}
+            />
+          ) : null;
+        })()}
 
         {/* Modal de Pagamento PIX */}
         {paymentData && (
