@@ -1,33 +1,29 @@
 
 
-## Adicionar Contrato de Participação (Termos do Parceiro)
+## Adicionar Contrato do Apostador no Cadastro
 
-### O que será feito
+### O que sera feito
 
-Antes de gerar o pagamento PIX, o usuário verá um modal/dialog com o texto completo do contrato de participação. Ele precisará marcar um checkbox "Li e aceito os termos do contrato" para prosseguir.
+Ao clicar "Cadastrar" no formulario de signup, antes de efetivamente criar a conta, um dialog modal aparecera com o contrato/termos do apostador. O usuario precisara marcar um checkbox de aceite para prosseguir com o cadastro.
 
-### Implementação
+### Implementacao
 
-1. **Criar componente `PartnerContractTermsDialog`** (`src/components/Partner/PartnerContractTermsDialog.tsx`)
-   - Dialog modal com scroll para o texto do contrato
-   - Texto formatado com cláusulas (objeto, aporte, repasses, teto, encerramento, riscos, etc.)
-   - Checkbox de aceite obrigatório
-   - Botões "Cancelar" e "Aceitar e Continuar"
-   - Recebe `plan` selecionado para exibir valores específicos no texto
+1. **Criar componente `BettorContractTermsDialog`** (`src/components/BettorContractTermsDialog.tsx`)
+   - Dialog modal com ScrollArea para o texto do contrato
+   - Clausulas especificas para apostadores: objeto da plataforma, funcionamento dos leiloes, lances, politica de reembolso, responsabilidades, riscos, privacidade
+   - Checkbox obrigatorio "Li e aceito os termos"
+   - Botoes "Cancelar" e "Aceitar e Cadastrar"
 
-2. **Integrar no `PartnerDashboard.tsx`**
-   - Ao clicar "Participar deste plano", abre o dialog de termos primeiro (em vez de chamar `handlePlanSelect` direto)
-   - Armazena o `planId` e `referralCode` pendentes em state
-   - Só chama `handlePlanSelect` (gerando o PIX) após o aceite no dialog
+2. **Integrar no `Auth.tsx`** (aba signup)
+   - Adicionar state `showBettorContract` (boolean)
+   - No `handleSignUp`: apos `validateForm()` passar, em vez de chamar `signUp` direto, abrir o dialog de contrato
+   - Criar `handleBettorContractAccept` que executa o signUp real (o codigo atual do handleSignUp apos validacao)
+   - Se o usuario cancelar o dialog, nada acontece e ele volta ao formulario
 
-3. **Texto do contrato**
-   - Cláusulas padrão: objeto, valor do aporte, modelo de repasses, teto de recebimento, prazo, encerramento antecipado, riscos, política de privacidade
-   - Valores dinâmicos do plano selecionado (aporte, teto, cap semanal)
+### Arquivos
+- **Novo**: `src/components/BettorContractTermsDialog.tsx`
+- **Editado**: `src/pages/Auth.tsx` (state + dialog intermediario no signup)
 
-### Arquivos alterados
-- **Novo**: `src/components/Partner/PartnerContractTermsDialog.tsx`
-- **Editado**: `src/components/Partner/PartnerDashboard.tsx` (adicionar state e dialog intermediário)
-
-### Sem alterações em
-- Nenhuma UI existente, fluxo de pagamento, backend ou banco de dados
+### Sem alteracoes em
+- Fluxo de login, reset de senha, backend, banco de dados, ou qualquer outra UI existente
 
