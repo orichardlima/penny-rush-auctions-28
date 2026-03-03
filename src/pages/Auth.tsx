@@ -17,6 +17,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
+import { BettorContractTermsDialog } from '@/components/BettorContractTermsDialog';
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +43,7 @@ const Auth = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sponsorName, setSponsorName] = useState<string | null>(null);
   const [loadingSponsor, setLoadingSponsor] = useState(false);
+  const [showBettorContract, setShowBettorContract] = useState(false);
   
   const { signIn, signUp, user, resetPassword } = useAuth();
   const { toast } = useToast();
@@ -282,6 +284,11 @@ const Auth = () => {
       return;
     }
     
+    // Abrir dialog do contrato do apostador em vez de cadastrar direto
+    setShowBettorContract(true);
+  };
+
+  const handleBettorContractAccept = async () => {
     setLoading(true);
 
     try {
@@ -290,7 +297,7 @@ const Auth = () => {
       
       const userData = {
         full_name: formData.fullName,
-        cpf: formData.cpf.replace(/\D/g, ''), // Sempre salvar CPF sem formatação
+        cpf: formData.cpf.replace(/\D/g, ''),
         phone: formData.phone,
         birth_date: formData.birthDate,
         cep: formData.cep,
@@ -300,7 +307,7 @@ const Auth = () => {
         neighborhood: formData.neighborhood,
         city: formData.city,
         state: formData.state,
-        referral_code: referralCode, // Adicionar código de referral
+        referral_code: referralCode,
       };
 
       const { error } = await signUp(formData.email, formData.password, userData);
@@ -326,16 +333,13 @@ const Auth = () => {
           });
         }
       } else {
-        // Limpar tracking de referral após cadastro bem sucedido
         clearReferralTracking();
         
-        // Primeiro toast de confirmação de cadastro
         toast({
           title: "Cadastro realizado!",
           description: "Verifique seu email para confirmar a conta.",
         });
 
-        // Toast adicional sobre bônus após um pequeno delay
         setTimeout(() => {
           toast({
             title: "🎉 Bônus Creditado!",
@@ -344,7 +348,6 @@ const Auth = () => {
           });
         }, 2000);
 
-        // Limpar formulário após sucesso
         setFormData({
           email: "",
           password: "",
@@ -371,6 +374,7 @@ const Auth = () => {
       });
     } finally {
       setLoading(false);
+      setShowBettorContract(false);
     }
   };
 
@@ -861,6 +865,13 @@ const Auth = () => {
       </Card>
         </main>
         <Footer />
+
+        <BettorContractTermsDialog
+          open={showBettorContract}
+          onClose={() => setShowBettorContract(false)}
+          onAccept={handleBettorContractAccept}
+          loading={loading}
+        />
       </div>
     </>
   );
