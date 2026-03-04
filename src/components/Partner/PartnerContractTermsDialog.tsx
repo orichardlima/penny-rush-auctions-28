@@ -12,6 +12,46 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText } from 'lucide-react';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
+
+const FALLBACK_TEXT = `CONTRATO DE PARTICIPAÇÃO NO PROGRAMA DE PARCEIROS
+
+CLÁUSULA 1 — OBJETO
+O presente contrato regula a participação do PARCEIRO no Programa de Parceiros da plataforma Show de Lances, mediante aporte financeiro e participação nos repasses proporcionais ao faturamento da plataforma.
+
+CLÁUSULA 2 — APORTE
+O PARCEIRO realizará um aporte único correspondente ao plano selecionado, mediante pagamento via PIX.
+
+CLÁUSULA 3 — REPASSES SEMANAIS
+Os repasses serão realizados semanalmente, de forma proporcional ao faturamento real da plataforma no período de referência. O valor de cada repasse é variável e depende exclusivamente do desempenho comercial da plataforma, não havendo garantia de valor mínimo.
+
+CLÁUSULA 4 — TETO DE RECEBIMENTO
+O teto total de recebimentos acumulados do PARCEIRO é definido pelo plano contratado. Ao atingir esse valor, o contrato será automaticamente encerrado, não sendo devidos valores adicionais.
+
+CLÁUSULA 5 — PRAZO
+O contrato permanecerá vigente até que o teto de recebimento seja atingido ou até que uma das partes solicite o encerramento antecipado, conforme previsto neste instrumento.
+
+CLÁUSULA 6 — ENCERRAMENTO ANTECIPADO
+O PARCEIRO poderá solicitar o encerramento antecipado do contrato a qualquer momento. Nessa hipótese, o valor restante poderá ser devolvido na forma de créditos em lances na plataforma, com desconto proporcional ao tempo de participação, conforme política vigente.
+
+CLÁUSULA 7 — BÔNUS DE LANCES
+O plano poderá incluir bônus de lances para uso na plataforma, conforme especificado no plano contratado.
+
+CLÁUSULA 8 — PROGRAMA DE INDICAÇÕES
+O PARCEIRO poderá indicar novos participantes e receber bonificações adicionais conforme as regras do programa de indicações vigentes no momento da adesão. As bonificações de indicação são independentes dos repasses semanais.
+
+CLÁUSULA 9 — RISCOS E ISENÇÕES
+O PARCEIRO declara estar ciente de que:
+• Os repasses são variáveis e dependem do faturamento real da plataforma.
+• Não há garantia de retorno mínimo ou prazo definido para atingir o teto.
+• O desempenho passado da plataforma não garante resultados futuros.
+• A plataforma poderá suspender ou encerrar o programa em caso de força maior ou decisão administrativa, com comunicação prévia aos parceiros.
+
+CLÁUSULA 10 — PRIVACIDADE E DADOS
+Os dados pessoais do PARCEIRO serão tratados conforme a Política de Privacidade da plataforma, em conformidade com a Lei Geral de Proteção de Dados (LGPD).
+
+CLÁUSULA 11 — DISPOSIÇÕES GERAIS
+Ao aceitar este contrato, o PARCEIRO declara ter lido, compreendido e concordado com todas as cláusulas aqui descritas. A aceitação eletrônica possui validade jurídica nos termos da legislação brasileira vigente.`;
 
 interface PartnerContractTermsDialogProps {
   open: boolean;
@@ -36,6 +76,9 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
   loading = false,
 }) => {
   const [accepted, setAccepted] = useState(false);
+  const { getSettingValue } = useSystemSettings();
+
+  const contractText = getSettingValue('contract_partner_text', '') || FALLBACK_TEXT;
 
   const handleClose = () => {
     setAccepted(false);
@@ -63,125 +106,19 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
 
         <ScrollArea className="h-[50vh] pr-4">
           <div className="space-y-4 text-sm leading-relaxed text-foreground">
-            <h3 className="font-semibold text-base">CONTRATO DE PARTICIPAÇÃO NO PROGRAMA DE PARCEIROS</h3>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 1 — OBJETO</h4>
-              <p>
-                O presente contrato regula a participação do PARCEIRO no Programa de Parceiros da
-                plataforma Show de Lances, mediante aporte financeiro e participação nos repasses
-                proporcionais ao faturamento da plataforma.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 2 — APORTE</h4>
-              <p>
-                O PARCEIRO realizará um aporte único no valor de{' '}
-                <strong>{formatCurrency(plan.aporte_value)}</strong>, correspondente ao plano{' '}
-                <strong>{plan.display_name}</strong>, mediante pagamento via PIX.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 3 — REPASSES SEMANAIS</h4>
-              <p>
-                Os repasses serão realizados semanalmente, de forma proporcional ao faturamento real
-                da plataforma no período de referência. O valor de cada repasse é variável e depende
-                exclusivamente do desempenho comercial da plataforma, não havendo garantia de valor
-                mínimo.
-              </p>
-              <p className="mt-1">
-                O limite máximo por semana é de até{' '}
-                <strong>{formatCurrency(plan.weekly_cap)}</strong>.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 4 — TETO DE RECEBIMENTO</h4>
-              <p>
-                O teto total de recebimentos acumulados do PARCEIRO é de{' '}
-                <strong>{formatCurrency(plan.total_cap)}</strong>. Ao atingir esse valor, o contrato
-                será automaticamente encerrado, não sendo devidos valores adicionais.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 5 — PRAZO</h4>
-              <p>
-                O contrato permanecerá vigente até que o teto de recebimento seja atingido ou até
-                que uma das partes solicite o encerramento antecipado, conforme previsto neste
-                instrumento.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 6 — ENCERRAMENTO ANTECIPADO</h4>
-              <p>
-                O PARCEIRO poderá solicitar o encerramento antecipado do contrato a qualquer
-                momento. Nessa hipótese, o valor restante poderá ser devolvido na forma de créditos
-                em lances na plataforma, com desconto proporcional ao tempo de participação,
-                conforme política vigente.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 7 — BÔNUS DE LANCES</h4>
-              {plan.bonus_bids && plan.bonus_bids > 0 ? (
-                <p>
-                  Ao ativar o plano, o PARCEIRO receberá um bônus de{' '}
-                  <strong>{plan.bonus_bids} lances</strong> para uso na plataforma.
-                </p>
-              ) : (
-                <p>O plano selecionado não inclui bônus de lances.</p>
+            {/* Plan-specific summary */}
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <p><strong>Plano:</strong> {plan.display_name}</p>
+              <p><strong>Aporte:</strong> {formatCurrency(plan.aporte_value)}</p>
+              <p><strong>Teto semanal:</strong> {formatCurrency(plan.weekly_cap)}</p>
+              <p><strong>Teto total:</strong> {formatCurrency(plan.total_cap)}</p>
+              {plan.bonus_bids && plan.bonus_bids > 0 && (
+                <p><strong>Bônus de lances:</strong> {plan.bonus_bids} lances</p>
               )}
-            </section>
+            </div>
 
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 8 — PROGRAMA DE INDICAÇÕES</h4>
-              <p>
-                O PARCEIRO poderá indicar novos participantes e receber bonificações adicionais
-                conforme as regras do programa de indicações vigentes no momento da adesão. As
-                bonificações de indicação são independentes dos repasses semanais.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 9 — RISCOS E ISENÇÕES</h4>
-              <p>
-                O PARCEIRO declara estar ciente de que:
-              </p>
-              <ul className="list-disc pl-5 mt-1 space-y-1">
-                <li>
-                  Os repasses são variáveis e dependem do faturamento real da plataforma.
-                </li>
-                <li>Não há garantia de retorno mínimo ou prazo definido para atingir o teto.</li>
-                <li>
-                  O desempenho passado da plataforma não garante resultados futuros.
-                </li>
-                <li>
-                  A plataforma poderá suspender ou encerrar o programa em caso de força maior ou
-                  decisão administrativa, com comunicação prévia aos parceiros.
-                </li>
-              </ul>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 10 — PRIVACIDADE E DADOS</h4>
-              <p>
-                Os dados pessoais do PARCEIRO serão tratados conforme a Política de Privacidade da
-                plataforma, em conformidade com a Lei Geral de Proteção de Dados (LGPD).
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-semibold">CLÁUSULA 11 — DISPOSIÇÕES GERAIS</h4>
-              <p>
-                Ao aceitar este contrato, o PARCEIRO declara ter lido, compreendido e concordado com
-                todas as cláusulas aqui descritas. A aceitação eletrônica possui validade jurídica
-                nos termos da legislação brasileira vigente.
-              </p>
-            </section>
+            {/* Dynamic contract text */}
+            <div className="whitespace-pre-wrap">{contractText}</div>
           </div>
         </ScrollArea>
 

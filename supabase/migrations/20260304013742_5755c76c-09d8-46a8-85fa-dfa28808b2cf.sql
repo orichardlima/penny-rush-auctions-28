@@ -1,20 +1,8 @@
-import React, { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText } from 'lucide-react';
-import { useSystemSettings } from '@/hooks/useSystemSettings';
-
-// Fallback text used when no database value exists
-const FALLBACK_TEXT = `TERMOS E CONDIÇÕES DE USO — APOSTADOR
+INSERT INTO public.system_settings (setting_key, setting_value, setting_type, description)
+VALUES 
+(
+  'contract_bettor_text',
+  'TERMOS E CONDIÇÕES DE USO — APOSTADOR
 
 CLÁUSULA 1 — OBJETO
 O presente termo regula a participação do APOSTADOR na plataforma Show de Lances, um sistema de leilões de centavos (penny auctions) onde os participantes adquirem lances para competir em leilões de produtos e serviços.
@@ -61,78 +49,50 @@ Os dados pessoais do APOSTADOR serão tratados conforme a Política de Privacida
 
 CLÁUSULA 10 — DISPOSIÇÕES GERAIS
 Ao aceitar este contrato, o APOSTADOR declara ter lido, compreendido e concordado com todas as cláusulas aqui descritas. A aceitação eletrônica possui validade jurídica nos termos da legislação brasileira vigente.
-A plataforma reserva-se o direito de atualizar estes termos a qualquer momento, notificando os usuários sobre alterações significativas.`;
+A plataforma reserva-se o direito de atualizar estes termos a qualquer momento, notificando os usuários sobre alterações significativas.',
+  'text',
+  'Texto completo do contrato do apostador exibido no cadastro'
+),
+(
+  'contract_partner_text',
+  'CONTRATO DE PARTICIPAÇÃO NO PROGRAMA DE PARCEIROS
 
-interface BettorContractTermsDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onAccept: () => void;
-  loading?: boolean;
-}
+CLÁUSULA 1 — OBJETO
+O presente contrato regula a participação do PARCEIRO no Programa de Parceiros da plataforma Show de Lances, mediante aporte financeiro e participação nos repasses proporcionais ao faturamento da plataforma.
 
-export const BettorContractTermsDialog: React.FC<BettorContractTermsDialogProps> = ({
-  open,
-  onClose,
-  onAccept,
-  loading = false,
-}) => {
-  const [accepted, setAccepted] = useState(false);
-  const { getSettingValue } = useSystemSettings();
+CLÁUSULA 2 — APORTE
+O PARCEIRO realizará um aporte único correspondente ao plano selecionado, mediante pagamento via PIX.
 
-  const contractText = getSettingValue('contract_bettor_text', '') || FALLBACK_TEXT;
+CLÁUSULA 3 — REPASSES SEMANAIS
+Os repasses serão realizados semanalmente, de forma proporcional ao faturamento real da plataforma no período de referência. O valor de cada repasse é variável e depende exclusivamente do desempenho comercial da plataforma, não havendo garantia de valor mínimo.
 
-  const handleClose = () => {
-    setAccepted(false);
-    onClose();
-  };
+CLÁUSULA 4 — TETO DE RECEBIMENTO
+O teto total de recebimentos acumulados do PARCEIRO é definido pelo plano contratado. Ao atingir esse valor, o contrato será automaticamente encerrado, não sendo devidos valores adicionais.
 
-  const handleAccept = () => {
-    if (!accepted) return;
-    setAccepted(false);
-    onAccept();
-  };
+CLÁUSULA 5 — PRAZO
+O contrato permanecerá vigente até que o teto de recebimento seja atingido ou até que uma das partes solicite o encerramento antecipado, conforme previsto neste instrumento.
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Contrato do Apostador — Show de Lances
-          </DialogTitle>
-          <DialogDescription>
-            Leia atentamente os termos abaixo antes de prosseguir com o cadastro.
-          </DialogDescription>
-        </DialogHeader>
+CLÁUSULA 6 — ENCERRAMENTO ANTECIPADO
+O PARCEIRO poderá solicitar o encerramento antecipado do contrato a qualquer momento. Nessa hipótese, o valor restante poderá ser devolvido na forma de créditos em lances na plataforma, com desconto proporcional ao tempo de participação, conforme política vigente.
 
-        <ScrollArea className="h-[50vh] pr-4">
-          <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-            {contractText}
-          </div>
-        </ScrollArea>
+CLÁUSULA 7 — BÔNUS DE LANCES
+O plano poderá incluir bônus de lances para uso na plataforma, conforme especificado no plano contratado.
 
-        <div className="border-t pt-4 space-y-4">
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <Checkbox
-              checked={accepted}
-              onCheckedChange={(v) => setAccepted(v === true)}
-              className="mt-0.5"
-            />
-            <span className="text-sm">
-              Li e aceito integralmente os termos e condições de uso da plataforma Show de Lances.
-            </span>
-          </label>
+CLÁUSULA 8 — PROGRAMA DE INDICAÇÕES
+O PARCEIRO poderá indicar novos participantes e receber bonificações adicionais conforme as regras do programa de indicações vigentes no momento da adesão. As bonificações de indicação são independentes dos repasses semanais.
 
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAccept} disabled={!accepted || loading}>
-              {loading ? 'Processando...' : 'Aceitar e Cadastrar'}
-            </Button>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+CLÁUSULA 9 — RISCOS E ISENÇÕES
+O PARCEIRO declara estar ciente de que:
+• Os repasses são variáveis e dependem do faturamento real da plataforma.
+• Não há garantia de retorno mínimo ou prazo definido para atingir o teto.
+• O desempenho passado da plataforma não garante resultados futuros.
+• A plataforma poderá suspender ou encerrar o programa em caso de força maior ou decisão administrativa, com comunicação prévia aos parceiros.
+
+CLÁUSULA 10 — PRIVACIDADE E DADOS
+Os dados pessoais do PARCEIRO serão tratados conforme a Política de Privacidade da plataforma, em conformidade com a Lei Geral de Proteção de Dados (LGPD).
+
+CLÁUSULA 11 — DISPOSIÇÕES GERAIS
+Ao aceitar este contrato, o PARCEIRO declara ter lido, compreendido e concordado com todas as cláusulas aqui descritas. A aceitação eletrônica possui validade jurídica nos termos da legislação brasileira vigente.',
+  'text',
+  'Texto completo do contrato do parceiro exibido na adesão ao plano'
+);
