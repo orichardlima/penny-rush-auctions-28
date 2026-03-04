@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +57,11 @@ export const SystemSettings: React.FC = () => {
   const [bannerMobileCtaText, setBannerMobileCtaText] = useState<string>('Participar');
   const [bannerExpiresAt, setBannerExpiresAt] = useState<string>('');
   const [savingBanner, setSavingBanner] = useState(false);
+
+  // Contract Texts State
+  const [contractBettorText, setContractBettorText] = useState<string>('');
+  const [contractPartnerText, setContractPartnerText] = useState<string>('');
+  const [savingContract, setSavingContract] = useState(false);
 
   // Auto-Replenish State
   const [autoReplenishEnabled, setAutoReplenishEnabled] = useState<boolean>(true);
@@ -118,6 +125,10 @@ export const SystemSettings: React.FC = () => {
         }
       }
       
+      // Contract Texts
+      setContractBettorText(getSettingValue('contract_bettor_text', ''));
+      setContractPartnerText(getSettingValue('contract_partner_text', ''));
+
       // Auto-Replenish
       setAutoReplenishEnabled(getSettingValue('auto_replenish_enabled', true));
       setAutoReplenishMinActive(getSettingValue('auto_replenish_min_active', 3).toString());
@@ -395,6 +406,75 @@ export const SystemSettings: React.FC = () => {
         <Settings className="h-5 w-5" />
         <h2 className="text-xl font-semibold">Configurações do Sistema</h2>
       </div>
+
+      {/* Contratos Legais */}
+      <Card className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-indigo-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-500" />
+            <CardTitle className="text-blue-600">Contratos Legais</CardTitle>
+          </div>
+          <CardDescription>
+            Edite os textos dos contratos exibidos para apostadores e parceiros. Use quebras de linha para formatar o texto.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="bettor" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="bettor">Apostador</TabsTrigger>
+              <TabsTrigger value="partner">Parceiro</TabsTrigger>
+            </TabsList>
+            <TabsContent value="bettor" className="space-y-4">
+              <div className="space-y-2">
+                <Label>Texto do Contrato do Apostador</Label>
+                <Textarea
+                  value={contractBettorText}
+                  onChange={(e) => setContractBettorText(e.target.value)}
+                  className="min-h-[300px] font-mono text-xs"
+                  placeholder="Digite o texto completo do contrato do apostador..."
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="partner" className="space-y-4">
+              <div className="space-y-2">
+                <Label>Texto do Contrato do Parceiro</Label>
+                <Textarea
+                  value={contractPartnerText}
+                  onChange={(e) => setContractPartnerText(e.target.value)}
+                  className="min-h-[300px] font-mono text-xs"
+                  placeholder="Digite o texto completo do contrato do parceiro..."
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-xs text-muted-foreground">
+              💡 O texto será exibido exatamente como digitado, incluindo quebras de linha.
+            </p>
+            <Button
+              onClick={async () => {
+                setSavingContract(true);
+                try {
+                  await Promise.all([
+                    updateSetting('contract_bettor_text', contractBettorText),
+                    updateSetting('contract_partner_text', contractPartnerText),
+                  ]);
+                  toast({ title: "Contratos salvos!", description: "Os textos dos contratos foram atualizados." });
+                } catch {
+                  toast({ title: "Erro", description: "Não foi possível salvar os contratos.", variant: "destructive" });
+                } finally {
+                  setSavingContract(false);
+                }
+              }}
+              disabled={savingContract}
+              size="sm"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {savingContract ? 'Salvando...' : 'Salvar Contratos'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Banner de Lançamento */}
       <Card className="border-pink-500/20 bg-gradient-to-br from-pink-500/5 to-purple-500/5">
