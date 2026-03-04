@@ -54,8 +54,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
   if (!node) {
     return (
       <div className="flex flex-col items-center">
-        <div className="w-24 h-16 border-2 border-dashed border-muted rounded-lg flex items-center justify-center bg-muted/20">
-          <span className="text-xs text-muted-foreground">Vazio</span>
+      <div className="w-20 sm:w-24 h-14 sm:h-16 border-2 border-dashed border-muted rounded-lg flex items-center justify-center bg-muted/20">
+          <span className="text-[10px] sm:text-xs text-muted-foreground">Vazio</span>
         </div>
       </div>
     );
@@ -84,7 +84,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
       {/* Node */}
       <div 
         className={cn(
-          "relative w-32 rounded-lg border-2 p-2 transition-all cursor-pointer hover:shadow-md",
+          "relative w-28 sm:w-32 rounded-lg border-2 p-1.5 sm:p-2 transition-all cursor-pointer hover:shadow-md",
           getPositionColor(),
           isMatch && "ring-2 ring-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]"
         )}
@@ -165,13 +165,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, position = 'root', allNodes, 
           {/* Connector lines */}
           <div className="w-px h-4 bg-border" />
           <div className="flex items-start">
-            <div className="w-16 h-px bg-border" />
+            <div className="w-10 sm:w-16 h-px bg-border" />
             <div className="w-px h-4 bg-border" />
-            <div className="w-16 h-px bg-border" />
+            <div className="w-10 sm:w-16 h-px bg-border" />
           </div>
           
           {/* Child nodes */}
-          <div className="flex gap-4 mt-2">
+          <div className="flex gap-2 sm:gap-4 mt-2">
             <TreeNode 
               node={leftChild} 
               position="left" 
@@ -432,7 +432,7 @@ export const BinaryNetworkTree: React.FC = () => {
 
         {/* Tree Visualization */}
         <div className="overflow-x-auto pb-4">
-          <div className="min-w-[400px] flex justify-center">
+          <div className="min-w-fit flex justify-center px-6">
             <TreeNode 
               node={rootNode} 
               position="root"
