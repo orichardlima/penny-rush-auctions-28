@@ -2362,7 +2362,7 @@ export type Database = {
       get_auction_participants: {
         Args: { auction_uuid: string }
         Returns: {
-          avg_time_between_bids: unknown
+          avg_time_between_bids: string
           bid_count: number
           first_bid_at: string
           is_bot: boolean
