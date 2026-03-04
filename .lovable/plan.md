@@ -1,29 +1,36 @@
 
 
-## Adicionar Contrato do Apostador no Cadastro
+## Gerenciamento de Contratos pelo Admin
 
-### O que sera feito
+Atualmente os textos dos contratos (Apostador e Parceiro) estão fixos no código. Para permitir que o admin edite, vamos armazenar o conteúdo na tabela `system_settings` e adicionar uma seção de edição no painel de Configurações do Sistema.
 
-Ao clicar "Cadastrar" no formulario de signup, antes de efetivamente criar a conta, um dialog modal aparecera com o contrato/termos do apostador. O usuario precisara marcar um checkbox de aceite para prosseguir com o cadastro.
+### O que será feito
 
-### Implementacao
+1. **Banco de dados** — Inserir 2 registros na `system_settings`:
+   - `contract_bettor_text` (texto do contrato do apostador)
+   - `contract_partner_text` (texto do contrato do parceiro)
+   - Valores iniciais = texto atual hardcoded dos componentes
 
-1. **Criar componente `BettorContractTermsDialog`** (`src/components/BettorContractTermsDialog.tsx`)
-   - Dialog modal com ScrollArea para o texto do contrato
-   - Clausulas especificas para apostadores: objeto da plataforma, funcionamento dos leiloes, lances, politica de reembolso, responsabilidades, riscos, privacidade
-   - Checkbox obrigatorio "Li e aceito os termos"
-   - Botoes "Cancelar" e "Aceitar e Cadastrar"
+2. **Nova seção em `SystemSettings.tsx`** — Card "Contratos Legais" com:
+   - Duas abas (Apostador / Parceiro)
+   - Textarea grande para cada contrato
+   - Botão "Salvar" que grava na `system_settings`
+   - Dica informando que o texto suporta quebras de linha
 
-2. **Integrar no `Auth.tsx`** (aba signup)
-   - Adicionar state `showBettorContract` (boolean)
-   - No `handleSignUp`: apos `validateForm()` passar, em vez de chamar `signUp` direto, abrir o dialog de contrato
-   - Criar `handleBettorContractAccept` que executa o signUp real (o codigo atual do handleSignUp apos validacao)
-   - Se o usuario cancelar o dialog, nada acontece e ele volta ao formulario
+3. **Atualizar `BettorContractTermsDialog.tsx`** — Buscar o texto de `system_settings` via `useSystemSettings`. Se existir valor no banco, exibir o texto dinâmico; senão, manter o texto hardcoded como fallback.
 
-### Arquivos
-- **Novo**: `src/components/BettorContractTermsDialog.tsx`
-- **Editado**: `src/pages/Auth.tsx` (state + dialog intermediario no signup)
+4. **Atualizar `PartnerContractTermsDialog.tsx`** — Mesma lógica: buscar `contract_partner_text` do banco, com fallback para o texto atual.
 
-### Sem alteracoes em
-- Fluxo de login, reset de senha, backend, banco de dados, ou qualquer outra UI existente
+### Detalhes técnicos
+
+- Os textos serão armazenados como string simples com quebras de linha (`\n`), renderizados com `whitespace-pre-wrap`
+- Sem necessidade de migração SQL — usaremos INSERT via insert tool para os registros iniciais
+- RLS já existente na `system_settings` permite leitura autenticada e escrita por admin
+- O admin acessa em: **Dashboard > Configurações do Sistema > Card "Contratos Legais"**
+
+### Arquivos alterados
+- **Editado**: `src/components/SystemSettings.tsx` (nova seção de contratos)
+- **Editado**: `src/components/BettorContractTermsDialog.tsx` (texto dinâmico)
+- **Editado**: `src/components/Partner/PartnerContractTermsDialog.tsx` (texto dinâmico)
+- **Dados**: 2 INSERTs na `system_settings`
 
