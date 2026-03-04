@@ -1,36 +1,37 @@
 
 
-## Gerenciamento de Contratos pelo Admin
+## Plano: Realocar Cláudio na rede de Mariano
 
-Atualmente os textos dos contratos (Apostador e Parceiro) estão fixos no código. Para permitir que o admin edite, vamos armazenar o conteúdo na tabela `system_settings` e adicionar uma seção de edição no painel de Configurações do Sistema.
+### Situação Atual
+- **Cláudio** está posicionado como filho **direito** da **Lavínia**, com sponsor = **Richard Lima**
+- **Mariano** tem a perna **direita vazia** — é o destino natural
+- Cláudio gerou 1000 pontos (right) para 4 ancestrais na cadeia atual (Lavínia → upline)
 
-### O que será feito
+### Operações necessárias (via SQL direto no banco)
 
-1. **Banco de dados** — Inserir 2 registros na `system_settings`:
-   - `contract_bettor_text` (texto do contrato do apostador)
-   - `contract_partner_text` (texto do contrato do parceiro)
-   - Valores iniciais = texto atual hardcoded dos componentes
+**1. Remover Cláudio do pai atual (Lavínia)**
+- Setar `right_child_id = NULL` na posição binária da Lavínia
 
-2. **Nova seção em `SystemSettings.tsx`** — Card "Contratos Legais" com:
-   - Duas abas (Apostador / Parceiro)
-   - Textarea grande para cada contrato
-   - Botão "Salvar" que grava na `system_settings`
-   - Dica informando que o texto suporta quebras de linha
+**2. Atualizar a posição binária do Cláudio**
+- `parent_contract_id` → Mariano (`879cbe85...`)
+- `sponsor_contract_id` → Mariano (`879cbe85...`)
+- `position` → `right`
 
-3. **Atualizar `BettorContractTermsDialog.tsx`** — Buscar o texto de `system_settings` via `useSystemSettings`. Se existir valor no banco, exibir o texto dinâmico; senão, manter o texto hardcoded como fallback.
+**3. Vincular Cláudio como filho direito do Mariano**
+- Setar `right_child_id = 45044294...` (Cláudio) na posição binária do Mariano
 
-4. **Atualizar `PartnerContractTermsDialog.tsx`** — Mesma lógica: buscar `contract_partner_text` do banco, com fallback para o texto atual.
+**4. Atualizar o contrato do Cláudio**
+- `referred_by_user_id` → Mariano (`14ddc8ca...`)
 
-### Detalhes técnicos
+**5. Corrigir pontuação — Remover pontos do upline antigo**
+- Subtrair 1000 pontos (right) de: Lavínia, e dos 3 ancestrais acima que receberam pontos right por causa do Cláudio
 
-- Os textos serão armazenados como string simples com quebras de linha (`\n`), renderizados com `whitespace-pre-wrap`
-- Sem necessidade de migração SQL — usaremos INSERT via insert tool para os registros iniciais
-- RLS já existente na `system_settings` permite leitura autenticada e escrita por admin
-- O admin acessa em: **Dashboard > Configurações do Sistema > Card "Contratos Legais"**
+**6. Propagar pontos pelo novo upline**
+- Adicionar 1000 pontos (right) para Mariano e seus ancestrais acima na cadeia binária
 
-### Arquivos alterados
-- **Editado**: `src/components/SystemSettings.tsx` (nova seção de contratos)
-- **Editado**: `src/components/BettorContractTermsDialog.tsx` (texto dinâmico)
-- **Editado**: `src/components/Partner/PartnerContractTermsDialog.tsx` (texto dinâmico)
-- **Dados**: 2 INSERTs na `system_settings`
+**7. Registrar no log de auditoria**
+- Inserir registro em `admin_audit_log` documentando a movimentação
+
+### Nota importante
+Conforme a memória do projeto, a movimentação manual **não** dispara recálculo automático de pontos. Os ajustes de `left_points`/`right_points` nos ancestrais antigos e novos precisam ser feitos manualmente via SQL para evitar inconsistências.
 
