@@ -1,17 +1,12 @@
 
 
-## Plano: Corrigir erro de ambiguidade na RPC `propagate_binary_points`
+## Plano: Corrigir `undefined` → `null` nas chamadas RPC
 
 ### Problema
 
-O Postgres não consegue escolher entre duas sobrecargas da função `propagate_binary_points` quando chamada com 3 argumentos (`p_source_contract_id`, `p_points`, `p_reason`), pois ambas as assinaturas aceitam esses parâmetros.
+O `undefined` é removido pelo cliente Supabase JS ao serializar para JSON, fazendo com que apenas 3 parâmetros sejam enviados ao Postgres — o que causa novamente o erro de ambiguidade entre as duas sobrecargas de `propagate_binary_points`.
 
 ### Solução
 
-No arquivo `src/components/Admin/AdminBinaryTreeView.tsx`, nas duas chamadas a `propagate_binary_points`, adicionar explicitamente o parâmetro `p_sponsor_contract_id: null` para forçar a escolha da sobrecarga de 4 parâmetros e eliminar a ambiguidade.
-
-**Chamada 1 (~linha 240)**: `handleRecalculate` — adicionar `p_sponsor_contract_id: undefined`
-**Chamada 2 (~linha 301)**: `handleLink` — adicionar `p_sponsor_contract_id: undefined`
-
-Nenhuma alteração de banco de dados necessária.
+Trocar `p_sponsor_contract_id: undefined` por `p_sponsor_contract_id: null` nas duas chamadas em `AdminBinaryTreeView.tsx` (linhas 244 e 306). O `null` é preservado na serialização JSON e resolve a ambiguidade.
 
