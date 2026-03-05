@@ -51,12 +51,18 @@ export const useRecentWinners = () => {
         const winnerIds = auctions.map(a => a.winner_id).filter(Boolean);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, city, state, full_name')
+          .select('user_id, city, state, full_name, is_bot')
           .in('user_id', winnerIds);
 
         const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        
+        // Filter out auctions won by bots
+        const filteredAuctions = auctions.filter(auction => {
+          const profile = profileMap.get(auction.winner_id);
+          return !profile?.is_bot;
+        });
 
-        const formattedWinners: Winner[] = auctions.map((auction) => {
+        const formattedWinners: Winner[] = filteredAuctions.map((auction) => {
           const profile = profileMap.get(auction.winner_id);
           const city = profile?.city || '';
           const state = profile?.state || '';
