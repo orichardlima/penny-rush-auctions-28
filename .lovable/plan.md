@@ -1,42 +1,26 @@
 
 
-## Plano: Corrigir lógica de finalização — proteger contra usuário real vencer sem receita
+## Plano: Adicionar cláusula sobre bônus de boas-vindas no contrato do apostador
 
-### Regra de negócio corrigida
+### Alteração
 
-- **Bots podem e devem vencer leilões** — isso é normal e esperado
-- **Usuários reais NÃO podem vencer** se `company_revenue < revenue_target`
-- Se o leilão precisa finalizar (por `ends_at`, `max_price`, etc.) e a receita está abaixo da meta, o **bot deve ser o vencedor**, não o usuário real
+**Arquivo: `src/components/BettorContractTermsDialog.tsx`**
 
-### Alterações
+Adicionar uma nova cláusula (CLÁUSULA 11) no `FALLBACK_TEXT`, antes das Disposições Gerais, informando que:
 
-#### 1. Migration SQL — `bot_protection_loop`
+- Os lances de bônus de boas-vindas (cadastro) são exclusivamente para experimentação da plataforma
+- Lances bônus não têm validade para arrematação de produtos
+- Apenas lances adquiridos mediante pagamento são válidos para arrematar itens em leilões
+- Arrematações realizadas exclusivamente com lances bônus serão consideradas nulas
 
-Corrigir a lógica de finalização por `ends_at`:
+A atual "CLÁUSULA 10 — DISPOSIÇÕES GERAIS" será renumerada para CLÁUSULA 12, e a "CLÁUSULA 11" original passará a ser CLÁUSULA 12.
 
-- **Antes**: finaliza com o último bidder (qualquer um), independente da receita
-- **Depois**: quando `ends_at` é atingido E `company_revenue < revenue_target`:
-  - Verificar se o último lance é de um usuário real (`cost_paid > 0`)
-  - Se sim, inserir um lance de bot antes de finalizar, fazendo o **bot vencer**
-  - Se o último já é bot, finalizar normalmente com o bot como vencedor
-- Quando `company_revenue >= revenue_target`: finalizar normalmente com qualquer vencedor (bot ou user)
+### Texto da nova cláusula
 
-Mesma lógica para finalização por `max_price`: se receita insuficiente, garantir bot como vencedor.
-
-#### 2. `useRecentWinners.ts` — Filtrar bots da exibição pública
-
-- Após buscar os `winner_id` dos leilões finalizados, cruzar com `profiles` e excluir os que têm `is_bot = true`
-- Página pública de vencedores mostra apenas ganhadores humanos reais
-
-#### 3. `useFinishAuction.ts` — Aplicar mesma proteção no encerramento manual
-
-- Quando admin finaliza manualmente, verificar se `company_revenue < revenue_target`
-- Se sim e o último lance é de usuário real, inserir bot bid antes e finalizar com bot
-
-### Resumo do impacto
-
-- Empresa nunca entrega produto com prejuízo a um usuário real
-- Bots vencem normalmente quando a receita não foi atingida (comportamento esperado)
-- Página pública só mostra vencedores humanos
-- Admin mantém capacidade de finalizar manualmente com a mesma proteção
+```
+CLÁUSULA 11 — BÔNUS DE BOAS-VINDAS
+Ao se cadastrar na plataforma, o usuário poderá receber lances gratuitos como bônus de boas-vindas. Esses lances têm finalidade exclusivamente experimental, permitindo ao usuário conhecer e testar o funcionamento dos leilões da plataforma.
+Os lances de bônus de boas-vindas NÃO possuem validade para arrematação de produtos. Apenas lances adquiridos mediante pagamento são válidos para fins de arrematação.
+Caso um usuário arremate um produto utilizando exclusivamente lances de bônus (sem ter adquirido lances pagos), a arrematação será considerada nula e sem efeito, não gerando obrigação de entrega por parte da plataforma.
+```
 
