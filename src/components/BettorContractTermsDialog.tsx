@@ -61,7 +61,12 @@ Os dados pessoais do APOSTADOR serão tratados conforme a Política de Privacida
 
 CLÁUSULA 10 — DISPOSIÇÕES GERAIS
 Ao aceitar este contrato, o APOSTADOR declara ter lido, compreendido e concordado com todas as cláusulas aqui descritas. A aceitação eletrônica possui validade jurídica nos termos da legislação brasileira vigente.
-A plataforma reserva-se o direito de atualizar estes termos a qualquer momento, notificando os usuários sobre alterações significativas.`;
+A plataforma reserva-se o direito de atualizar estes termos a qualquer momento, notificando os usuários sobre alterações significativas.
+
+CLÁUSULA 11 — BÔNUS DE BOAS-VINDAS
+Ao se cadastrar na plataforma, o usuário poderá receber lances gratuitos como bônus de boas-vindas. Esses lances têm finalidade exclusivamente experimental, permitindo ao usuário conhecer e testar o funcionamento dos leilões da plataforma.
+Os lances de bônus de boas-vindas NÃO possuem validade para arrematação de produtos. Apenas lances adquiridos mediante pagamento são válidos para fins de arrematação.
+Caso um usuário arremate um produto utilizando exclusivamente lances de bônus (sem ter adquirido lances pagos), a arrematação será considerada nula e sem efeito, não gerando obrigação de entrega por parte da plataforma.`;
 
 interface BettorContractTermsDialogProps {
   open: boolean;
