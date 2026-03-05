@@ -964,6 +964,31 @@ export function AdminAffiliateManagement() {
               </div>
 
               <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Gerentes & Influencers</h3>
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Taxa de Override Padrão (%)</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Taxa que o gerente recebe sobre vendas dos seus influencers ao vincular novos
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      className="w-24"
+                      value={getSettingValue("affiliate_default_override_rate", "2")}
+                      onChange={(e) =>
+                        updateSetting("affiliate_default_override_rate", e.target.value)
+                      }
+                      step="0.5"
+                      min="0"
+                      max="50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Saques</h3>
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">

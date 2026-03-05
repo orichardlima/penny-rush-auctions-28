@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown, UserPlus, Unlink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatPrice } from '@/lib/utils';
 import { PeriodFilter, PeriodType } from '@/components/Affiliate/PeriodFilter';
 import { AdvancedMetrics } from '@/components/Affiliate/AdvancedMetrics';
@@ -63,7 +65,12 @@ export default function AffiliateDashboard() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('30d');
   const isManager = affiliateData?.role === 'manager';
-  const { influencers, stats: managerStats, loading: influencersLoading } = useAffiliateManager(isManager ? affiliateData?.id ?? null : null);
+  const { influencers, stats: managerStats, loading: influencersLoading, linkInfluencerByCode, unlinkMyInfluencer } = useAffiliateManager(isManager ? affiliateData?.id ?? null : null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -647,14 +654,20 @@ export default function AffiliateDashboard() {
 
               {/* Influencers Table */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Crown className="h-5 w-5" />
-                    Meus Influencers
-                  </CardTitle>
-                  <CardDescription>
-                    Influencers vinculados à sua conta que divulgam por você
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Crown className="h-5 w-5" />
+                      Meus Influencers
+                    </CardTitle>
+                    <CardDescription>
+                      Influencers vinculados à sua conta que divulgam por você
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => setInviteDialogOpen(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Convidar Influencer
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {influencersLoading ? (
@@ -663,7 +676,7 @@ export default function AffiliateDashboard() {
                     <div className="text-center py-8 text-muted-foreground">
                       <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                       <p>Nenhum influencer vinculado ainda.</p>
-                      <p className="text-sm mt-1">Entre em contato com o administrador para vincular influencers.</p>
+                      <p className="text-sm mt-1">Use o botão acima para convidar influencers pelo código de afiliado.</p>
                     </div>
                   ) : (
                     <Table>
@@ -675,6 +688,7 @@ export default function AffiliateDashboard() {
                           <TableHead>Comissões Geradas</TableHead>
                           <TableHead>Seu Override</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -694,6 +708,20 @@ export default function AffiliateDashboard() {
                                 {inf.status === 'active' ? 'Ativo' : 'Inativo'}
                               </Badge>
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setUnlinkTarget({ id: inf.id, name: inf.full_name });
+                                  setUnlinkDialogOpen(true);
+                                }}
+                                title="Desvincular influencer"
+                              >
+                                <Unlink className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -701,6 +729,72 @@ export default function AffiliateDashboard() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Dialog: Convidar Influencer */}
+              <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Convidar Influencer</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Insira o código de afiliado da pessoa que deseja vincular como influencer na sua rede.
+                    </p>
+                    <div>
+                      <label className="text-sm font-medium">Código do Afiliado</label>
+                      <Input
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        placeholder="Ex: ABC123"
+                        className="mt-1 font-mono"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => { setInviteDialogOpen(false); setInviteCode(''); }}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      disabled={!inviteCode.trim() || inviteLoading}
+                      onClick={async () => {
+                        setInviteLoading(true);
+                        const success = await linkInfluencerByCode(inviteCode);
+                        setInviteLoading(false);
+                        if (success) {
+                          setInviteDialogOpen(false);
+                          setInviteCode('');
+                        }
+                      }}
+                    >
+                      {inviteLoading ? 'Vinculando...' : 'Vincular'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* AlertDialog: Desvincular */}
+              <AlertDialog open={unlinkDialogOpen} onOpenChange={setUnlinkDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Desvincular Influencer?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja desvincular <strong>{unlinkTarget?.name}</strong> da sua rede? Esta ação pode ser refeita posteriormente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={async () => {
+                      if (unlinkTarget) {
+                        await unlinkMyInfluencer(unlinkTarget.id);
+                        setUnlinkDialogOpen(false);
+                        setUnlinkTarget(null);
+                      }
+                    }}>
+                      Desvincular
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </TabsContent>
           )}
 
