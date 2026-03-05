@@ -259,7 +259,7 @@ const UserDashboard = () => {
                   <div>
                     <h3 className="text-lg font-bold text-foreground">💰 Ganhe Comissões Compartilhando!</h3>
                     <p className="text-sm text-muted-foreground">
-                      Torne-se um afiliado e ganhe 10% de comissão em cada compra dos seus indicados
+                      Torne-se um afiliado e ganhe 10% de comissão na primeira compra dos seus indicados
                     </p>
                   </div>
                 </div>

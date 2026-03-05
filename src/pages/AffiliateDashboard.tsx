@@ -190,7 +190,7 @@ export default function AffiliateDashboard() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Ganhe 10% em cada compra realizada pelos seus indicados
+                    Ganhe 10% na primeira compra realizada pelos seus indicados
                   </p>
                 </CardContent>
               </Card>
@@ -408,7 +408,7 @@ export default function AffiliateDashboard() {
                 <CardDescription>
                   Compartilhe este link e ganhe {affiliateData.commission_type === 'cpa' 
                     ? formatPrice(affiliateData.cpa_value_per_conversion) + ' por cada novo depositante'
-                    : affiliateData.commission_rate + '% em cada compra'}
+                    : affiliateData.commission_rate + '% na primeira compra'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -578,7 +578,7 @@ export default function AffiliateDashboard() {
                     <p className="text-muted-foreground">
                       {affiliateData.commission_type === 'cpa' 
                         ? `Você ganha ${formatPrice(affiliateData.cpa_value_per_conversion)} por cada depositante (primeira compra). Ao atingir ${affiliateData.cpa_conversions_target} depositantes, recebe ${formatPrice(affiliateData.cpa_value_per_conversion * affiliateData.cpa_conversions_target)}!`
-                        : `Você recebe ${affiliateData.commission_rate}% de comissão sobre cada compra realizada através do seu link`
+                        : `Você recebe ${affiliateData.commission_rate}% de comissão sobre a primeira compra realizada através do seu link`
                       }
                     </p>
                   </div>
@@ -664,7 +664,7 @@ export default function AffiliateDashboard() {
               <CardHeader>
                 <CardTitle>Seu Link de Afiliado</CardTitle>
                 <CardDescription>
-                  Compartilhe este link para ganhar {affiliateData.commission_rate}% de comissão em cada compra
+                  Compartilhe este link para ganhar {affiliateData.commission_rate}% de comissão na primeira compra
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
