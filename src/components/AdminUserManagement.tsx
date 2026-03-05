@@ -11,6 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award } from 'lucide-react';
 import { UserBidHistoryModal } from '@/components/Admin/UserBidHistoryModal';
 import { UserPurchaseHistoryModal } from '@/components/Admin/UserPurchaseHistoryModal';
+import { AdminEditProfileDialog } from '@/components/Admin/AdminEditProfileDialog';
 
 interface AdminUserActionsProps {
   user: {
@@ -30,6 +31,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
   const [isBidHistoryOpen, setIsBidHistoryOpen] = useState(false);
   const [isPurchaseHistoryOpen, setIsPurchaseHistoryOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [newBalance, setNewBalance] = useState(user.bids_balance.toString());
   const [blockReason, setBlockReason] = useState('');
@@ -465,6 +467,26 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         userName={user.full_name || user.email}
         isOpen={isPurchaseHistoryOpen}
         onClose={() => setIsPurchaseHistoryOpen(false)}
+      />
+
+      {/* Edit Profile */}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        title="Editar dados cadastrais"
+        onClick={() => setIsEditProfileOpen(true)}
+      >
+        <Edit className="h-4 w-4" />
+      </Button>
+
+      <AdminEditProfileDialog
+        userId={user.user_id}
+        userName={user.full_name || 'Usuário'}
+        userEmail={user.email}
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        onUpdated={onUserUpdated}
+        logAdminAction={logAdminAction}
       />
 
       {/* Edit Balance */}
