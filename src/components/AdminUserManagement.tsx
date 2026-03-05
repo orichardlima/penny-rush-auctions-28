@@ -45,6 +45,8 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [existingContract, setExistingContract] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
+  const [sponsorValidationStatus, setSponsorValidationStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle');
+  const [noSponsorConfirmed, setNoSponsorConfirmed] = useState(false);
 
   const logAdminAction = async (actionType: string, oldValues: any = null, newValues: any = null, description: string) => {
     try {
@@ -317,15 +319,53 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     }
   };
 
+  const validateSponsorCode = async (code: string) => {
+    if (!code.trim()) {
+      setSponsorValidationStatus('idle');
+      return;
+    }
+    setSponsorValidationStatus('checking');
+    const { data: sponsorContract } = await supabase
+      .from('partner_contracts')
+      .select('user_id, referral_code, plan_name')
+      .eq('referral_code', code.trim().toUpperCase())
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+    
+    if (sponsorContract && sponsorContract.user_id !== user.user_id) {
+      setSponsorValidationStatus('valid');
+    } else {
+      setSponsorValidationStatus('invalid');
+    }
+  };
+
   const assignPlanToUser = async () => {
     if (!selectedPlanId) return;
     
     const plan = plans.find(p => p.id === selectedPlanId);
     if (!plan) return;
+
+    // Validação: exigir sponsor válido ou confirmação explícita de "sem sponsor"
+    const hasCode = adminReferralCode.trim().length > 0;
+    if (hasCode && sponsorValidationStatus !== 'valid') {
+      toast({
+        title: "Código inválido",
+        description: "O código de indicação informado não é válido ou está inativo. Corrija ou marque 'Sem sponsor'.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!hasCode && !noSponsorConfirmed) {
+      toast({
+        title: "Sponsor não definido",
+        description: "Informe um código de indicação ou marque explicitamente 'Sem sponsor'.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setLoading(true);
     try {
-      // Verificar se já existe contrato ativo
       if (existingContract) {
         toast({
           title: "Erro",
@@ -336,9 +376,9 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         return;
       }
       
-      // Buscar sponsor se código informado
+      // Buscar sponsor se código válido
       let referredByUserId: string | null = null;
-      if (adminReferralCode.trim()) {
+      if (hasCode && sponsorValidationStatus === 'valid') {
         const { data: sponsorContract } = await supabase
           .from('partner_contracts')
           .select('user_id')
@@ -346,21 +386,13 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           .eq('status', 'ACTIVE')
           .maybeSingle();
         
-        if (sponsorContract && sponsorContract.user_id !== user.user_id) {
+        if (sponsorContract) {
           referredByUserId = sponsorContract.user_id;
-        } else if (adminReferralCode.trim() && !sponsorContract) {
-          toast({
-            title: "Aviso",
-            description: "Código de indicação não encontrado ou inativo. Prosseguindo sem sponsor.",
-            variant: "default"
-          });
         }
       }
       
-      // Gerar código de referral único
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
       
-      // Criar contrato
       const { data: newContract, error: contractError } = await supabase
         .from('partner_contracts')
         .insert({
@@ -399,7 +431,11 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           .eq('id', newContract.id);
       }
       
-      // Registrar no audit log
+      // Registrar no audit log com decisão de sponsor
+      const sponsorDecision = referredByUserId 
+        ? `sponsor_code: ${adminReferralCode.trim().toUpperCase()}` 
+        : 'sem_sponsor_intencional';
+
       await logAdminAction(
         'partner_plan_assigned',
         null,
@@ -407,9 +443,10 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           plan_name: plan.name, 
           aporte_value: plan.aporte_value,
           referral_code: newReferralCode,
-          sponsor: referredByUserId || 'none'
+          sponsor: referredByUserId || 'none',
+          sponsor_decision: sponsorDecision
         },
-        `Plano ${plan.display_name} atribuído pelo administrador. Valor: R$ ${plan.aporte_value}`
+        `Plano ${plan.display_name} atribuído pelo administrador. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
       );
       
       toast({
@@ -420,6 +457,8 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       setIsPlanDialogOpen(false);
       setSelectedPlanId(null);
       setAdminReferralCode('');
+      setSponsorValidationStatus('idle');
+      setNoSponsorConfirmed(false);
       onUserUpdated();
     } catch (error: any) {
       console.error('Error assigning plan:', error);
@@ -759,17 +798,51 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
               </div>
               
               <div>
-                <Label htmlFor="referral-code">Código de Indicação (opcional)</Label>
+                <Label htmlFor="referral-code">Código de Indicação</Label>
                 <Input
                   id="referral-code"
                   value={adminReferralCode}
-                  onChange={(e) => setAdminReferralCode(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    setAdminReferralCode(val);
+                    setNoSponsorConfirmed(false);
+                    if (val.trim().length >= 4) {
+                      validateSponsorCode(val);
+                    } else if (val.trim().length === 0) {
+                      setSponsorValidationStatus('idle');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (adminReferralCode.trim()) validateSponsorCode(adminReferralCode);
+                  }}
                   placeholder="Ex: ABC123XY"
                   className="mt-1"
+                  disabled={noSponsorConfirmed}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  💡 Se informado, o usuário será vinculado ao sponsor correspondente
-                </p>
+                {sponsorValidationStatus === 'checking' && (
+                  <p className="text-xs text-muted-foreground mt-1">🔍 Verificando código...</p>
+                )}
+                {sponsorValidationStatus === 'valid' && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">✅ Código válido — sponsor encontrado</p>
+                )}
+                {sponsorValidationStatus === 'invalid' && (
+                  <p className="text-xs text-destructive mt-1">❌ Código inválido ou inativo. Corrija ou marque "Sem sponsor".</p>
+                )}
+                
+                {!adminReferralCode.trim() && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id="no-sponsor-checkbox"
+                      checked={noSponsorConfirmed}
+                      onChange={(e) => setNoSponsorConfirmed(e.target.checked)}
+                      className="rounded border-input"
+                    />
+                    <Label htmlFor="no-sponsor-checkbox" className="text-sm cursor-pointer">
+                      Confirmo: ativar <strong>sem sponsor</strong> (sem bônus de indicação)
+                    </Label>
+                  </div>
+                )}
               </div>
               
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-800">
@@ -783,7 +856,10 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
                 <Button variant="outline" onClick={() => setIsPlanDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={assignPlanToUser} disabled={loading || !selectedPlanId}>
+                <Button onClick={assignPlanToUser} disabled={
+                  loading || !selectedPlanId || 
+                  (adminReferralCode.trim() ? sponsorValidationStatus !== 'valid' : !noSponsorConfirmed)
+                }>
                   {loading ? 'Ativando...' : 'Ativar Plano'}
                 </Button>
               </div>
