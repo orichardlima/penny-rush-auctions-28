@@ -1,68 +1,49 @@
 
 
-## Sistema de Gerente + Influencers no Programa de Afiliados
+## Plano: Autonomia do Gerente para Cadastrar Influencers
 
-### Conceito
-Criar uma hierarquia de dois níveis no sistema de afiliados existente, onde um **Gerente** pode recrutar **Influencers** que divulgam por ele. O Gerente ganha um override (comissão sobre a comissão) de cada venda gerada pelos seus Influencers.
+### Problema Atual
+Hoje, o gerente vê a aba "Meus Influencers" mas ela é **somente leitura**. Para vincular um influencer, é necessário que o **admin** faça manualmente pelo painel administrativo. A mensagem atual diz literalmente: *"Entre em contato com o administrador para vincular influencers."*
 
-### Estrutura de Banco de Dados
+### O que será feito
 
-**Nova tabela: `affiliate_managers`**
+**1. Gerente pode vincular influencers diretamente pelo seu dashboard**
 
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | uuid (PK) | ID do registro |
-| manager_affiliate_id | uuid (FK → affiliates) | Afiliado que é gerente |
-| influencer_affiliate_id | uuid (FK → affiliates) | Afiliado recrutado como influencer |
-| override_rate | numeric | % que o gerente ganha sobre a comissão do influencer |
-| status | text | active / inactive |
-| created_at | timestamptz | Data de vínculo |
+No painel do gerente (`AffiliateDashboard.tsx`, aba "Meus Influencers"):
+- Adicionar botão "Convidar Influencer" que abre um dialog
+- O gerente insere o **código de afiliado** do influencer que deseja vincular
+- O sistema valida: o afiliado existe? Está ativo? Já tem gerente? Não é ele mesmo?
+- Se válido, cria o vínculo automaticamente na tabela `affiliate_managers` com a taxa de override padrão (definida pelo admin nas configurações)
+- Remover a mensagem "Entre em contato com o administrador"
 
-**Alteração na tabela `affiliates`:**
-- Novo campo `role` (text, default `'affiliate'`): valores possíveis `affiliate`, `manager`, `influencer`
-- Novo campo `recruited_by_affiliate_id` (uuid, nullable, FK → affiliates): quem recrutou este influencer
+**2. Gerente pode desvincular influencers**
 
-### Fluxo de Comissionamento
+- Botão de desvincular na tabela de influencers do gerente
+- Remove o registro de `affiliate_managers`
 
-1. **Influencer** compartilha seu link → indicado compra → comissão normal do influencer é gerada (ex: 10%)
-2. **Sistema detecta** que o influencer tem um gerente vinculado
-3. **Comissão override** é gerada automaticamente para o gerente (ex: 2% sobre o valor da venda, ou X% sobre a comissão do influencer)
-4. Ambas as comissões seguem o fluxo existente: pendente → aprovada → disponível para saque
+**3. Taxa de override padrão configurável pelo admin**
 
-### Interface - Painel do Gerente
+- Adicionar configuração `affiliate_default_override_rate` nas settings do admin (aba Configurações do programa de afiliados)
+- Quando o gerente vincula um influencer, usa essa taxa padrão
+- Admin continua podendo ajustar a taxa individual depois
 
-- Seção "Meus Influencers" no dashboard do afiliado (quando role = manager)
-- Link de convite para recrutar influencers
-- Tabela com: nome do influencer, código, total de vendas, comissões geradas, override recebido
-- Métricas agregadas: total de influencers, receita total da rede, override acumulado
+**4. RLS: permitir que gerentes criem vínculos**
 
-### Interface - Painel Admin
-
-- Nova aba ou seção em `AdminAffiliateManagement` para gerenciar vínculos gerente↔influencer
-- Botão para promover afiliado a gerente
-- Configuração do override_rate por gerente
-- Relatório de comissões com coluna indicando se é direta ou override
+- Nova policy INSERT em `affiliate_managers` permitindo que um gerente (role = 'manager') insira registros onde `manager_affiliate_id` = seu próprio affiliate_id
+- Nova policy DELETE para que o gerente possa desvincular seus próprios influencers
 
 ### Arquivos Impactados
 
-- **Novo:** migração SQL para `affiliate_managers` + campo `role` em `affiliates`
-- **Novo:** `src/hooks/useAffiliateManager.ts` — lógica de gestão de influencers
-- **Editar:** `src/hooks/useAdminAffiliates.ts` — incluir gestão de vínculos e promoção
-- **Editar:** `src/components/AdminAffiliateManagement.tsx` — nova aba/seção para gerentes
-- **Editar:** `src/pages/AffiliateDashboard.tsx` — seção "Meus Influencers" para role=manager
-- **Editar:** `src/utils/affiliateHelpers.ts` — lógica de convite de influencer
-- **Editar ou criar:** trigger/função SQL para gerar comissão override automaticamente quando comissão de influencer é criada
+- **Nova migração SQL**: policies de INSERT e DELETE para gerentes em `affiliate_managers`
+- **`src/hooks/useAffiliateManager.ts`**: adicionar funções `linkInfluencerByCode` e `unlinkMyInfluencer` no hook `useAffiliateManager` (lado gerente)
+- **`src/pages/AffiliateDashboard.tsx`**: adicionar botão "Convidar Influencer", dialog de convite por código, botão de desvincular na tabela
+- **`src/components/AdminAffiliateManagement.tsx`**: adicionar campo "Taxa de Override Padrão" na aba Configurações (sem alterar nenhuma outra funcionalidade existente)
 
 ### Regras de Negócio
 
-- Um influencer só pode ter **um** gerente
-- Um gerente pode ter **múltiplos** influencers
-- O override é calculado sobre o valor da venda (não sobre a comissão do influencer), configurável por gerente
-- Comissões override seguem o mesmo fluxo de aprovação das comissões normais
-- Um afiliado comum pode ser promovido a gerente pelo admin
-
-### Estimativa de Complexidade
-- Migração de banco: 1 tabela nova + 2 campos + trigger + RLS
-- Backend (hooks/lógica): 2 hooks novos/editados
-- Frontend: 2-3 componentes novos + edições em 2 telas existentes
+- O gerente só pode vincular afiliados com `role = 'affiliate'` e `status = 'active'`
+- Um influencer só pode ter um gerente (constraint UNIQUE já existente)
+- O gerente não pode se vincular a si mesmo
+- A taxa de override usada é a padrão do sistema (configurada pelo admin)
+- O admin mantém poder de alterar taxas individuais e desvincular
 
