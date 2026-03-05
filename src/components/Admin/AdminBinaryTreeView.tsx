@@ -241,6 +241,7 @@ export const AdminBinaryTreeView: React.FC = () => {
         p_source_contract_id: recalcTarget.partner_contract_id,
         p_points: recalcPoints,
         p_reason: 'manual_recalc',
+        p_sponsor_contract_id: undefined,
       });
       if (rpcError) throw rpcError;
       toast({ title: 'Pontos recalculados', description: `${recalcPoints} pontos de ${recalcTarget.partnerName} propagados com sucesso.` });
@@ -302,6 +303,7 @@ export const AdminBinaryTreeView: React.FC = () => {
               p_source_contract_id: childContractId,
               p_points: levelPoints.points,
               p_reason: 'admin_link',
+              p_sponsor_contract_id: undefined,
             });
             if (rpcError) console.error('Propagation error:', rpcError);
             else pointsPropagated = levelPoints.points;
