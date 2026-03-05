@@ -39,13 +39,15 @@ const TIME_LIMIT_OPTIONS = [
   { value: '00:00', label: '00:00 (meia-noite)' },
 ];
 
-const DURATION_OPTIONS = [
+const DURATION_HOUR_OPTIONS = [
   { value: 1, label: '1 hora' },
   { value: 2, label: '2 horas' },
   { value: 3, label: '3 horas' },
   { value: 4, label: '4 horas' },
+  { value: 5, label: '5 horas' },
   { value: 6, label: '6 horas' },
   { value: 8, label: '8 horas' },
+  { value: 10, label: '10 horas' },
   { value: 12, label: '12 horas' },
 ];
 
@@ -65,7 +67,8 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
   const [enableTimeLimit, setEnableTimeLimit] = useState(false);
   const [timeLimitMode, setTimeLimitMode] = useState<'fixed' | 'duration'>('fixed');
   const [timeLimitHour, setTimeLimitHour] = useState('22:00');
-  const [durationHours, setDurationHours] = useState(2);
+  const [durationMinHours, setDurationMinHours] = useState(3);
+  const [durationMaxHours, setDurationMaxHours] = useState(6);
   const [enableRevenueTarget, setEnableRevenueTarget] = useState(true);
   const [enableMaxPrice, setEnableMaxPrice] = useState(false);
   const [maxPriceValue, setMaxPriceValue] = useState<string>('');
@@ -100,16 +103,18 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
           endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
           endsAt = endDate;
         } else if (timeLimitMode === 'duration') {
-          const endDate = addMinutes(startsAt, durationHours * 60);
-          const offsetMinutes = Math.floor(Math.random() * 31) - 15;
-          endDate.setMinutes(endDate.getMinutes() + offsetMinutes);
+          // Duração genuinamente aleatória dentro do intervalo [min, max]
+          const randomDurationMinutes = Math.round(
+            durationMinHours * 60 + Math.random() * (durationMaxHours - durationMinHours) * 60
+          );
+          const endDate = addMinutes(startsAt, randomDurationMinutes);
           endsAt = endDate;
         }
       }
 
       return { template, startsAt, endsAt };
     });
-  }, [selectedTemplates, startDateTime, intervalMinutes, enableTimeLimit, timeLimitMode, timeLimitHour, durationHours]);
+  }, [selectedTemplates, startDateTime, intervalMinutes, enableTimeLimit, timeLimitMode, timeLimitHour, durationMinHours, durationMaxHours]);
 
   const toggleTemplate = (id: string) => {
     setSelectedIds(prev => 
@@ -440,25 +445,54 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Select value={durationHours.toString()} onValueChange={(v) => setDurationHours(parseInt(v))}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DURATION_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value.toString()}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Mínimo</Label>
+                        <Select value={durationMinHours.toString()} onValueChange={(v) => {
+                          const val = parseInt(v);
+                          setDurationMinHours(val);
+                          if (val > durationMaxHours) setDurationMaxHours(val);
+                        }}>
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DURATION_HOUR_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value.toString()}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <span className="text-muted-foreground mt-5">a</span>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Máximo</Label>
+                        <Select value={durationMaxHours.toString()} onValueChange={(v) => {
+                          const val = parseInt(v);
+                          setDurationMaxHours(val);
+                          if (val < durationMinHours) setDurationMinHours(val);
+                        }}>
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DURATION_HOUR_OPTIONS.filter(opt => opt.value >= durationMinHours).map(opt => (
+                              <SelectItem key={opt.value} value={opt.value.toString()}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   )}
 
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     {timeLimitMode === 'fixed' 
                       ? 'Todos encerram próximo ao horário escolhido (±15min)' 
-                      : 'Cada leilão fica ativo por este período após iniciar (±15min)'}
+                      : `Cada leilão recebe duração aleatória entre ${durationMinHours}h e ${durationMaxHours}h`}
                   </p>
                 </div>
               )}
@@ -564,7 +598,7 @@ export const BatchAuctionGenerator = ({ templates, onClose }: BatchAuctionGenera
                   }</p>
                   {enableTimeLimit && (
                     <p><strong>{timeLimitMode === 'fixed' ? 'Horário limite:' : 'Duração ativa:'}</strong>{' '}
-                      {timeLimitMode === 'fixed' ? timeLimitHour : `${durationHours}h por leilão`}
+                      {timeLimitMode === 'fixed' ? timeLimitHour : `${durationMinHours}h a ${durationMaxHours}h por leilão`}
                     </p>
                   )}
                   {enableMaxPrice && maxPriceValue && <p><strong>Preço máximo:</strong> {formatCurrency(parseFloat(maxPriceValue))}</p>}

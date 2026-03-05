@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
             .from('auctions')
             .update({
               status: 'finished',
-              finished_at: currentTimeBr,
+              finished_at: auction.ends_at,
               winner_id: lastBidData?.user_id || null,
               winner_name: winnerProfile?.full_name || null
             })
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
           // Distribute fury vault
           await distributeFuryVault(supabase, auction.id, auction.title);
 
-          console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - horário limite`);
+          console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - horário limite (ends_at: ${auction.ends_at})`);
           finalizedCount++;
           continue;
         }
