@@ -1,34 +1,57 @@
 
+Objetivo: corrigir os bônus de indicação que faltaram nas ativações internas do ADM e blindar o sistema para que isso não volte a acontecer em nenhum fluxo.
 
-## Plano: Excluir todos os contratos SUSPENDED
+1) Diagnóstico confirmado (causa raiz)
+- O fluxo de ativação interna (`src/components/AdminUserManagement.tsx`) permite “Código de Indicação (opcional)” e, quando inválido/ausente, continua com `sponsor:none`.
+- O trigger de bônus em cascata (`create_cascade_referral_bonuses`) só roda no `AFTER INSERT` de `partner_contracts` e só cria bônus se `referred_by_user_id` já vier preenchido.
+- Quando o `referred_by_user_id` é corrigido depois (ou quando só existe vínculo binário), os bônus não são criados automaticamente.
 
-### Resumo dos dados
+Evidência dos dados atuais:
+- Richard tem 4 patrocinados na rede binária e os 4 estão com `referred_by_user_id = NULL` (sem bônus de indicação).
+- Há 9 contratos ACTIVE com sinal de referência (sponsor/referred) mas sem bônus nível 1; 7 deles com `referred_by_user_id` nulo e 2 com `referred_by_user_id` preenchido posteriormente (sem trigger de update).
 
-Existem **8 contratos suspensos**. Alguns possuem registros dependentes que precisam ser removidos antes:
+2) Correção imediata (dados já afetados)
+- Executar backfill idempotente em 2 etapas:
+  a) Preencher `referred_by_user_id` onde estiver nulo, usando o sponsor binário direto (`partner_binary_positions.sponsor_contract_id -> partner_contracts.user_id`), com filtros de segurança:
+     - contrato ACTIVE
+     - sem bônus nível 1 existente
+     - sem autoindicação (`referred_by_user_id != user_id`)
+  b) Gerar bônus faltantes (níveis 1, 2 e 3) para contratos sem registros em `partner_referral_bonuses`, respeitando regras atuais de percentual.
+- Começar pelos casos do Richard (4 contratos) e aplicar no restante dos casos elegíveis na mesma rotina (para evitar novos “buracos” antigos).
 
-| Contrato | Plano | Total Recebido | Dependências |
-|----------|-------|----------------|-------------|
-| 3de772a6 (Adailton) | Legend | R$ 0 | Nenhuma |
-| 7146a4a2 (Adailton) | Legend | R$ 0 | Nenhuma |
-| b3248c07 (Adailton) | Legend | R$ 0 | Nenhuma |
-| 563c8aef | Legend | R$ 0 | Nenhuma |
-| a9b4cf4f | Legend | R$ 0 | Nenhuma |
-| 71532e32 | ELITE | R$ 0 | 1 upgrade, 1 posição binária |
-| 8938e138 | PRO | R$ 25,48 | 1 payout, 1 posição binária |
-| e3723202 | PRO | R$ 52,00 | 2 payouts, 1 upgrade, 1 posição binária |
+3) Prevenção definitiva (backend/DB)
+- Criar uma função única e idempotente para “garantir bônus de indicação” por contrato (ex.: `ensure_partner_referral_bonuses(contract_id)`), com `ON CONFLICT DO NOTHING` por `(referred_contract_id, referral_level)`.
+- Atualizar o trigger de criação para chamar essa função.
+- Adicionar novo trigger `AFTER UPDATE OF referred_by_user_id` (quando muda de `NULL` para valor) para também chamar essa função.
+- Resultado: mesmo que o vínculo de indicação seja corrigido depois, os bônus serão criados automaticamente.
 
-### Atenção
+4) Prevenção no fluxo ADM (UI mínima e focada no problema)
+- Em `AdminUserManagement.tsx`:
+  - remover fallback silencioso “prosseguir sem sponsor” quando código inválido;
+  - exigir vínculo explícito: sponsor válido ou opção “Sem sponsor” com confirmação explícita;
+  - registrar no `admin_audit_log` qual decisão foi tomada (sponsor escolhido ou sem sponsor intencional).
+- Isso evita erro operacional humano no painel sem alterar outras áreas não relacionadas.
 
-Os contratos `8938e138` e `e3723202` possuem `total_received > 0`, ou seja, já receberam repasses. Excluí-los apagará esse histórico financeiro permanentemente.
+5) Validação e garantia pós-correção
+- Queries de verificação pós-implementação:
+  - nenhum ACTIVE com `referred_by_user_id` preenchido e sem bônus nível 1;
+  - nenhum caso elegível por sponsor binário sem tratamento;
+  - Richard com bônus esperados nos contratos corrigidos.
+- Teste E2E obrigatório:
+  - ativação interna com sponsor válido -> bônus criado automaticamente;
+  - correção posterior de `referred_by_user_id` -> bônus criado pelo trigger de update;
+  - cenário “sem sponsor intencional” -> sem bônus (com auditoria).
 
-### Execução
+Se você mantiver aprovação, no próximo passo eu executo exatamente esse plano com impacto limitado ao problema de indicação (sem mexer em fluxos não relacionados).
 
-A exclusão será feita via SQL (ferramenta de inserção/deleção), na seguinte ordem para respeitar chaves estrangeiras:
-
-1. Deletar registros de `partner_payouts` vinculados aos contratos suspensos
-2. Deletar registros de `partner_upgrades` vinculados
-3. Deletar registros de `partner_binary_positions` vinculados
-4. Deletar os 8 registros de `partner_contracts` com `status = 'SUSPENDED'`
-
-Nenhuma alteração de código ou schema será necessária.
-
+Seção técnica (implementação objetiva)
+- Arquivos alvo:
+  - `supabase/migrations/<novo_arquivo>.sql` (função idempotente + triggers + backfill)
+  - `src/components/AdminUserManagement.tsx` (validação de sponsor no modal de ativação)
+- Regras SQL chave:
+  - evitar duplicidade: `ON CONFLICT (referred_contract_id, referral_level) DO NOTHING`
+  - garantir integridade: bloquear autoindicação
+  - backfill com filtro por ausência de bônus nível 1
+- Estratégia de segurança:
+  - sem alteração em tabelas de auth/storage
+  - sem alteração de UI/fluxos fora do contexto de ativação de parceiro e bônus de indicação
