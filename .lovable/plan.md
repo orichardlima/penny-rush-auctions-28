@@ -1,33 +1,42 @@
 
 
-## Plano: Edição de dados cadastrais pelo admin com audit log
+## Plano: Corrigir lógica de finalização — proteger contra usuário real vencer sem receita
 
-### O que será feito
+### Regra de negócio corrigida
 
-Adicionar um botão "Editar Cadastro" (ícone Edit/Pencil) na linha de ações do `AdminUserActions`, que abre um dialog com os campos editáveis do perfil do usuário. Ao salvar, registra no audit log os valores antigos e novos.
+- **Bots podem e devem vencer leilões** — isso é normal e esperado
+- **Usuários reais NÃO podem vencer** se `company_revenue < revenue_target`
+- Se o leilão precisa finalizar (por `ends_at`, `max_price`, etc.) e a receita está abaixo da meta, o **bot deve ser o vencedor**, não o usuário real
 
 ### Alterações
 
-**1. AdminUserManagement.tsx — Novo dialog de edição de cadastro**
+#### 1. Migration SQL — `bot_protection_loop`
 
-- Adicionar estado `isEditProfileDialogOpen` e estados para os campos editáveis
-- Ao abrir o dialog, buscar os dados atuais do perfil (`full_name`, `cpf`, `phone`, `cep`, `street`, `number`, `complement`, `neighborhood`, `city`, `state`)
-- Renderizar formulário com todos os campos, aplicando máscaras de CPF, telefone e CEP (usando os formatters já existentes em `src/utils/validators.ts`)
-- Integrar busca automática de endereço via CEP (função `fetchAddressByCEP` já existente)
-- No submit: comparar valores antigos vs novos, atualizar via `supabase.from('profiles').update(...)`, registrar no audit log apenas os campos que mudaram
-- Botão com ícone `Edit` posicionado junto aos demais botões de ação
+Corrigir a lógica de finalização por `ends_at`:
 
-### Interface do usuário
+- **Antes**: finaliza com o último bidder (qualquer um), independente da receita
+- **Depois**: quando `ends_at` é atingido E `company_revenue < revenue_target`:
+  - Verificar se o último lance é de um usuário real (`cost_paid > 0`)
+  - Se sim, inserir um lance de bot antes de finalizar, fazendo o **bot vencer**
+  - Se o último já é bot, finalizar normalmente com o bot como vencedor
+- Quando `company_revenue >= revenue_target`: finalizar normalmente com qualquer vencedor (bot ou user)
 
-- Campos: Nome Completo, CPF, Telefone, CEP, Rua, Número, Complemento, Bairro, Cidade, Estado
-- Feedback visual de carregamento ao buscar CEP
-- Toast de sucesso/erro após salvar
+Mesma lógica para finalização por `max_price`: se receita insuficiente, garantir bot como vencedor.
 
-### Campos da interface `AdminUserActionsProps`
+#### 2. `useRecentWinners.ts` — Filtrar bots da exibição pública
 
-A interface `user` do componente precisa ser expandida para incluir os campos de endereço, ou os dados serão buscados on-demand ao abrir o dialog (preferível para não alterar a query principal). Será feita uma busca sob demanda.
+- Após buscar os `winner_id` dos leilões finalizados, cruzar com `profiles` e excluir os que têm `is_bot = true`
+- Página pública de vencedores mostra apenas ganhadores humanos reais
 
-### Sem alterações no banco de dados
+#### 3. `useFinishAuction.ts` — Aplicar mesma proteção no encerramento manual
 
-Todos os campos já existem na tabela `profiles`. O audit log já possui a função `log_admin_action`. Nenhuma migration necessária.
+- Quando admin finaliza manualmente, verificar se `company_revenue < revenue_target`
+- Se sim e o último lance é de usuário real, inserir bot bid antes e finalizar com bot
+
+### Resumo do impacto
+
+- Empresa nunca entrega produto com prejuízo a um usuário real
+- Bots vencem normalmente quando a receita não foi atingida (comportamento esperado)
+- Página pública só mostra vencedores humanos
+- Admin mantém capacidade de finalizar manualmente com a mesma proteção
 
