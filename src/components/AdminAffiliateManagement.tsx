@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Search, CheckCircle, XCircle, Edit, Eye, Copy, Download, 
-  Ban, RefreshCw, Trash2, Filter
+  Ban, RefreshCw, Trash2, Filter, Crown, UserPlus, Unlink, Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { AffiliateMetricsCards } from "./Affiliate/AffiliateMetricsCards";
@@ -25,6 +25,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { EditCommissionModal } from "./Affiliate/EditCommissionModal";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useAdminAffiliateManagers } from "@/hooks/useAffiliateManager";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export function AdminAffiliateManagement() {
   const {
@@ -48,6 +50,15 @@ export function AdminAffiliateManagement() {
   } = useAdminAffiliates();
 
   const { updateSetting, getSettingValue } = useSystemSettings();
+  const {
+    managerLinks,
+    loading: managersLoading,
+    promoteToManager,
+    linkInfluencer,
+    unlinkInfluencer,
+    updateOverrideRate,
+    refetch: refetchManagers,
+  } = useAdminAffiliateManagers();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -63,6 +74,14 @@ export function AdminAffiliateManagement() {
   const [editCommissionModalOpen, setEditCommissionModalOpen] = useState(false);
   const [editingCommissionAffiliate, setEditingCommissionAffiliate] = useState<any>(null);
   const [currentGoal, setCurrentGoal] = useState<any>(null);
+  
+  // Manager tab state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedManagerId, setSelectedManagerId] = useState("");
+  const [selectedInfluencerId, setSelectedInfluencerId] = useState("");
+  const [newOverrideRate, setNewOverrideRate] = useState("2");
+  const [editOverrideId, setEditOverrideId] = useState<string | null>(null);
+  const [editOverrideValue, setEditOverrideValue] = useState("");
 
   const metrics = useMemo(() => {
     const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
@@ -255,8 +274,9 @@ export function AdminAffiliateManagement() {
       <AffiliateTopRanking topAffiliates={topAffiliates} />
 
       <Tabs defaultValue="affiliates" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
+          <TabsTrigger value="managers">Gerentes</TabsTrigger>
           <TabsTrigger value="commissions">Comissões</TabsTrigger>
           <TabsTrigger value="withdrawals">Saques</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
@@ -446,6 +466,161 @@ export function AdminAffiliateManagement() {
                       </TableCell>
                     </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Gerentes / Influencers */}
+        <TabsContent value="managers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="h-5 w-5" />
+                    Gerentes & Influencers
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Gerencie os vínculos entre gerentes e influencers
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => setLinkDialogOpen(true)}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Vincular Influencer
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Promote to Manager */}
+              <div className="border rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Crown className="h-4 w-4" />
+                  Promover a Gerente
+                </h4>
+                <div className="flex gap-2">
+                  <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Selecione um afiliado..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {affiliates
+                        .filter(a => a.status === 'active' && (a as any).role !== 'manager')
+                        .map(a => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.profiles?.full_name || 'Sem nome'} ({a.affiliate_code})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={async () => {
+                      if (!selectedManagerId) return;
+                      await promoteToManager(selectedManagerId);
+                      setSelectedManagerId("");
+                      refetchManagers();
+                    }}
+                    disabled={!selectedManagerId}
+                  >
+                    Promover
+                  </Button>
+                </div>
+              </div>
+
+              {/* Links Table */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Gerente</TableHead>
+                    <TableHead>Influencer</TableHead>
+                    <TableHead>Override (%)</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Vinculado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {managerLinks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Nenhum vínculo gerente↔influencer encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    managerLinks.map((link: any) => (
+                      <TableRow key={link.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{link.manager_name}</div>
+                            <code className="text-xs bg-muted px-1 rounded">{link.manager_code}</code>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{link.influencer_name}</div>
+                            <code className="text-xs bg-muted px-1 rounded">{link.influencer_code}</code>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {editOverrideId === link.id ? (
+                            <div className="flex gap-1 items-center">
+                              <Input
+                                type="number"
+                                value={editOverrideValue}
+                                onChange={(e) => setEditOverrideValue(e.target.value)}
+                                className="w-20 h-8"
+                                step="0.5"
+                                min="0"
+                                max="50"
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={async () => {
+                                  const rate = parseFloat(editOverrideValue);
+                                  if (!isNaN(rate) && rate >= 0 && rate <= 50) {
+                                    await updateOverrideRate(link.id, rate);
+                                    setEditOverrideId(null);
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span
+                              className="cursor-pointer hover:underline"
+                              onClick={() => {
+                                setEditOverrideId(link.id);
+                                setEditOverrideValue(String(link.override_rate));
+                              }}
+                            >
+                              {link.override_rate}%
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={link.status === 'active' ? 'default' : 'secondary'}>
+                            {link.status === 'active' ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(link.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => unlinkInfluencer(link.id, link.influencer_affiliate_id)}
+                            title="Desvincular"
+                          >
+                            <Unlink className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -854,6 +1029,90 @@ export function AdminAffiliateManagement() {
           }
         }}
       />
+
+      {/* Dialog para vincular influencer */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular Influencer a Gerente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Gerente</Label>
+              <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o gerente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {affiliates
+                    .filter(a => a.status === 'active' && ((a as any).role === 'manager' || (a as any).role === 'affiliate'))
+                    .map(a => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.profiles?.full_name || 'Sem nome'} ({a.affiliate_code})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Influencer</Label>
+              <Select value={selectedInfluencerId} onValueChange={setSelectedInfluencerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o influencer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {affiliates
+                    .filter(a => a.status === 'active' && a.id !== selectedManagerId && (a as any).role !== 'manager')
+                    .map(a => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.profiles?.full_name || 'Sem nome'} ({a.affiliate_code})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Taxa de Override (%)</Label>
+              <Input
+                type="number"
+                value={newOverrideRate}
+                onChange={(e) => setNewOverrideRate(e.target.value)}
+                placeholder="2"
+                step="0.5"
+                min="0"
+                max="50"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Porcentagem que o gerente ganha sobre o valor da venda do influencer
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedManagerId || !selectedInfluencerId) return;
+                const rate = parseFloat(newOverrideRate);
+                if (isNaN(rate) || rate < 0 || rate > 50) {
+                  toast.error("Taxa inválida (0-50%)");
+                  return;
+                }
+                await promoteToManager(selectedManagerId);
+                await linkInfluencer(selectedManagerId, selectedInfluencerId, rate);
+                setLinkDialogOpen(false);
+                setSelectedManagerId("");
+                setSelectedInfluencerId("");
+                setNewOverrideRate("2");
+              }}
+              disabled={!selectedManagerId || !selectedInfluencerId}
+            >
+              Vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
