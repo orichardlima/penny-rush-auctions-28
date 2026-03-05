@@ -250,6 +250,48 @@ export type Database = {
           },
         ]
       }
+      affiliate_managers: {
+        Row: {
+          created_at: string
+          id: string
+          influencer_affiliate_id: string
+          manager_affiliate_id: string
+          override_rate: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          influencer_affiliate_id: string
+          manager_affiliate_id: string
+          override_rate?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          influencer_affiliate_id?: string
+          manager_affiliate_id?: string
+          override_rate?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_managers_influencer_affiliate_id_fkey"
+            columns: ["influencer_affiliate_id"]
+            isOneToOne: true
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_managers_manager_affiliate_id_fkey"
+            columns: ["manager_affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_referrals: {
         Row: {
           affiliate_id: string
@@ -352,6 +394,8 @@ export type Database = {
           created_at: string
           id: string
           pix_key: string | null
+          recruited_by_affiliate_id: string | null
+          role: string
           status: string
           total_commission_earned: number
           total_commission_paid: number
@@ -373,6 +417,8 @@ export type Database = {
           created_at?: string
           id?: string
           pix_key?: string | null
+          recruited_by_affiliate_id?: string | null
+          role?: string
           status?: string
           total_commission_earned?: number
           total_commission_paid?: number
@@ -394,6 +440,8 @@ export type Database = {
           created_at?: string
           id?: string
           pix_key?: string | null
+          recruited_by_affiliate_id?: string | null
+          role?: string
           status?: string
           total_commission_earned?: number
           total_commission_paid?: number
@@ -402,7 +450,15 @@ export type Database = {
           total_signups?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "affiliates_recruited_by_affiliate_id_fkey"
+            columns: ["recruited_by_affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       auctions: {
         Row: {

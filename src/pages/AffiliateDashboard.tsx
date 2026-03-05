@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3 } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { PeriodFilter, PeriodType } from '@/components/Affiliate/PeriodFilter';
 import { AdvancedMetrics } from '@/components/Affiliate/AdvancedMetrics';
@@ -21,6 +23,7 @@ import { CPAGoalProgress } from '@/components/Affiliate/CPAGoalProgress';
 import { ConversionFunnel } from '@/components/Affiliate/ConversionFunnel';
 import { AffiliateReferralsList } from '@/components/Affiliate/AffiliateReferralsList';
 import { Footer } from '@/components/Footer';
+import { useAffiliateManager } from '@/hooks/useAffiliateManager';
 
 interface AffiliateData {
   id: string;
@@ -36,6 +39,7 @@ interface AffiliateData {
   commission_balance: number;
   total_commission_earned: number;
   total_commission_paid: number;
+  role?: string;
 }
 
 interface CPAGoal {
@@ -58,6 +62,8 @@ export default function AffiliateDashboard() {
   const [cpaGoals, setCpaGoals] = useState<CPAGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('30d');
+  const isManager = affiliateData?.role === 'manager';
+  const { influencers, stats: managerStats, loading: influencersLoading } = useAffiliateManager(isManager ? affiliateData?.id ?? null : null);
 
   useEffect(() => {
     if (!authLoading && !profile) {
@@ -366,11 +372,17 @@ export default function AffiliateDashboard() {
 
         {/* Tabs Principal */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className={`grid w-full ${isManager ? 'grid-cols-5' : 'grid-cols-4'} lg:w-auto lg:inline-grid`}>
             <TabsTrigger value="overview" className="gap-2">
               <DollarSign className="h-4 w-4" />
               Visão Geral
             </TabsTrigger>
+            {isManager && (
+              <TabsTrigger value="influencers" className="gap-2">
+                <Crown className="h-4 w-4" />
+                Meus Influencers
+              </TabsTrigger>
+            )}
             <TabsTrigger value="referrals" className="gap-2">
               <Users className="h-4 w-4" />
               Indicados
@@ -598,6 +610,99 @@ export default function AffiliateDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Tab: Meus Influencers (apenas para gerentes) */}
+          {isManager && (
+            <TabsContent value="influencers" className="space-y-6">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Influencers Ativos</CardTitle>
+                    <Users className="h-5 w-5 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{managerStats.totalInfluencers}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Vendas da Rede</CardTitle>
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{managerStats.totalNetworkSales}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Override Acumulado</CardTitle>
+                    <DollarSign className="h-5 w-5 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-primary">{formatPrice(managerStats.totalOverrideEarned)}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Influencers Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="h-5 w-5" />
+                    Meus Influencers
+                  </CardTitle>
+                  <CardDescription>
+                    Influencers vinculados à sua conta que divulgam por você
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {influencersLoading ? (
+                    <p className="text-center text-muted-foreground py-8">Carregando...</p>
+                  ) : influencers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>Nenhum influencer vinculado ainda.</p>
+                      <p className="text-sm mt-1">Entre em contato com o administrador para vincular influencers.</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Conversões</TableHead>
+                          <TableHead>Comissões Geradas</TableHead>
+                          <TableHead>Seu Override</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {influencers.map((inf) => (
+                          <TableRow key={inf.id}>
+                            <TableCell className="font-medium">{inf.full_name}</TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-muted px-2 py-1 rounded">{inf.affiliate_code}</code>
+                            </TableCell>
+                            <TableCell>{inf.total_conversions}</TableCell>
+                            <TableCell>{formatPrice(inf.total_commission_earned)}</TableCell>
+                            <TableCell className="font-semibold text-primary">
+                              {inf.override_rate}%
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={inf.status === 'active' ? 'default' : 'secondary'}>
+                                {inf.status === 'active' ? 'Ativo' : 'Inativo'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           {/* Tab: Indicados */}
           <TabsContent value="referrals" className="space-y-6">
