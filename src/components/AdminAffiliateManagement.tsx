@@ -677,7 +677,7 @@ export function AdminAffiliateManagement() {
                             Porcentagem sobre compras
                           </Label>
                           <p className="text-sm text-muted-foreground mt-1">
-                            O afiliado ganha uma porcentagem do valor de cada compra realizada por seus indicados
+                            O afiliado ganha uma porcentagem do valor da primeira compra realizada por seus indicados
                           </p>
                         </div>
                       </div>
