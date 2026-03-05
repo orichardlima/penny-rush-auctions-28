@@ -11,29 +11,29 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
-} from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger } from
+'@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { 
-  User, 
-  Bot, 
-  Package, 
-  DollarSign, 
-  Target, 
-  Users, 
-  Edit, 
-  Trash2, 
-  Plus, 
+import {
+  User,
+  Bot,
+  Package,
+  DollarSign,
+  Target,
+  Users,
+  Edit,
+  Trash2,
+  Plus,
   Activity,
   CheckCircle,
   XCircle,
@@ -53,8 +53,8 @@ import {
   Download,
   Shield,
   Brain,
-  Pencil
-} from 'lucide-react';
+  Pencil } from
+'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
 import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
@@ -129,17 +129,17 @@ interface BidPackage {
 
 const AdminDashboard = () => {
   const { signOut, user: currentUser } = useAuth();
-  
+
   // Financial analytics hook - moved to top to fix hooks order
-  const { 
-    summary, 
-    auctionDetails, 
-    revenueTrends, 
-    loading: analyticsLoading, 
+  const {
+    summary,
+    auctionDetails,
+    revenueTrends,
+    loading: analyticsLoading,
     error: analyticsError,
-    refreshData: refreshAnalytics 
+    refreshData: refreshAnalytics
   } = useFinancialAnalytics();
-  
+
   // Estados para novas funcionalidades
   const [selectedAuctionForDetails, setSelectedAuctionForDetails] = useState<string | null>(null);
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<User | null>(null);
@@ -157,9 +157,9 @@ const AdminDashboard = () => {
   // Computed: Leilões filtrados para a seção de detalhes
   const filteredAuctionsForDetails = useMemo(() => {
     if (auctionStatusFilter === 'all') return auctions;
-    return auctions.filter(auction => auction.status === auctionStatusFilter);
+    return auctions.filter((auction) => auction.status === auctionStatusFilter);
   }, [auctions, auctionStatusFilter]);
-  
+
   // Helper function para criar timestamp inicial (local)
   const getInitialStartTime = () => {
     const now = new Date();
@@ -172,9 +172,9 @@ const AdminDashboard = () => {
     description: '',
     image_url: '',
     starting_price: 0.01, // Valor padrão em centavos
-    market_value: 0.00,   // Agora em reais
+    market_value: 0.00, // Agora em reais
     revenue_target: 0.00, // Agora em reais
-    starts_at: getInitialStartTime(),
+    starts_at: getInitialStartTime()
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -187,7 +187,7 @@ const AdminDashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [isDeletingUsers, setIsDeletingUsers] = useState(false);
-  
+
   // Bid Package Management States
   const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<BidPackage | null>(null);
@@ -205,7 +205,7 @@ const AdminDashboard = () => {
 
   const handleSelectAllAuctions = (checked: boolean) => {
     if (checked) {
-      setSelectedAuctions(new Set(auctions.map(a => a.id)));
+      setSelectedAuctions(new Set(auctions.map((a) => a.id)));
     } else {
       setSelectedAuctions(new Set());
     }
@@ -213,16 +213,16 @@ const AdminDashboard = () => {
 
   const deleteSelectedAuctions = async () => {
     if (selectedAuctions.size === 0) return;
-    
+
     const confirmed = window.confirm(`Tem certeza que deseja excluir ${selectedAuctions.size} leilão(ões)? Esta ação não pode ser desfeita.`);
     if (!confirmed) return;
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('auctions')
-        .delete()
-        .in('id', Array.from(selectedAuctions));
+      const { error } = await supabase.
+      from('auctions').
+      delete().
+      in('id', Array.from(selectedAuctions));
 
       if (error) throw error;
 
@@ -256,7 +256,7 @@ const AdminDashboard = () => {
     setSelectedUsers(newSelected);
   };
 
-  
+
 
   useEffect(() => {
     fetchAdminData();
@@ -267,15 +267,15 @@ const AdminDashboard = () => {
     if (selectedUserForProfile && (realUsers.length > 0 || botUsers.length > 0)) {
       // Buscar o usuário atualizado nos dados mais recentes
       const updatedUser = [...realUsers, ...botUsers].find(
-        user => user.user_id === selectedUserForProfile.user_id
+        (user) => user.user_id === selectedUserForProfile.user_id
       );
-      
+
       // Só atualizar se realmente encontrou o usuário e os dados são diferentes
       if (updatedUser && (
-        updatedUser.bids_balance !== selectedUserForProfile.bids_balance ||
-        updatedUser.is_blocked !== selectedUserForProfile.is_blocked ||
-        updatedUser.block_reason !== selectedUserForProfile.block_reason
-      )) {
+      updatedUser.bids_balance !== selectedUserForProfile.bids_balance ||
+      updatedUser.is_blocked !== selectedUserForProfile.is_blocked ||
+      updatedUser.block_reason !== selectedUserForProfile.block_reason))
+      {
         console.log(`🔄 Sincronizando dados do usuário: ${updatedUser.full_name} - Saldo: R$ ${updatedUser.bids_balance}`);
         setSelectedUserForProfile(updatedUser);
       }
@@ -286,39 +286,39 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       // Fetch auctions
-      const { data: auctionsData, error: auctionsError } = await supabase
-        .from('auctions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: auctionsData, error: auctionsError } = await supabase.
+      from('auctions').
+      select('*').
+      order('created_at', { ascending: false });
 
       if (auctionsError) throw auctionsError;
       setAuctions(auctionsData || []);
 
       // Fetch real users
-      const { data: realUsersData, error: realUsersError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email, is_admin, is_bot, is_blocked, block_reason, bids_balance, created_at')
-        .eq('is_bot', false)
-        .order('created_at', { ascending: false });
+      const { data: realUsersData, error: realUsersError } = await supabase.
+      from('profiles').
+      select('user_id, full_name, email, is_admin, is_bot, is_blocked, block_reason, bids_balance, created_at').
+      eq('is_bot', false).
+      order('created_at', { ascending: false });
 
       if (realUsersError) throw realUsersError;
       setRealUsers(realUsersData || []);
 
       // Fetch bot users
-      const { data: botUsersData, error: botUsersError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email, is_admin, is_bot, is_blocked, block_reason, bids_balance, created_at')
-        .eq('is_bot', true)
-        .order('created_at', { ascending: false });
+      const { data: botUsersData, error: botUsersError } = await supabase.
+      from('profiles').
+      select('user_id, full_name, email, is_admin, is_bot, is_blocked, block_reason, bids_balance, created_at').
+      eq('is_bot', true).
+      order('created_at', { ascending: false });
 
       if (botUsersError) throw botUsersError;
       setBotUsers(botUsersData || []);
 
       // Fetch bid packages
-      const { data: packagesData, error: packagesError } = await supabase
-        .from('bid_packages')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: packagesData, error: packagesError } = await supabase.
+      from('bid_packages').
+      select('*').
+      order('created_at', { ascending: false });
 
       if (packagesError) throw packagesError;
       setBidPackages(packagesData || []);
@@ -339,32 +339,32 @@ const AdminDashboard = () => {
     try {
       // Processar imagem especificamente para cards de leilão
       const optimizedFile = await processImageFile(file, AUCTION_CARD_OPTIONS);
-      
+
       const fileName = `${Date.now()}-${optimizedFile.name}`;
-      const { data, error } = await supabase.storage
-        .from('auction-images')
-        .upload(fileName, optimizedFile);
+      const { data, error } = await supabase.storage.
+      from('auction-images').
+      upload(fileName, optimizedFile);
 
       if (error) throw error;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('auction-images')
-        .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.
+      from('auction-images').
+      getPublicUrl(fileName);
 
       return publicUrl;
     } catch (error) {
       console.error('Error uploading optimized image:', error);
       // Fallback para upload da imagem original se a otimização falhar
       const fileName = `${Date.now()}-${file.name}`;
-      const { data, error: uploadError } = await supabase.storage
-        .from('auction-images')
-        .upload(fileName, file);
+      const { data, error: uploadError } = await supabase.storage.
+      from('auction-images').
+      upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('auction-images')
-        .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.
+      from('auction-images').
+      getPublicUrl(fileName);
 
       return publicUrl;
     }
@@ -399,7 +399,7 @@ const AdminDashboard = () => {
 
     if (utcStartTime <= minimumTime) {
       toast({
-        title: "Erro", 
+        title: "Erro",
         description: "O horário de início deve ser pelo menos 1 minuto no futuro",
         variant: "destructive"
       });
@@ -424,12 +424,12 @@ const AdminDashboard = () => {
         image_url: imageUrl,
         current_price: newAuction.starting_price,
         status: 'waiting',
-        starts_at: utcStartTime.toISOString(), // Salvar em UTC
+        starts_at: utcStartTime.toISOString() // Salvar em UTC
       };
 
-      const { error } = await supabase
-        .from('auctions')
-        .insert([auctionData]);
+      const { error } = await supabase.
+      from('auctions').
+      insert([auctionData]);
 
       if (error) throw error;
 
@@ -446,7 +446,7 @@ const AdminDashboard = () => {
         starting_price: 0.01,
         market_value: 0.00,
         revenue_target: 0.00,
-        starts_at: getInitialStartTime(),
+        starts_at: getInitialStartTime()
       });
       setSelectedImage(null);
 
@@ -466,10 +466,10 @@ const AdminDashboard = () => {
   // Função para deletar leilão
   const deleteAuction = async (auctionId: string) => {
     try {
-      const { error } = await supabase
-        .from('auctions')
-        .delete()
-        .eq('id', auctionId);
+      const { error } = await supabase.
+      from('auctions').
+      delete().
+      eq('id', auctionId);
 
       if (error) throw error;
 
@@ -492,18 +492,18 @@ const AdminDashboard = () => {
   // Função para ocultar/mostrar leilão
   const toggleAuctionVisibility = async (auctionId: string, hide: boolean) => {
     try {
-      const { error } = await supabase
-        .from('auctions')
-        .update({ is_hidden: hide })
-        .eq('id', auctionId);
+      const { error } = await supabase.
+      from('auctions').
+      update({ is_hidden: hide }).
+      eq('id', auctionId);
 
       if (error) throw error;
 
       toast({
         title: hide ? "Leilão ocultado" : "Leilão visível",
-        description: hide 
-          ? "O leilão não será mais exibido na home."
-          : "O leilão voltou a ser exibido na home."
+        description: hide ?
+        "O leilão não será mais exibido na home." :
+        "O leilão voltou a ser exibido na home."
       });
 
       fetchAdminData();
@@ -554,7 +554,7 @@ const AdminDashboard = () => {
         description: editingAuction.description,
         starting_price: editingAuction.starting_price,
         market_value: editingAuction.market_value,
-        revenue_target: editingAuction.revenue_target,
+        revenue_target: editingAuction.revenue_target
       };
 
       // Se uma nova imagem foi selecionada, fazer upload
@@ -567,9 +567,9 @@ const AdminDashboard = () => {
           try {
             const oldFileName = editingAuction.image_url.split('/').pop();
             if (oldFileName) {
-              await supabase.storage
-                .from('auction-images')
-                .remove([oldFileName]);
+              await supabase.storage.
+              from('auction-images').
+              remove([oldFileName]);
             }
           } catch (err) {
             console.warn('Erro ao remover imagem antiga:', err);
@@ -577,10 +577,10 @@ const AdminDashboard = () => {
         }
       }
 
-      const { error } = await supabase
-        .from('auctions')
-        .update(updateData)
-        .eq('id', editingAuction.id);
+      const { error } = await supabase.
+      from('auctions').
+      update(updateData).
+      eq('id', editingAuction.id);
 
       if (error) throw error;
 
@@ -609,10 +609,10 @@ const AdminDashboard = () => {
 
   const toggleUserAdmin = async (userId: string, currentIsAdmin: boolean) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_admin: !currentIsAdmin })
-        .eq('user_id', userId);
+      const { error } = await supabase.
+      from('profiles').
+      update({ is_admin: !currentIsAdmin }).
+      eq('user_id', userId);
 
       if (error) throw error;
 
@@ -650,10 +650,10 @@ const AdminDashboard = () => {
 
     try {
       // Admin tem plenos poderes - deletar compras associadas primeiro
-      const { error: purchaseDeleteError } = await supabase
-        .from('bid_purchases')
-        .delete()
-        .eq('package_id', pkg.id);
+      const { error: purchaseDeleteError } = await supabase.
+      from('bid_purchases').
+      delete().
+      eq('package_id', pkg.id);
 
       if (purchaseDeleteError) {
         console.warn('Erro ao deletar compras associadas:', purchaseDeleteError);
@@ -661,10 +661,10 @@ const AdminDashboard = () => {
       }
 
       // Agora deletar o pacote
-      const { error } = await supabase
-        .from('bid_packages')
-        .delete()
-        .eq('id', pkg.id);
+      const { error } = await supabase.
+      from('bid_packages').
+      delete().
+      eq('id', pkg.id);
 
       if (error) throw error;
 
@@ -698,7 +698,7 @@ const AdminDashboard = () => {
     if (dateTimeString && dateTimeString.includes('T') && dateTimeString.length >= 16) {
       return dateTimeString.slice(0, 16);
     }
-    
+
     // Se for uma data ISO, converte para local
     const date = new Date(dateTimeString);
     return date.toISOString().slice(0, 16);
@@ -715,18 +715,18 @@ const AdminDashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+      </div>);
+
   }
 
   // Combinar todos os usuários (reais + bots)
   const allUsers = [...realUsers, ...botUsers];
-  
+
   // Filtrar usuários combinados
-  const filteredUsers = allUsers.filter(user => {
+  const filteredUsers = allUsers.filter((user) => {
     const matchesSearch = user.full_name?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                         user.email?.toLowerCase().includes(userSearchTerm.toLowerCase());
-    
+    user.email?.toLowerCase().includes(userSearchTerm.toLowerCase());
+
     if (userFilter === 'all') return matchesSearch;
     if (userFilter === 'real') return matchesSearch && !user.is_bot;
     if (userFilter === 'bot') return matchesSearch && user.is_bot;
@@ -744,12 +744,12 @@ const AdminDashboard = () => {
   });
 
   const selectableUsers = filteredUsers.filter(
-    u => !u.is_admin && u.user_id !== currentUser?.id
+    (u) => !u.is_admin && u.user_id !== currentUser?.id
   );
 
   const handleSelectAllUsers = (checked: boolean) => {
     if (checked) {
-      setSelectedUsers(new Set(selectableUsers.map(u => u.user_id)));
+      setSelectedUsers(new Set(selectableUsers.map((u) => u.user_id)));
     } else {
       setSelectedUsers(new Set());
     }
@@ -787,9 +787,9 @@ const AdminDashboard = () => {
       if (successCount > 0) {
         toast({
           title: "Exclusão concluída",
-          description: failCount > 0
-            ? `${successCount} usuário(s) excluído(s) com sucesso. ${failCount} falha(s).`
-            : `${successCount} usuário(s) excluído(s) com sucesso!`
+          description: failCount > 0 ?
+          `${successCount} usuário(s) excluído(s) com sucesso. ${failCount} falha(s).` :
+          `${successCount} usuário(s) excluído(s) com sucesso!`
         });
       }
 
@@ -820,8 +820,8 @@ const AdminDashboard = () => {
     refreshAnalytics();
   };
 
-  const totalRevenue = bidPackages.reduce((sum, pkg) => sum + (pkg.price * 10), 0);
-  const activeAuctions = auctions.filter(a => a.status === 'active').length;
+  const totalRevenue = bidPackages.reduce((sum, pkg) => sum + pkg.price * 10, 0);
+  const activeAuctions = auctions.filter((a) => a.status === 'active').length;
   const totalUsers = (realUsers || []).length + (botUsers || []).length;
   const totalBids = auctions.reduce((sum, auction) => sum + auction.total_bids, 0);
 
@@ -857,9 +857,9 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                Reais: {(realUsers || []).length} | Bots: {(botUsers || []).length}
-              </p>
+              
+
+              
             </CardContent>
           </Card>
 
@@ -989,41 +989,41 @@ const AdminDashboard = () => {
                       size="sm"
                       variant={auctionStatusFilter === 'all' ? 'default' : 'outline'}
                       onClick={() => setAuctionStatusFilter('all')}
-                      className="flex-1 text-xs"
-                    >
+                      className="flex-1 text-xs">
+                      
                       Todos
                     </Button>
                     <Button
                       size="sm"
                       variant={auctionStatusFilter === 'active' ? 'default' : 'outline'}
                       onClick={() => setAuctionStatusFilter('active')}
-                      className="flex-1 text-xs"
-                    >
+                      className="flex-1 text-xs">
+                      
                       Ativos
                     </Button>
                     <Button
                       size="sm"
                       variant={auctionStatusFilter === 'finished' ? 'default' : 'outline'}
                       onClick={() => setAuctionStatusFilter('finished')}
-                      className="flex-1 text-xs"
-                    >
+                      className="flex-1 text-xs">
+                      
                       Finalizados
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredAuctionsForDetails.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-4 text-sm">
+                  {filteredAuctionsForDetails.length === 0 ?
+                  <div className="text-center text-muted-foreground py-4 text-sm">
                       Nenhum leilão {auctionStatusFilter === 'active' ? 'ativo' : auctionStatusFilter === 'finished' ? 'finalizado' : ''} encontrado
-                    </div>
-                  ) : (
-                    filteredAuctionsForDetails.map((auction) => (
-                      <Button
-                        key={auction.id}
-                        variant={selectedAuctionForDetails === auction.id ? "default" : "outline"}
-                        className="w-full justify-start"
-                        onClick={() => setSelectedAuctionForDetails(auction.id)}
-                      >
+                    </div> :
+
+                  filteredAuctionsForDetails.map((auction) =>
+                  <Button
+                    key={auction.id}
+                    variant={selectedAuctionForDetails === auction.id ? "default" : "outline"}
+                    className="w-full justify-start"
+                    onClick={() => setSelectedAuctionForDetails(auction.id)}>
+                    
                         <div className="text-left">
                           <div className="font-medium truncate">{auction.title}</div>
                           <div className="text-xs text-muted-foreground">
@@ -1031,20 +1031,20 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                       </Button>
-                    ))
-                  )}
+                  )
+                  }
                 </CardContent>
               </Card>
 
               {/* View completa do leilão selecionado */}
               <div className="lg:col-span-3">
-                {selectedAuctionForDetails && auctions.find(a => a.id === selectedAuctionForDetails) ? (
-                  <AuctionDetailView
-                    auction={auctions.find(a => a.id === selectedAuctionForDetails)!}
-                    financialData={auctionDetails?.find(d => d.auction_id === selectedAuctionForDetails)}
-                  />
-                ) : (
-                  <Card>
+                {selectedAuctionForDetails && auctions.find((a) => a.id === selectedAuctionForDetails) ?
+                <AuctionDetailView
+                  auction={auctions.find((a) => a.id === selectedAuctionForDetails)!}
+                  financialData={auctionDetails?.find((d) => d.auction_id === selectedAuctionForDetails)} /> :
+
+
+                <Card>
                     <CardContent className="p-12 text-center">
                       <Eye className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                       <h3 className="font-semibold mb-2">Selecione um Leilão</h3>
@@ -1053,7 +1053,7 @@ const AdminDashboard = () => {
                       </p>
                     </CardContent>
                   </Card>
-                )}
+                }
               </div>
             </div>
           </TabsContent>
@@ -1093,8 +1093,8 @@ const AdminDashboard = () => {
                         id="title"
                         value={newAuction.title}
                         onChange={(e) => setNewAuction({ ...newAuction, title: e.target.value })}
-                        placeholder="Título do leilão"
-                      />
+                        placeholder="Título do leilão" />
+                      
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="description">Descrição</Label>
@@ -1102,8 +1102,8 @@ const AdminDashboard = () => {
                         id="description"
                         value={newAuction.description}
                         onChange={(e) => setNewAuction({ ...newAuction, description: e.target.value })}
-                        placeholder="Descrição detalhada"
-                      />
+                        placeholder="Descrição detalhada" />
+                      
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="image">Imagem do Produto</Label>
@@ -1113,8 +1113,8 @@ const AdminDashboard = () => {
                         maxHeight={800}
                         showCardPreview={true}
                         disabled={uploading}
-                        compact={true}
-                      />
+                        compact={true} />
+                      
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -1126,8 +1126,8 @@ const AdminDashboard = () => {
                           min="0.01"
                           value={newAuction.starting_price}
                           onChange={(e) => setNewAuction({ ...newAuction, starting_price: Number(e.target.value) })}
-                          placeholder="0.01"
-                        />
+                          placeholder="0.01" />
+                        
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="market_value">Valor de Mercado (R$)</Label>
@@ -1138,8 +1138,8 @@ const AdminDashboard = () => {
                           min="0"
                           value={newAuction.market_value}
                           onChange={(e) => setNewAuction({ ...newAuction, market_value: Number(e.target.value) })}
-                          placeholder="0.00"
-                        />
+                          placeholder="0.00" />
+                        
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -1151,8 +1151,8 @@ const AdminDashboard = () => {
                         min="0"
                         value={newAuction.revenue_target}
                         onChange={(e) => setNewAuction({ ...newAuction, revenue_target: Number(e.target.value) })}
-                        placeholder="0.00"
-                      />
+                        placeholder="0.00" />
+                      
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="starts_at">Data de Início</Label>
@@ -1163,18 +1163,18 @@ const AdminDashboard = () => {
                         onChange={(e) => {
                           // Armazenar o valor diretamente como string local
                           setNewAuction({ ...newAuction, starts_at: e.target.value });
-                        }}
-                      />
+                        }} />
+                      
                     </div>
                     <Button onClick={createAuction} disabled={uploading} className="w-full">
-                      {uploading ? (
-                        <>
+                      {uploading ?
+                      <>
                           <Upload className="h-4 w-4 mr-2 animate-spin" />
                           Criando...
-                        </>
-                      ) : (
-                        'Criar Leilão'
-                      )}
+                        </> :
+
+                      'Criar Leilão'
+                      }
                     </Button>
                   </div>
                 </DialogContent>
@@ -1182,8 +1182,8 @@ const AdminDashboard = () => {
             </div>
 
             {/* Controles de seleção múltipla */}
-            {selectedAuctions.size > 0 && (
-              <Card className="mb-4 border-orange-200 bg-orange-50">
+            {selectedAuctions.size > 0 &&
+            <Card className="mb-4 border-orange-200 bg-orange-50">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1193,36 +1193,36 @@ const AdminDashboard = () => {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedAuctions(new Set())}
-                      >
+                      <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedAuctions(new Set())}>
+                      
                         Limpar Seleção
                       </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={deleteSelectedAuctions}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting ? (
-                          <>
+                      <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={deleteSelectedAuctions}
+                      disabled={isDeleting}>
+                      
+                        {isDeleting ?
+                      <>
                             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                             Excluindo...
-                          </>
-                        ) : (
-                          <>
+                          </> :
+
+                      <>
                             <Trash2 className="h-4 w-4 mr-2" />
                             Excluir Selecionados
                           </>
-                        )}
+                      }
                       </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
+            }
 
             <Card>
               <CardContent>
@@ -1233,8 +1233,8 @@ const AdminDashboard = () => {
                         <Checkbox
                           checked={auctions.length > 0 && selectedAuctions.size === auctions.length}
                           onCheckedChange={handleSelectAllAuctions}
-                          aria-label="Selecionar todos os leilões"
-                        />
+                          aria-label="Selecionar todos os leilões" />
+                        
                       </TableHead>
                       <TableHead>Título</TableHead>
                       <TableHead>Status</TableHead>
@@ -1245,14 +1245,14 @@ const AdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {auctions.map((auction) => (
-                      <TableRow key={auction.id}>
+                    {auctions.map((auction) =>
+                    <TableRow key={auction.id}>
                         <TableCell>
                           <Checkbox
-                            checked={selectedAuctions.has(auction.id)}
-                            onCheckedChange={(checked) => handleSelectAuction(auction.id, checked as boolean)}
-                            aria-label={`Selecionar leilão ${auction.title}`}
-                          />
+                          checked={selectedAuctions.has(auction.id)}
+                          onCheckedChange={(checked) => handleSelectAuction(auction.id, checked as boolean)}
+                          aria-label={`Selecionar leilão ${auction.title}`} />
+                        
                         </TableCell>
                         <TableCell className="font-medium">{auction.title}</TableCell>
                         <TableCell>
@@ -1260,12 +1260,12 @@ const AdminDashboard = () => {
                             <Badge variant={auction.status === 'active' ? 'default' : 'secondary'}>
                               {auction.status}
                             </Badge>
-                            {auction.is_hidden && (
-                              <Badge variant="outline" className="text-muted-foreground">
+                            {auction.is_hidden &&
+                          <Badge variant="outline" className="text-muted-foreground">
                                 <EyeOff className="h-3 w-3 mr-1" />
                                 Oculto
                               </Badge>
-                            )}
+                          }
                           </div>
                         </TableCell>
                         <TableCell>{formatPrice(auction.current_price)}</TableCell>
@@ -1273,30 +1273,30 @@ const AdminDashboard = () => {
                         <TableCell>{formatDateTime(auction.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            {auction.status === 'finished' && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => toggleAuctionVisibility(auction.id, !auction.is_hidden)}
-                                title={auction.is_hidden ? 'Mostrar na home' : 'Ocultar da home'}
-                              >
-                                {auction.is_hidden ? (
-                                  <Eye className="h-4 w-4" />
-                                ) : (
-                                  <EyeOff className="h-4 w-4" />
-                                )}
+                            {auction.status === 'finished' &&
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toggleAuctionVisibility(auction.id, !auction.is_hidden)}
+                            title={auction.is_hidden ? 'Mostrar na home' : 'Ocultar da home'}>
+                            
+                                {auction.is_hidden ?
+                            <Eye className="h-4 w-4" /> :
+
+                            <EyeOff className="h-4 w-4" />
+                            }
                               </Button>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => {
-                                setEditingAuction(auction);
-                                setEditingImage(null);
-                                setImagePreview(null);
-                                setIsEditDialogOpen(true);
-                              }}
-                            >
+                          }
+                            <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingAuction(auction);
+                              setEditingImage(null);
+                              setImagePreview(null);
+                              setIsEditDialogOpen(true);
+                            }}>
+                            
                               <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
@@ -1314,10 +1314,10 @@ const AdminDashboard = () => {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => deleteAuction(auction.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
+                                  <AlertDialogAction
+                                  onClick={() => deleteAuction(auction.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  
                                     Deletar
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
@@ -1326,7 +1326,7 @@ const AdminDashboard = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1358,8 +1358,8 @@ const AdminDashboard = () => {
                   placeholder="Buscar por nome ou email..."
                   value={userSearchTerm}
                   onChange={(e) => setUserSearchTerm(e.target.value)}
-                  className="max-w-md"
-                />
+                  className="max-w-md" />
+                
               </div>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -1379,8 +1379,8 @@ const AdminDashboard = () => {
             </div>
 
             {/* Controles de seleção múltipla de usuários */}
-            {selectedUsers.size > 0 && (
-              <Card className="border-orange-200 bg-orange-50">
+            {selectedUsers.size > 0 &&
+            <Card className="border-orange-200 bg-orange-50">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1390,31 +1390,31 @@ const AdminDashboard = () => {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedUsers(new Set())}
-                      >
+                      <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedUsers(new Set())}>
+                      
                         Limpar Seleção
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            disabled={isDeletingUsers}
-                          >
-                            {isDeletingUsers ? (
-                              <>
+                          <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={isDeletingUsers}>
+                          
+                            {isDeletingUsers ?
+                          <>
                                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                                 Excluindo...
-                              </>
-                            ) : (
-                              <>
+                              </> :
+
+                          <>
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Excluir Selecionados
                               </>
-                            )}
+                          }
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -1428,9 +1428,9 @@ const AdminDashboard = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={deleteSelectedUsers}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
+                            onClick={deleteSelectedUsers}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            
                               Excluir {selectedUsers.size} usuário(s)
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -1440,7 +1440,7 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            }
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Lista de usuários */}
@@ -1450,37 +1450,37 @@ const AdminDashboard = () => {
                     <Users className="h-5 w-5" />
                     Usuários ({filteredUsers.length})
                   </CardTitle>
-                  {selectableUsers.length > 0 && (
-                    <div className="flex items-center gap-2 pt-2">
+                  {selectableUsers.length > 0 &&
+                  <div className="flex items-center gap-2 pt-2">
                       <Checkbox
-                        checked={selectableUsers.length > 0 && selectableUsers.every(u => selectedUsers.has(u.user_id))}
-                        onCheckedChange={handleSelectAllUsers}
-                        aria-label="Selecionar todos os usuários"
-                      />
+                      checked={selectableUsers.length > 0 && selectableUsers.every((u) => selectedUsers.has(u.user_id))}
+                      onCheckedChange={handleSelectAllUsers}
+                      aria-label="Selecionar todos os usuários" />
+                    
                       <span className="text-xs text-muted-foreground">Selecionar todos</span>
                     </div>
-                  )}
+                  }
                 </CardHeader>
                 <CardContent className="space-y-2 max-h-96 overflow-y-auto">
                   {filteredUsers.map((user) => {
                     const isSelectable = !user.is_admin && user.user_id !== currentUser?.id;
                     return (
                       <div key={user.user_id} className="flex items-center gap-2">
-                        {isSelectable ? (
-                          <Checkbox
-                            checked={selectedUsers.has(user.user_id)}
-                            onCheckedChange={(checked) => handleSelectUser(user.user_id, checked as boolean)}
-                            aria-label={`Selecionar ${user.full_name || user.email}`}
-                            className="shrink-0"
-                          />
-                        ) : (
-                          <div className="w-4 shrink-0" />
-                        )}
+                        {isSelectable ?
+                        <Checkbox
+                          checked={selectedUsers.has(user.user_id)}
+                          onCheckedChange={(checked) => handleSelectUser(user.user_id, checked as boolean)}
+                          aria-label={`Selecionar ${user.full_name || user.email}`}
+                          className="shrink-0" /> :
+
+
+                        <div className="w-4 shrink-0" />
+                        }
                         <Button
                           variant={selectedUserForProfile?.user_id === user.user_id ? "default" : "outline"}
                           className="w-full justify-start"
-                          onClick={() => setSelectedUserForProfile(user)}
-                        >
+                          onClick={() => setSelectedUserForProfile(user)}>
+                          
                           <div className="text-left">
                             <div className="font-medium flex items-center gap-2">
                               {user.full_name || 'Usuário'}
@@ -1490,24 +1490,24 @@ const AdminDashboard = () => {
                             <div className="text-xs text-muted-foreground">{user.email}</div>
                           </div>
                         </Button>
-                      </div>
-                    );
+                      </div>);
+
                   })}
                 </CardContent>
               </Card>
 
               {/* Perfil do usuário selecionado */}
               <div className="lg:col-span-2">
-                {selectedUserForProfile ? (
-                  <UserProfileCard
-                    userId={selectedUserForProfile.user_id}
-                    userName={selectedUserForProfile.full_name || 'Usuário'}
-                    userEmail={selectedUserForProfile.email}
-                    userBalance={selectedUserForProfile.bids_balance}
-                    onUserUpdated={fetchAdminData}
-                  />
-                ) : (
-                  <Card>
+                {selectedUserForProfile ?
+                <UserProfileCard
+                  userId={selectedUserForProfile.user_id}
+                  userName={selectedUserForProfile.full_name || 'Usuário'}
+                  userEmail={selectedUserForProfile.email}
+                  userBalance={selectedUserForProfile.bids_balance}
+                  onUserUpdated={fetchAdminData} /> :
+
+
+                <Card>
                     <CardContent className="p-12 text-center">
                       <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                       <h3 className="font-semibold mb-2">Selecione um Usuário</h3>
@@ -1516,7 +1516,7 @@ const AdminDashboard = () => {
                       </p>
                     </CardContent>
                   </Card>
-                )}
+                }
               </div>
             </div>
           </TabsContent>
@@ -1549,15 +1549,15 @@ const AdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bidPackages.length === 0 ? (
-                      <TableRow>
+                    {bidPackages.length === 0 ?
+                    <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Nenhum pacote encontrado. Crie o primeiro pacote!
                         </TableCell>
-                      </TableRow>
-                    ) : (
-                      bidPackages.map((pkg) => (
-                        <TableRow key={pkg.id}>
+                      </TableRow> :
+
+                    bidPackages.map((pkg) =>
+                    <TableRow key={pkg.id}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               {pkg.icon && <Package className="h-4 w-4" />}
@@ -1578,25 +1578,25 @@ const AdminDashboard = () => {
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
                               <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditPackage(pkg)}
-                              >
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditPackage(pkg)}>
+                            
                                 <Pencil className="h-3 w-3" />
                               </Button>
                               <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeletePackage(pkg)}
-                                className="text-destructive hover:text-destructive"
-                              >
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePackage(pkg)}
+                            className="text-destructive hover:text-destructive">
+                            
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
+                    )
+                    }
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1686,23 +1686,23 @@ const AdminDashboard = () => {
                 Modifique os dados do leilão
               </DialogDescription>
             </DialogHeader>
-            {editingAuction && (
-              <div className="space-y-4">
+            {editingAuction &&
+            <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-title">Título</Label>
                   <Input
-                    id="edit-title"
-                    value={editingAuction.title}
-                    onChange={(e) => setEditingAuction({ ...editingAuction, title: e.target.value })}
-                  />
+                  id="edit-title"
+                  value={editingAuction.title}
+                  onChange={(e) => setEditingAuction({ ...editingAuction, title: e.target.value })} />
+                
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-description">Descrição</Label>
                   <Textarea
-                    id="edit-description"
-                    value={editingAuction.description}
-                    onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })}
-                  />
+                  id="edit-description"
+                  value={editingAuction.description}
+                  onChange={(e) => setEditingAuction({ ...editingAuction, description: e.target.value })} />
+                
                 </div>
                 
                 {/* Seção de Imagem */}
@@ -1710,24 +1710,24 @@ const AdminDashboard = () => {
                   <Label>Imagem do Produto</Label>
                   
                   <ImageUploadPreview
-                    onImageSelect={handleImageSelection}
-                    maxWidth={1200}
-                    maxHeight={800}
-                    showCardPreview={true}
-                    disabled={uploading || imageProcessing}
-                    compact={true}
-                  />
+                  onImageSelect={handleImageSelection}
+                  maxWidth={1200}
+                  maxHeight={800}
+                  showCardPreview={true}
+                  disabled={uploading || imageProcessing}
+                  compact={true} />
+                
                   
                   {/* Mostrar imagem atual se nenhuma nova for selecionada */}
-                  {editingAuction.image_url && !editingImage && (
-                    <div className="mt-4">
+                  {editingAuction.image_url && !editingImage &&
+                <div className="mt-4">
                       <p className="text-sm text-muted-foreground mb-2">Imagem atual do leilão:</p>
                       <div className="relative w-full h-32 border border-border rounded-lg overflow-hidden">
                         <img
-                          src={editingAuction.image_url}
-                          alt="Imagem atual"
-                          className="w-full h-full object-cover"
-                        />
+                      src={editingAuction.image_url}
+                      alt="Imagem atual"
+                      className="w-full h-full object-cover" />
+                    
                         <div className="absolute top-2 right-2">
                           <Badge variant="secondary" className="text-xs">
                             Atual
@@ -1735,71 +1735,71 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     </div>
-                  )}
+                }
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-starting-price">Preço Inicial (R$)</Label>
                     <Input
-                      id="edit-starting-price"
-                      type="number"
-                      step="0.01"
-                      value={editingAuction.starting_price}
-                      onChange={(e) => setEditingAuction({ 
-                        ...editingAuction, 
-                        starting_price: Number(e.target.value)
-                      })}
-                    />
+                    id="edit-starting-price"
+                    type="number"
+                    step="0.01"
+                    value={editingAuction.starting_price}
+                    onChange={(e) => setEditingAuction({
+                      ...editingAuction,
+                      starting_price: Number(e.target.value)
+                    })} />
+                  
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-market-value">Valor de Mercado (R$)</Label>
                     <Input
-                      id="edit-market-value"
-                      type="number"
-                      step="0.01"
-                      value={editingAuction.market_value}
-                      onChange={(e) => setEditingAuction({ 
-                        ...editingAuction, 
-                        market_value: Number(e.target.value)
-                      })}
-                    />
+                    id="edit-market-value"
+                    type="number"
+                    step="0.01"
+                    value={editingAuction.market_value}
+                    onChange={(e) => setEditingAuction({
+                      ...editingAuction,
+                      market_value: Number(e.target.value)
+                    })} />
+                  
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-revenue-target">Meta de Receita (R$)</Label>
                   <Input
-                    id="edit-revenue-target"
-                    type="number"
-                    step="0.01"
-                    value={editingAuction.revenue_target}
-                    onChange={(e) => setEditingAuction({ 
-                      ...editingAuction, 
-                      revenue_target: Number(e.target.value)
-                    })}
-                  />
+                  id="edit-revenue-target"
+                  type="number"
+                  step="0.01"
+                  value={editingAuction.revenue_target}
+                  onChange={(e) => setEditingAuction({
+                    ...editingAuction,
+                    revenue_target: Number(e.target.value)
+                  })} />
+                
                 </div>
                 <div className="flex gap-2 pt-4">
                   <Button onClick={updateAuction} className="flex-1" disabled={uploading}>
-                    {uploading ? (
-                      <>
+                    {uploading ?
+                  <>
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                         Salvando...
-                      </>
-                    ) : (
-                      'Salvar Alterações'
-                    )}
+                      </> :
+
+                  'Salvar Alterações'
+                  }
                   </Button>
                   <Button variant="outline" onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setEditingAuction(null);
-                    setEditingImage(null);
-                    setImagePreview(null);
-                  }} disabled={uploading || imageProcessing}>
+                  setIsEditDialogOpen(false);
+                  setEditingAuction(null);
+                  setEditingImage(null);
+                  setImagePreview(null);
+                }} disabled={uploading || imageProcessing}>
                     Cancelar
                   </Button>
                 </div>
               </div>
-            )}
+            }
           </DialogContent>
         </Dialog>
 
@@ -1808,13 +1808,13 @@ const AdminDashboard = () => {
           open={isPackageDialogOpen}
           onOpenChange={setIsPackageDialogOpen}
           package={editingPackage}
-          onSuccess={handlePackageSuccess}
-        />
+          onSuccess={handlePackageSuccess} />
+        
       </div>
       
       <Footer />
-    </div>
-  );
+    </div>);
+
 };
 
 export default AdminDashboard;
