@@ -2314,6 +2314,10 @@ export type Database = {
       }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
+      ensure_partner_referral_bonuses: {
+        Args: { p_contract_id: string }
+        Returns: undefined
+      }
       fix_partner_referral: {
         Args: { p_referral_code: string; p_referred_contract_id: string }
         Returns: Json
