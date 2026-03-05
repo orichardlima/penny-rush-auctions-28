@@ -2517,6 +2517,7 @@ export type Database = {
           total_revenue: number
         }[]
       }
+      get_user_affiliate_id: { Args: { _user_id: string }; Returns: string }
       get_user_analytics: {
         Args: { user_uuid: string }
         Returns: {
@@ -2557,6 +2558,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
+      is_affiliate_manager: { Args: { _user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {
           p_action_type: string

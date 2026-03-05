@@ -106,11 +106,102 @@ export const useAffiliateManager = (affiliateId: string | null) => {
     fetchInfluencers();
   }, [affiliateId]);
 
+  const linkInfluencerByCode = async (affiliateCode: string) => {
+    if (!affiliateId) throw new Error('Sem affiliate ID');
+
+    // 1. Find affiliate by code
+    const { data: targetAffiliate, error: findError } = await supabase
+      .from('affiliates')
+      .select('id, user_id, role, status')
+      .eq('affiliate_code', affiliateCode.trim().toUpperCase())
+      .single();
+
+    if (findError || !targetAffiliate) {
+      toast({ title: 'Erro', description: 'Código de afiliado não encontrado.', variant: 'destructive' });
+      return false;
+    }
+
+    // 2. Validations
+    if (targetAffiliate.id === affiliateId) {
+      toast({ title: 'Erro', description: 'Você não pode vincular a si mesmo.', variant: 'destructive' });
+      return false;
+    }
+    if (targetAffiliate.status !== 'active') {
+      toast({ title: 'Erro', description: 'Este afiliado não está ativo.', variant: 'destructive' });
+      return false;
+    }
+    if (targetAffiliate.role === 'manager') {
+      toast({ title: 'Erro', description: 'Este afiliado já é um gerente.', variant: 'destructive' });
+      return false;
+    }
+
+    // 3. Check if already has a manager
+    const { data: existingLink } = await (supabase
+      .from('affiliate_managers' as any)
+      .select('id')
+      .eq('influencer_affiliate_id', targetAffiliate.id) as any);
+
+    if (existingLink && existingLink.length > 0) {
+      toast({ title: 'Erro', description: 'Este afiliado já está vinculado a um gerente.', variant: 'destructive' });
+      return false;
+    }
+
+    // 4. Get default override rate from system settings
+    const { data: settingData } = await supabase
+      .from('system_settings' as any)
+      .select('value')
+      .eq('key', 'affiliate_default_override_rate')
+      .single() as any;
+
+    const defaultRate = settingData?.value ? parseFloat(settingData.value) : 2;
+
+    // 5. Create link
+    const { error: insertError } = await (supabase
+      .from('affiliate_managers' as any)
+      .insert({
+        manager_affiliate_id: affiliateId,
+        influencer_affiliate_id: targetAffiliate.id,
+        override_rate: defaultRate,
+        status: 'active',
+      }) as any);
+
+    if (insertError) {
+      const msg = insertError.code === '23505'
+        ? 'Este influencer já está vinculado a um gerente.'
+        : 'Erro ao vincular influencer.';
+      toast({ title: 'Erro', description: msg, variant: 'destructive' });
+      return false;
+    }
+
+    toast({ title: 'Sucesso! 🎉', description: 'Influencer vinculado com sucesso!' });
+    await fetchInfluencers();
+    return true;
+  };
+
+  const unlinkMyInfluencer = async (linkId: string) => {
+    try {
+      const { error } = await (supabase
+        .from('affiliate_managers' as any)
+        .delete()
+        .eq('id', linkId) as any);
+
+      if (error) throw error;
+
+      toast({ title: 'Sucesso', description: 'Influencer desvinculado.' });
+      await fetchInfluencers();
+    } catch (error) {
+      console.error('Error unlinking influencer:', error);
+      toast({ title: 'Erro', description: 'Erro ao desvincular influencer.', variant: 'destructive' });
+    }
+  };
+
   return {
     influencers,
     stats,
     loading,
     refetch: fetchInfluencers,
+    linkInfluencerByCode,
+    unlinkMyInfluencer,
   };
 };
 
