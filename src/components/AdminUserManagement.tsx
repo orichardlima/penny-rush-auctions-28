@@ -293,6 +293,8 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     setLoadingPlans(true);
     setSelectedPlanId(null);
     setAdminReferralCode('');
+    setSponsorValidationStatus('idle');
+    setNoSponsorConfirmed(false);
     try {
       // Buscar planos ativos
       const { data: plansData } = await supabase
@@ -312,6 +314,35 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         .maybeSingle();
       
       setExistingContract(contractData);
+
+      // Auto-preencher código de indicação a partir de partner_payment_intents
+      if (!contractData) {
+        const { data: intentData } = await supabase
+          .from('partner_payment_intents')
+          .select('referred_by_user_id, referral_code')
+          .eq('user_id', user.user_id)
+          .not('referred_by_user_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (intentData?.referred_by_user_id) {
+          // Se o intent já tem referral_code salvo, tentar buscar o código ativo do sponsor
+          const { data: sponsorContract } = await supabase
+            .from('partner_contracts')
+            .select('referral_code')
+            .eq('user_id', intentData.referred_by_user_id)
+            .eq('status', 'ACTIVE')
+            .maybeSingle();
+
+          const codeToUse = sponsorContract?.referral_code || intentData.referral_code;
+          if (codeToUse) {
+            setAdminReferralCode(codeToUse);
+            // Validar automaticamente
+            await validateSponsorCode(codeToUse);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error checking partner status:', error);
     } finally {
