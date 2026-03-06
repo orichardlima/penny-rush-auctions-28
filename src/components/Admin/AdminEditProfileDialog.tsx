@@ -41,13 +41,19 @@ export const AdminEditProfileDialog: React.FC<Props> = ({
 }) => {
   const [form, setForm] = useState<ProfileData>(emptyProfile);
   const [original, setOriginal] = useState<ProfileData>(emptyProfile);
+  const [email, setEmail] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
 
   useEffect(() => {
-    if (isOpen) loadProfile();
-  }, [isOpen]);
+    if (isOpen) {
+      setEmail(userEmail || '');
+      setOriginalEmail(userEmail || '');
+      loadProfile();
+    }
+  }, [isOpen, userEmail]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -104,7 +110,7 @@ export const AdminEditProfileDialog: React.FC<Props> = ({
   };
 
   const handleSave = async () => {
-    // Find changed fields
+    // Find changed profile fields
     const changedFields: Partial<ProfileData> = {};
     const oldValues: Partial<ProfileData> = {};
     const newValues: Partial<ProfileData> = {};
@@ -117,25 +123,47 @@ export const AdminEditProfileDialog: React.FC<Props> = ({
       }
     });
 
-    if (Object.keys(changedFields).length === 0) {
+    const emailChanged = email.trim().toLowerCase() !== originalEmail.trim().toLowerCase();
+
+    if (Object.keys(changedFields).length === 0 && !emailChanged) {
       toast({ title: 'Info', description: 'Nenhum campo foi alterado' });
       return;
     }
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(changedFields)
-        .eq('user_id', userId);
+      // Update email via edge function if changed
+      if (emailChanged) {
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke('admin-update-user-email', {
+          body: { userId, newEmail: email.trim().toLowerCase() }
+        });
 
-      if (error) throw error;
+        if (emailError || (emailResult && emailResult.error)) {
+          const msg = emailResult?.error || emailError?.message || 'Erro ao atualizar e-mail';
+          toast({ title: 'Erro', description: msg, variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+      }
 
-      const changedLabels = Object.keys(changedFields).join(', ');
+      // Update profile fields if any changed
+      if (Object.keys(changedFields).length > 0) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(changedFields)
+          .eq('user_id', userId);
+
+        if (error) throw error;
+      }
+
+      const allOld = { ...oldValues, ...(emailChanged ? { email: originalEmail } : {}) };
+      const allNew = { ...newValues, ...(emailChanged ? { email: email.trim().toLowerCase() } : {}) };
+      const changedLabels = Object.keys({ ...changedFields, ...(emailChanged ? { email: true } : {}) }).join(', ');
+
       await logAdminAction(
         'profile_edited',
-        oldValues,
-        newValues,
+        allOld,
+        allNew,
         `Cadastro editado pelo admin. Campos alterados: ${changedLabels}`
       );
 
@@ -167,6 +195,11 @@ export const AdminEditProfileDialog: React.FC<Props> = ({
             <div>
               <Label htmlFor="ep-name">Nome Completo</Label>
               <Input id="ep-name" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} />
+            </div>
+
+            <div>
+              <Label htmlFor="ep-email">E-mail</Label>
+              <Input id="ep-email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
