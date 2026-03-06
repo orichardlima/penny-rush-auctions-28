@@ -2,10 +2,12 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Trophy, Clock, Target, TrendingUp, Calendar, User, Settings } from 'lucide-react';
+import { Trophy, Clock, Target, TrendingUp, Calendar, User, Settings, UserCheck, Link2 } from 'lucide-react';
 import { useUserAnalytics } from '@/hooks/useUserAnalytics';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminUserActions } from '@/components/AdminUserManagement';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UserProfileCardProps {
   userId: string;
@@ -25,6 +27,73 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   const { analytics, loading, error } = useUserAnalytics(userId);
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin;
+
+  const { data: referralInfo } = useQuery({
+    queryKey: ['user-referral-info', userId],
+    queryFn: async () => {
+      // 1. Check affiliate_referrals for who referred this user
+      const { data: affRef } = await supabase
+        .from('affiliate_referrals')
+        .select('affiliate_id, created_at')
+        .eq('referred_user_id', userId)
+        .not('referred_user_id', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      let affiliateReferrer: { name: string; code: string; date: string } | null = null;
+
+      if (affRef) {
+        const { data: affiliate } = await supabase
+          .from('affiliates')
+          .select('affiliate_code, user_id')
+          .eq('id', affRef.affiliate_id)
+          .single();
+
+        if (affiliate) {
+          const { data: refProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', affiliate.user_id)
+            .single();
+
+          affiliateReferrer = {
+            name: refProfile?.full_name || 'Desconhecido',
+            code: affiliate.affiliate_code,
+            date: affRef.created_at,
+          };
+        }
+      }
+
+      // 2. Check partner_contracts for sponsor
+      const { data: partnerContract } = await supabase
+        .from('partner_contracts')
+        .select('referred_by_user_id, created_at')
+        .eq('user_id', userId)
+        .not('referred_by_user_id', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      let partnerReferrer: { name: string; date: string } | null = null;
+
+      if (partnerContract?.referred_by_user_id) {
+        const { data: sponsorProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', partnerContract.referred_by_user_id)
+          .single();
+
+        partnerReferrer = {
+          name: sponsorProfile?.full_name || 'Desconhecido',
+          date: partnerContract.created_at,
+        };
+      }
+
+      return { affiliateReferrer, partnerReferrer };
+    },
+    enabled: !!isAdmin,
+  });
 
   if (loading) {
     return (
@@ -104,6 +173,35 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 <Badge variant="secondary">Bot</Badge>
               )}
             </div>
+            {/* Indicado por */}
+            {isAdmin && referralInfo && (
+              <div className="mt-3 p-2 bg-muted/50 rounded-md">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                  <UserCheck className="h-3 w-3" />
+                  Indicado por
+                </p>
+                {referralInfo.affiliateReferrer ? (
+                  <div className="text-sm">
+                    <span className="font-medium">{referralInfo.affiliateReferrer.name}</span>
+                    <span className="text-muted-foreground ml-1 text-xs">
+                      (<Link2 className="h-3 w-3 inline" /> {referralInfo.affiliateReferrer.code})
+                    </span>
+                    <span className="text-muted-foreground text-xs ml-1">
+                      em {new Date(referralInfo.affiliateReferrer.date).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                ) : referralInfo.partnerReferrer ? (
+                  <div className="text-sm">
+                    <span className="font-medium">{referralInfo.partnerReferrer.name}</span>
+                    <span className="text-muted-foreground text-xs ml-1">
+                      (Patrocinador parceria) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Cadastro direto (sem indicação)</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
