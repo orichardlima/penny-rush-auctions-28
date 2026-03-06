@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.process-partner-withdrawal]
 verify_jwt = false
+
+[functions.admin-update-user-email]
+verify_jwt = false
