@@ -237,11 +237,20 @@ export const AdminBinaryTreeView: React.FC = () => {
     if (!recalcTarget || recalcPoints <= 0) return;
     setRecalculating(true);
     try {
+      // Buscar o sponsor_contract_id real do nó para respeitar a regra de qualificadores
+      const { data: posData, error: posError } = await supabase
+        .from('partner_binary_positions')
+        .select('sponsor_contract_id')
+        .eq('partner_contract_id', recalcTarget.partner_contract_id)
+        .maybeSingle();
+
+      if (posError) throw posError;
+
       const { error: rpcError } = await supabase.rpc('propagate_binary_points', {
         p_source_contract_id: recalcTarget.partner_contract_id,
         p_points: recalcPoints,
         p_reason: 'manual_recalc',
-        p_sponsor_contract_id: null,
+        p_sponsor_contract_id: posData?.sponsor_contract_id ?? null,
       });
       if (rpcError) throw rpcError;
       toast({ title: 'Pontos recalculados', description: `${recalcPoints} pontos de ${recalcTarget.partnerName} propagados com sucesso.` });
