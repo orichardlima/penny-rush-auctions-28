@@ -75,7 +75,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
         .limit(1)
         .maybeSingle();
 
-      let partnerReferrer: { name: string; date: string } | null = null;
+      let partnerReferrer: { name: string; date: string; pending?: boolean } | null = null;
 
       if (partnerContract?.referred_by_user_id) {
         const { data: sponsorProfile } = await supabase
@@ -88,6 +88,32 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
           name: sponsorProfile?.full_name || 'Desconhecido',
           date: partnerContract.created_at,
         };
+      }
+
+      // 3. Fallback: check partner_payment_intents for pending partner referrals
+      if (!affiliateReferrer && !partnerReferrer) {
+        const { data: paymentIntent } = await supabase
+          .from('partner_payment_intents')
+          .select('referred_by_user_id, referral_code, created_at')
+          .eq('user_id', userId)
+          .not('referred_by_user_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (paymentIntent?.referred_by_user_id) {
+          const { data: intentProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', paymentIntent.referred_by_user_id)
+            .single();
+
+          partnerReferrer = {
+            name: intentProfile?.full_name || 'Desconhecido',
+            date: paymentIntent.created_at,
+            pending: true,
+          };
+        }
       }
 
       return { affiliateReferrer, partnerReferrer };
@@ -194,7 +220,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                   <div className="text-sm">
                     <span className="font-medium">{referralInfo.partnerReferrer.name}</span>
                     <span className="text-muted-foreground text-xs ml-1">
-                      (Patrocinador parceria) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
+                      ({referralInfo.partnerReferrer.pending ? 'Parceria pendente de pagamento' : 'Patrocinador parceria'}) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
                     </span>
                   </div>
                 ) : (
