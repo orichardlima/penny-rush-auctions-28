@@ -1,25 +1,24 @@
 
 
-## Plan: Add editable referral code field to PartnerDashboard
+## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
 
-### Problem
-Users who access the partner page without a referral link (`?ref=CODE`) have no way to manually enter a sponsor's referral code, resulting in them being registered without a sponsor.
+### Problema
+O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
 
-### Solution
-Add an input field for "Codigo de Indicação" in the plan selection view (when `!contract`), between the header text and the plan cards. The manually entered code takes priority over localStorage when selecting a plan.
+### Solução
 
-### Changes
+**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
+- Mesmo padrão de verificação admin usado em `admin-update-user-password`
+- Recebe `{ userId, newEmail }`
+- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
+- Atualiza também `profiles.email` para manter sincronizado
 
-**File: `src/components/Partner/PartnerDashboard.tsx`**
+**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
+- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
+- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
+- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
+- Feedback de erro/sucesso adequado
 
-1. Add state `manualReferralCode` (string)
-2. Pre-fill it with `getPartnerReferralCodeFromUrlOrStorage()` on mount (so if there's already a code from URL/storage, it shows)
-3. Add an input field with label "Código de Indicação (opcional)" between the header and plan cards, with a helper text explaining its purpose
-4. When selecting a plan (line ~410), use `manualReferralCode` if filled, otherwise fall back to `getPartnerReferralCodeFromUrlOrStorage()`
-5. Same logic for the auto-select via `preselectedPlanId` (line ~163)
-
-### UI
-- Simple `Input` + `Label` inside a small card/alert, positioned above the plan grid
-- Shows a check icon if code is pre-filled from URL, editable either way
-- Non-intrusive: optional field, does not block plan selection
+### Nenhuma migração necessária
+A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
 
