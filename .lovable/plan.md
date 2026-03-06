@@ -1,24 +1,25 @@
 
 
-## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
+## Plano: Indicar se o vencedor é Bot ou Usuário Real no painel admin
 
 ### Problema
-O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
+No detalhe do leilão no painel admin, o campo "Vencedor" mostra apenas o nome, sem indicar se é um bot ou usuário real.
 
 ### Solução
+Consultar `profiles.is_bot` do `winner_id` e exibir um badge ao lado do nome do vencedor indicando "Bot" (vermelho) ou "Usuário Real" (verde).
 
-**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
-- Mesmo padrão de verificação admin usado em `admin-update-user-password`
-- Recebe `{ userId, newEmail }`
-- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
-- Atualiza também `profiles.email` para manter sincronizado
+### Alterações
 
-**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
-- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
-- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
-- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
-- Feedback de erro/sucesso adequado
+**Arquivo: `src/components/AuctionDetailView.tsx`**
 
-### Nenhuma migração necessária
-A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
+1. Adicionar um `useEffect` + `useState` para buscar `is_bot` do perfil do vencedor quando `auction.winner_id` estiver presente
+2. No bloco do "Vencedor" (linha ~284-292), adicionar um `Badge` ao lado do nome:
+   - Se bot: Badge vermelho com ícone `Bot` e texto "Bot"
+   - Se usuário real: Badge verde com ícone `Users` e texto "Usuário Real"
+   - Enquanto carrega: nada extra exibido
+
+### Escopo mínimo
+- Apenas uma query adicional (`profiles.is_bot` por `winner_id`)
+- Apenas visual — nenhuma lógica de negócio alterada
+- Nenhum outro componente ou página afetado
 
