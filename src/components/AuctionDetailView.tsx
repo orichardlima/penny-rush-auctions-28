@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,20 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
   const { reactivateAuction, isReactivating } = useReactivateAuction();
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+  const [winnerIsBot, setWinnerIsBot] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!auction.winner_id) return;
+    const fetchBotStatus = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_bot')
+        .eq('user_id', auction.winner_id!)
+        .single();
+      if (data) setWinnerIsBot(data.is_bot ?? false);
+    };
+    fetchBotStatus();
+  }, [auction.winner_id]);
 
   const isAdmin = profile?.is_admin;
   const canFinish = isAdmin && auction.status === 'active';
@@ -288,6 +303,19 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
                   <span className="text-green-800 font-medium">
                     Vencedor: {auction.winner_name}
                   </span>
+                  {winnerIsBot !== null && (
+                    winnerIsBot ? (
+                      <Badge variant="destructive" className="flex items-center gap-1 ml-2">
+                        <Bot className="w-3 h-3" />
+                        Bot
+                      </Badge>
+                    ) : (
+                      <Badge className="flex items-center gap-1 ml-2 bg-green-600 hover:bg-green-700">
+                        <Users className="w-3 h-3" />
+                        Usuário Real
+                      </Badge>
+                    )
+                  )}
                 </div>
               )}
             </div>
