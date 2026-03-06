@@ -52,6 +52,8 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { PartnerPixPaymentModal } from './PartnerPixPaymentModal';
 import { PartnerContractTermsDialog } from './PartnerContractTermsDialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface PartnerDashboardProps {
   preselectedPlanId?: string | null;
@@ -102,6 +104,19 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const [contractTermsOpen, setContractTermsOpen] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(undefined);
+
+  // Estado para código de indicação manual
+  const [manualReferralCode, setManualReferralCode] = useState<string>(() => {
+    return getPartnerReferralCodeFromUrlOrStorage() || '';
+  });
+
+  // Helper to get the effective referral code (manual field > fallback)
+  const getEffectiveReferralCode = (): string | undefined => {
+    const trimmed = manualReferralCode.trim().toUpperCase();
+    if (trimmed) return trimmed;
+    const fallback = getPartnerReferralCodeFromUrlOrStorage();
+    return fallback || undefined;
+  };
 
   // Abre o dialog de termos antes de gerar o PIX
   const handlePlanSelectWithTerms = (planId: string, referralCode?: string) => {
@@ -159,8 +174,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract && !paymentModalOpen && !contractTermsOpen) {
       const selectedPlan = plans.find(p => p.id === preselectedPlanId);
       if (selectedPlan) {
-        // Prioridade: URL atual > localStorage
-        const referralCode = getPartnerReferralCodeFromUrlOrStorage();
+        // Prioridade: campo manual > URL > localStorage
+        const referralCode = getEffectiveReferralCode();
         
         console.log('[PartnerDashboard] Abrindo termos para plano pré-selecionado:', {
           planId: preselectedPlanId,
@@ -168,7 +183,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           referralCode: referralCode || 'NENHUM',
         });
         
-        handlePlanSelectWithTerms(preselectedPlanId, referralCode || undefined);
+        handlePlanSelectWithTerms(preselectedPlanId, referralCode);
       }
     }
   }, [loading, contract, preselectedPlanId, plans, creatingContract, paymentModalOpen]);
@@ -401,15 +416,44 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </p>
         </div>
 
+        {/* Campo de código de indicação */}
+        <Card className="border-dashed">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="referral-code" className="text-sm font-medium">
+                  Código de Indicação (opcional)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="referral-code"
+                    placeholder="Ex: MARIANO123"
+                    value={manualReferralCode}
+                    onChange={(e) => setManualReferralCode(e.target.value.toUpperCase())}
+                    maxLength={30}
+                    className="uppercase"
+                  />
+                  {manualReferralCode.trim() && (
+                    <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Se você recebeu um link de indicação de um parceiro, insira o código aqui para ser vinculado à rede dele.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {plans.map((plan) => (
             <PartnerPlanCard
               key={plan.id}
               plan={plan}
               onSelect={(planId) => {
-                const referralCode = getPartnerReferralCodeFromUrlOrStorage();
+                const referralCode = getEffectiveReferralCode();
                 console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode);
-                handlePlanSelectWithTerms(planId, referralCode || undefined);
+                handlePlanSelectWithTerms(planId, referralCode);
               }}
               loading={submitting}
             />
