@@ -1,23 +1,32 @@
 
 
-## Análise: Ativação pelo Admin preserva a indicação?
+## Análise: A pontuação de Claudio está incorreta
 
-### Resposta curta: **Não automaticamente.**
+### O que aconteceu
 
-O dialog "Atribuir Plano de Parceiro" do admin exige que o código de indicação seja **digitado manualmente** no campo "Código de Indicação". Ele **não preenche automaticamente** o código do Claudio Macedo (`Y0N62SC9`) mesmo que essa informação já exista no `partner_payment_intents`.
+Claudio tem **2000 pontos à esquerda**, mas deveria ter **1000**. Aqui está o motivo:
 
-Se você ativar o Abraão sem preencher o campo e marcar "sem sponsor", ele entrará na rede **sem vínculo** com o Claudio.
+Os registros do `binary_points_log` mostram:
 
-### Correção proposta: Auto-preencher o código de indicação
+```text
+1. +1000 esq ← Leonardo Cabral (manual_recalc)  ← CORRETO
+2. +1000 esq ← Luis Paulo      (manual_recalc)  ← INCORRETO
+3. +0    dir ← Abraão Resende  (qualifier_skip) ← CORRETO
+```
 
-Ao abrir o dialog de atribuição de plano, o sistema deve:
+- **Luis Paulo** é o 1º indicado direto de Claudio → é um **qualificador** → seus pontos deveriam ter sido pulados
+- **Abraão** é o 2º indicado direto → também qualificador → corretamente pulado (0 pontos)
+- **Leonardo Cabral** não é indicado direto de Claudio (é indicado de Luis Paulo) → seus pontos propagam normalmente → correto
 
-1. Consultar `partner_payment_intents` para verificar se o usuário tem um `referred_by_user_id` registrado (indicação pendente)
-2. Se existir, buscar o `referral_code` do contrato ativo desse sponsor em `partner_contracts`
-3. Preencher automaticamente o campo "Código de Indicação" com esse código e validá-lo
+### Causa raiz (bug)
 
-Assim, quando o admin abrir o dialog do Abraão, o campo já virá com `Y0N62SC9` preenchido e validado, garantindo que a indicação do Claudio seja preservada.
+Na função "Recalcular Pontos" do admin (`AdminBinaryTreeView.tsx`, linha 244), o `p_sponsor_contract_id` é passado como **`null`**. Isso faz com que a lógica de skip de qualificadores **nunca seja avaliada** durante recálculos manuais, permitindo que pontos de qualificadores sejam adicionados indevidamente.
 
-### Arquivo impactado
-- **`src/components/AdminUserManagement.tsx`**: na função `checkUserPartnerStatus`, adicionar consulta ao `partner_payment_intents` e auto-preenchimento do campo `adminReferralCode`
+### Correção
+
+1. **Corrigir `handleRecalculate`** em `AdminBinaryTreeView.tsx`: ao recalcular pontos de um parceiro, buscar o `sponsor_contract_id` dele na tabela `partner_binary_positions` e passá-lo para a RPC `propagate_binary_points`, garantindo que a lógica de qualificadores seja respeitada
+2. **Corrigir os pontos de Claudio**: ajustar manualmente os `left_points` de Claudio de 2000 para 1000 (remover os 1000 indevidos do Luis Paulo)
+
+### Arquivos impactados
+- **`src/components/Admin/AdminBinaryTreeView.tsx`**: buscar `sponsor_contract_id` do nó alvo e passar na chamada RPC
 
