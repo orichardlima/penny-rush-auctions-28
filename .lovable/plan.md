@@ -1,23 +1,23 @@
 
 
-## Plano: Mostrar indicação de parceiro mesmo antes do pagamento
+## Análise: Ativação pelo Admin preserva a indicação?
 
-### Problema
-O usuário Abraão se cadastrou usando o código de indicação `Y0N62SC9` de **Luiz Claudio Macedo dos Santos**. Porém a seção "Indicado por" mostra "Cadastro direto (sem indicação)" porque:
+### Resposta curta: **Não automaticamente.**
 
-1. A query atual só verifica `affiliate_referrals` (não existe registro — o código é de parceiro, não de afiliado)
-2. A query atual só verifica `partner_contracts` (não existe — Abraão ainda não pagou)
-3. **Existe** um registro em `partner_payment_intents` com `referred_by_user_id` apontando para Claudio Macedo e `referral_code = Y0N62SC9`, mas essa tabela não é consultada
-4. **Existe** o código `Y0N62SC9` salvo em `auth.users.raw_user_meta_data.referral_code`, mas também não é consultado
+O dialog "Atribuir Plano de Parceiro" do admin exige que o código de indicação seja **digitado manualmente** no campo "Código de Indicação". Ele **não preenche automaticamente** o código do Claudio Macedo (`Y0N62SC9`) mesmo que essa informação já exista no `partner_payment_intents`.
 
-### Correção
+Se você ativar o Abraão sem preencher o campo e marcar "sem sponsor", ele entrará na rede **sem vínculo** com o Claudio.
 
-No `UserProfileCard.tsx`, adicionar uma terceira verificação na query de referral:
+### Correção proposta: Auto-preencher o código de indicação
 
-**Após** checar `affiliate_referrals` e `partner_contracts`, consultar também `partner_payment_intents` onde `user_id = userId` e `referred_by_user_id IS NOT NULL`, para capturar indicações de parceiros cujo pagamento ainda está pendente.
+Ao abrir o dialog de atribuição de plano, o sistema deve:
 
-Se encontrar, buscar o nome do indicador via `profiles` e exibir como: **"Luiz Claudio Macedo dos Santos"** (Parceria pendente de pagamento) com a data.
+1. Consultar `partner_payment_intents` para verificar se o usuário tem um `referred_by_user_id` registrado (indicação pendente)
+2. Se existir, buscar o `referral_code` do contrato ativo desse sponsor em `partner_contracts`
+3. Preencher automaticamente o campo "Código de Indicação" com esse código e validá-lo
+
+Assim, quando o admin abrir o dialog do Abraão, o campo já virá com `Y0N62SC9` preenchido e validado, garantindo que a indicação do Claudio seja preservada.
 
 ### Arquivo impactado
-- `src/components/UserProfileCard.tsx` — adicionar consulta a `partner_payment_intents` como fallback quando não há `partner_contracts`
+- **`src/components/AdminUserManagement.tsx`**: na função `checkUserPartnerStatus`, adicionar consulta ao `partner_payment_intents` e auto-preenchimento do campo `adminReferralCode`
 
