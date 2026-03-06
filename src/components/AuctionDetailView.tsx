@@ -82,6 +82,20 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
   const { reactivateAuction, isReactivating } = useReactivateAuction();
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+  const [winnerIsBot, setWinnerIsBot] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!auction.winner_id) return;
+    const fetchBotStatus = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_bot')
+        .eq('user_id', auction.winner_id!)
+        .single();
+      if (data) setWinnerIsBot(data.is_bot ?? false);
+    };
+    fetchBotStatus();
+  }, [auction.winner_id]);
 
   const isAdmin = profile?.is_admin;
   const canFinish = isAdmin && auction.status === 'active';
