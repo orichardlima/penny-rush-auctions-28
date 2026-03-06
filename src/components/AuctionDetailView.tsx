@@ -303,6 +303,19 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
                   <span className="text-green-800 font-medium">
                     Vencedor: {auction.winner_name}
                   </span>
+                  {winnerIsBot !== null && (
+                    winnerIsBot ? (
+                      <Badge variant="destructive" className="flex items-center gap-1 ml-2">
+                        <Bot className="w-3 h-3" />
+                        Bot
+                      </Badge>
+                    ) : (
+                      <Badge className="flex items-center gap-1 ml-2 bg-green-600 hover:bg-green-700">
+                        <Users className="w-3 h-3" />
+                        Usuário Real
+                      </Badge>
+                    )
+                  )}
                 </div>
               )}
             </div>
