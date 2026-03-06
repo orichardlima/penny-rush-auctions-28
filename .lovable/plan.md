@@ -1,32 +1,25 @@
 
 
-## Análise: A pontuação de Claudio está incorreta
+## Plan: Add editable referral code field to PartnerDashboard
 
-### O que aconteceu
+### Problem
+Users who access the partner page without a referral link (`?ref=CODE`) have no way to manually enter a sponsor's referral code, resulting in them being registered without a sponsor.
 
-Claudio tem **2000 pontos à esquerda**, mas deveria ter **1000**. Aqui está o motivo:
+### Solution
+Add an input field for "Codigo de Indicação" in the plan selection view (when `!contract`), between the header text and the plan cards. The manually entered code takes priority over localStorage when selecting a plan.
 
-Os registros do `binary_points_log` mostram:
+### Changes
 
-```text
-1. +1000 esq ← Leonardo Cabral (manual_recalc)  ← CORRETO
-2. +1000 esq ← Luis Paulo      (manual_recalc)  ← INCORRETO
-3. +0    dir ← Abraão Resende  (qualifier_skip) ← CORRETO
-```
+**File: `src/components/Partner/PartnerDashboard.tsx`**
 
-- **Luis Paulo** é o 1º indicado direto de Claudio → é um **qualificador** → seus pontos deveriam ter sido pulados
-- **Abraão** é o 2º indicado direto → também qualificador → corretamente pulado (0 pontos)
-- **Leonardo Cabral** não é indicado direto de Claudio (é indicado de Luis Paulo) → seus pontos propagam normalmente → correto
+1. Add state `manualReferralCode` (string)
+2. Pre-fill it with `getPartnerReferralCodeFromUrlOrStorage()` on mount (so if there's already a code from URL/storage, it shows)
+3. Add an input field with label "Código de Indicação (opcional)" between the header and plan cards, with a helper text explaining its purpose
+4. When selecting a plan (line ~410), use `manualReferralCode` if filled, otherwise fall back to `getPartnerReferralCodeFromUrlOrStorage()`
+5. Same logic for the auto-select via `preselectedPlanId` (line ~163)
 
-### Causa raiz (bug)
-
-Na função "Recalcular Pontos" do admin (`AdminBinaryTreeView.tsx`, linha 244), o `p_sponsor_contract_id` é passado como **`null`**. Isso faz com que a lógica de skip de qualificadores **nunca seja avaliada** durante recálculos manuais, permitindo que pontos de qualificadores sejam adicionados indevidamente.
-
-### Correção
-
-1. **Corrigir `handleRecalculate`** em `AdminBinaryTreeView.tsx`: ao recalcular pontos de um parceiro, buscar o `sponsor_contract_id` dele na tabela `partner_binary_positions` e passá-lo para a RPC `propagate_binary_points`, garantindo que a lógica de qualificadores seja respeitada
-2. **Corrigir os pontos de Claudio**: ajustar manualmente os `left_points` de Claudio de 2000 para 1000 (remover os 1000 indevidos do Luis Paulo)
-
-### Arquivos impactados
-- **`src/components/Admin/AdminBinaryTreeView.tsx`**: buscar `sponsor_contract_id` do nó alvo e passar na chamada RPC
+### UI
+- Simple `Input` + `Label` inside a small card/alert, positioned above the plan grid
+- Shows a check icon if code is pre-filled from URL, editable either way
+- Non-intrusive: optional field, does not block plan selection
 
