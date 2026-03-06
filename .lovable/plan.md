@@ -1,29 +1,23 @@
 
 
-## Plano: Mostrar "Indicado por quem" no UserProfileCard
+## Plano: Mostrar indicação de parceiro mesmo antes do pagamento
 
 ### Problema
-O card de perfil do usuário (visível pelo admin) não mostra quem indicou/referiu aquele usuário. A informação existe no banco mas não é exibida.
+O usuário Abraão se cadastrou usando o código de indicação `Y0N62SC9` de **Luiz Claudio Macedo dos Santos**. Porém a seção "Indicado por" mostra "Cadastro direto (sem indicação)" porque:
 
-### Fontes de dados de indicação
+1. A query atual só verifica `affiliate_referrals` (não existe registro — o código é de parceiro, não de afiliado)
+2. A query atual só verifica `partner_contracts` (não existe — Abraão ainda não pagou)
+3. **Existe** um registro em `partner_payment_intents` com `referred_by_user_id` apontando para Claudio Macedo e `referral_code = Y0N62SC9`, mas essa tabela não é consultada
+4. **Existe** o código `Y0N62SC9` salvo em `auth.users.raw_user_meta_data.referral_code`, mas também não é consultado
 
-1. **Afiliados** (`affiliate_referrals`): quando o usuário se cadastrou via link `?ref=CODIGO`, existe um registro com `referred_user_id = userId` e o `affiliate_id` do indicador.
-2. **Parceiros** (`partner_contracts`): campo `referred_by_user_id` indica o patrocinador.
+### Correção
 
-### O que será feito
+No `UserProfileCard.tsx`, adicionar uma terceira verificação na query de referral:
 
-**1. Novo hook ou query no `UserProfileCard`**
-- Buscar em `affiliate_referrals` se existe registro com `referred_user_id = userId`
-- Se sim, trazer o nome do afiliado (via `affiliates` → `profiles`) e o código
-- Buscar também em `partner_contracts` se existe `referred_by_user_id` preenchido
-- Exibir a informação combinada
+**Após** checar `affiliate_referrals` e `partner_contracts`, consultar também `partner_payment_intents` onde `user_id = userId` e `referred_by_user_id IS NOT NULL`, para capturar indicações de parceiros cujo pagamento ainda está pendente.
 
-**2. Exibição no card**
-- Adicionar uma seção "Indicado por" logo abaixo do badge de classificação ou nas estatísticas detalhadas
-- Mostrar: nome do indicador, código de afiliado, e data da indicação
-- Se não foi indicado por ninguém: exibir "Cadastro direto (sem indicação)"
+Se encontrar, buscar o nome do indicador via `profiles` e exibir como: **"Luiz Claudio Macedo dos Santos"** (Parceria pendente de pagamento) com a data.
 
-### Arquivos impactados
-- **`src/components/UserProfileCard.tsx`**: adicionar query de referral e seção visual
-- Nenhuma alteração de banco necessária — dados já existem
+### Arquivo impactado
+- `src/components/UserProfileCard.tsx` — adicionar consulta a `partner_payment_intents` como fallback quando não há `partner_contracts`
 
