@@ -1,17 +1,24 @@
 
 
-## Plano: Corrigir redirecionamento de parceiros no Dashboard
+## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
 
 ### Problema
-A página `/dashboard` redireciona automaticamente parceiros ativos para `/minha-parceria`. Quando o parceiro clica em "Meus Lances", ele é levado ao painel do parceiro em vez de ver seus lances/leilões.
+O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
 
 ### Solução
-Remover o redirecionamento automático de parceiros no `src/pages/Dashboard.tsx` (linhas 23-46). Parceiros devem poder acessar o dashboard de lances normalmente. Quem quiser acessar o painel de parceria já tem o menu "Minha Parceria" disponível.
 
-### Alteração
+**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
+- Mesmo padrão de verificação admin usado em `admin-update-user-password`
+- Recebe `{ userId, newEmail }`
+- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
+- Atualiza também `profiles.email` para manter sincronizado
 
-**Arquivo: `src/pages/Dashboard.tsx`**
-- Remover o `useEffect` que verifica `partner_contracts` e redireciona para `/minha-parceria` (linhas 23-46)
-- Remover o estado `checkingPartner` e sua verificação no loading (linha 12, 49)
-- Resultado: parceiros acessam `/dashboard` normalmente como qualquer usuário
+**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
+- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
+- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
+- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
+- Feedback de erro/sucesso adequado
+
+### Nenhuma migração necessária
+A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
 
