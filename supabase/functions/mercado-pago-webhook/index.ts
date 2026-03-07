@@ -57,7 +57,62 @@ serve(async (req) => {
       external_reference: paymentData.external_reference
     })
 
-    // 2. Buscar compra no banco
+    // 2. Verificar se é pagamento de pedido (order) ou compra de lances
+    const externalRef = paymentData.external_reference || ''
+    const isOrderPayment = externalRef.startsWith('order:')
+
+    if (isOrderPayment) {
+      // === FLUXO DE PAGAMENTO DE PEDIDO (produto arrematado) ===
+      const orderId = externalRef.replace('order:', '')
+      console.log('🛒 Processing ORDER payment for:', orderId)
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single()
+
+      if (orderError || !order) {
+        // Fallback: tentar buscar por payment_id
+        const { data: orderByPayment, error: orderByPaymentError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('payment_id', paymentId.toString())
+          .single()
+
+        if (orderByPaymentError || !orderByPayment) {
+          console.error('❌ Order not found:', orderId)
+          return new Response('Order not found', { status: 404, headers: corsHeaders })
+        }
+
+        // Usar o pedido encontrado por payment_id
+        if (paymentData.status === 'approved' && orderByPayment.status !== 'paid') {
+          await supabase
+            .from('orders')
+            .update({ status: 'paid', payment_method: 'PIX' })
+            .eq('id', orderByPayment.id)
+          console.log('✅ Order marked as paid (via payment_id fallback)')
+        } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
+          console.log('❌ Order payment cancelled/rejected')
+        }
+
+        return new Response('OK', { status: 200, headers: corsHeaders })
+      }
+
+      if (paymentData.status === 'approved' && order.status !== 'paid') {
+        await supabase
+          .from('orders')
+          .update({ status: 'paid', payment_method: 'PIX' })
+          .eq('id', order.id)
+        console.log('✅ Order marked as paid')
+      } else if (paymentData.status === 'cancelled' || paymentData.status === 'rejected') {
+        console.log('❌ Order payment cancelled/rejected')
+      }
+
+      return new Response('OK', { status: 200, headers: corsHeaders })
+    }
+
+    // === FLUXO ORIGINAL: COMPRA DE LANCES ===
     const { data: purchase, error: purchaseError } = await supabase
       .from('bid_purchases')
       .select('*')
