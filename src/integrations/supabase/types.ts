@@ -1289,6 +1289,7 @@ export type Database = {
           id: string
           market_value: number
           notes: string | null
+          payment_id: string | null
           payment_method: string | null
           payment_proof_url: string | null
           product_name: string
@@ -1306,6 +1307,7 @@ export type Database = {
           id?: string
           market_value?: number
           notes?: string | null
+          payment_id?: string | null
           payment_method?: string | null
           payment_proof_url?: string | null
           product_name: string
@@ -1323,6 +1325,7 @@ export type Database = {
           id?: string
           market_value?: number
           notes?: string | null
+          payment_id?: string | null
           payment_method?: string | null
           payment_proof_url?: string | null
           product_name?: string
