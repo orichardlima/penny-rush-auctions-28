@@ -387,6 +387,16 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <Home className="w-5 h-5" aria-hidden="true" />
                         <span>Início</span>
                       </Link>
+                      {user && (
+                        <Link 
+                          to="/dashboard" 
+                          className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/dashboard') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
+                          aria-current={isCurrentPage('/dashboard') ? 'page' : undefined}
+                        >
+                          <Coins className="w-5 h-5" aria-hidden="true" />
+                          <span>Meus Lances</span>
+                        </Link>
+                      )}
                       <Link 
                         to="/leiloes" 
                         className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/leiloes') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
