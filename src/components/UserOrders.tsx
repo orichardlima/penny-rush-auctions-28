@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CreditCard, Truck, CheckCircle, Clock, Upload } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Package, CreditCard, Truck, CheckCircle, Clock } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { OrderPixPaymentModal } from '@/components/OrderPixPaymentModal';
 
 interface Order {
   id: string;
@@ -29,10 +28,12 @@ interface Order {
 export const UserOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingPix, setGeneratingPix] = useState<string | null>(null);
+  const [pixModalOpen, setPixModalOpen] = useState(false);
+  const [pixPaymentData, setPixPaymentData] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [paymentProof, setPaymentProof] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   useEffect(() => {
     fetchOrders();
@@ -62,98 +63,69 @@ export const UserOrders = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'awaiting_payment':
-        return <Clock className="w-4 h-4" />;
-      case 'paid':
-        return <CreditCard className="w-4 h-4" />;
-      case 'shipped':
-        return <Truck className="w-4 h-4" />;
-      case 'delivered':
-        return <CheckCircle className="w-4 h-4" />;
-      default:
-        return <Package className="w-4 h-4" />;
+      case 'awaiting_payment': return <Clock className="w-4 h-4" />;
+      case 'paid': return <CreditCard className="w-4 h-4" />;
+      case 'shipped': return <Truck className="w-4 h-4" />;
+      case 'delivered': return <CheckCircle className="w-4 h-4" />;
+      default: return <Package className="w-4 h-4" />;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'awaiting_payment':
-        return 'Aguardando Pagamento';
-      case 'paid':
-        return 'Pago';
-      case 'shipped':
-        return 'Enviado';
-      case 'delivered':
-        return 'Entregue';
-      default:
-        return status;
+      case 'awaiting_payment': return 'Aguardando Pagamento';
+      case 'paid': return 'Pago';
+      case 'shipped': return 'Enviado';
+      case 'delivered': return 'Entregue';
+      default: return status;
     }
   };
 
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'awaiting_payment':
-        return 'destructive';
-      case 'paid':
-        return 'secondary';
-      case 'shipped':
-        return 'outline';
-      case 'delivered':
-        return 'default';
-      default:
-        return 'outline';
+      case 'awaiting_payment': return 'destructive';
+      case 'paid': return 'secondary';
+      case 'shipped': return 'outline';
+      case 'delivered': return 'default';
+      default: return 'outline';
     }
   };
 
-  const handlePaymentProofUpload = async () => {
-    if (!paymentProof || !selectedOrder) return;
+  const handlePayWithPix = async (order: Order) => {
+    if (!profile?.user_id) return;
 
-    setUploading(true);
+    setGeneratingPix(order.id);
     try {
-      // Upload payment proof to storage
-      const fileExt = paymentProof.name.split('.').pop();
-      const fileName = `${selectedOrder.id}_${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('auction-images')
-        .upload(`payment-proofs/${fileName}`, paymentProof);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('auction-images')
-        .getPublicUrl(`payment-proofs/${fileName}`);
-
-      // Update order with payment proof
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({
-          payment_proof_url: publicUrl,
-          payment_method: 'PIX',
-          status: 'paid'
-        })
-        .eq('id', selectedOrder.id);
-
-      if (updateError) throw updateError;
-
-      toast({
-        title: "Sucesso!",
-        description: "Comprovante enviado com sucesso!",
+      const { data, error } = await supabase.functions.invoke('order-pix-payment', {
+        body: {
+          orderId: order.id,
+          userId: profile.user_id,
+          userEmail: profile.email,
+          userName: profile.full_name
+        }
       });
 
-      fetchOrders();
-      setSelectedOrder(null);
-      setPaymentProof(null);
+      if (error || !data) {
+        throw new Error(data?.error || 'Erro ao gerar pagamento PIX');
+      }
+
+      setSelectedOrder(order);
+      setPixPaymentData({
+        paymentId: data.paymentId,
+        qrCode: data.qrCode,
+        qrCodeBase64: data.qrCodeBase64,
+        pixCopyPaste: data.pixCopyPaste
+      });
+      setPixModalOpen(true);
     } catch (error) {
-      console.error('Error uploading payment proof:', error);
+      console.error('Error generating PIX:', error);
       toast({
         title: "Erro",
-        description: "Erro ao enviar comprovante",
+        description: error instanceof Error ? error.message : "Erro ao gerar pagamento PIX",
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
+      setGeneratingPix(null);
     }
   };
 
@@ -178,7 +150,7 @@ export const UserOrders = () => {
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold mb-6">Meus Pedidos</h2>
-      
+
       {orders.map((order) => (
         <Card key={order.id} className="p-6">
           <div className="flex justify-between items-start mb-4">
@@ -217,67 +189,39 @@ export const UserOrders = () => {
           )}
 
           {order.status === 'awaiting_payment' && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button onClick={() => setSelectedOrder(order)}>
+            <Button
+              onClick={() => handlePayWithPix(order)}
+              disabled={generatingPix === order.id}
+            >
+              {generatingPix === order.id ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                  Gerando PIX...
+                </>
+              ) : (
+                <>
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Enviar Comprovante
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Enviar Comprovante de Pagamento</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Produto: {order.product_name}</Label>
-                    <p className="text-2xl font-bold text-primary">
-                      {formatPrice(order.final_price)}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <Label>Dados PIX para Pagamento:</Label>
-                    <div className="bg-muted p-4 rounded-lg">
-                      <p><strong>Chave PIX:</strong> contato@pennyauctions.com</p>
-                      <p><strong>Valor:</strong> {formatPrice(order.final_price)}</p>
-                      <p><strong>Favorecido:</strong> Penny Auctions</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="payment-proof">Comprovante de Pagamento</Label>
-                    <Input
-                      id="payment-proof"
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
-                    />
-                  </div>
-
-                  <Button 
-                    onClick={handlePaymentProofUpload}
-                    disabled={!paymentProof || uploading}
-                    className="w-full"
-                  >
-                    {uploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Enviar Comprovante
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                  Pagar com PIX
+                </>
+              )}
+            </Button>
           )}
         </Card>
       ))}
+
+      {selectedOrder && pixPaymentData && (
+        <OrderPixPaymentModal
+          open={pixModalOpen}
+          onClose={() => { setPixModalOpen(false); setSelectedOrder(null); setPixPaymentData(null); }}
+          paymentData={pixPaymentData}
+          orderInfo={{
+            productName: selectedOrder.product_name,
+            finalPrice: selectedOrder.final_price
+          }}
+          orderId={selectedOrder.id}
+          onSuccess={fetchOrders}
+        />
+      )}
     </div>
   );
 };
