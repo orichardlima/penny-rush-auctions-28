@@ -9,8 +9,6 @@ import AdminDashboard from '@/components/AdminDashboard';
 const Dashboard = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
-  const [checkingPartner, setCheckingPartner] = useState(false);
-
   console.log('Dashboard render:', { user: !!user, profile: !!profile, loading });
 
   useEffect(() => {
@@ -20,33 +18,8 @@ const Dashboard = () => {
     }
   }, [user, loading, navigate]);
 
-  // Redirecionar parceiros ativos para /minha-parceria
-  useEffect(() => {
-    if (!profile || !user || profile.is_admin) return;
-
-    const checkPartnerContract = async () => {
-      setCheckingPartner(true);
-      const { data } = await supabase
-        .from('partner_contracts')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'ACTIVE')
-        .limit(1)
-        .maybeSingle();
-
-      if (data) {
-        console.log('Parceiro ativo detectado, redirecionando para /minha-parceria');
-        navigate('/minha-parceria');
-      } else {
-        setCheckingPartner(false);
-      }
-    };
-
-    checkPartnerContract();
-  }, [profile, user, navigate]);
-
   // Loading state
-  if (loading || checkingPartner) {
+  if (loading) {
     console.log('Dashboard: Loading...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
