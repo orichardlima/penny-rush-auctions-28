@@ -1,24 +1,28 @@
 
 
-## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
+## Plano: Remover leilões finalizados com 0 lances de todo o site
 
 ### Problema
-O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
+A correção anterior foi aplicada apenas no `useAuctionData.ts`, que **não é mais usado** nas páginas públicas. O feed real vem do `AuctionRealtimeContext.tsx`, que ainda não tem o filtro `total_bids.gt.0`. Leilões com 0 lances continuam aparecendo na Home, na página de Leilões, e potencialmente no admin.
 
-### Solução
+### Alterações
 
-**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
-- Mesmo padrão de verificação admin usado em `admin-update-user-password`
-- Recebe `{ userId, newEmail }`
-- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
-- Atualiza também `profiles.email` para manter sincronizado
+**1. `src/contexts/AuctionRealtimeContext.tsx`** (linha 262)
+Adicionar `total_bids.gt.0` ao filtro de leilões finalizados, igualando ao que já foi feito no `useAuctionData.ts`:
 
-**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
-- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
-- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
-- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
-- Feedback de erro/sucesso adequado
+```
+// De:
+query = query.or(`status.in.(active,waiting),and(status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false)`);
 
-### Nenhuma migração necessária
-A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
+// Para:
+query = query.or(`status.in.(active,waiting),and(status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false,total_bids.gt.0)`);
+```
+
+**2. `src/hooks/useRecentWinners.ts`** (linha 28-43)
+Adicionar `.gt('total_bids', 0)` à query de vencedores recentes para não exibir "ganhadores" de leilões sem lances.
+
+**3. `src/components/AdminDashboard.tsx`**
+No painel admin, manter os leilões com 0 lances visíveis mas adicionar indicação visual (badge) para que admins identifiquem leilões "fantasma". Isso já é informação útil para gestão.
+
+Nenhuma mudança de banco, schema ou edge functions necessária.
 
