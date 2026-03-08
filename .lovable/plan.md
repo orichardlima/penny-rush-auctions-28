@@ -1,24 +1,24 @@
 
 
-## Plano: Ocultar leilões finalizados sem lances da home
+## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
 
 ### Problema
-Leilões finalizados com 0 lances (suspensos manualmente) aparecem na página inicial, gerando confusão.
+O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
 
 ### Solução
-Adicionar filtro no query de busca dos leilões (`useAuctionData.ts`) para excluir leilões finalizados que tenham `total_bids = 0`.
 
-### Alteração
+**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
+- Mesmo padrão de verificação admin usado em `admin-update-user-password`
+- Recebe `{ userId, newEmail }`
+- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
+- Atualiza também `profiles.email` para manter sincronizado
 
-**Arquivo: `src/hooks/useAuctionData.ts`** — na função `fetchAuctions`, ajustar o filtro OR para incluir a condição `total_bids.gt.0` nos leilões finalizados:
+**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
+- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
+- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
+- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
+- Feedback de erro/sucesso adequado
 
-```
-// De:
-status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false
-
-// Para:
-status.eq.finished,finished_at.gte.${cutoffTime},is_hidden.eq.false,total_bids.gt.0
-```
-
-Uma única linha alterada. Sem mudanças no frontend ou UI.
+### Nenhuma migração necessária
+A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
 
