@@ -39,6 +39,7 @@ export const useRecentWinners = () => {
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
         .not('winner_name', 'is', null)
+        .gt('total_bids', 0)
         .order('finished_at', { ascending: false })
         .limit(6);
 

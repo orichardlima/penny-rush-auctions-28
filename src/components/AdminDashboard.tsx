@@ -1269,7 +1269,16 @@ const AdminDashboard = () => {
                           </div>
                         </TableCell>
                         <TableCell>{formatPrice(auction.current_price)}</TableCell>
-                        <TableCell>{auction.total_bids}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {auction.total_bids}
+                            {auction.status === 'finished' && auction.total_bids === 0 && (
+                              <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                                Fantasma
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{formatDateTime(auction.created_at)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
