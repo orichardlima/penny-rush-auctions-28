@@ -1,24 +1,38 @@
 
 
-## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
+## Diagnóstico: Usuário real venceu leilão sem meta atingida
 
-### Problema
-O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
+### O que aconteceu
 
-### Solução
+O leilão **JBL BOOMBOX 3** (`5d9fc594...`) foi finalizado com:
+- **Receita**: R$75 (meta: R$5.000) — apenas 1.5% da meta
+- **Vencedor**: Tiago Vieira (usuário real, `is_bot = false`)
+- **`ends_at`**: `2026-03-08 19:48:38 UTC`
+- **Últimos lances**: ocorreram às 22:03 UTC — **mais de 2 horas após `ends_at`**
 
-**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
-- Mesmo padrão de verificação admin usado em `admin-update-user-password`
-- Recebe `{ userId, newEmail }`
-- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
-- Atualiza também `profiles.email` para manter sincronizado
+### Causa raiz: bug de timezone em 3 funções SQL
 
-**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
-- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
-- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
-- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
-- Feedback de erro/sucesso adequado
+Todas as 3 funções críticas usam `timezone('America/Sao_Paulo', now())`, que retorna um `timestamp without time zone`. Quando esse valor é comparado com `ends_at` (que é `timestamptz`), o PostgreSQL interpreta o valor sem timezone como UTC, causando um **deslocamento de 3 horas**:
 
-### Nenhuma migração necessária
-A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
+1. **`bot_protection_loop`** — não finalizou o leilão a tempo porque `v_current_time_br >= ends_at` só seria verdadeiro 3h depois
+2. **`prevent_bids_on_inactive_auctions`** — não bloqueou lances após `ends_at` pelo mesmo motivo
+3. **`update_auction_on_bid`** — define `ends_at = timezone('America/Sao_Paulo', now()) + 15s`, gravando timestamps 3h no futuro
+
+Isso permitiu que lances continuassem por horas após o horário limite, e quando o leilão finalmente foi encerrado, o último lance era de um usuário real.
+
+**Nota**: Este mesmo bug afetou outro leilão JBL BOOMBOX 3 em 05/03 (Priscila Sena, receita R$4 vs meta R$5.000).
+
+### Plano de correção
+
+**1 migração SQL** com:
+
+1. **Corrigir o vencedor do leilão atual**: atribuir um bot aleatório como vencedor do leilão `5d9fc594...`, pois a regra de negócio proíbe que um usuário real vença com receita insuficiente.
+
+2. **Corrigir `bot_protection_loop`**: substituir `timezone('America/Sao_Paulo', now())` por `now()` em todas as referências.
+
+3. **Corrigir `prevent_bids_on_inactive_auctions`**: mesma substituição — usar `now()` diretamente.
+
+4. **Corrigir `update_auction_on_bid`**: usar `now()` para definir `ends_at` e `updated_at`.
+
+Nenhuma alteração no frontend.
 
