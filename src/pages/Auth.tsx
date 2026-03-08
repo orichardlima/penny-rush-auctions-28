@@ -45,6 +45,9 @@ const Auth = () => {
   const [sponsorName, setSponsorName] = useState<string | null>(null);
   const [loadingSponsor, setLoadingSponsor] = useState(false);
   const [showBettorContract, setShowBettorContract] = useState(false);
+  const [birthDay, setBirthDay] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthYear, setBirthYear] = useState('');
   
   const { signIn, signUp, user, resetPassword } = useAuth();
   const { toast } = useToast();
