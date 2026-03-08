@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { FieldStatus } from '@/components/ui/field-status';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldValidation } from '@/hooks/useFieldValidation';
@@ -44,6 +45,9 @@ const Auth = () => {
   const [sponsorName, setSponsorName] = useState<string | null>(null);
   const [loadingSponsor, setLoadingSponsor] = useState(false);
   const [showBettorContract, setShowBettorContract] = useState(false);
+  const [birthDay, setBirthDay] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthYear, setBirthYear] = useState('');
   
   const { signIn, signUp, user, resetPassword } = useAuth();
   const { toast } = useToast();
@@ -640,17 +644,80 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="birthDate">Data de Nascimento *</Label>
-                    <Input
-                      id="birthDate"
-                      name="birthDate"
-                      type="date"
-                      value={formData.birthDate}
-                      onChange={handleInputChange}
-                      className={errors.birthDate ? "border-destructive" : ""}
-                      aria-label="Selecione sua data de nascimento"
-                      required
-                    />
+                    <Label>Data de Nascimento *</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Select value={birthDay} onValueChange={(val) => {
+                        setBirthDay(val);
+                        if (birthMonth && birthYear) {
+                          setFormData(prev => ({ ...prev, birthDate: `${birthYear}-${birthMonth}-${val}` }));
+                        }
+                      }}>
+                        <SelectTrigger className={errors.birthDate ? "border-destructive" : ""}>
+                          <SelectValue placeholder="Dia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: (() => {
+                            if (!birthMonth) return 31;
+                            const m = parseInt(birthMonth);
+                            const y = birthYear ? parseInt(birthYear) : 2000;
+                            return new Date(y, m, 0).getDate();
+                          })() }, (_, i) => (
+                            <SelectItem key={i + 1} value={String(i + 1).padStart(2, '0')}>
+                              {i + 1}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={birthMonth} onValueChange={(val) => {
+                        setBirthMonth(val);
+                        // Adjust day if needed
+                        const y = birthYear ? parseInt(birthYear) : 2000;
+                        const maxDay = new Date(y, parseInt(val), 0).getDate();
+                        const adjustedDay = birthDay && parseInt(birthDay) > maxDay ? String(maxDay).padStart(2, '0') : birthDay;
+                        if (adjustedDay !== birthDay) setBirthDay(adjustedDay);
+                        if (adjustedDay && birthYear) {
+                          setFormData(prev => ({ ...prev, birthDate: `${birthYear}-${val}-${adjustedDay}` }));
+                        }
+                      }}>
+                        <SelectTrigger className={errors.birthDate ? "border-destructive" : ""}>
+                          <SelectValue placeholder="Mês" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'].map((month, i) => (
+                            <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={birthYear} onValueChange={(val) => {
+                        setBirthYear(val);
+                        if (birthMonth) {
+                          const maxDay = new Date(parseInt(val), parseInt(birthMonth), 0).getDate();
+                          const adjustedDay = birthDay && parseInt(birthDay) > maxDay ? String(maxDay).padStart(2, '0') : birthDay;
+                          if (adjustedDay !== birthDay) setBirthDay(adjustedDay);
+                          if (adjustedDay && birthMonth) {
+                            setFormData(prev => ({ ...prev, birthDate: `${val}-${birthMonth}-${adjustedDay}` }));
+                          }
+                        }
+                      }}>
+                        <SelectTrigger className={errors.birthDate ? "border-destructive" : ""}>
+                          <SelectValue placeholder="Ano" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: new Date().getFullYear() - 18 - 1920 + 1 }, (_, i) => {
+                            const year = new Date().getFullYear() - 18 - i;
+                            return (
+                              <SelectItem key={year} value={String(year)}>
+                                {year}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate}</p>}
                   </div>
                 </div>
