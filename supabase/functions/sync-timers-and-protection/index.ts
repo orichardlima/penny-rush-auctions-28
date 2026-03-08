@@ -15,6 +15,52 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Helper: buscar bot aleatório com nome formatado
+async function getRandomBot(supabase: any) {
+  const { data: bots } = await supabase
+    .from('profiles')
+    .select('user_id, full_name, city, state')
+    .eq('is_bot', true);
+
+  if (!bots || bots.length === 0) return null;
+  return bots[Math.floor(Math.random() * bots.length)];
+}
+
+function formatBotWinnerName(bot: any): string {
+  if (bot.city && bot.state) {
+    return `${bot.full_name} - ${bot.city}, ${bot.state}`;
+  }
+  return bot.full_name || 'Bot';
+}
+
+// Helper: finalizar leilão SEMPRE com bot como vencedor
+async function finalizeWithBot(supabase: any, auctionId: string, auctionTitle: string, reason: string) {
+  const bot = await getRandomBot(supabase);
+  if (!bot) {
+    console.error(`❌ [FINALIZE] Nenhum bot disponível para "${auctionTitle}"`);
+    return false;
+  }
+
+  const winnerName = formatBotWinnerName(bot);
+  const { error } = await supabase
+    .from('auctions')
+    .update({
+      status: 'finished',
+      finished_at: new Date().toISOString(),
+      winner_id: bot.user_id,
+      winner_name: winnerName
+    })
+    .eq('id', auctionId);
+
+  if (error) {
+    console.error(`❌ [FINALIZE] Erro ao finalizar "${auctionTitle}":`, error.message);
+    return false;
+  }
+
+  console.log(`🏁 [FINALIZED] "${auctionTitle}" - ${reason} (bot: ${winnerName})`);
+  return true;
+}
+
 // Helper: distribute fury vault for a finalized auction
 async function distributeFuryVault(supabase: any, auctionId: string, auctionTitle: string) {
   try {
@@ -48,7 +94,6 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
 
   // **FASE 1: Ativar leilões em espera cujo horário chegou**
-  // (Redundância com bot_protection_loop PL/pgSQL para garantia)
   const { data: waitingAuctions, error: waitingError } = await supabase
     .from('auctions')
     .select('id, title, starts_at')
@@ -117,118 +162,46 @@ Deno.serve(async (req) => {
       if (auction.ends_at) {
         const endsAt = new Date(auction.ends_at).getTime();
         if (currentTime >= endsAt) {
-          console.log(`⏰ [HORÁRIO-LIMITE] Leilão "${auction.title}" - horário limite atingido, finalizando`);
+          console.log(`⏰ [HORÁRIO-LIMITE] Leilão "${auction.title}" - horário limite atingido, finalizando com BOT`);
           
-          const { data: lastBidData } = await supabase
-            .from('bids')
-            .select('user_id')
-            .eq('auction_id', auction.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          const { data: winnerProfile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('user_id', lastBidData?.user_id)
-            .single();
-
-          await supabase
-            .from('auctions')
-            .update({
-              status: 'finished',
-              finished_at: auction.ends_at,
-              winner_id: lastBidData?.user_id || null,
-              winner_name: winnerProfile?.full_name || null
-            })
-            .eq('id', auction.id);
-
-          // Distribute fury vault
-          await distributeFuryVault(supabase, auction.id, auction.title);
-
-          console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - horário limite (ends_at: ${auction.ends_at})`);
-          finalizedCount++;
+          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'horário limite');
+          if (finalized) {
+            await distributeFuryVault(supabase, auction.id, auction.title);
+            finalizedCount++;
+          }
           continue;
         }
       }
 
       // Verificar se preço máximo foi atingido
       if (auction.max_price && Number(auction.current_price) >= Number(auction.max_price)) {
-        console.log(`💰 [PREÇO-MÁXIMO] Leilão "${auction.title}" - preço máximo R$${auction.max_price} atingido, finalizando`);
+        console.log(`💰 [PREÇO-MÁXIMO] Leilão "${auction.title}" - preço máximo R$${auction.max_price} atingido, finalizando com BOT`);
         
-        const { data: lastBidData } = await supabase
-          .from('bids')
-          .select('user_id')
-          .eq('auction_id', auction.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        const { data: winnerProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('user_id', lastBidData?.user_id)
-          .single();
-
-        await supabase
-          .from('auctions')
-          .update({
-            status: 'finished',
-            finished_at: currentTimeBr,
-            winner_id: lastBidData?.user_id || null,
-            winner_name: winnerProfile?.full_name || null
-          })
-          .eq('id', auction.id);
-
-        // Distribute fury vault
-        await distributeFuryVault(supabase, auction.id, auction.title);
-
-        console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - preço máximo`);
-        finalizedCount++;
+        const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'preço máximo');
+        if (finalized) {
+          await distributeFuryVault(supabase, auction.id, auction.title);
+          finalizedCount++;
+        }
         continue;
       }
 
       // Verificar se meta foi atingida - finalizar independente de inatividade
       if (Number(auction.company_revenue) >= Number(auction.revenue_target)) {
-        console.log(`🎯 [META-OK] Leilão "${auction.title}" - meta atingida, finalizando`);
+        console.log(`🎯 [META-OK] Leilão "${auction.title}" - meta atingida, finalizando com BOT`);
         
-        const { data: lastBidData } = await supabase
-          .from('bids')
-          .select('user_id')
-          .eq('auction_id', auction.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        const { data: winnerProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('user_id', lastBidData?.user_id)
-          .single();
-
-        await supabase
-          .from('auctions')
-          .update({
-            status: 'finished',
-            finished_at: currentTimeBr,
-            winner_id: lastBidData?.user_id || null,
-            winner_name: winnerProfile?.full_name || null
-          })
-          .eq('id', auction.id);
-
-        // Distribute fury vault
-        await distributeFuryVault(supabase, auction.id, auction.title);
-
-        console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - meta atingida`);
-        finalizedCount++;
+        const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'meta atingida');
+        if (finalized) {
+          await distributeFuryVault(supabase, auction.id, auction.title);
+          finalizedCount++;
+        }
         continue;
       }
 
       // LANCE PROBABILÍSTICO: threshold e probabilidade variáveis por leilão
       {
-      const bidProbability = secondsSinceLastBid >= 13 ? 1.0   // timer ~2s, lance garantido
-          : secondsSinceLastBid >= 10 ? 0.25                    // timer ~5-3s, 25% chance
-          : 0;                                                   // timer > 5s, ignora
+      const bidProbability = secondsSinceLastBid >= 13 ? 1.0
+          : secondsSinceLastBid >= 10 ? 0.25
+          : 0;
         
         if (bidProbability === 0 || Math.random() > bidProbability) {
           if (secondsSinceLastBid >= 10) {
@@ -239,12 +212,12 @@ Deno.serve(async (req) => {
         const currentPrice = Number(auction.current_price);
         const marketValue = Number(auction.market_value);
 
-        // CONTROLE ANTI-SPAM: Verificar se já foi adicionado bot nos últimos 5s
+        // CONTROLE ANTI-SPAM: Verificar se já foi adicionado bot nos últimos 3s
         const { data: recentBot } = await supabase
           .from('bids')
           .select('id')
           .eq('auction_id', auction.id)
-          .eq('cost_paid', 0) // Bots internos têm cost_paid = 0
+          .eq('cost_paid', 0)
           .gte('created_at', new Date(Date.now() - 3000).toISOString())
           .limit(1);
 
@@ -265,47 +238,22 @@ Deno.serve(async (req) => {
               auction_id: auction.id,
               user_id: randomBot,
               bid_amount: newPrice,
-              cost_paid: 0 // Bot interno não paga
+              cost_paid: 0
             });
 
           if (!bidError) {
             botBidsAdded++;
             
-            // SE HÁ PREJUÍZO - finalizar imediatamente
+            // SE HÁ PREJUÍZO - finalizar imediatamente com BOT
             if (currentPrice > marketValue) {
-              console.log(`💰 [PREJUÍZO] Bot finalizou "${auction.title}" - R$${currentPrice} > R$${marketValue}`);
+              console.log(`💰 [PREJUÍZO] Finalizando "${auction.title}" com BOT - R$${currentPrice} > R$${marketValue}`);
               
-              const { data: lastBidData } = await supabase
-                .from('bids')
-                .select('user_id')
-                .eq('auction_id', auction.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-
-              const { data: winnerProfile } = await supabase
-                .from('profiles')
-                .select('full_name')
-                .eq('user_id', lastBidData?.user_id)
-                .single();
-
-              await supabase
-                .from('auctions')
-                .update({
-                  status: 'finished',
-                  finished_at: currentTimeBr,
-                  winner_id: lastBidData?.user_id || null,
-                  winner_name: winnerProfile?.full_name || null
-                })
-                .eq('id', auction.id);
-
-              // Distribute fury vault
-              await distributeFuryVault(supabase, auction.id, auction.title);
-
-              console.log(`🏁 [FINALIZED] Leilão "${auction.title}" finalizado - prejuízo evitado`);
-              finalizedCount++;
+              const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'prejuízo evitado');
+              if (finalized) {
+                await distributeFuryVault(supabase, auction.id, auction.title);
+                finalizedCount++;
+              }
             } else {
-              // SEM PREJUÍZO - apenas reaquece o leilão (o trigger já faz isso, mas garantimos)
               console.log(`🤖 [REAQUECER] Bot reaqueceu "${auction.title}" - R$${newPrice.toFixed(2)} - continuando`);
             }
           } else {
@@ -324,7 +272,7 @@ Deno.serve(async (req) => {
     bot_bids_added: botBidsAdded,
     auctions_checked: activeAuctions?.length || 0,
     execution_time_ms: executionTime,
-    type: 'protection_system_simplified',
+    type: 'protection_system_bot_only',
     success: true
   };
 
