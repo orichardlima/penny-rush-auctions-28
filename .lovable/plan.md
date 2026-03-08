@@ -1,24 +1,20 @@
 
 
-## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
+## Plano: Substituir input de data nativo por campos separados (dia/mês/ano)
 
 ### Problema
-O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
+O seletor de data nativo do navegador (`<input type="date">`) obriga o usuário a navegar mês a mês para chegar ao ano de nascimento, tornando o processo lento — especialmente em dispositivos móveis.
 
 ### Solução
+Substituir o `<input type="date">` por **3 campos select separados**: Dia, Mês e Ano. Isso permite que o usuário selecione diretamente o ano (ex: 1990) sem precisar clicar dezenas de vezes.
 
-**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
-- Mesmo padrão de verificação admin usado em `admin-update-user-password`
-- Recebe `{ userId, newEmail }`
-- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
-- Atualiza também `profiles.email` para manter sincronizado
+### Alteração (apenas `src/pages/Auth.tsx`)
 
-**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
-- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
-- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
-- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
-- Feedback de erro/sucesso adequado
+- Remover o `<Input type="date">` do campo `birthDate` (linhas 644-653)
+- Adicionar 3 `<select>` (ou `<Select>` do shadcn) lado a lado: **Dia** (1-31), **Mês** (Janeiro-Dezembro), **Ano** (ano atual - 18 até 1920)
+- Criar estados internos `birthDay`, `birthMonth`, `birthYear` e compor o valor `formData.birthDate` no formato `YYYY-MM-DD` quando os 3 estiverem preenchidos
+- Ajustar dinamicamente os dias disponíveis com base no mês/ano selecionado (ex: fevereiro com 28/29 dias)
+- Manter validação existente e estilo visual consistente
 
-### Nenhuma migração necessária
-A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
+Nenhuma outra tela ou componente será alterado.
 
