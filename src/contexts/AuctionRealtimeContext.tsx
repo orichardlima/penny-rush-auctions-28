@@ -126,9 +126,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         : [];
       const updatedAuction = await transformAuctionData({ ...data, recentBidders });
       
-      setAuctions(prev => 
-        prev.map(auction => auction.id === auctionId ? updatedAuction : auction)
-      );
+      setAuctions(prev => {
+        const shouldHide = updatedAuction.auctionStatus === 'finished' && (updatedAuction.totalBids ?? 0) <= 0;
+        if (shouldHide) return prev.filter(a => a.id !== auctionId);
+        return prev.map(auction => auction.id === auctionId ? updatedAuction : auction);
+      });
       
       console.log(`🔄 [${auctionId}] Sync individual | last_bid_at: ${updatedAuction.last_bid_at}`);
     } catch (error) {
