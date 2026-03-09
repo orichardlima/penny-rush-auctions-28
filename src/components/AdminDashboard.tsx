@@ -291,8 +291,13 @@ const AdminDashboard = () => {
       select('*').
       order('created_at', { ascending: false });
 
+
       if (auctionsError) throw auctionsError;
-      setAuctions(auctionsData || []);
+
+      const cleanAuctions = (auctionsData || []).filter(
+        (a) => !(a.status === 'finished' && ((a.total_bids ?? 0) <= 0))
+      );
+      setAuctions(cleanAuctions);
 
       // Fetch real users
       const { data: realUsersData, error: realUsersError } = await supabase.

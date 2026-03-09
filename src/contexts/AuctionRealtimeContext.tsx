@@ -326,9 +326,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       : [];
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
     
-    setAuctions(prev => 
-      prev.map(auction => auction.id === updatedAuction.id ? updatedAuction : auction)
-    );
+    setAuctions(prev => {
+      const shouldHide = updatedAuction.auctionStatus === 'finished' && (updatedAuction.totalBids ?? 0) <= 0;
+      if (shouldHide) return prev.filter(a => a.id !== updatedAuction.id);
+      return prev.map(auction => auction.id === updatedAuction.id ? updatedAuction : auction);
+    });
   }, []);
 
   // Adicionar novo leilão
