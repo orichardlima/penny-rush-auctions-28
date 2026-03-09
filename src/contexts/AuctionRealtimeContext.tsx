@@ -292,9 +292,16 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       auctionsWithBidders.sort((a, b) => a._originalIndex - b._originalIndex);
       const cleanAuctions = auctionsWithBidders.map(({ _originalIndex, ...auction }) => auction) as AuctionData[];
       
-      setAuctions(cleanAuctions);
+      const visibleAuctions = cleanAuctions.filter(
+        a => !(a.auctionStatus === 'finished' && (a.totalBids ?? 0) <= 0)
+      );
 
-      console.log(`✅ [REALTIME-CONTEXT] ${cleanAuctions.length} leilões carregados`);
+      setAuctions(visibleAuctions);
+
+      console.log(`✅ [REALTIME-CONTEXT] ${visibleAuctions.length} leilões carregados`);
+      if (cleanAuctions.length !== visibleAuctions.length) {
+        console.log(`🧹 [REALTIME-CONTEXT] ${cleanAuctions.length - visibleAuctions.length} leilões finalizados sem lances ocultados`);
+      }
     } catch (error) {
       console.error('❌ [REALTIME-CONTEXT] Erro:', error);
     } finally {
