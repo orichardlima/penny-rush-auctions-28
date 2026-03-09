@@ -126,9 +126,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         : [];
       const updatedAuction = await transformAuctionData({ ...data, recentBidders });
       
-      setAuctions(prev => 
-        prev.map(auction => auction.id === auctionId ? updatedAuction : auction)
-      );
+      setAuctions(prev => {
+        const shouldHide = updatedAuction.auctionStatus === 'finished' && (updatedAuction.totalBids ?? 0) <= 0;
+        if (shouldHide) return prev.filter(a => a.id !== auctionId);
+        return prev.map(auction => auction.id === auctionId ? updatedAuction : auction);
+      });
       
       console.log(`🔄 [${auctionId}] Sync individual | last_bid_at: ${updatedAuction.last_bid_at}`);
     } catch (error) {
@@ -290,9 +292,16 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       auctionsWithBidders.sort((a, b) => a._originalIndex - b._originalIndex);
       const cleanAuctions = auctionsWithBidders.map(({ _originalIndex, ...auction }) => auction) as AuctionData[];
       
-      setAuctions(cleanAuctions);
+      const visibleAuctions = cleanAuctions.filter(
+        a => !(a.auctionStatus === 'finished' && (a.totalBids ?? 0) <= 0)
+      );
 
-      console.log(`✅ [REALTIME-CONTEXT] ${cleanAuctions.length} leilões carregados`);
+      setAuctions(visibleAuctions);
+
+      console.log(`✅ [REALTIME-CONTEXT] ${visibleAuctions.length} leilões carregados`);
+      if (cleanAuctions.length !== visibleAuctions.length) {
+        console.log(`🧹 [REALTIME-CONTEXT] ${cleanAuctions.length - visibleAuctions.length} leilões finalizados sem lances ocultados`);
+      }
     } catch (error) {
       console.error('❌ [REALTIME-CONTEXT] Erro:', error);
     } finally {
@@ -317,9 +326,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       : [];
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
     
-    setAuctions(prev => 
-      prev.map(auction => auction.id === updatedAuction.id ? updatedAuction : auction)
-    );
+    setAuctions(prev => {
+      const shouldHide = updatedAuction.auctionStatus === 'finished' && (updatedAuction.totalBids ?? 0) <= 0;
+      if (shouldHide) return prev.filter(a => a.id !== updatedAuction.id);
+      return prev.map(auction => auction.id === updatedAuction.id ? updatedAuction : auction);
+    });
   }, []);
 
   // Adicionar novo leilão
