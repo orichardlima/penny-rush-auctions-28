@@ -161,6 +161,13 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     }
   };
 
+  const normalizeWinnerForLastBid = (winnerName: string | null): string | null => {
+    if (!winnerName) return null;
+    const baseName = winnerName.split(' - ')[0]?.trim();
+    if (!baseName) return null;
+    return formatUserNameForDisplay(baseName);
+  };
+
   // Buscar últimos lances
   const fetchRecentBidders = async (auctionId: string): Promise<string[]> => {
     try {
@@ -220,6 +227,16 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         winnerNameWithRegion = fullWinnerName;
       }
     }
+
+    const baseRecentBidders = Array.isArray(auction.recentBidders) ? auction.recentBidders : [];
+    const syncedRecentBidders = (() => {
+      if (auctionStatus !== 'finished') return baseRecentBidders;
+
+      const winnerAsBidder = normalizeWinnerForLastBid(winnerNameWithRegion || auction.winner_name);
+      if (!winnerAsBidder) return baseRecentBidders;
+
+      return [winnerAsBidder, ...baseRecentBidders.filter((name: string) => name !== winnerAsBidder)].slice(0, 3);
+    })();
     
     return {
       id: auction.id,
@@ -230,7 +247,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       originalPrice: auction.market_value || 0,
       totalBids: auction.total_bids || 0,
       participants: auction.participants_count || 0,
-      recentBidders: auction.recentBidders || [],
+      recentBidders: syncedRecentBidders,
       currentRevenue: (auction.total_bids || 0) * 1.00,
       timeLeft: auction.time_left || 15,
       auctionStatus,
