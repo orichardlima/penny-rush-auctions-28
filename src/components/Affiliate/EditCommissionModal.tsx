@@ -45,6 +45,7 @@ export function EditCommissionModal({
   const [percentageRate, setPercentageRate] = useState(affiliate?.commission_rate?.toString() || '10');
   const [cpaValue, setCpaValue] = useState(affiliate?.cpa_value_per_conversion?.toString() || '5');
   const [cpaTarget, setCpaTarget] = useState(affiliate?.cpa_conversions_target?.toString() || '50');
+  const [repurchaseRate, setRepurchaseRate] = useState(affiliate?.repurchase_commission_rate?.toString() || '');
   const [saving, setSaving] = useState(false);
 
   if (!affiliate) return null;
