@@ -1,24 +1,41 @@
 
 
-## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
+## Correção: Sincronizar `last_bidders` no `useFinishAuction.ts`
 
-### Problema
-O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
+### Problema residual
+O hook `useFinishAuction.ts` (finalização manual pelo admin) não atualiza o campo `last_bidders` ao definir o bot vencedor. O frontend compensa com blindagem visual, mas o dado no banco fica inconsistente.
 
 ### Solução
+Adicionar o prepend do bot vencedor no array `last_bidders` antes do UPDATE final.
 
-**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
-- Mesmo padrão de verificação admin usado em `admin-update-user-password`
-- Recebe `{ userId, newEmail }`
-- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
-- Atualiza também `profiles.email` para manter sincronizado
+### Alteração
 
-**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
-- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
-- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
-- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
-- Feedback de erro/sucesso adequado
+**`src/hooks/useFinishAuction.ts`** — entre as linhas 61-76:
 
-### Nenhuma migração necessária
-A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
+Após formatar o `winnerName`, buscar o `last_bidders` atual do leilão, fazer prepend do display name do bot (formato "Primeiro Segundo"), truncar para 3 itens, e incluir no UPDATE:
+
+```typescript
+// Buscar last_bidders atual
+const { data: currentAuction } = await supabase
+  .from('auctions')
+  .select('last_bidders')
+  .eq('id', auctionId)
+  .single();
+
+const botDisplay = formatUserNameForDisplay(selectedBot.full_name);
+let currentBidders: string[] = Array.isArray(currentAuction?.last_bidders) 
+  ? currentAuction.last_bidders : [];
+currentBidders = [botDisplay, ...currentBidders].slice(0, 3);
+
+// UPDATE incluindo last_bidders
+.update({
+  status: 'finished',
+  winner_id: selectedBot.user_id,
+  winner_name: winnerName,
+  finished_at: new Date().toISOString(),
+  last_bidders: currentBidders  // <-- novo
+})
+```
+
+Isso fecha a última brecha, garantindo que **todos os caminhos de finalização** mantenham `last_bidders` sincronizado com o vencedor.
 
