@@ -802,6 +802,7 @@ export default function AffiliateDashboard() {
           {/* Tab: Indicados */}
           <TabsContent value="referrals" className="space-y-6">
             <AffiliateReferralsList affiliateId={affiliateData.id} />
+            <AffiliatePurchaseHistory affiliateId={affiliateData.id} />
           </TabsContent>
 
           {/* Tab: Analytics */}
