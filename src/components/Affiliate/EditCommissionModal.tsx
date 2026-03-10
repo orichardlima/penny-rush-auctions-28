@@ -53,16 +53,19 @@ export function EditCommissionModal({
   const handleSave = async () => {
     setSaving(true);
     try {
+      const repurchaseValue = repurchaseRate.trim() !== '' ? parseFloat(repurchaseRate) : null;
       if (commissionType === 'percentage') {
         await onSave({
           commission_type: 'percentage',
           commission_rate: parseFloat(percentageRate),
+          repurchase_commission_rate: repurchaseValue,
         });
       } else {
         await onSave({
           commission_type: 'cpa',
           cpa_value_per_conversion: parseFloat(cpaValue),
           cpa_conversions_target: parseInt(cpaTarget),
+          repurchase_commission_rate: repurchaseValue,
         });
       }
       onOpenChange(false);
