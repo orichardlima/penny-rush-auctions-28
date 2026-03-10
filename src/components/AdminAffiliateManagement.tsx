@@ -928,6 +928,47 @@ export function AdminAffiliateManagement() {
               </div>
 
               <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Recompras</h3>
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Comissionar Recompras</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Gerar comissão para o afiliado em todas as compras do indicado, não apenas na primeira
+                      </p>
+                    </div>
+                    <Switch
+                      checked={getSettingValue("affiliate_repurchase_enabled", false)}
+                      onCheckedChange={(checked) =>
+                        updateSetting("affiliate_repurchase_enabled", String(checked))
+                      }
+                    />
+                  </div>
+                  {getSettingValue("affiliate_repurchase_enabled", false) && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Taxa de Recompra Padrão (%)</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Taxa aplicada nas recompras (pode ser sobrescrita individualmente por afiliado)
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        className="w-24"
+                        value={getSettingValue("affiliate_repurchase_commission_rate", "5")}
+                        onChange={(e) =>
+                          updateSetting("affiliate_repurchase_commission_rate", e.target.value)
+                        }
+                        step="0.5"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Comissões</h3>
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">

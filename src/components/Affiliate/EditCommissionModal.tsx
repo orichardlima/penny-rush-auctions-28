@@ -214,6 +214,26 @@ export function EditCommissionModal({
             </div>
           )}
 
+          {/* Taxa de Recompra Individual */}
+          <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+            <Label className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Taxa de Recompra Individual (%)
+            </Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={repurchaseRate}
+              onChange={(e) => setRepurchaseRate(e.target.value)}
+              placeholder="Deixe vazio para usar a taxa global"
+            />
+            <p className="text-xs text-muted-foreground">
+              Se preenchido, sobrescreve a taxa global de recompra para este afiliado. Deixe vazio para usar a configuração padrão.
+            </p>
+          </div>
+
           {/* Aviso */}
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
             <p className="text-sm text-amber-600 dark:text-amber-400">
