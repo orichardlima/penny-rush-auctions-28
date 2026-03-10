@@ -142,6 +142,7 @@ export type Database = {
           commission_rate: number
           created_at: string
           id: string
+          is_repurchase: boolean
           paid_at: string | null
           purchase_amount: number
           purchase_id: string
@@ -155,6 +156,7 @@ export type Database = {
           commission_rate: number
           created_at?: string
           id?: string
+          is_repurchase?: boolean
           paid_at?: string | null
           purchase_amount: number
           purchase_id: string
@@ -168,6 +170,7 @@ export type Database = {
           commission_rate?: number
           created_at?: string
           id?: string
+          is_repurchase?: boolean
           paid_at?: string | null
           purchase_amount?: number
           purchase_id?: string
@@ -395,6 +398,7 @@ export type Database = {
           id: string
           pix_key: string | null
           recruited_by_affiliate_id: string | null
+          repurchase_commission_rate: number | null
           role: string
           status: string
           total_commission_earned: number
@@ -418,6 +422,7 @@ export type Database = {
           id?: string
           pix_key?: string | null
           recruited_by_affiliate_id?: string | null
+          repurchase_commission_rate?: number | null
           role?: string
           status?: string
           total_commission_earned?: number
@@ -441,6 +446,7 @@ export type Database = {
           id?: string
           pix_key?: string | null
           recruited_by_affiliate_id?: string | null
+          repurchase_commission_rate?: number | null
           role?: string
           status?: string
           total_commission_earned?: number

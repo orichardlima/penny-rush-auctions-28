@@ -235,11 +235,11 @@ serve(async (req) => {
 
     console.log('✅ Payment response ready:', response)
 
-    // 8. Se tem código de referral, verificar se é primeira compra do indicado
+    // 8. Se tem código de referral, processar comissão (1ª compra ou recompra)
     if (referralCode) {
       console.log('🤝 Processing affiliate referral:', referralCode)
       
-      // 🆕 VERIFICAÇÃO: Checar se este usuário já gerou comissão anteriormente
+      // Checar se este usuário já gerou comissão anteriormente
       const { data: existingCommission, error: checkError } = await supabase
         .from('affiliate_commissions')
         .select('id')
@@ -252,19 +252,56 @@ serve(async (req) => {
         console.error('❌ Error checking existing commission:', checkError)
       }
 
-      if (existingCommission) {
-        console.log('ℹ️ User already generated commission before (ID: ' + existingCommission.id + '), skipping affiliate reward')
-        // NÃO criar comissão - usuário já foi convertido anteriormente
-      } else {
-        // Usuário é NOVO - criar comissão normalmente
-        const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('id, commission_rate')
-          .eq('affiliate_code', referralCode)
-          .eq('status', 'active')
-          .maybeSingle()
+      const isRepurchase = !!existingCommission
 
-        if (affiliate) {
+      // Buscar afiliado
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id, commission_rate, repurchase_commission_rate')
+        .eq('affiliate_code', referralCode)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      if (affiliate) {
+        if (isRepurchase) {
+          // RECOMPRA - verificar se recurso está habilitado
+          const { data: repurchaseSettings } = await supabase
+            .from('system_settings')
+            .select('setting_key, setting_value')
+            .in('setting_key', ['affiliate_repurchase_enabled', 'affiliate_repurchase_commission_rate'])
+
+          const repurchaseConfig: Record<string, string> = {}
+          repurchaseSettings?.forEach(s => {
+            repurchaseConfig[s.setting_key] = s.setting_value
+          })
+
+          const repurchaseEnabled = repurchaseConfig['affiliate_repurchase_enabled'] === 'true'
+
+          if (repurchaseEnabled) {
+            // Taxa individual do afiliado OU taxa global
+            const globalRate = parseFloat(repurchaseConfig['affiliate_repurchase_commission_rate'] || '5') || 5
+            const repurchaseRate = affiliate.repurchase_commission_rate != null 
+              ? affiliate.repurchase_commission_rate 
+              : globalRate
+            const commissionAmount = (packageData.price * repurchaseRate) / 100
+
+            await supabase.from('affiliate_commissions').insert({
+              affiliate_id: affiliate.id,
+              purchase_id: purchaseData.id,
+              referred_user_id: userId,
+              purchase_amount: packageData.price,
+              commission_rate: repurchaseRate,
+              commission_amount: commissionAmount,
+              status: 'pending',
+              is_repurchase: true
+            })
+
+            console.log(`✅ Repurchase commission created: ${commissionAmount} (rate: ${repurchaseRate}%)`)
+          } else {
+            console.log('ℹ️ Repurchase commissions disabled, skipping')
+          }
+        } else {
+          // PRIMEIRA COMPRA - comportamento original
           const commissionAmount = (packageData.price * affiliate.commission_rate) / 100
           
           await supabase.from('affiliate_commissions').insert({
@@ -274,13 +311,14 @@ serve(async (req) => {
             purchase_amount: packageData.price,
             commission_rate: affiliate.commission_rate,
             commission_amount: commissionAmount,
-            status: 'pending'
+            status: 'pending',
+            is_repurchase: false
           })
 
           console.log('✅ First purchase! Affiliate commission created:', commissionAmount)
-        } else {
-          console.log('⚠️ Affiliate not found or inactive for code:', referralCode)
         }
+      } else {
+        console.log('⚠️ Affiliate not found or inactive for code:', referralCode)
       }
     }
 

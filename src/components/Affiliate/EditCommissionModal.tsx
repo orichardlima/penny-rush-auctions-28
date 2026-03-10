@@ -18,6 +18,7 @@ interface EditCommissionModalProps {
     commission_rate: number;
     cpa_value_per_conversion: number;
     cpa_conversions_target: number;
+    repurchase_commission_rate?: number | null;
   };
   currentGoal?: {
     current_conversions: number;
@@ -29,6 +30,7 @@ interface EditCommissionModalProps {
     commission_rate?: number;
     cpa_value_per_conversion?: number;
     cpa_conversions_target?: number;
+    repurchase_commission_rate?: number | null;
   }) => Promise<void>;
 }
 
@@ -43,6 +45,7 @@ export function EditCommissionModal({
   const [percentageRate, setPercentageRate] = useState(affiliate?.commission_rate?.toString() || '10');
   const [cpaValue, setCpaValue] = useState(affiliate?.cpa_value_per_conversion?.toString() || '5');
   const [cpaTarget, setCpaTarget] = useState(affiliate?.cpa_conversions_target?.toString() || '50');
+  const [repurchaseRate, setRepurchaseRate] = useState(affiliate?.repurchase_commission_rate?.toString() || '');
   const [saving, setSaving] = useState(false);
 
   if (!affiliate) return null;
@@ -50,16 +53,19 @@ export function EditCommissionModal({
   const handleSave = async () => {
     setSaving(true);
     try {
+      const repurchaseValue = repurchaseRate.trim() !== '' ? parseFloat(repurchaseRate) : null;
       if (commissionType === 'percentage') {
         await onSave({
           commission_type: 'percentage',
           commission_rate: parseFloat(percentageRate),
+          repurchase_commission_rate: repurchaseValue,
         });
       } else {
         await onSave({
           commission_type: 'cpa',
           cpa_value_per_conversion: parseFloat(cpaValue),
           cpa_conversions_target: parseInt(cpaTarget),
+          repurchase_commission_rate: repurchaseValue,
         });
       }
       onOpenChange(false);
@@ -207,6 +213,26 @@ export function EditCommissionModal({
               )}
             </div>
           )}
+
+          {/* Taxa de Recompra Individual */}
+          <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+            <Label className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Taxa de Recompra Individual (%)
+            </Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={repurchaseRate}
+              onChange={(e) => setRepurchaseRate(e.target.value)}
+              placeholder="Deixe vazio para usar a taxa global"
+            />
+            <p className="text-xs text-muted-foreground">
+              Se preenchido, sobrescreve a taxa global de recompra para este afiliado. Deixe vazio para usar a configuração padrão.
+            </p>
+          </div>
 
           {/* Aviso */}
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
