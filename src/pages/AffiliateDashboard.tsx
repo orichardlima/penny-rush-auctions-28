@@ -24,6 +24,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { CPAGoalProgress } from '@/components/Affiliate/CPAGoalProgress';
 import { ConversionFunnel } from '@/components/Affiliate/ConversionFunnel';
 import { AffiliateReferralsList } from '@/components/Affiliate/AffiliateReferralsList';
+import { AffiliatePurchaseHistory } from '@/components/Affiliate/AffiliatePurchaseHistory';
 import { Footer } from '@/components/Footer';
 import { useAffiliateManager } from '@/hooks/useAffiliateManager';
 
