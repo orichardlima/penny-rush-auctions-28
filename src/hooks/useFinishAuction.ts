@@ -14,7 +14,7 @@ export const useFinishAuction = () => {
       // 1. Verificar se leilão está ativo
       const { data: auction, error: auctionError } = await supabase
         .from('auctions')
-        .select('current_price, bid_increment')
+        .select('current_price, bid_increment, last_bidders')
         .eq('id', auctionId)
         .eq('status', 'active')
         .single();
