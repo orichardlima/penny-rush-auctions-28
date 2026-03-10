@@ -427,7 +427,7 @@ export default function AffiliateDashboard() {
                 <CardDescription>
                   Compartilhe este link e ganhe {affiliateData.commission_type === 'cpa' 
                     ? formatPrice(affiliateData.cpa_value_per_conversion) + ' por cada novo depositante'
-                    : affiliateData.commission_rate + '% na primeira compra'}
+                    : affiliateData.commission_rate + '% na primeira compra e comissões em recompras'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
