@@ -570,12 +570,19 @@ export const useAdminAffiliates = () => {
       commission_rate?: number;
       cpa_value_per_conversion?: number;
       cpa_conversions_target?: number;
+      repurchase_commission_rate?: number | null;
     }
   ) => {
     try {
+      const updateData: any = { commission_type: data.commission_type };
+      if (data.commission_rate !== undefined) updateData.commission_rate = data.commission_rate;
+      if (data.cpa_value_per_conversion !== undefined) updateData.cpa_value_per_conversion = data.cpa_value_per_conversion;
+      if (data.cpa_conversions_target !== undefined) updateData.cpa_conversions_target = data.cpa_conversions_target;
+      if (data.repurchase_commission_rate !== undefined) updateData.repurchase_commission_rate = data.repurchase_commission_rate;
+
       const { error } = await supabase
         .from('affiliates')
-        .update(data)
+        .update(updateData)
         .eq('id', affiliateId);
 
       if (error) throw error;

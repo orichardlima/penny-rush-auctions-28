@@ -597,7 +597,7 @@ export default function AffiliateDashboard() {
                     <p className="text-muted-foreground">
                       {affiliateData.commission_type === 'cpa' 
                         ? `Você ganha ${formatPrice(affiliateData.cpa_value_per_conversion)} por cada depositante (primeira compra). Ao atingir ${affiliateData.cpa_conversions_target} depositantes, recebe ${formatPrice(affiliateData.cpa_value_per_conversion * affiliateData.cpa_conversions_target)}!`
-                        : `Você recebe ${affiliateData.commission_rate}% de comissão sobre a primeira compra realizada através do seu link`
+                        : `Você recebe ${affiliateData.commission_rate}% de comissão sobre a primeira compra e comissões reduzidas nas recompras dos seus indicados`
                       }
                     </p>
                   </div>
