@@ -657,6 +657,7 @@ export function AdminAffiliateManagement() {
                   <TableRow>
                     <TableHead>Afiliado</TableHead>
                     <TableHead>Indicado</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Valor Compra</TableHead>
                     <TableHead>Taxa</TableHead>
                     <TableHead>Comissão</TableHead>
