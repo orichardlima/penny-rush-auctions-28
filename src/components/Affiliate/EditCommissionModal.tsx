@@ -18,6 +18,7 @@ interface EditCommissionModalProps {
     commission_rate: number;
     cpa_value_per_conversion: number;
     cpa_conversions_target: number;
+    repurchase_commission_rate?: number | null;
   };
   currentGoal?: {
     current_conversions: number;
@@ -29,6 +30,7 @@ interface EditCommissionModalProps {
     commission_rate?: number;
     cpa_value_per_conversion?: number;
     cpa_conversions_target?: number;
+    repurchase_commission_rate?: number | null;
   }) => Promise<void>;
 }
 
