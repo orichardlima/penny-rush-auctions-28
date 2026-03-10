@@ -66,6 +66,14 @@ Deno.serve(async (req) => {
 
     const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price } = auction;
 
+    // Helper: gerar display name para last_bidders
+    const getBotDisplayName = (bot: any): string => {
+      const fullName = bot.full_name || 'Bot';
+      const parts = fullName.trim().split(' ');
+      if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
+      return parts[0];
+    };
+
     // Helper: finalizar com bot como vencedor (REGRA ABSOLUTA)
     const finalizeWithBot = async (reason: string, action: string) => {
       const bot = await getRandomBot(supabase);
@@ -78,6 +86,17 @@ Deno.serve(async (req) => {
       }
 
       const winnerName = formatBotWinnerName(bot);
+      const botDisplay = getBotDisplayName(bot);
+
+      // Buscar last_bidders atual e prepend o bot vencedor
+      const { data: auctionData } = await supabase
+        .from('auctions')
+        .select('last_bidders')
+        .eq('id', auction_id)
+        .single();
+
+      let currentBidders: string[] = auctionData?.last_bidders || [];
+      currentBidders = [botDisplay, ...currentBidders].slice(0, 3);
 
       const { error: updateError } = await supabase
         .from('auctions')
@@ -85,7 +104,8 @@ Deno.serve(async (req) => {
           status: 'finished',
           finished_at: new Date().toISOString(),
           winner_id: bot.user_id,
-          winner_name: winnerName
+          winner_name: winnerName,
+          last_bidders: currentBidders
         })
         .eq('id', auction_id);
 

@@ -33,6 +33,14 @@ function formatBotWinnerName(bot: any): string {
   return bot.full_name || 'Bot';
 }
 
+// Helper: gerar display name para last_bidders (formato "Primeiro Segundo")
+function getBotDisplayName(bot: any): string {
+  const fullName = bot.full_name || 'Bot';
+  const parts = fullName.trim().split(' ');
+  if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
+  return parts[0];
+}
+
 // Helper: finalizar leilão SEMPRE com bot como vencedor
 async function finalizeWithBot(supabase: any, auctionId: string, auctionTitle: string, reason: string) {
   const bot = await getRandomBot(supabase);
@@ -42,13 +50,26 @@ async function finalizeWithBot(supabase: any, auctionId: string, auctionTitle: s
   }
 
   const winnerName = formatBotWinnerName(bot);
+  const botDisplay = getBotDisplayName(bot);
+
+  // Buscar last_bidders atual e prepend o bot vencedor
+  const { data: auctionData } = await supabase
+    .from('auctions')
+    .select('last_bidders')
+    .eq('id', auctionId)
+    .single();
+
+  let currentBidders: string[] = auctionData?.last_bidders || [];
+  currentBidders = [botDisplay, ...currentBidders].slice(0, 3);
+
   const { error } = await supabase
     .from('auctions')
     .update({
       status: 'finished',
       finished_at: new Date().toISOString(),
       winner_id: bot.user_id,
-      winner_name: winnerName
+      winner_name: winnerName,
+      last_bidders: currentBidders
     })
     .eq('id', auctionId);
 
