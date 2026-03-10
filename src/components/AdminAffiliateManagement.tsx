@@ -673,6 +673,13 @@ export function AdminAffiliateManagement() {
                         {affiliates.find(a => a.id === commission.affiliate_id)?.profiles?.full_name || "Desconhecido"}
                       </TableCell>
                       <TableCell>Usuário #{commission.referred_user_id.substring(0, 8)}</TableCell>
+                      <TableCell>
+                        {(commission as any).is_repurchase ? (
+                          <Badge variant="outline" className="text-xs">Recompra</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">1ª Compra</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{formatPrice(commission.purchase_amount)}</TableCell>
                       <TableCell>{commission.commission_rate}%</TableCell>
                       <TableCell className="font-semibold text-green-600">
