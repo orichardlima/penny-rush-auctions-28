@@ -63,14 +63,21 @@ export const useFinishAuction = () => {
         ? `${formatUserNameForDisplay(selectedBot.full_name)} - ${selectedBot.city}, ${selectedBot.state}`
         : formatUserNameForDisplay(selectedBot.full_name);
 
-      // 5. Finalizar o leilão com bot como vencedor
+      // 5. Sincronizar last_bidders com bot vencedor
+      const botDisplay = formatUserNameForDisplay(selectedBot.full_name);
+      let currentBidders: string[] = Array.isArray(auction.last_bidders)
+        ? (auction.last_bidders as string[]) : [];
+      currentBidders = [botDisplay, ...currentBidders.filter(n => n !== botDisplay)].slice(0, 3);
+
+      // 6. Finalizar o leilão com bot como vencedor
       const { error: updateError } = await supabase
         .from('auctions')
         .update({
           status: 'finished',
           winner_id: selectedBot.user_id,
           winner_name: winnerName,
-          finished_at: new Date().toISOString()
+          finished_at: new Date().toISOString(),
+          last_bidders: currentBidders
         })
         .eq('id', auctionId)
         .eq('status', 'active');
