@@ -2614,7 +2614,7 @@ export type Database = {
         | {
             Args: {
               p_points: number
-              p_reason: string
+              p_reason?: string
               p_source_contract_id: string
               p_sponsor_contract_id?: string
             }
