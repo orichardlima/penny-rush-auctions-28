@@ -1156,7 +1156,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </TabsContent>
 
         {/* Tab de Saques */}
-        <TabsContent value="withdrawals">
+        <TabsContent value="withdrawals" className="space-y-4">
+          {isDemo && (
+            <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
+              <Lock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>Saques desativados.</strong> Esta é uma conta de demonstração. Os saques serão habilitados após a regularização do contrato.
+              </AlertDescription>
+            </Alert>
+          )}
           <PartnerWithdrawalSection contract={contract} onRefresh={refreshData} />
         </TabsContent>
 
