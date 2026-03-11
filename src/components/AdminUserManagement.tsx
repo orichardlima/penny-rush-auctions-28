@@ -478,9 +478,10 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           aporte_value: plan.aporte_value,
           referral_code: newReferralCode,
           sponsor: referredByUserId || 'none',
-          sponsor_decision: sponsorDecision
+          sponsor_decision: sponsorDecision,
+          is_demo: isDemoContract
         },
-        `Plano ${plan.display_name} atribuído pelo administrador. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
+        `Plano ${plan.display_name} atribuído pelo administrador${isDemoContract ? ' (DEMO)' : ''}. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
       );
       
       toast({
