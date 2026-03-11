@@ -1,13 +1,13 @@
 
 
-## Plano: Contrato Demo — Flag interna no contrato, sem plano público
+## Plano: Vincular patrocinador de parceiro no cadastro (sem depender de PIX)
 
 **STATUS: ✅ IMPLEMENTADO**
 
 ### O que foi feito
 
-1. **Migration SQL** — Coluna `is_demo` + guards nas funções `ensure_partner_referral_bonuses` e `position_partner_binary`
-2. **Edge Function `partner-weekly-payouts`** — Contratos demo são pulados no processamento
-3. **AdminUserManagement** — Switch "Contrato Demo (líder)" no dialog de atribuição de plano
-4. **AdminPartnerManagement** — Badge "DEMO" + botão "Converter para Regular" com bônus retroativos
-5. **PartnerDashboard** — Banner informativo para parceiros em modo demonstração
+1. **Migration SQL** — Coluna `referred_by_partner_code TEXT` em `profiles` + trigger `handle_new_user` atualizado para salvar `partner_referral_code` do metadata
+2. **`AuthContext.tsx`** — Campo `partner_referral_code` adicionado na interface `SignUpData` e no `options.data` do `signUp()`
+3. **`Auth.tsx`** — Captura `getPartnerReferralCode()` no signup e inclui no `userData`; limpa localStorage após sucesso com `clearPartnerReferralTracking()`
+4. **`AdminUserManagement.tsx`** — Fallback: se `partner_payment_intents` não tem sponsor, busca `profiles.referred_by_partner_code` e auto-preenche + valida
+5. **`UserProfileCard.tsx`** — Fallback: busca `profiles.referred_by_partner_code` → contrato ativo com aquele código → exibe sponsor como "(Cadastro via link de parceiro)"

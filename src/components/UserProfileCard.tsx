@@ -254,7 +254,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                   <div className="text-sm">
                     <span className="font-medium">{referralInfo.partnerReferrer.name}</span>
                     <span className="text-muted-foreground text-xs ml-1">
-                      ({referralInfo.partnerReferrer.pending ? 'Parceria pendente de pagamento' : 'Patrocinador parceria'}) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
+                      ({referralInfo.partnerReferrer.signupLink ? 'Cadastro via link de parceiro' : referralInfo.partnerReferrer.pending ? 'Parceria pendente de pagamento' : 'Patrocinador parceria'}) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
                     </span>
                   </div>
                 ) : (
