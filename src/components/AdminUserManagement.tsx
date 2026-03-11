@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award } from 'lucide-react';
@@ -47,6 +48,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [sponsorValidationStatus, setSponsorValidationStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle');
   const [noSponsorConfirmed, setNoSponsorConfirmed] = useState(false);
+  const [isDemoContract, setIsDemoContract] = useState(false);
 
   const logAdminAction = async (actionType: string, oldValues: any = null, newValues: any = null, description: string) => {
     try {
@@ -295,6 +297,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     setAdminReferralCode('');
     setSponsorValidationStatus('idle');
     setNoSponsorConfirmed(false);
+    setIsDemoContract(false);
     try {
       // Buscar planos ativos
       const { data: plansData } = await supabase
@@ -434,15 +437,16 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           total_cap: plan.total_cap,
           status: 'ACTIVE',
           referred_by_user_id: referredByUserId,
-          referral_code: newReferralCode
+          referral_code: newReferralCode,
+          is_demo: isDemoContract
         })
         .select()
         .single();
       
       if (contractError) throw contractError;
       
-      // Creditar bônus de lances se existir
-      if (plan.bonus_bids && plan.bonus_bids > 0) {
+      // Creditar bônus de lances se existir (e NÃO for demo)
+      if (!isDemoContract && plan.bonus_bids && plan.bonus_bids > 0) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('bids_balance')
@@ -475,9 +479,10 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           aporte_value: plan.aporte_value,
           referral_code: newReferralCode,
           sponsor: referredByUserId || 'none',
-          sponsor_decision: sponsorDecision
+          sponsor_decision: sponsorDecision,
+          is_demo: isDemoContract
         },
-        `Plano ${plan.display_name} atribuído pelo administrador. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
+        `Plano ${plan.display_name} atribuído pelo administrador${isDemoContract ? ' (DEMO)' : ''}. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
       );
       
       toast({
@@ -490,6 +495,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       setAdminReferralCode('');
       setSponsorValidationStatus('idle');
       setNoSponsorConfirmed(false);
+      setIsDemoContract(false);
       onUserUpdated();
     } catch (error: any) {
       console.error('Error assigning plan:', error);
@@ -875,11 +881,29 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
                   </div>
                 )}
               </div>
+
+              {/* Demo Contract Switch */}
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="demo-switch" className="text-sm font-medium cursor-pointer">
+                    Contrato Demo (líder)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Sem repasses, sem bônus de indicação, sem pontos binários
+                  </p>
+                </div>
+                <Switch
+                  id="demo-switch"
+                  checked={isDemoContract}
+                  onCheckedChange={setIsDemoContract}
+                />
+              </div>
               
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-800">
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   ⚠️ Esta ação criará um contrato sem necessidade de pagamento.
-                  Será registrado no log de auditoria.
+                  {isDemoContract && ' Modo DEMO: sem custos operacionais.'}
+                  {' '}Será registrado no log de auditoria.
                 </p>
               </div>
               

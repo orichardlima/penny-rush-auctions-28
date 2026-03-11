@@ -1449,6 +1449,7 @@ export type Database = {
           closed_reason: string | null
           created_at: string
           id: string
+          is_demo: boolean
           payment_id: string | null
           payment_status: string | null
           pix_key: string | null
@@ -1474,6 +1475,7 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           payment_id?: string | null
           payment_status?: string | null
           pix_key?: string | null
@@ -1499,6 +1501,7 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           payment_id?: string | null
           payment_status?: string | null
           pix_key?: string | null

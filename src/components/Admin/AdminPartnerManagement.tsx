@@ -48,7 +48,8 @@ import {
   Megaphone,
   Rocket,
   Copy,
-  ClipboardCopy
+  ClipboardCopy,
+  Zap
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
@@ -684,7 +685,14 @@ const AdminPartnerManagement = () => {
                             <span className="text-xs">{progress.toFixed(1)}%</span>
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(contract.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {getStatusBadge(contract.status)}
+                            {(contract as any).is_demo && (
+                              <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-[10px] px-1.5">DEMO</Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {/* Detail View Button */}
@@ -787,6 +795,53 @@ const AdminPartnerManagement = () => {
                                       disabled={processing}
                                     >
                                       Confirmar Correção
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                            {/* Convert Demo to Regular */}
+                            {contract.status === 'ACTIVE' && (contract as any).is_demo && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="text-purple-600 border-purple-300 hover:bg-purple-50" title="Converter para contrato regular">
+                                    <Zap className="h-4 w-4 mr-1" />
+                                    Regular
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Converter para Contrato Regular</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O contrato de <strong>{contract.user_name}</strong> ({contract.plan_name}) será convertido para regular.
+                                      Isso irá ativar repasses semanais, bônus de indicação e pontos binários retroativamente.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={async () => {
+                                        try {
+                                          // Update is_demo to false
+                                          const { error } = await supabase
+                                            .from('partner_contracts')
+                                            .update({ is_demo: false } as any)
+                                            .eq('id', contract.id);
+                                          
+                                          if (error) throw error;
+
+                                          // Trigger retroactive bonuses via RPC
+                                          await supabase.rpc('ensure_partner_referral_bonuses', { p_contract_id: contract.id });
+
+                                          toast({ title: 'Sucesso', description: `Contrato de ${contract.user_name} convertido para regular.` });
+                                          refreshData();
+                                        } catch (err: any) {
+                                          toast({ title: 'Erro', description: err.message || 'Erro ao converter contrato', variant: 'destructive' });
+                                        }
+                                      }}
+                                      disabled={processing}
+                                    >
+                                      Converter para Regular
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>

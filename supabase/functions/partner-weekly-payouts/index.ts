@@ -67,6 +67,7 @@ interface Contract {
   status: string
   created_at: string
   available_balance: number
+  is_demo: boolean
 }
 
 interface DailyRevenue {
@@ -197,6 +198,19 @@ Deno.serve(async (req) => {
     const results: ProcessResult[] = []
     
     for (const contract of contracts as Contract[]) {
+      // GUARD: Pular contratos demo (sem repasses)
+      if (contract.is_demo) {
+        console.log(`[partner-weekly-payouts] Contrato ${contract.id} é DEMO. Pulando.`)
+        results.push({
+          contract_id: contract.id,
+          user_id: contract.user_id,
+          plan_name: contract.plan_name,
+          status: 'skipped',
+          reason: 'Contrato demo (sem repasses)'
+        })
+        continue
+      }
+
       console.log(`[partner-weekly-payouts] Processando contrato ${contract.id} (${contract.plan_name})`)
       
       try {
