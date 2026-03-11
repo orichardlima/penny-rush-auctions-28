@@ -799,6 +799,53 @@ const AdminPartnerManagement = () => {
                                 </AlertDialogContent>
                               </AlertDialog>
                             )}
+                            {/* Convert Demo to Regular */}
+                            {contract.status === 'ACTIVE' && (contract as any).is_demo && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="text-purple-600 border-purple-300 hover:bg-purple-50" title="Converter para contrato regular">
+                                    <Zap className="h-4 w-4 mr-1" />
+                                    Regular
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Converter para Contrato Regular</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O contrato de <strong>{contract.user_name}</strong> ({contract.plan_name}) será convertido para regular.
+                                      Isso irá ativar repasses semanais, bônus de indicação e pontos binários retroativamente.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={async () => {
+                                        try {
+                                          // Update is_demo to false
+                                          const { error } = await supabase
+                                            .from('partner_contracts')
+                                            .update({ is_demo: false } as any)
+                                            .eq('id', contract.id);
+                                          
+                                          if (error) throw error;
+
+                                          // Trigger retroactive bonuses via RPC
+                                          await supabase.rpc('ensure_partner_referral_bonuses', { p_contract_id: contract.id });
+
+                                          toast({ title: 'Sucesso', description: `Contrato de ${contract.user_name} convertido para regular.` });
+                                          refreshData();
+                                        } catch (err: any) {
+                                          toast({ title: 'Erro', description: err.message || 'Erro ao converter contrato', variant: 'destructive' });
+                                        }
+                                      }}
+                                      disabled={processing}
+                                    >
+                                      Converter para Regular
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
