@@ -297,8 +297,11 @@ export const AdminBinaryTreeView: React.FC = () => {
 
       if (err2) throw err2;
 
-      // 3. Propagar pontos para uplines
+      // 3. Propagar pontos para uplines (skip demo contracts)
       let pointsPropagated = 0;
+      if (selectedIsolated.isDemo) {
+        console.log('[AdminBinaryTreeView] Skipping point propagation for demo contract');
+      } else {
       try {
         const { data: contract } = await supabase
           .from('partner_contracts')
