@@ -75,7 +75,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
         .limit(1)
         .maybeSingle();
 
-      let partnerReferrer: { name: string; date: string; pending?: boolean } | null = null;
+      let partnerReferrer: { name: string; date: string; pending?: boolean; signupLink?: boolean } | null = null;
 
       if (partnerContract?.referred_by_user_id) {
         const { data: sponsorProfile } = await supabase
