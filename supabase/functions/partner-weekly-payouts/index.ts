@@ -67,6 +67,7 @@ interface Contract {
   status: string
   created_at: string
   available_balance: number
+  is_demo: boolean
 }
 
 interface DailyRevenue {
