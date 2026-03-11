@@ -545,7 +545,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
   const progress = getProgress();
   const lastPayout = getLastPayout();
-  const isDemo = (contract as any)?.is_demo === true;
+  const isDemo = contract?.is_demo === true;
 
 
   return (
