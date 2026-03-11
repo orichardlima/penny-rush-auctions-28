@@ -85,7 +85,7 @@ export const AdminBinaryTreeView: React.FC = () => {
       const contractIds = posData.map(p => p.partner_contract_id);
       const { data: contracts } = await supabase
         .from('partner_contracts')
-        .select('id, plan_name, user_id, status')
+        .select('id, plan_name, user_id, status, is_demo')
         .in('id', contractIds);
 
       const userIds = (contracts || []).map(c => c.user_id);
