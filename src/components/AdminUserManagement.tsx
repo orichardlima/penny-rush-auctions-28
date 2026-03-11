@@ -880,11 +880,29 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
                   </div>
                 )}
               </div>
+
+              {/* Demo Contract Switch */}
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="demo-switch" className="text-sm font-medium cursor-pointer">
+                    Contrato Demo (líder)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Sem repasses, sem bônus de indicação, sem pontos binários
+                  </p>
+                </div>
+                <Switch
+                  id="demo-switch"
+                  checked={isDemoContract}
+                  onCheckedChange={setIsDemoContract}
+                />
+              </div>
               
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-800">
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   ⚠️ Esta ação criará um contrato sem necessidade de pagamento.
-                  Será registrado no log de auditoria.
+                  {isDemoContract && ' Modo DEMO: sem custos operacionais.'}
+                  {' '}Será registrado no log de auditoria.
                 </p>
               </div>
               
