@@ -494,6 +494,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       setAdminReferralCode('');
       setSponsorValidationStatus('idle');
       setNoSponsorConfirmed(false);
+      setIsDemoContract(false);
       onUserUpdated();
     } catch (error: any) {
       console.error('Error assigning plan:', error);
