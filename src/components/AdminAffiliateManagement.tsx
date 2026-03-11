@@ -82,6 +82,7 @@ export function AdminAffiliateManagement() {
   const [newOverrideRate, setNewOverrideRate] = useState("2");
   const [editOverrideId, setEditOverrideId] = useState<string | null>(null);
   const [editOverrideValue, setEditOverrideValue] = useState("");
+  const [commissionAffiliateFilter, setCommissionAffiliateFilter] = useState("all");
 
   const metrics = useMemo(() => {
     const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
@@ -170,10 +171,29 @@ export function AdminAffiliateManagement() {
   }, [affiliates, searchTerm, statusFilter]);
 
   const filteredCommissions = useMemo(() => {
-    return commissions.filter(c => 
-      commissionFilter === "all" || c.status === commissionFilter
-    );
-  }, [commissions, commissionFilter]);
+    return commissions.filter(c => {
+      const matchesStatus = commissionFilter === "all" || c.status === commissionFilter;
+      const matchesAffiliate = commissionAffiliateFilter === "all" || c.affiliate_id === commissionAffiliateFilter;
+      return matchesStatus && matchesAffiliate;
+    });
+  }, [commissions, commissionFilter, commissionAffiliateFilter]);
+
+  const commissionAffiliateOptions = useMemo(() => {
+    const affiliateIds = [...new Set(commissions.map(c => c.affiliate_id))];
+    return affiliateIds.map(id => {
+      const aff = affiliates.find(a => a.id === id);
+      return {
+        id,
+        label: aff ? `${aff.profiles?.full_name || 'Sem nome'} (${aff.affiliate_code})` : id.substring(0, 8),
+      };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }, [commissions, affiliates]);
+
+  const commissionSummary = useMemo(() => {
+    const totalPurchases = filteredCommissions.reduce((sum, c) => sum + c.purchase_amount, 0);
+    const totalCommissions = filteredCommissions.reduce((sum, c) => sum + c.commission_amount, 0);
+    return { totalPurchases, totalCommissions };
+  }, [filteredCommissions]);
 
   const filteredWithdrawals = useMemo(() => {
     return withdrawals.filter(w => 
@@ -632,7 +652,19 @@ export function AdminAffiliateManagement() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Gerenciar Comissões</CardTitle>
-                <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                  <Select value={commissionAffiliateFilter} onValueChange={setCommissionAffiliateFilter}>
+                    <SelectTrigger className="w-[240px]">
+                      <Users className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filtrar por afiliado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os afiliados</SelectItem>
+                      {commissionAffiliateOptions.map(opt => (
+                        <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={commissionFilter} onValueChange={setCommissionFilter}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue />
@@ -651,7 +683,28 @@ export function AdminAffiliateManagement() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/50">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Download className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total em Compras</p>
+                    <p className="text-lg font-bold">{formatPrice(commissionSummary.totalPurchases)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/50">
+                  <div className="p-2 rounded-full bg-green-500/10">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total em Comissões</p>
+                    <p className="text-lg font-bold text-green-600">{formatPrice(commissionSummary.totalCommissions)}</p>
+                  </div>
+                </div>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
