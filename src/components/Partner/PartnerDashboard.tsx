@@ -786,6 +786,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Repasses */}
         <TabsContent value="payouts" className="space-y-4">
+          {isDemo && (
+            <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
+              <Lock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>Repasses desativados.</strong> Esta é uma conta de demonstração. Os repasses serão ativados após a regularização do contrato.
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Alert explicativo sobre Repasses */}
           <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/50 dark:border-blue-800">
             <DollarSign className="h-4 w-4 text-blue-600" />
