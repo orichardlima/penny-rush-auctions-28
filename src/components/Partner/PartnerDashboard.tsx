@@ -555,11 +555,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           <AlertDescription className="text-amber-800 dark:text-amber-200">
-            <strong className="text-base">⚠️ Conta Demonstração</strong>
+            <strong className="text-base">⚠️ Conta de Posicionamento</strong>
             <br />
-            Os valores financeiros abaixo são <strong>simulados</strong> e não representam valores reais. 
-            Repasses semanais, saques e bônus de indicação estão <strong>desativados</strong> neste modo.
-            Entre em contato com o suporte para regularizar seu contrato.
+            Esta é uma conta de posicionamento. Seu contrato <strong>não gera</strong> repasses semanais pela plataforma e <strong>não propaga</strong> pontos ou bônus para quem indicou você. Porém, você recebe normalmente bônus de indicação e pontos binários da sua rede.
           </AlertDescription>
         </Alert>
       )}
