@@ -82,6 +82,7 @@ export function AdminAffiliateManagement() {
   const [newOverrideRate, setNewOverrideRate] = useState("2");
   const [editOverrideId, setEditOverrideId] = useState<string | null>(null);
   const [editOverrideValue, setEditOverrideValue] = useState("");
+  const [commissionAffiliateFilter, setCommissionAffiliateFilter] = useState("all");
 
   const metrics = useMemo(() => {
     const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
