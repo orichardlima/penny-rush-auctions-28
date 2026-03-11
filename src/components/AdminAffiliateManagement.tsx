@@ -652,7 +652,19 @@ export function AdminAffiliateManagement() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Gerenciar Comissões</CardTitle>
-                <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                  <Select value={commissionAffiliateFilter} onValueChange={setCommissionAffiliateFilter}>
+                    <SelectTrigger className="w-[240px]">
+                      <Users className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filtrar por afiliado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os afiliados</SelectItem>
+                      {commissionAffiliateOptions.map(opt => (
+                        <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={commissionFilter} onValueChange={setCommissionFilter}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue />
@@ -671,7 +683,28 @@ export function AdminAffiliateManagement() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/50">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Download className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total em Compras</p>
+                    <p className="text-lg font-bold">{formatPrice(commissionSummary.totalPurchases)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/50">
+                  <div className="p-2 rounded-full bg-green-500/10">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total em Comissões</p>
+                    <p className="text-lg font-bold text-green-600">{formatPrice(commissionSummary.totalCommissions)}</p>
+                  </div>
+                </div>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
