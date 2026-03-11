@@ -48,6 +48,16 @@ export function EditCommissionModal({
   const [repurchaseRate, setRepurchaseRate] = useState(affiliate?.repurchase_commission_rate?.toString() || '');
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (affiliate && open) {
+      setCommissionType(affiliate.commission_type || 'percentage');
+      setPercentageRate(affiliate.commission_rate?.toString() || '10');
+      setCpaValue(affiliate.cpa_value_per_conversion?.toString() || '5');
+      setCpaTarget(affiliate.cpa_conversions_target?.toString() || '50');
+      setRepurchaseRate(affiliate.repurchase_commission_rate?.toString() || '');
+    }
+  }, [affiliate, open]);
+
   if (!affiliate) return null;
 
   const handleSave = async () => {
