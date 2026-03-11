@@ -601,6 +601,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <p className="text-sm text-muted-foreground mb-1">Plano Contratado</p>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <PartnerBadge planName={contract.plan_name} size="md" />
+                  {isDemo && (
+                    <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30 dark:text-amber-300">DEMO</Badge>
+                  )}
                   {contract.bonus_bids_received > 0 && (
                     <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-500/30">
                       <Zap className="h-3 w-3" />
@@ -608,9 +611,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                     </Badge>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground space-y-0.5">
+                <div className={cn("text-sm text-muted-foreground space-y-0.5", isDemo && "opacity-50")}>
                   <p>Aporte: <span className="font-medium text-foreground">{formatPrice(contract.aporte_value)}</span></p>
                   <p>Teto: <span className="font-medium text-foreground">{formatPrice(contract.total_cap)}</span></p>
+                  {isDemo && <p className="text-xs italic text-amber-600">Valores simulados</p>}
                 </div>
               </div>
             </div>
