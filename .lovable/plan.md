@@ -1,17 +1,39 @@
 
 
-## Plano: Vincular patrocinador de parceiro no cadastro (sem depender de PIX)
+## Correção: Comissões não geradas para compradores reais
 
-**STATUS: ✅ IMPLEMENTADO**
+### O problema
 
-### O que foi feito
+A comissão do afiliado é criada na Edge Function `mercado-pago-payment` (momento da geração do PIX), e depende de um `referralCode` vindo do localStorage/cookie do navegador do comprador. Se o usuário limpou cookies, mudou de dispositivo ou o localStorage expirou, o referralCode é `null` e nenhuma comissão é gerada -- mesmo que exista um registro de referral no banco de dados ligando aquele comprador ao afiliado.
 
-1. **Migration SQL** — Coluna `referred_by_partner_code TEXT` em `profiles` + trigger `handle_new_user` atualizado para validar `partner_referral_code` contra `partner_contracts` ativos antes de salvar
-2. **`AuthContext.tsx`** — Campo `partner_referral_code` adicionado na interface `SignUpData` e no `options.data` do `signUp()`
-3. **`Auth.tsx`** — No signup, diferencia se `?ref=` é de parceiro ou afiliado (consulta `partner_contracts`), e envia apenas no campo correto. Limpa ambos os localStorage após sucesso.
-4. **`AdminUserManagement.tsx`** — Fallback: se `partner_payment_intents` não tem sponsor, busca `profiles.referred_by_partner_code` e auto-preenche + valida
-5. **`UserProfileCard.tsx`** — Fallback: busca `profiles.referred_by_partner_code` → contrato ativo com aquele código → exibe sponsor como "(Cadastro via link de parceiro)"
+Resultado: 15 compradores reais do Paulo Mota pagaram e foram marcados como "convertidos", mas ele não recebeu comissão por nenhum deles.
 
-### Tratamento da sobreposição `?ref=`
-- No frontend (Auth.tsx): antes do signup, o código é verificado contra `partner_contracts`. Se encontra match ativo → `partner_referral_code`. Senão → `referral_code` (afiliado).
-- No trigger (handle_new_user): `partner_referral_code` só é salvo em `profiles.referred_by_partner_code` se validado contra um contrato ativo. Código inexistente/inativo é descartado com log.
+### Solução
+
+Adicionar um **fallback no banco de dados** na Edge Function `mercado-pago-payment`: quando o frontend não envia `referralCode`, a função deve consultar a tabela `affiliate_referrals` para verificar se o comprador tem um afiliado vinculado.
+
+### Alterações
+
+**1. `supabase/functions/mercado-pago-payment/index.ts`**
+
+Após a linha 238 (`if (referralCode)`), adicionar um bloco `else` que:
+- Busca na tabela `affiliate_referrals` se existe um registro para o `userId` com um `affiliate_id`
+- Se encontrar, busca o `affiliate_code` do afiliado na tabela `affiliates`
+- Usa esse código para executar a mesma lógica de criação de comissão (primeira compra ou recompra)
+
+Isso garante que mesmo sem localStorage, se o vínculo de referral existe no banco, a comissão será gerada.
+
+**2. Correção retroativa (SQL manual no Supabase)**
+
+Executar query para criar as comissões faltantes dos 15 compradores que pagaram mas não geraram comissão. Isso será fornecido como instrução SQL separada para rodar no SQL Editor.
+
+**3. Correção do campo `total_conversions` na tabela `affiliates`**
+
+Atualizar para refletir o número real de compradores únicos convertidos (afeta todos os afiliados).
+
+### Resultado esperado
+
+- Novas compras sempre gerarão comissão se houver vínculo de referral no banco, independente do estado do navegador
+- Paulo Mota receberá as comissões retroativas dos 15 compradores
+- O card "Compradores" mostrará o número correto
+
