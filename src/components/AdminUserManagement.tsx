@@ -436,7 +436,8 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           total_cap: plan.total_cap,
           status: 'ACTIVE',
           referred_by_user_id: referredByUserId,
-          referral_code: newReferralCode
+          referral_code: newReferralCode,
+          is_demo: isDemoContract
         })
         .select()
         .single();
