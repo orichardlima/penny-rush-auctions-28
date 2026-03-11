@@ -1,17 +1,26 @@
 
 
-## Plano: Vincular patrocinador de parceiro no cadastro (sem depender de PIX)
+## Plano: Sinalizar visualmente que valores de conta Demo são simulados
 
-**STATUS: ✅ IMPLEMENTADO**
+### Problema
+A conta Demo exibe aporte (R$ 9.999), teto (R$ 20.000), progresso e todas as métricas financeiras como se fosse uma conta real. O banner roxo existe (linha 553) mas é discreto e não impede a confusão visual.
 
-### O que foi feito
+### Solução
+Aplicar tratamento visual diferenciado em todo o dashboard quando `contract.is_demo === true`:
 
-1. **Migration SQL** — Coluna `referred_by_partner_code TEXT` em `profiles` + trigger `handle_new_user` atualizado para validar `partner_referral_code` contra `partner_contracts` ativos antes de salvar
-2. **`AuthContext.tsx`** — Campo `partner_referral_code` adicionado na interface `SignUpData` e no `options.data` do `signUp()`
-3. **`Auth.tsx`** — No signup, diferencia se `?ref=` é de parceiro ou afiliado (consulta `partner_contracts`), e envia apenas no campo correto. Limpa ambos os localStorage após sucesso.
-4. **`AdminUserManagement.tsx`** — Fallback: se `partner_payment_intents` não tem sponsor, busca `profiles.referred_by_partner_code` e auto-preenche + valida
-5. **`UserProfileCard.tsx`** — Fallback: busca `profiles.referred_by_partner_code` → contrato ativo com aquele código → exibe sponsor como "(Cadastro via link de parceiro)"
+1. **Cards de estatísticas** (linhas 665-718): Adicionar badge "DEMO" e opacidade reduzida nos valores financeiros
+2. **Card de resumo** (linhas 587-662): Adicionar indicador visual "Demonstração" ao lado do plano
+3. **Card de progresso** (linhas 722-740): Adicionar nota de que valores são simulados
+4. **Tabs de repasses/saques**: Desabilitar ou sinalizar como indisponíveis para demo
 
-### Tratamento da sobreposição `?ref=`
-- No frontend (Auth.tsx): antes do signup, o código é verificado contra `partner_contracts`. Se encontra match ativo → `partner_referral_code`. Senão → `referral_code` (afiliado).
-- No trigger (handle_new_user): `partner_referral_code` só é salvo em `profiles.referred_by_partner_code` se validado contra um contrato ativo. Código inexistente/inativo é descartado com log.
+### Alterações
+
+| Local | Mudança |
+|---|---|
+| `PartnerDashboard.tsx` | Extrair `const isDemo = (contract as any)?.is_demo === true` no topo do render |
+| Cards financeiros | Envolver valores com estilo `opacity-50` + badge "Demo" quando `isDemo` |
+| Banner demo | Tornar mais proeminente (amarelo/warning ao invés de roxo discreto) |
+| Tabs de Saques/Repasses | Mostrar alerta de que funcionalidades estão desabilitadas em modo demo |
+
+Nenhuma alteração SQL necessária — apenas tratamento visual no frontend.
+
