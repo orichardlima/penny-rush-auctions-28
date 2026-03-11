@@ -15,6 +15,7 @@ interface SignUpData {
   city: string;
   state: string;
   referral_code?: string | null;
+  partner_referral_code?: string | null;
 }
 
 interface Profile {
