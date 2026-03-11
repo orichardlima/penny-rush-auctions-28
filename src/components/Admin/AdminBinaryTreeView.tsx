@@ -237,6 +237,10 @@ export const AdminBinaryTreeView: React.FC = () => {
 
   const handleRecalculate = async () => {
     if (!recalcTarget || recalcPoints <= 0) return;
+    if (recalcTarget.isDemo) {
+      toast({ title: 'Conta Demo', description: 'Contas demo não propagam pontos na rede binária.', variant: 'destructive' });
+      return;
+    }
     setRecalculating(true);
     try {
       // Buscar o sponsor_contract_id real do nó para respeitar a regra de qualificadores
