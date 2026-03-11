@@ -318,7 +318,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       
       setExistingContract(contractData);
 
-      // Auto-preencher código de indicação a partir de partner_payment_intents
+      // Auto-preencher código de indicação a partir de partner_payment_intents ou profiles
       if (!contractData) {
         const { data: intentData } = await supabase
           .from('partner_payment_intents')
@@ -343,6 +343,18 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
             setAdminReferralCode(codeToUse);
             // Validar automaticamente
             await validateSponsorCode(codeToUse);
+          }
+        } else {
+          // Fallback: buscar referred_by_partner_code da profile do usuário
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('referred_by_partner_code')
+            .eq('user_id', user.user_id)
+            .maybeSingle();
+
+          if (profileData?.referred_by_partner_code) {
+            setAdminReferralCode(profileData.referred_by_partner_code);
+            await validateSponsorCode(profileData.referred_by_partner_code);
           }
         }
       }

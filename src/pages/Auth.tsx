@@ -14,6 +14,7 @@ import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin, UserCheck } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 import { getReferralCode, clearReferralTracking } from '@/hooks/useReferralTracking';
+import { getPartnerReferralCode, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { SEOHead } from '@/components/SEOHead';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -298,6 +299,7 @@ const Auth = () => {
     try {
       // Capturar código de referral antes do cadastro
       const referralCode = getReferralCode();
+      const partnerReferralCode = getPartnerReferralCode();
       
       const userData = {
         full_name: formData.fullName,
@@ -312,6 +314,7 @@ const Auth = () => {
         city: formData.city,
         state: formData.state,
         referral_code: referralCode,
+        partner_referral_code: partnerReferralCode,
       };
 
       const { error } = await signUp(formData.email, formData.password, userData);
@@ -338,6 +341,7 @@ const Auth = () => {
         }
       } else {
         clearReferralTracking();
+        clearPartnerReferralTracking();
         
         toast({
           title: "Cadastro realizado!",

@@ -75,7 +75,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
         .limit(1)
         .maybeSingle();
 
-      let partnerReferrer: { name: string; date: string; pending?: boolean } | null = null;
+      let partnerReferrer: { name: string; date: string; pending?: boolean; signupLink?: boolean } | null = null;
 
       if (partnerContract?.referred_by_user_id) {
         const { data: sponsorProfile } = await supabase
@@ -113,6 +113,40 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
             date: paymentIntent.created_at,
             pending: true,
           };
+        }
+      }
+
+      // 4. Fallback: check profiles.referred_by_partner_code (saved at signup)
+      if (!affiliateReferrer && !partnerReferrer) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('referred_by_partner_code')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (userProfile?.referred_by_partner_code) {
+          // Find active contract with that referral code
+          const { data: sponsorContract } = await supabase
+            .from('partner_contracts')
+            .select('user_id, created_at')
+            .eq('referral_code', userProfile.referred_by_partner_code)
+            .eq('status', 'ACTIVE')
+            .maybeSingle();
+
+          if (sponsorContract) {
+            const { data: sponsorProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('user_id', sponsorContract.user_id)
+              .single();
+
+            partnerReferrer = {
+              name: sponsorProfile?.full_name || 'Desconhecido',
+              date: sponsorContract.created_at,
+              pending: false,
+              signupLink: true,
+            };
+          }
         }
       }
 
@@ -220,7 +254,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                   <div className="text-sm">
                     <span className="font-medium">{referralInfo.partnerReferrer.name}</span>
                     <span className="text-muted-foreground text-xs ml-1">
-                      ({referralInfo.partnerReferrer.pending ? 'Parceria pendente de pagamento' : 'Patrocinador parceria'}) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
+                      ({referralInfo.partnerReferrer.signupLink ? 'Cadastro via link de parceiro' : referralInfo.partnerReferrer.pending ? 'Parceria pendente de pagamento' : 'Patrocinador parceria'}) em {new Date(referralInfo.partnerReferrer.date).toLocaleDateString('pt-BR')}
                     </span>
                   </div>
                 ) : (

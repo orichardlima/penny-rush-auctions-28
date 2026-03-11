@@ -2118,6 +2118,7 @@ export type Database = {
           neighborhood: string | null
           number: string | null
           phone: string | null
+          referred_by_partner_code: string | null
           signup_bonus_amount: number | null
           signup_bonus_date: string | null
           signup_bonus_received: boolean | null
@@ -2147,6 +2148,7 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          referred_by_partner_code?: string | null
           signup_bonus_amount?: number | null
           signup_bonus_date?: string | null
           signup_bonus_received?: boolean | null
@@ -2176,6 +2178,7 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          referred_by_partner_code?: string | null
           signup_bonus_amount?: number | null
           signup_bonus_date?: string | null
           signup_bonus_received?: boolean | null
