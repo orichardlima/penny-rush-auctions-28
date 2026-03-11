@@ -671,7 +671,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       </Card>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className={cn("grid grid-cols-1 md:grid-cols-4 gap-4", isDemo && "opacity-50 pointer-events-none")}>
+        {isDemo && (
+          <div className="col-span-full text-center">
+            <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30 dark:text-amber-300">
+              Valores abaixo são simulados — conta Demo
+            </Badge>
+          </div>
+        )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Valor Aportado</CardTitle>
