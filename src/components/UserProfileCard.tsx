@@ -116,6 +116,40 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
         }
       }
 
+      // 4. Fallback: check profiles.referred_by_partner_code (saved at signup)
+      if (!affiliateReferrer && !partnerReferrer) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('referred_by_partner_code')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (userProfile?.referred_by_partner_code) {
+          // Find active contract with that referral code
+          const { data: sponsorContract } = await supabase
+            .from('partner_contracts')
+            .select('user_id, created_at')
+            .eq('referral_code', userProfile.referred_by_partner_code)
+            .eq('status', 'ACTIVE')
+            .maybeSingle();
+
+          if (sponsorContract) {
+            const { data: sponsorProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('user_id', sponsorContract.user_id)
+              .single();
+
+            partnerReferrer = {
+              name: sponsorProfile?.full_name || 'Desconhecido',
+              date: sponsorContract.created_at,
+              pending: false,
+              signupLink: true,
+            };
+          }
+        }
+      }
+
       return { affiliateReferrer, partnerReferrer };
     },
     enabled: !!isAdmin,
