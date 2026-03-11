@@ -235,9 +235,45 @@ serve(async (req) => {
 
     console.log('✅ Payment response ready:', response)
 
-    // 8. Se tem código de referral, processar comissão (1ª compra ou recompra)
-    if (referralCode) {
-      console.log('🤝 Processing affiliate referral:', referralCode)
+    // 8. Processar comissão de afiliado (1ª compra ou recompra)
+    // Determinar o código de referral: do frontend OU fallback do banco de dados
+    let effectiveReferralCode = referralCode || null
+
+    if (!effectiveReferralCode) {
+      // Fallback: buscar na tabela affiliate_referrals se o usuário tem um afiliado vinculado
+      console.log('🔍 No referralCode from frontend, checking affiliate_referrals for userId:', userId)
+      
+      const { data: referralRecord } = await supabase
+        .from('affiliate_referrals')
+        .select('affiliate_id')
+        .eq('referred_user_id', userId)
+        .eq('converted', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (referralRecord) {
+        // Buscar o affiliate_code do afiliado encontrado
+        const { data: affiliateRecord } = await supabase
+          .from('affiliates')
+          .select('affiliate_code')
+          .eq('id', referralRecord.affiliate_id)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (affiliateRecord) {
+          effectiveReferralCode = affiliateRecord.affiliate_code
+          console.log('✅ DB fallback found affiliate code:', effectiveReferralCode)
+        }
+      }
+
+      if (!effectiveReferralCode) {
+        console.log('ℹ️ No affiliate referral found in DB either')
+      }
+    }
+
+    if (effectiveReferralCode) {
+      console.log('🤝 Processing affiliate referral:', effectiveReferralCode)
       
       // Checar se este usuário já gerou comissão anteriormente
       const { data: existingCommission, error: checkError } = await supabase
@@ -258,7 +294,7 @@ serve(async (req) => {
       const { data: affiliate } = await supabase
         .from('affiliates')
         .select('id, commission_rate, repurchase_commission_rate')
-        .eq('affiliate_code', referralCode)
+        .eq('affiliate_code', effectiveReferralCode)
         .eq('status', 'active')
         .maybeSingle()
 
@@ -318,7 +354,7 @@ serve(async (req) => {
           console.log('✅ First purchase! Affiliate commission created:', commissionAmount)
         }
       } else {
-        console.log('⚠️ Affiliate not found or inactive for code:', referralCode)
+        console.log('⚠️ Affiliate not found or inactive for code:', effectiveReferralCode)
       }
     }
 
