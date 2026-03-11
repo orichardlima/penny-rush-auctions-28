@@ -34,6 +34,7 @@ interface EnrichedPosition extends BinaryPositionRecord {
   partnerEmail: string;
   planName: string;
   contractStatus: string;
+  isDemo: boolean;
 }
 
 interface TreeNode extends EnrichedPosition {
