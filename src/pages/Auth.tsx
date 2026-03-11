@@ -341,6 +341,7 @@ const Auth = () => {
         }
       } else {
         clearReferralTracking();
+        clearPartnerReferralTracking();
         
         toast({
           title: "Cadastro realizado!",

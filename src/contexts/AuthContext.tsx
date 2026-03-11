@@ -140,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           city: userData.city,
           state: userData.state,
           referral_code: userData.referral_code || null,
+          partner_referral_code: userData.partner_referral_code || null,
         },
       },
     });
