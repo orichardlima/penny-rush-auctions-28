@@ -549,6 +549,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
   return (
     <div className="space-y-6">
+      {/* Demo Banner */}
+      {(contract as any)?.is_demo && (
+        <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950 dark:border-purple-800">
+          <AlertCircle className="h-4 w-4 text-purple-600" />
+          <AlertDescription className="text-purple-700 dark:text-purple-300">
+            <strong>Contrato em modo demonstração.</strong> Repasses semanais, bônus de indicação e pontos binários serão ativados após a regularização do seu contrato. Entre em contato com o suporte para mais informações.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
