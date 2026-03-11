@@ -67,6 +67,7 @@ export interface PartnerContract {
   pix_key?: string | null;
   pix_key_type?: string | null;
   bank_details?: Record<string, unknown> | null;
+  is_demo: boolean;
 }
 
 export interface PartnerPayout {
