@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,16 @@ export function EditCommissionModal({
   const [cpaTarget, setCpaTarget] = useState(affiliate?.cpa_conversions_target?.toString() || '50');
   const [repurchaseRate, setRepurchaseRate] = useState(affiliate?.repurchase_commission_rate?.toString() || '');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (affiliate && open) {
+      setCommissionType(affiliate.commission_type || 'percentage');
+      setPercentageRate(affiliate.commission_rate?.toString() || '10');
+      setCpaValue(affiliate.cpa_value_per_conversion?.toString() || '5');
+      setCpaTarget(affiliate.cpa_conversions_target?.toString() || '50');
+      setRepurchaseRate(affiliate.repurchase_commission_rate?.toString() || '');
+    }
+  }, [affiliate, open]);
 
   if (!affiliate) return null;
 
