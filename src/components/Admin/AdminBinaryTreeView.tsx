@@ -106,6 +106,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           partnerEmail: profile?.email || '',
           planName: contract?.plan_name || 'N/A',
           contractStatus: contract?.status || 'N/A',
+          isDemo: contract?.is_demo ?? false,
         };
       });
 
