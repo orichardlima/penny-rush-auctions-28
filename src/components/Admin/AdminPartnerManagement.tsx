@@ -684,7 +684,14 @@ const AdminPartnerManagement = () => {
                             <span className="text-xs">{progress.toFixed(1)}%</span>
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(contract.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {getStatusBadge(contract.status)}
+                            {(contract as any).is_demo && (
+                              <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-[10px] px-1.5">DEMO</Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {/* Detail View Button */}
