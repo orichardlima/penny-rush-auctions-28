@@ -545,16 +545,21 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
   const progress = getProgress();
   const lastPayout = getLastPayout();
+  const isDemo = (contract as any)?.is_demo === true;
 
 
   return (
     <div className="space-y-6">
       {/* Demo Banner */}
-      {(contract as any)?.is_demo && (
-        <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950 dark:border-purple-800">
-          <AlertCircle className="h-4 w-4 text-purple-600" />
-          <AlertDescription className="text-purple-700 dark:text-purple-300">
-            <strong>Contrato em modo demonstração.</strong> Repasses semanais, bônus de indicação e pontos binários serão ativados após a regularização do seu contrato. Entre em contato com o suporte para mais informações.
+      {isDemo && (
+        <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            <strong className="text-base">⚠️ Conta Demonstração</strong>
+            <br />
+            Os valores financeiros abaixo são <strong>simulados</strong> e não representam valores reais. 
+            Repasses semanais, saques e bônus de indicação estão <strong>desativados</strong> neste modo.
+            Entre em contato com o suporte para regularizar seu contrato.
           </AlertDescription>
         </Alert>
       )}
@@ -596,6 +601,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <p className="text-sm text-muted-foreground mb-1">Plano Contratado</p>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <PartnerBadge planName={contract.plan_name} size="md" />
+                  {isDemo && (
+                    <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30 dark:text-amber-300">DEMO</Badge>
+                  )}
                   {contract.bonus_bids_received > 0 && (
                     <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-500/30">
                       <Zap className="h-3 w-3" />
@@ -603,9 +611,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                     </Badge>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground space-y-0.5">
+                <div className={cn("text-sm text-muted-foreground space-y-0.5", isDemo && "opacity-50")}>
                   <p>Aporte: <span className="font-medium text-foreground">{formatPrice(contract.aporte_value)}</span></p>
                   <p>Teto: <span className="font-medium text-foreground">{formatPrice(contract.total_cap)}</span></p>
+                  {isDemo && <p className="text-xs italic text-amber-600">Valores simulados</p>}
                 </div>
               </div>
             </div>
@@ -662,7 +671,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       </Card>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className={cn("grid grid-cols-1 md:grid-cols-4 gap-4", isDemo && "opacity-50 pointer-events-none")}>
+        {isDemo && (
+          <div className="col-span-full text-center">
+            <Badge className="bg-amber-500/20 text-amber-700 border-amber-500/30 dark:text-amber-300">
+              Valores abaixo são simulados — conta Demo
+            </Badge>
+          </div>
+        )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Valor Aportado</CardTitle>
@@ -729,13 +745,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             Limite semanal: {formatPrice(contract.weekly_cap)} | Teto total: {formatPrice(contract.total_cap)}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={cn("space-y-4", isDemo && "opacity-50")}>
           <Progress value={progress.percentage} className="h-4" />
           <div className="flex justify-between text-sm">
             <span>{formatPrice(contract.total_received)} recebido</span>
             <span className="font-medium">{progress.percentage.toFixed(1)}%</span>
             <span>{formatPrice(contract.total_cap)} teto</span>
           </div>
+          {isDemo && (
+            <p className="text-xs text-center italic text-amber-600">Progresso simulado — conta Demo</p>
+          )}
         </CardContent>
       </Card>
 
@@ -767,6 +786,14 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Repasses */}
         <TabsContent value="payouts" className="space-y-4">
+          {isDemo && (
+            <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
+              <Lock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>Repasses desativados.</strong> Esta é uma conta de demonstração. Os repasses serão ativados após a regularização do contrato.
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Alert explicativo sobre Repasses */}
           <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/50 dark:border-blue-800">
             <DollarSign className="h-4 w-4 text-blue-600" />
@@ -1129,7 +1156,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </TabsContent>
 
         {/* Tab de Saques */}
-        <TabsContent value="withdrawals">
+        <TabsContent value="withdrawals" className="space-y-4">
+          {isDemo && (
+            <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
+              <Lock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>Saques desativados.</strong> Esta é uma conta de demonstração. Os saques serão habilitados após a regularização do contrato.
+              </AlertDescription>
+            </Alert>
+          )}
           <PartnerWithdrawalSection contract={contract} onRefresh={refreshData} />
         </TabsContent>
 
