@@ -1,24 +1,13 @@
 
 
-## Plano: Adicionar edição de e-mail no modal AdminEditProfileDialog
+## Plano: Contrato Demo — Flag interna no contrato, sem plano público
 
-### Problema
-O modal "Editar Cadastro" do admin não possui campo para alterar o e-mail do usuário. Alterar e-mail exige atualizar tanto a tabela `auth.users` (via Admin API do Supabase) quanto a tabela `profiles`.
+**STATUS: ✅ IMPLEMENTADO**
 
-### Solução
+### O que foi feito
 
-**1. Nova Edge Function: `supabase/functions/admin-update-user-email/index.ts`**
-- Mesmo padrão de verificação admin usado em `admin-update-user-password`
-- Recebe `{ userId, newEmail }`
-- Usa `supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })` para atualizar `auth.users`
-- Atualiza também `profiles.email` para manter sincronizado
-
-**2. Editar `src/components/Admin/AdminEditProfileDialog.tsx`**
-- Adicionar campo `email` no estado do formulário (pré-preenchido com a prop `userEmail`)
-- Adicionar `Input` de "E-mail" entre "Nome Completo" e a linha CPF/Telefone
-- No salvamento: se o e-mail mudou, chamar a nova Edge Function antes de atualizar o perfil
-- Feedback de erro/sucesso adequado
-
-### Nenhuma migração necessária
-A coluna `profiles.email` já existe. A Edge Function usa a service role key para atualizar `auth.users`.
-
+1. **Migration SQL** — Coluna `is_demo` + guards nas funções `ensure_partner_referral_bonuses` e `position_partner_binary`
+2. **Edge Function `partner-weekly-payouts`** — Contratos demo são pulados no processamento
+3. **AdminUserManagement** — Switch "Contrato Demo (líder)" no dialog de atribuição de plano
+4. **AdminPartnerManagement** — Badge "DEMO" + botão "Converter para Regular" com bônus retroativos
+5. **PartnerDashboard** — Banner informativo para parceiros em modo demonstração
