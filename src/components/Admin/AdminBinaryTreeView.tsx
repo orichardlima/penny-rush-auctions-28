@@ -34,6 +34,7 @@ interface EnrichedPosition extends BinaryPositionRecord {
   partnerEmail: string;
   planName: string;
   contractStatus: string;
+  isDemo: boolean;
 }
 
 interface TreeNode extends EnrichedPosition {
@@ -84,7 +85,7 @@ export const AdminBinaryTreeView: React.FC = () => {
       const contractIds = posData.map(p => p.partner_contract_id);
       const { data: contracts } = await supabase
         .from('partner_contracts')
-        .select('id, plan_name, user_id, status')
+        .select('id, plan_name, user_id, status, is_demo')
         .in('id', contractIds);
 
       const userIds = (contracts || []).map(c => c.user_id);
@@ -105,6 +106,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           partnerEmail: profile?.email || '',
           planName: contract?.plan_name || 'N/A',
           contractStatus: contract?.status || 'N/A',
+          isDemo: contract?.is_demo ?? false,
         };
       });
 
@@ -235,6 +237,10 @@ export const AdminBinaryTreeView: React.FC = () => {
 
   const handleRecalculate = async () => {
     if (!recalcTarget || recalcPoints <= 0) return;
+    if (recalcTarget.isDemo) {
+      toast({ title: 'Conta Demo', description: 'Contas demo não propagam pontos na rede binária.', variant: 'destructive' });
+      return;
+    }
     setRecalculating(true);
     try {
       // Buscar o sponsor_contract_id real do nó para respeitar a regra de qualificadores
@@ -291,35 +297,39 @@ export const AdminBinaryTreeView: React.FC = () => {
 
       if (err2) throw err2;
 
-      // 3. Propagar pontos para uplines
+      // 3. Propagar pontos para uplines (skip demo contracts)
       let pointsPropagated = 0;
-      try {
-        const { data: contract } = await supabase
-          .from('partner_contracts')
-          .select('plan_name')
-          .eq('id', childContractId)
-          .single();
-
-        if (contract?.plan_name) {
-          const { data: levelPoints } = await supabase
-            .from('partner_level_points')
-            .select('points')
-            .eq('plan_name', contract.plan_name)
+      if (selectedIsolated.isDemo) {
+        console.log('[AdminBinaryTreeView] Skipping point propagation for demo contract');
+      } else {
+        try {
+          const { data: contract } = await supabase
+            .from('partner_contracts')
+            .select('plan_name')
+            .eq('id', childContractId)
             .single();
 
-          if (levelPoints && levelPoints.points > 0) {
-            const { data: propagated, error: rpcError } = await supabase.rpc('propagate_binary_points', {
-              p_source_contract_id: childContractId,
-              p_points: levelPoints.points,
-              p_reason: 'admin_link',
-              p_sponsor_contract_id: null,
-            });
-            if (rpcError) console.error('Propagation error:', rpcError);
-            else pointsPropagated = levelPoints.points;
+          if (contract?.plan_name) {
+            const { data: levelPoints } = await supabase
+              .from('partner_level_points')
+              .select('points')
+              .eq('plan_name', contract.plan_name)
+              .single();
+
+            if (levelPoints && levelPoints.points > 0) {
+              const { data: propagated, error: rpcError } = await supabase.rpc('propagate_binary_points', {
+                p_source_contract_id: childContractId,
+                p_points: levelPoints.points,
+                p_reason: 'admin_link',
+                p_sponsor_contract_id: null,
+              });
+              if (rpcError) console.error('Propagation error:', rpcError);
+              else pointsPropagated = levelPoints.points;
+            }
           }
+        } catch (propErr) {
+          console.error('Point propagation error:', propErr);
         }
-      } catch (propErr) {
-        console.error('Point propagation error:', propErr);
       }
 
       const pointsMsg = pointsPropagated > 0 ? ` ${pointsPropagated} pontos propagados.` : ' (sem pontos configurados para propagar)';

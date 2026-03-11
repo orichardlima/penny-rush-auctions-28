@@ -1,30 +1,17 @@
 
 
-## Plano: Impedir propagação de pontos para contas Demo na rede binária
+## Plano: Vincular patrocinador de parceiro no cadastro (sem depender de PIX)
 
-### Problema
-Os 1000 pontos no lado direito de Lavínia vêm da conta Demo (plano Legend = 1000 pontos). A função SQL `position_partner_binary` tem um guard que impede propagação de pontos para contas demo, mas existem **dois caminhos** no admin que chamam `propagate_binary_points` diretamente, **sem verificar `is_demo`**:
+**STATUS: ✅ IMPLEMENTADO**
 
-1. **Vincular parceiro isolado** (`handleLink` — AdminBinaryTreeView.tsx, linhas 294-319)
-2. **Recalcular pontos manualmente** (`handleRecalc` — AdminBinaryTreeView.tsx, linhas 249-254)
+### O que foi feito
 
-### Solução
+1. **Migration SQL** — Coluna `referred_by_partner_code TEXT` em `profiles` + trigger `handle_new_user` atualizado para validar `partner_referral_code` contra `partner_contracts` ativos antes de salvar
+2. **`AuthContext.tsx`** — Campo `partner_referral_code` adicionado na interface `SignUpData` e no `options.data` do `signUp()`
+3. **`Auth.tsx`** — No signup, diferencia se `?ref=` é de parceiro ou afiliado (consulta `partner_contracts`), e envia apenas no campo correto. Limpa ambos os localStorage após sucesso.
+4. **`AdminUserManagement.tsx`** — Fallback: se `partner_payment_intents` não tem sponsor, busca `profiles.referred_by_partner_code` e auto-preenche + valida
+5. **`UserProfileCard.tsx`** — Fallback: busca `profiles.referred_by_partner_code` → contrato ativo com aquele código → exibe sponsor como "(Cadastro via link de parceiro)"
 
-**Opção A (recomendada) — Guard no SQL**: Adicionar verificação de `is_demo` dentro da própria função `propagate_binary_points`. Se o contrato fonte é demo, retorna 0 imediatamente. Isso protege **todos** os caminhos de uma vez.
-
-**Opção B — Guard no frontend**: Adicionar verificação de `is_demo` nos dois handlers do `AdminBinaryTreeView.tsx` antes de chamar a RPC.
-
-Recomendo **ambas** (defesa em profundidade).
-
-### Alterações
-
-| Arquivo | O que muda |
-|---|---|
-| Nova migration SQL | `propagate_binary_points`: se `p_source_contract_id` é demo, retorna 0 sem propagar |
-| `src/components/Admin/AdminBinaryTreeView.tsx` | `handleLink`: verificar `is_demo` antes de propagar. `handleRecalc`: verificar `is_demo` e avisar o admin |
-
-### Correção dos pontos existentes
-Após a correção do código, será necessário **zerar manualmente** os 1000 pontos que já foram propagados de forma incorreta no `right_points` de Lavínia (e possivelmente em outros uplines). Isso pode ser feito via:
-- Ferramenta "Recalcular Pontos" nos nós afetados (após remover e re-vincular o demo)
-- Ou uma migration de correção pontual
-
+### Tratamento da sobreposição `?ref=`
+- No frontend (Auth.tsx): antes do signup, o código é verificado contra `partner_contracts`. Se encontra match ativo → `partner_referral_code`. Senão → `referral_code` (afiliado).
+- No trigger (handle_new_user): `partner_referral_code` só é salvo em `profiles.referred_by_partner_code` se validado contra um contrato ativo. Código inexistente/inativo é descartado com log.
