@@ -298,8 +298,33 @@ const Auth = () => {
 
     try {
       // Capturar código de referral antes do cadastro
-      const referralCode = getReferralCode();
-      const partnerReferralCode = getPartnerReferralCode();
+      const rawReferralCode = getReferralCode();
+      const rawPartnerReferralCode = getPartnerReferralCode();
+      
+      // Diferenciar: se o código pertence a um parceiro ativo, usar como partner_referral_code
+      // e NÃO enviar como referral_code (afiliado). Caso contrário, enviar como referral_code.
+      let finalReferralCode: string | null = null;
+      let finalPartnerReferralCode: string | null = null;
+      
+      const codeToCheck = rawPartnerReferralCode || rawReferralCode;
+      
+      if (codeToCheck) {
+        // Verificar se é código de parceiro
+        const { data: partnerMatch } = await supabase
+          .from('partner_contracts')
+          .select('id')
+          .eq('referral_code', codeToCheck.trim().toUpperCase())
+          .eq('status', 'ACTIVE')
+          .maybeSingle();
+        
+        if (partnerMatch) {
+          // É código de parceiro — só enviar como partner_referral_code
+          finalPartnerReferralCode = codeToCheck;
+        } else {
+          // Não é parceiro — enviar como referral_code (afiliado)
+          finalReferralCode = codeToCheck;
+        }
+      }
       
       const userData = {
         full_name: formData.fullName,
@@ -313,8 +338,8 @@ const Auth = () => {
         neighborhood: formData.neighborhood,
         city: formData.city,
         state: formData.state,
-        referral_code: referralCode,
-        partner_referral_code: partnerReferralCode,
+        referral_code: finalReferralCode,
+        partner_referral_code: finalPartnerReferralCode,
       };
 
       const { error } = await signUp(formData.email, formData.password, userData);
