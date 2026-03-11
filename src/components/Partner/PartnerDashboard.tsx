@@ -745,13 +745,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             Limite semanal: {formatPrice(contract.weekly_cap)} | Teto total: {formatPrice(contract.total_cap)}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className={cn("space-y-4", isDemo && "opacity-50")}>
           <Progress value={progress.percentage} className="h-4" />
           <div className="flex justify-between text-sm">
             <span>{formatPrice(contract.total_received)} recebido</span>
             <span className="font-medium">{progress.percentage.toFixed(1)}%</span>
             <span>{formatPrice(contract.total_cap)} teto</span>
           </div>
+          {isDemo && (
+            <p className="text-xs text-center italic text-amber-600">Progresso simulado — conta Demo</p>
+          )}
         </CardContent>
       </Card>
 
