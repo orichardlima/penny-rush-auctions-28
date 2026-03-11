@@ -14,6 +14,7 @@ import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin, UserCheck } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 import { getReferralCode, clearReferralTracking } from '@/hooks/useReferralTracking';
+import { getPartnerReferralCode, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { SEOHead } from '@/components/SEOHead';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
