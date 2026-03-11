@@ -302,33 +302,34 @@ export const AdminBinaryTreeView: React.FC = () => {
       if (selectedIsolated.isDemo) {
         console.log('[AdminBinaryTreeView] Skipping point propagation for demo contract');
       } else {
-      try {
-        const { data: contract } = await supabase
-          .from('partner_contracts')
-          .select('plan_name')
-          .eq('id', childContractId)
-          .single();
-
-        if (contract?.plan_name) {
-          const { data: levelPoints } = await supabase
-            .from('partner_level_points')
-            .select('points')
-            .eq('plan_name', contract.plan_name)
+        try {
+          const { data: contract } = await supabase
+            .from('partner_contracts')
+            .select('plan_name')
+            .eq('id', childContractId)
             .single();
 
-          if (levelPoints && levelPoints.points > 0) {
-            const { data: propagated, error: rpcError } = await supabase.rpc('propagate_binary_points', {
-              p_source_contract_id: childContractId,
-              p_points: levelPoints.points,
-              p_reason: 'admin_link',
-              p_sponsor_contract_id: null,
-            });
-            if (rpcError) console.error('Propagation error:', rpcError);
-            else pointsPropagated = levelPoints.points;
+          if (contract?.plan_name) {
+            const { data: levelPoints } = await supabase
+              .from('partner_level_points')
+              .select('points')
+              .eq('plan_name', contract.plan_name)
+              .single();
+
+            if (levelPoints && levelPoints.points > 0) {
+              const { data: propagated, error: rpcError } = await supabase.rpc('propagate_binary_points', {
+                p_source_contract_id: childContractId,
+                p_points: levelPoints.points,
+                p_reason: 'admin_link',
+                p_sponsor_contract_id: null,
+              });
+              if (rpcError) console.error('Propagation error:', rpcError);
+              else pointsPropagated = levelPoints.points;
+            }
           }
+        } catch (propErr) {
+          console.error('Point propagation error:', propErr);
         }
-      } catch (propErr) {
-        console.error('Point propagation error:', propErr);
       }
 
       const pointsMsg = pointsPropagated > 0 ? ` ${pointsPropagated} pontos propagados.` : ' (sem pontos configurados para propagar)';
