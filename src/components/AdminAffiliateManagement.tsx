@@ -171,10 +171,29 @@ export function AdminAffiliateManagement() {
   }, [affiliates, searchTerm, statusFilter]);
 
   const filteredCommissions = useMemo(() => {
-    return commissions.filter(c => 
-      commissionFilter === "all" || c.status === commissionFilter
-    );
-  }, [commissions, commissionFilter]);
+    return commissions.filter(c => {
+      const matchesStatus = commissionFilter === "all" || c.status === commissionFilter;
+      const matchesAffiliate = commissionAffiliateFilter === "all" || c.affiliate_id === commissionAffiliateFilter;
+      return matchesStatus && matchesAffiliate;
+    });
+  }, [commissions, commissionFilter, commissionAffiliateFilter]);
+
+  const commissionAffiliateOptions = useMemo(() => {
+    const affiliateIds = [...new Set(commissions.map(c => c.affiliate_id))];
+    return affiliateIds.map(id => {
+      const aff = affiliates.find(a => a.id === id);
+      return {
+        id,
+        label: aff ? `${aff.profiles?.full_name || 'Sem nome'} (${aff.affiliate_code})` : id.substring(0, 8),
+      };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }, [commissions, affiliates]);
+
+  const commissionSummary = useMemo(() => {
+    const totalPurchases = filteredCommissions.reduce((sum, c) => sum + c.purchase_amount, 0);
+    const totalCommissions = filteredCommissions.reduce((sum, c) => sum + c.commission_amount, 0);
+    return { totalPurchases, totalCommissions };
+  }, [filteredCommissions]);
 
   const filteredWithdrawals = useMemo(() => {
     return withdrawals.filter(w => 
