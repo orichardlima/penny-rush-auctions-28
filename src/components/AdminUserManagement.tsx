@@ -444,8 +444,8 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       
       if (contractError) throw contractError;
       
-      // Creditar bônus de lances se existir
-      if (plan.bonus_bids && plan.bonus_bids > 0) {
+      // Creditar bônus de lances se existir (e NÃO for demo)
+      if (!isDemoContract && plan.bonus_bids && plan.bonus_bids > 0) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('bids_balance')
