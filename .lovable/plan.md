@@ -1,17 +1,26 @@
 
-
-## Plano: Vincular patrocinador de parceiro no cadastro (sem depender de PIX)
+## Plano: Implementação Completa de Melhorias
 
 **STATUS: ✅ IMPLEMENTADO**
 
-### O que foi feito
+### Etapa 1 — Segurança (P0) ✅
+- Trigger `protect_profile_fields` protege `is_admin`, `is_blocked`, `bids_balance` contra alteração por usuários
+- Trigger `protect_partner_contract_fields` protege campos financeiros em `partner_contracts`
+- Policy `Public can view limited profile info` substituiu acesso irrestrito
+- Função `get_public_profile()` SECURITY DEFINER para buscas públicas seguras
+- Policy INSERT em `affiliates` restringe `role='affiliate'` e `status='pending'`
+- `search_path = public` fixado em `is_admin_user`, `get_user_affiliate_id`, `is_affiliate_manager`
 
-1. **Migration SQL** — Coluna `referred_by_partner_code TEXT` em `profiles` + trigger `handle_new_user` atualizado para validar `partner_referral_code` contra `partner_contracts` ativos antes de salvar
-2. **`AuthContext.tsx`** — Campo `partner_referral_code` adicionado na interface `SignUpData` e no `options.data` do `signUp()`
-3. **`Auth.tsx`** — No signup, diferencia se `?ref=` é de parceiro ou afiliado (consulta `partner_contracts`), e envia apenas no campo correto. Limpa ambos os localStorage após sucesso.
-4. **`AdminUserManagement.tsx`** — Fallback: se `partner_payment_intents` não tem sponsor, busca `profiles.referred_by_partner_code` e auto-preenche + valida
-5. **`UserProfileCard.tsx`** — Fallback: busca `profiles.referred_by_partner_code` → contrato ativo com aquele código → exibe sponsor como "(Cadastro via link de parceiro)"
+### Etapa 2 — Negócio (P2) ✅
+- Trigger `handle_new_user` atualizado para criar automaticamente conta de afiliado com código único e `status='active'`
+- Configurações `affiliate_repurchase_enabled=true` e `affiliate_repurchase_commission_rate=10` inseridas em `system_settings`
 
-### Tratamento da sobreposição `?ref=`
-- No frontend (Auth.tsx): antes do signup, o código é verificado contra `partner_contracts`. Se encontra match ativo → `partner_referral_code`. Senão → `referral_code` (afiliado).
-- No trigger (handle_new_user): `partner_referral_code` só é salvo em `profiles.referred_by_partner_code` se validado contra um contrato ativo. Código inexistente/inativo é descartado com log.
+### Etapa 3 — Arquitetura (P2) ✅
+- `AdminDashboard.tsx` refatorado de ~1834 linhas para ~250 linhas (orquestrador)
+- Sub-componentes extraídos: `AuctionDetailsTab`, `AuctionManagementTab`, `UserManagementTab`, `PackagesManagementTab`
+- Tipos e helpers compartilhados em `AdminDashboard/types.ts` e `AdminDashboard/helpers.ts`
+- Queries paralelas com `Promise.all` no fetch de dados admin
+
+### Etapa 4 — Performance (P3) ✅
+- Todas as rotas (exceto Index) convertidas para `React.lazy()` com `Suspense`
+- `QueryClient` configurado com `staleTime: 5min` e `gcTime: 10min`
