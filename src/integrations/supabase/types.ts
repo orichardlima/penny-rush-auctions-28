@@ -2511,6 +2511,13 @@ export type Database = {
           user_count: number
         }[]
       }
+      get_public_profile: {
+        Args: { target_user_id: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+        }[]
+      }
       get_random_bot: { Args: never; Returns: string }
       get_revenue_trends: {
         Args: never
