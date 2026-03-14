@@ -10,15 +10,15 @@ import { useReferralTracking } from "@/hooks/useReferralTracking";
 import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index";
-import Auctions from "./pages/Auctions";
-import HowItWorksPage from "./pages/HowItWorks";
-import BidPackagesPage from "./pages/BidPackages";
-import Winners from "./pages/Winners";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import NotFound from "./pages/NotFound";
 
 // Lazy loaded pages for better performance
+const Auctions = lazy(() => import("./pages/Auctions"));
+const HowItWorksPage = lazy(() => import("./pages/HowItWorks"));
+const BidPackagesPage = lazy(() => import("./pages/BidPackages"));
+const Winners = lazy(() => import("./pages/Winners"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AffiliateDashboard = lazy(() => import("./pages/AffiliateDashboard"));
 const PartnerLanding = lazy(() => import("./pages/PartnerLanding"));
@@ -29,7 +29,14 @@ const PoliticaPrivacidade = lazy(() => import("./pages/PoliticaPrivacidade"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Contato = lazy(() => import("./pages/Contato"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,  // 5 minutes
+      gcTime: 10 * 60 * 1000,    // 10 minutes
+    },
+  },
+});
 
 // Loading fallback component
 const PageLoader = () => (
@@ -43,18 +50,17 @@ const PageLoader = () => (
 
 const AppContent = () => {
   useReferralTracking();
-  // Tracking global de referral de parceiro (captura ?ref=... em qualquer rota)
   usePartnerReferralTracking();
   
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/leiloes" element={<Auctions />} />
-      <Route path="/como-funciona" element={<HowItWorksPage />} />
-      <Route path="/pacotes" element={<BidPackagesPage />} />
-      <Route path="/vencedores" element={<Winners />} />
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/leiloes" element={<Suspense fallback={<PageLoader />}><Auctions /></Suspense>} />
+      <Route path="/como-funciona" element={<Suspense fallback={<PageLoader />}><HowItWorksPage /></Suspense>} />
+      <Route path="/pacotes" element={<Suspense fallback={<PageLoader />}><BidPackagesPage /></Suspense>} />
+      <Route path="/vencedores" element={<Suspense fallback={<PageLoader />}><Winners /></Suspense>} />
+      <Route path="/auth" element={<Suspense fallback={<PageLoader />}><Auth /></Suspense>} />
+      <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
       <Route path="/afiliado" element={<Suspense fallback={<PageLoader />}><AffiliateDashboard /></Suspense>} />
       <Route path="/parceiro" element={<Suspense fallback={<PageLoader />}><PartnerLanding /></Suspense>} />
       <Route path="/investir" element={<Navigate to="/parceiro" replace />} />
@@ -66,7 +72,7 @@ const AppContent = () => {
       <Route path="/faq" element={<Suspense fallback={<PageLoader />}><FAQ /></Suspense>} />
       <Route path="/contato" element={<Suspense fallback={<PageLoader />}><Contato /></Suspense>} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
     </Routes>
   );
 };
