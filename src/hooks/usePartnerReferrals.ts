@@ -117,9 +117,7 @@ export const usePartnerReferrals = () => {
             supabase
               .rpc('get_public_profiles', { user_ids: referredUserIds }),
             supabase
-              .from('partner_contracts')
-              .select('id, plan_name')
-              .in('id', referredContractIds)
+              .rpc('get_referred_contracts_info', { contract_ids: referredContractIds })
           ]);
 
           const profilesMap = new Map(

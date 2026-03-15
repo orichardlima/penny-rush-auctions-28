@@ -1,52 +1,46 @@
 
+## Plano: Implementação Completa de Melhorias
 
-# Plano: Corrigir dados ocultos nos painéis de parceiros
+**STATUS: ✅ IMPLEMENTADO**
 
-## Problema
+### Etapa 1 — Segurança (P0) ✅
+- Trigger `protect_profile_fields` protege `is_admin`, `is_blocked`, `bids_balance` contra alteração por usuários
+- Trigger `protect_partner_contract_fields` protege campos financeiros em `partner_contracts`
+- Policy INSERT em `affiliates` restringe `role='affiliate'` e `status='pending'`
+- `search_path = public` fixado em todas as funções (is_admin_user, get_user_affiliate_id, is_affiliate_manager, close_binary_cycle, get_binary_tree, prevent_bids_on_inactive_auctions, preview_binary_cycle_closure, propagate_binary_points)
 
-A restrição RLS em `partner_contracts` (apenas `auth.uid() = user_id`) impede que parceiros vejam o **plano** e **pontos** dos seus indicados. Isso afeta:
+### Etapa 1.1 — Hardening de Segurança (P0) ✅
+- Policy anon `Public can view limited profile info` REMOVIDA (expunha PII de 1.408 usuários)
+- Policy ALL `Admins can manage all profiles` DIVIDIDA em 4 policies separadas (SELECT/INSERT/UPDATE/DELETE) para evitar escalação de privilégio via OR de permissive policies
+- WITH CHECK em INSERT de profiles: `is_admin = false AND is_bot = false`
+- WITH CHECK em UPDATE de profiles: bloqueia `is_admin=true` para não-admins
+- Função `get_public_profiles(uuid[])` SECURITY DEFINER criada para lookup seguro de nomes em lote
+- Função `get_contract_by_referral_code(text)` SECURITY DEFINER criada para lookup público de contratos
+- Policy pública de `partner_contracts` REMOVIDA (expunha PIX, bank_details, saldos)
+- Policy `Anyone can view all bids` → `Authenticated can view all bids`
+- Policy `Anyone can view qualification counts` em fury_vault_qualifications REMOVIDA
+- Policy `Anyone can view revenue snapshots` → `Authenticated can view revenue snapshots`
+- Policy `Anyone can read system settings` → `Authenticated can read system settings`
+- Policy `Anyone can view binary cycles` → `Authenticated can view binary cycles`
+- Frontend atualizado: Auth.tsx, UserProfileCard.tsx, AffiliateReferralsList.tsx, useReferralBonuses.ts, usePartnerReferrals.ts, usePartnerContract.ts agora usam RPC em vez de queries diretas a profiles/partner_contracts
 
-| Componente | Dado oculto | Resultado visível |
-|---|---|---|
-| `usePartnerReferrals.ts` | plan_name dos contratos indicados | Coluna "Plano" mostra "-" |
-| `usePartnerReferrals.ts` | Pontos derivados do plano | Coluna "Pontos" mostra "+0" |
-| `useReferralNetwork.ts` | plan_name + profiles dos indicados | Árvore mostra "-" e "Usuário" |
+### Etapa 2 — Negócio (P2) ✅
+- Trigger `handle_new_user` atualizado para criar automaticamente conta de afiliado com código único e `status='active'`
+- Configurações `affiliate_repurchase_enabled=true` e `affiliate_repurchase_commission_rate=10` inseridas em `system_settings`
 
-## Solução
+### Etapa 3 — Arquitetura (P2) ✅
+- `AdminDashboard.tsx` refatorado de ~1834 linhas para ~250 linhas (orquestrador)
+- Sub-componentes extraídos: `AuctionDetailsTab`, `AuctionManagementTab`, `UserManagementTab`, `PackagesManagementTab`
+- Tipos e helpers compartilhados em `AdminDashboard/types.ts` e `AdminDashboard/helpers.ts`
+- Queries paralelas com `Promise.all` no fetch de dados admin
 
-### 1. Nova função SQL `get_referred_contracts_info`
+### Etapa 4 — Performance (P3) ✅
+- Todas as rotas (exceto Index) convertidas para `React.lazy()` com `Suspense`
+- `QueryClient` configurado com `staleTime: 5min` e `gcTime: 10min`
 
-Função SECURITY DEFINER que retorna apenas `id, plan_name` de contratos por array de IDs — sem expor PIX, saldos ou dados financeiros.
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_referred_contracts_info(contract_ids uuid[])
-RETURNS TABLE(id uuid, plan_name text, user_id uuid)
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT c.id, c.plan_name, c.user_id
-  FROM public.partner_contracts c
-  WHERE c.id = ANY(contract_ids);
-$$;
-```
-
-### 2. Atualizar `usePartnerReferrals.ts`
-
-Trocar `supabase.from('partner_contracts').select('id, plan_name').in(...)` por `supabase.rpc('get_referred_contracts_info', { contract_ids: [...] })`.
-
-### 3. Atualizar `useReferralNetwork.ts`
-
-- Trocar query de `partner_contracts` por mesma RPC
-- Trocar query direta de `profiles` por `get_public_profiles` RPC (já existente)
-
-### 4. Registrar tipo em `types.ts`
-
-Adicionar assinatura da nova função.
-
-## Resultado
-
-- Coluna "Plano" volta a mostrar o nome do plano (START, PRO, etc.)
-- Coluna "Pontos" volta a calcular corretamente baseado no plano
-- Árvore de indicações exibe nomes e planos
-- Nenhum dado sensível exposto (PIX, saldos, bank_details continuam protegidos)
-
+### Avisos Restantes (requerem ação no Dashboard Supabase)
+- Extension pg_net no schema public → mover para extensions
+- RLS policy always true (affiliate_referrals INSERT — necessário para tracking anônimo)
+- OTP expiry longo → reduzir no dashboard
+- Leaked password protection desabilitada → habilitar no dashboard
+- Postgres com patches disponíveis → atualizar no dashboard

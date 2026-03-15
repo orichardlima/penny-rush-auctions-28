@@ -78,23 +78,19 @@ export const useReferralNetwork = () => {
       const referredUserIds = [...new Set(allBonuses.map(b => b.referred_user_id))];
       const referredContractIds = [...new Set(allBonuses.map(b => b.referred_contract_id))];
 
-      // Fetch profiles and contracts
+      // Fetch profiles and contracts via SECURITY DEFINER RPCs
       const [profilesResult, contractsResult] = await Promise.all([
         supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', referredUserIds),
+          .rpc('get_public_profiles', { user_ids: referredUserIds }),
         supabase
-          .from('partner_contracts')
-          .select('id, plan_name, user_id')
-          .in('id', referredContractIds)
+          .rpc('get_referred_contracts_info', { contract_ids: referredContractIds })
       ]);
 
       const profilesMap = new Map(
-        profilesResult.data?.map(p => [p.user_id, p.full_name]) || []
+        profilesResult.data?.map((p: any) => [p.user_id, p.full_name]) || []
       );
       const contractsMap = new Map(
-        contractsResult.data?.map(c => [c.id, { planName: c.plan_name, userId: c.user_id }]) || []
+        contractsResult.data?.map((c: any) => [c.id, { planName: c.plan_name, userId: c.user_id }]) || []
       );
 
       // Group bonuses by level
@@ -152,21 +148,17 @@ export const useReferralNetwork = () => {
         return level1Nodes;
       };
 
-      // Simplified approach: Fetch all contracts to build proper hierarchy
-      // The referral chain is tracked by referred_by_user_id in partner_contracts
-      const { data: allContracts } = await supabase
-        .from('partner_contracts')
-        .select('id, user_id, referred_by_user_id')
-        .in('id', referredContractIds);
+      // Use the same RPC data (contractsResult) which already has referred_by_user_id
+      const allContracts = contractsResult.data || [];
 
       // Create a map from contract_id -> referred_by_user_id
       const contractReferredByMap = new Map(
-        allContracts?.map(c => [c.id, c.referred_by_user_id]) || []
+        allContracts.map((c: any) => [c.id, c.referred_by_user_id])
       );
 
       // Create a map from user_id -> their contract_id (for linking levels)
       const userToContractMap = new Map(
-        allContracts?.map(c => [c.user_id, c.id]) || []
+        allContracts.map((c: any) => [c.user_id, c.id])
       );
 
       // Build tree with proper parent-child relationships

@@ -2536,6 +2536,15 @@ export type Database = {
         }[]
       }
       get_random_bot: { Args: never; Returns: string }
+      get_referred_contracts_info: {
+        Args: { contract_ids: string[] }
+        Returns: {
+          id: string
+          plan_name: string
+          referred_by_user_id: string
+          user_id: string
+        }[]
+      }
       get_revenue_trends: {
         Args: never
         Returns: {
