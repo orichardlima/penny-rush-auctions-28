@@ -137,7 +137,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
             partnerReferrer = {
               name: sponsorProfile?.full_name || 'Desconhecido',
-              date: sponsorContract.created_at,
+              date: new Date().toISOString(),
               pending: false,
               signupLink: true,
             };
