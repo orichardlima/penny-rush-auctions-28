@@ -148,21 +148,17 @@ export const useReferralNetwork = () => {
         return level1Nodes;
       };
 
-      // Simplified approach: Fetch all contracts to build proper hierarchy
-      // The referral chain is tracked by referred_by_user_id in partner_contracts
-      const { data: allContracts } = await supabase
-        .from('partner_contracts')
-        .select('id, user_id, referred_by_user_id')
-        .in('id', referredContractIds);
+      // Use the same RPC data (contractsResult) which already has referred_by_user_id
+      const allContracts = contractsResult.data || [];
 
       // Create a map from contract_id -> referred_by_user_id
       const contractReferredByMap = new Map(
-        allContracts?.map(c => [c.id, c.referred_by_user_id]) || []
+        allContracts.map((c: any) => [c.id, c.referred_by_user_id])
       );
 
       // Create a map from user_id -> their contract_id (for linking levels)
       const userToContractMap = new Map(
-        allContracts?.map(c => [c.user_id, c.id]) || []
+        allContracts.map((c: any) => [c.user_id, c.id])
       );
 
       // Build tree with proper parent-child relationships
