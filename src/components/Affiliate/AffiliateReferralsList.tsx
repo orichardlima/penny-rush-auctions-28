@@ -79,14 +79,11 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
           let commissionAmount: number | null = null;
 
           if (ref.referred_user_id) {
-            // Get user name
+            // Get user name via secure RPC
             const { data: profileData } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('user_id', ref.referred_user_id)
-              .single();
+              .rpc('get_public_profiles', { user_ids: [ref.referred_user_id] });
 
-            userName = profileData?.full_name || 'Usuário';
+            userName = profileData?.[0]?.full_name || 'Usuário';
 
             // Get commission if converted
             if (ref.converted) {

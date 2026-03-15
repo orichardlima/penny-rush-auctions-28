@@ -2518,6 +2518,14 @@ export type Database = {
           full_name: string
         }[]
       }
+      get_public_profiles: {
+        Args: { user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       get_random_bot: { Args: never; Returns: string }
       get_revenue_trends: {
         Args: never

@@ -168,11 +168,9 @@ export const usePartnerContract = () => {
       
       if (data.referred_by_user_id) {
         // Buscar perfil do patrocinador
-        const { data: sponsorProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('user_id', data.referred_by_user_id)
-          .maybeSingle();
+        const { data: sponsorProfiles } = await supabase
+          .rpc('get_public_profiles', { user_ids: [data.referred_by_user_id] });
+        const sponsorProfile = sponsorProfiles?.[0] || null;
         
         // Buscar contrato do patrocinador para pegar o plano
         const { data: sponsorContract } = await supabase
