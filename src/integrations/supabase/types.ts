@@ -2453,6 +2453,15 @@ export type Database = {
         Args: { p_contract_id: string; p_depth?: number }
         Returns: Json
       }
+      get_contract_by_referral_code: {
+        Args: { code: string }
+        Returns: {
+          id: string
+          plan_name: string
+          referral_code: string
+          user_id: string
+        }[]
+      }
       get_conversion_funnel: {
         Args: never
         Returns: {
