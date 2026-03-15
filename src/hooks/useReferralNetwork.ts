@@ -78,16 +78,12 @@ export const useReferralNetwork = () => {
       const referredUserIds = [...new Set(allBonuses.map(b => b.referred_user_id))];
       const referredContractIds = [...new Set(allBonuses.map(b => b.referred_contract_id))];
 
-      // Fetch profiles and contracts
+      // Fetch profiles and contracts via SECURITY DEFINER RPCs
       const [profilesResult, contractsResult] = await Promise.all([
         supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', referredUserIds),
+          .rpc('get_public_profiles', { user_ids: referredUserIds }),
         supabase
-          .from('partner_contracts')
-          .select('id, plan_name, user_id')
-          .in('id', referredContractIds)
+          .rpc('get_referred_contracts_info', { contract_ids: referredContractIds })
       ]);
 
       const profilesMap = new Map(
