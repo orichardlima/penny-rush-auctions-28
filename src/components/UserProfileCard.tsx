@@ -134,11 +134,9 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
             .maybeSingle();
 
           if (sponsorContract) {
-            const { data: sponsorProfile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('user_id', sponsorContract.user_id)
-              .single();
+            const { data: sponsorProfiles } = await supabase
+              .rpc('get_public_profiles', { user_ids: [sponsorContract.user_id] });
+            const sponsorProfile = sponsorProfiles?.[0] || null;
 
             partnerReferrer = {
               name: sponsorProfile?.full_name || 'Desconhecido',

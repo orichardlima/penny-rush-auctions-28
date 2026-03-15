@@ -41,9 +41,7 @@ export const useReferralBonuses = () => {
       const referredUserIds = [...new Set(data?.map(b => b.referred_user_id) || [])];
       if (referredUserIds.length > 0) {
         const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', referredUserIds);
+          .rpc('get_public_profiles', { user_ids: referredUserIds });
 
         const profilesMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
 

@@ -115,9 +115,7 @@ export const usePartnerReferrals = () => {
 
           const [profilesResult, contractsResult] = await Promise.all([
             supabase
-              .from('profiles')
-              .select('user_id, full_name')
-              .in('user_id', referredUserIds),
+              .rpc('get_public_profiles', { user_ids: referredUserIds }),
             supabase
               .from('partner_contracts')
               .select('id, plan_name')
