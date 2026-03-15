@@ -1,46 +1,86 @@
 
-## Plano: Implementação Completa de Melhorias
 
-**STATUS: ✅ IMPLEMENTADO**
+# Plano: Aplicar 5 Correções de Segurança Restantes
 
-### Etapa 1 — Segurança (P0) ✅
-- Trigger `protect_profile_fields` protege `is_admin`, `is_blocked`, `bids_balance` contra alteração por usuários
-- Trigger `protect_partner_contract_fields` protege campos financeiros em `partner_contracts`
-- Policy INSERT em `affiliates` restringe `role='affiliate'` e `status='pending'`
-- `search_path = public` fixado em todas as funções (is_admin_user, get_user_affiliate_id, is_affiliate_manager, close_binary_cycle, get_binary_tree, prevent_bids_on_inactive_auctions, preview_binary_cycle_closure, propagate_binary_points)
+A tabela `auctions` permanece pública como está — winner_name, bidders e dados de leilão são intencionalmente públicos.
 
-### Etapa 1.1 — Hardening de Segurança (P0) ✅
-- Policy anon `Public can view limited profile info` REMOVIDA (expunha PII de 1.408 usuários)
-- Policy ALL `Admins can manage all profiles` DIVIDIDA em 4 policies separadas (SELECT/INSERT/UPDATE/DELETE) para evitar escalação de privilégio via OR de permissive policies
-- WITH CHECK em INSERT de profiles: `is_admin = false AND is_bot = false`
-- WITH CHECK em UPDATE de profiles: bloqueia `is_admin=true` para não-admins
-- Função `get_public_profiles(uuid[])` SECURITY DEFINER criada para lookup seguro de nomes em lote
-- Função `get_contract_by_referral_code(text)` SECURITY DEFINER criada para lookup público de contratos
-- Policy pública de `partner_contracts` REMOVIDA (expunha PIX, bank_details, saldos)
-- Policy `Anyone can view all bids` → `Authenticated can view all bids`
-- Policy `Anyone can view qualification counts` em fury_vault_qualifications REMOVIDA
-- Policy `Anyone can view revenue snapshots` → `Authenticated can view revenue snapshots`
-- Policy `Anyone can read system settings` → `Authenticated can read system settings`
-- Policy `Anyone can view binary cycles` → `Authenticated can view binary cycles`
-- Frontend atualizado: Auth.tsx, UserProfileCard.tsx, AffiliateReferralsList.tsx, useReferralBonuses.ts, usePartnerReferrals.ts, usePartnerContract.ts agora usam RPC em vez de queries diretas a profiles/partner_contracts
+## Correções
 
-### Etapa 2 — Negócio (P2) ✅
-- Trigger `handle_new_user` atualizado para criar automaticamente conta de afiliado com código único e `status='active'`
-- Configurações `affiliate_repurchase_enabled=true` e `affiliate_repurchase_commission_rate=10` inseridas em `system_settings`
+### 1. `affiliate_referrals` — Forçar `converted = false` no INSERT
 
-### Etapa 3 — Arquitetura (P2) ✅
-- `AdminDashboard.tsx` refatorado de ~1834 linhas para ~250 linhas (orquestrador)
-- Sub-componentes extraídos: `AuctionDetailsTab`, `AuctionManagementTab`, `UserManagementTab`, `PackagesManagementTab`
-- Tipos e helpers compartilhados em `AdminDashboard/types.ts` e `AdminDashboard/helpers.ts`
-- Queries paralelas com `Promise.all` no fetch de dados admin
+O frontend (`useReferralTracking.ts`) insere referrals para tracking de cliques antes do login (precisa de `anon`). O problema é que a policy atual permite inserir com `converted = true`, fabricando conversões falsas.
 
-### Etapa 4 — Performance (P3) ✅
-- Todas as rotas (exceto Index) convertidas para `React.lazy()` com `Suspense`
-- `QueryClient` configurado com `staleTime: 5min` e `gcTime: 10min`
+```sql
+DROP POLICY "Anyone can insert referrals" ON affiliate_referrals;
+CREATE POLICY "Anyone can insert referrals" ON affiliate_referrals
+  FOR INSERT TO anon, authenticated
+  WITH CHECK (converted = false);
+```
 
-### Avisos Restantes (requerem ação no Dashboard Supabase)
-- Extension pg_net no schema public → mover para extensions
-- RLS policy always true (affiliate_referrals INSERT — necessário para tracking anônimo)
-- OTP expiry longo → reduzir no dashboard
-- Leaked password protection desabilitada → habilitar no dashboard
-- Postgres com patches disponíveis → atualizar no dashboard
+### 2. `bid_purchases` — Remover INSERT do usuário
+
+O INSERT é feito exclusivamente pelo edge function `mercado-pago-payment` (service_role). O frontend NÃO faz insert direto — chama `supabase.functions.invoke()`. Policy desnecessária e explorável.
+
+```sql
+DROP POLICY "Users can insert their own purchases" ON bid_purchases;
+```
+
+### 3. `partner_referral_bonuses` — Remover INSERT do usuário
+
+O INSERT é feito pelo trigger `ensure_partner_referral_bonuses` (server-side). Nenhum código frontend insere nesta tabela.
+
+```sql
+DROP POLICY IF EXISTS "Users can create referral bonuses for their referrals" ON partner_referral_bonuses;
+```
+
+### 4. `partner_upgrades` — Remover INSERT do usuário
+
+O INSERT é feito pelo webhook `partner-payment-webhook` (server-side). Nenhum código frontend insere nesta tabela.
+
+```sql
+DROP POLICY IF EXISTS "Users can insert own upgrades" ON partner_upgrades;
+```
+
+### 5. `partner_contracts` — Restringir UPDATE a campos de pagamento
+
+O único UPDATE feito pelo usuário no frontend é em `usePartnerWithdrawals.ts` — atualiza apenas `pix_key`, `pix_key_type`, e `bank_details`. A policy atual permite alterar campos financeiros como `total_received`, `available_balance`, `total_cap`.
+
+Reforçar o trigger `protect_partner_contract_fields` para bloquear alteração de campos financeiros por non-admins.
+
+```sql
+CREATE OR REPLACE FUNCTION protect_partner_contract_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT is_admin_user(auth.uid()) THEN
+    NEW.status := OLD.status;
+    NEW.total_cap := OLD.total_cap;
+    NEW.weekly_cap := OLD.weekly_cap;
+    NEW.aporte_value := OLD.aporte_value;
+    NEW.total_received := OLD.total_received;
+    NEW.total_withdrawn := OLD.total_withdrawn;
+    NEW.available_balance := OLD.available_balance;
+    NEW.total_referral_points := OLD.total_referral_points;
+    NEW.plan_name := OLD.plan_name;
+    NEW.referral_code := OLD.referral_code;
+    NEW.payment_status := OLD.payment_status;
+    NEW.bonus_bids_received := OLD.bonus_bids_received;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+## Impacto no Frontend
+
+**Zero mudanças no frontend.** Todos os INSERTs removidos já são feitos server-side. O UPDATE de `partner_contracts` continua funcionando para os campos PIX que o usuário realmente precisa alterar.
+
+## Resumo
+
+| Tabela | Ação | Risco eliminado |
+|---|---|---|
+| `affiliate_referrals` | Forçar `converted=false` | Conversões falsas |
+| `bid_purchases` | Drop INSERT policy | Compras fabricadas |
+| `partner_referral_bonuses` | Drop INSERT policy | Bônus fabricados |
+| `partner_upgrades` | Drop INSERT policy | Upgrades fabricados |
+| `partner_contracts` | Trigger protege campos financeiros | Alteração de saldos |
+
