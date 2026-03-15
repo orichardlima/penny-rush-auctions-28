@@ -2541,6 +2541,7 @@ export type Database = {
         Returns: {
           id: string
           plan_name: string
+          referred_by_user_id: string
           user_id: string
         }[]
       }
