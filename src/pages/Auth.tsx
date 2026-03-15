@@ -304,12 +304,9 @@ const Auth = () => {
       
       if (codeToCheck) {
         // Verificar se é código de parceiro
-        const { data: partnerMatch } = await supabase
-          .from('partner_contracts')
-          .select('id')
-          .eq('referral_code', codeToCheck.trim().toUpperCase())
-          .eq('status', 'ACTIVE')
-          .maybeSingle();
+        const { data: partnerMatches } = await supabase
+          .rpc('get_contract_by_referral_code', { code: codeToCheck.trim().toUpperCase() });
+        const partnerMatch = partnerMatches?.[0] || null;
         
         if (partnerMatch) {
           // É código de parceiro — só enviar como partner_referral_code

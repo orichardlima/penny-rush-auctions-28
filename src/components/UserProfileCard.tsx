@@ -126,12 +126,9 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
         if (userProfile?.referred_by_partner_code) {
           // Find active contract with that referral code
-          const { data: sponsorContract } = await supabase
-            .from('partner_contracts')
-            .select('user_id, created_at')
-            .eq('referral_code', userProfile.referred_by_partner_code)
-            .eq('status', 'ACTIVE')
-            .maybeSingle();
+          const { data: sponsorContracts } = await supabase
+            .rpc('get_contract_by_referral_code', { code: userProfile.referred_by_partner_code });
+          const sponsorContract = sponsorContracts?.[0] || null;
 
           if (sponsorContract) {
             const { data: sponsorProfiles } = await supabase
