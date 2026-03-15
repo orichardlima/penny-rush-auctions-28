@@ -24,6 +24,13 @@
 - Policy `Anyone can view binary cycles` → `Authenticated can view binary cycles`
 - Frontend atualizado: Auth.tsx, UserProfileCard.tsx, AffiliateReferralsList.tsx, useReferralBonuses.ts, usePartnerReferrals.ts, usePartnerContract.ts agora usam RPC em vez de queries diretas a profiles/partner_contracts
 
+### Etapa 1.2 — Correções de Vulnerabilidades Críticas (P0) ✅
+- `affiliate_referrals` INSERT: forçado `converted = false` (impede conversões falsas)
+- `bid_purchases` INSERT policy do usuário REMOVIDA (INSERT feito por edge function server-side)
+- `partner_referral_bonuses` INSERT policy do usuário REMOVIDA (INSERT feito por trigger server-side)
+- `partner_upgrades` INSERT policy do usuário REMOVIDA (INSERT feito por webhook server-side)
+- `protect_partner_contract_fields` trigger REFORÇADO: protege status, total_cap, weekly_cap, aporte_value, total_received, total_withdrawn, available_balance, total_referral_points, plan_name, referral_code, payment_status, bonus_bids_received
+
 ### Etapa 2 — Negócio (P2) ✅
 - Trigger `handle_new_user` atualizado para criar automaticamente conta de afiliado com código único e `status='active'`
 - Configurações `affiliate_repurchase_enabled=true` e `affiliate_repurchase_commission_rate=10` inseridas em `system_settings`
@@ -40,7 +47,7 @@
 
 ### Avisos Restantes (requerem ação no Dashboard Supabase)
 - Extension pg_net no schema public → mover para extensions
-- RLS policy always true (affiliate_referrals INSERT — necessário para tracking anônimo)
+- RLS policy always true (affiliate_referrals INSERT — agora restrito a converted=false)
 - OTP expiry longo → reduzir no dashboard
 - Leaked password protection desabilitada → habilitar no dashboard
 - Postgres com patches disponíveis → atualizar no dashboard
