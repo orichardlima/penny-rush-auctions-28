@@ -87,10 +87,10 @@ export const useReferralNetwork = () => {
       ]);
 
       const profilesMap = new Map(
-        profilesResult.data?.map(p => [p.user_id, p.full_name]) || []
+        profilesResult.data?.map((p: any) => [p.user_id, p.full_name]) || []
       );
       const contractsMap = new Map(
-        contractsResult.data?.map(c => [c.id, { planName: c.plan_name, userId: c.user_id }]) || []
+        contractsResult.data?.map((c: any) => [c.id, { planName: c.plan_name, userId: c.user_id }]) || []
       );
 
       // Group bonuses by level
