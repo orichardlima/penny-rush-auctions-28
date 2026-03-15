@@ -3,6 +3,11 @@
 
 **STATUS: ✅ IMPLEMENTADO**
 
+### Etapa 5 — Visibilidade de Leilões (P1) ✅
+- `finished_auctions_display_hours` atualizado de 48 para **18 horas**
+- Policy SELECT de `auctions` agora filtra `is_hidden = false OR is_admin_user(auth.uid())`
+- Leilões ocultos invisíveis para não-admins (correção de segurança)
+
 ### Etapa 1 — Segurança (P0) ✅
 - Trigger `protect_profile_fields` protege `is_admin`, `is_blocked`, `bids_balance` contra alteração por usuários
 - Trigger `protect_partner_contract_fields` protege campos financeiros em `partner_contracts`
