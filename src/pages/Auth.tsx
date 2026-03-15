@@ -66,22 +66,16 @@ const Auth = () => {
     if (refCode) {
       setLoadingSponsor(true);
       supabase
-        .from('partner_contracts')
-        .select('id, referral_code, user_id')
-        .eq('referral_code', refCode.trim().toUpperCase())
-        .eq('status', 'ACTIVE')
-        .maybeSingle()
-        .then(async ({ data: contract, error }) => {
+        .rpc('get_contract_by_referral_code', { code: refCode.trim().toUpperCase() })
+        .then(async ({ data: contracts, error }) => {
+          const contract = contracts?.[0];
           if (contract && !error) {
-            // Buscar nome do usuário
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('user_id', contract.user_id)
-              .maybeSingle();
+            // Buscar nome do usuário via RPC seguro
+            const { data: profiles } = await supabase
+              .rpc('get_public_profiles', { user_ids: [contract.user_id] });
             
-            if (profile?.full_name) {
-              setSponsorName(profile.full_name);
+            if (profiles?.[0]?.full_name) {
+              setSponsorName(profiles[0].full_name);
             }
           }
           setLoadingSponsor(false);
