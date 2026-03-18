@@ -1,39 +1,35 @@
 
 
-# Validação do Fluxo de Pagamento de Plano de Parceiro
+# Webhook retornando 404 para pagamentos não relacionados
 
-## Resultado: Fluxo está correto
+## Problema
 
-Após análise detalhada do código, o fluxo de pagamento do parceiro está funcionando corretamente:
+O e-mail do Asaas mostra que o webhook `partner-payment-webhook` está retornando **HTTP 404** para pagamentos que não foram gerados pela plataforma. Nos logs, vemos pagamentos como `pay_2gbu439jo2nzypwt` com `externalReference: null` -- são PIX recebidos diretamente na conta Asaas, não gerados pelo sistema.
 
-### Fluxo atual (correto):
+O fluxo atual:
+1. Webhook recebe notificação de pagamento
+2. Tenta encontrar por `payment_id` em `partner_payment_intents` -- não encontra
+3. Tenta encontrar por `externalReference` (que é `null`) -- não encontra
+4. Tenta fallback em `partner_contracts` por `payment_id` -- não encontra
+5. Retorna `404 Not Found`
 
-1. **Usuário vê os planos** -- `PartnerDashboard.tsx` renderiza `PartnerPlanCard` para cada plano disponível
-2. **Usuário clica "Participar deste plano"** -- chama `handlePlanSelectWithTerms(planId, referralCode)`
-3. **Dialog de termos abre** -- `PartnerContractTermsDialog` exibe o contrato com detalhes do plano selecionado, exige aceite via checkbox
-4. **Usuário aceita termos** -- `handleContractAccepted()` chama `handlePlanSelect(planId)` que invoca `createContract(planId, referralCode)`
-5. **Edge Function `partner-payment`** -- valida plano, cria `partner_payment_intent`, gera cobrança PIX no Asaas, retorna QR Code
-6. **Modal PIX abre** -- `PartnerPixPaymentModal` exibe QR Code e monitora pagamento via realtime
-7. **Webhook confirma pagamento** -- cria contrato `ACTIVE` na tabela `partner_contracts`
+O Asaas interpreta o 404 como erro e envia e-mails de alerta.
 
-### Bug anterior (já corrigido):
-- O `useEffect` que auto-abria o dialog de contrato quando `preselectedPlanId` estava presente na URL foi removido na correção anterior
-- Agora o plano pré-selecionado apenas recebe destaque visual (`ring-2 ring-primary`)
+## Correção
 
-### Pontos verificados:
-- O plano correto é passado ao `PartnerContractTermsDialog` via `plans.find(p => p.id === pendingPlanId)` (linha 487)
-- A Edge Function valida o plano pelo `planId` enviado, não usa valores hardcoded
-- O modal PIX recebe `planName` e `aporteValue` diretamente do response da Edge Function
-- Não há mais auto-abertura de dialog ou modal
+Alterar o `processLegacyContractPayment` em `partner-payment-webhook/index.ts` para retornar **200 OK** em vez de **404** quando não encontrar o pagamento. Pagamentos não reconhecidos devem ser ignorados silenciosamente (com log informativo), não tratados como erro.
 
-### Limitação do teste E2E:
-Não foi possível executar teste automatizado porque o fluxo requer autenticação + integração com Asaas (pagamento real). A validação foi feita por análise estática do código.
+### Arquivo: `supabase/functions/partner-payment-webhook/index.ts`
 
-### Recomendação:
-Teste manual recomendado:
-1. Faça login na plataforma
-2. Acesse `/minha-parceria`
-3. Verifique que os 3 planos são exibidos sem nenhum modal automático
-4. Clique em qualquer plano e confirme que o dialog de termos mostra o plano correto
-5. Aceite os termos e confirme que o PIX gerado corresponde ao valor do plano escolhido
+Na função `processLegacyContractPayment`, linha que retorna 404:
+```typescript
+// DE:
+return new Response('Not found', { status: 404, headers: corsHeaders })
+
+// PARA:
+console.log('ℹ️ Payment not related to partner contracts, ignoring:', paymentId)
+return new Response('OK', { status: 200, headers: corsHeaders })
+```
+
+Isso resolve o alerta do Asaas sem afetar nenhuma funcionalidade, pois pagamentos legítimos da plataforma sempre terão `externalReference` ou `payment_id` correspondente.
 
