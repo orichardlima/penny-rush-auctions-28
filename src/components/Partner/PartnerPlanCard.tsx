@@ -17,7 +17,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   plan, 
   onSelect, 
   loading = false,
-  featured = false 
+  featured = false,
+  highlighted = false 
 }) => {
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
