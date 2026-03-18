@@ -1,58 +1,87 @@
 
-## Plano: Implementação Completa de Melhorias
 
-**STATUS: ✅ IMPLEMENTADO**
+# Bug: Lances não descontam do saldo
 
-### Etapa 5 — Visibilidade de Leilões (P1) ✅
-- `finished_auctions_display_hours` atualizado de 48 para **18 horas**
-- Policy SELECT de `auctions` agora filtra `is_hidden = false OR is_admin_user(auth.uid())`
-- Leilões ocultos invisíveis para não-admins (correção de segurança)
+## Causa raiz
 
-### Etapa 1 — Segurança (P0) ✅
-- Trigger `protect_profile_fields` protege `is_admin`, `is_blocked`, `bids_balance` contra alteração por usuários
-- Trigger `protect_partner_contract_fields` protege campos financeiros em `partner_contracts`
-- Policy INSERT em `affiliates` restringe `role='affiliate'` e `status='pending'`
-- `search_path = public` fixado em todas as funções (is_admin_user, get_user_affiliate_id, is_affiliate_manager, close_binary_cycle, get_binary_tree, prevent_bids_on_inactive_auctions, preview_binary_cycle_closure, propagate_binary_points)
+O trigger `protect_profile_sensitive_fields` (migração `20260314215110`) **bloqueia silenciosamente** qualquer atualização do campo `bids_balance` feita por role diferente de `service_role`:
 
-### Etapa 1.1 — Hardening de Segurança (P0) ✅
-- Policy anon `Public can view limited profile info` REMOVIDA (expunha PII de 1.408 usuários)
-- Policy ALL `Admins can manage all profiles` DIVIDIDA em 4 policies separadas (SELECT/INSERT/UPDATE/DELETE) para evitar escalação de privilégio via OR de permissive policies
-- WITH CHECK em INSERT de profiles: `is_admin = false AND is_bot = false`
-- WITH CHECK em UPDATE de profiles: bloqueia `is_admin=true` para não-admins
-- Função `get_public_profiles(uuid[])` SECURITY DEFINER criada para lookup seguro de nomes em lote
-- Função `get_contract_by_referral_code(text)` SECURITY DEFINER criada para lookup público de contratos
-- Policy pública de `partner_contracts` REMOVIDA (expunha PIX, bank_details, saldos)
-- Policy `Anyone can view all bids` → `Authenticated can view all bids`
-- Policy `Anyone can view qualification counts` em fury_vault_qualifications REMOVIDA
-- Policy `Anyone can view revenue snapshots` → `Authenticated can view revenue snapshots`
-- Policy `Anyone can read system settings` → `Authenticated can read system settings`
-- Policy `Anyone can view binary cycles` → `Authenticated can view binary cycles`
-- Frontend atualizado: Auth.tsx, UserProfileCard.tsx, AffiliateReferralsList.tsx, useReferralBonuses.ts, usePartnerReferrals.ts, usePartnerContract.ts agora usam RPC em vez de queries diretas a profiles/partner_contracts
+```sql
+IF current_setting('role') != 'service_role' THEN
+    NEW.bids_balance := OLD.bids_balance;  -- reverte a mudança
+END IF;
+```
 
-### Etapa 1.2 — Correções de Vulnerabilidades Críticas (P0) ✅
-- `affiliate_referrals` INSERT: forçado `converted = false` (impede conversões falsas)
-- `bid_purchases` INSERT policy do usuário REMOVIDA (INSERT feito por edge function server-side)
-- `partner_referral_bonuses` INSERT policy do usuário REMOVIDA (INSERT feito por trigger server-side)
-- `partner_upgrades` INSERT policy do usuário REMOVIDA (INSERT feito por webhook server-side)
-- `protect_partner_contract_fields` trigger REFORÇADO: protege status, total_cap, weekly_cap, aporte_value, total_received, total_withdrawn, available_balance, total_referral_points, plan_name, referral_code, payment_status, bonus_bids_received
+O frontend usa o client Supabase (role `anon`/`authenticated`), então o UPDATE em `profiles.bids_balance` é **silenciosamente ignorado** — não dá erro, apenas não altera o valor. O lance é inserido na tabela `bids`, mas o saldo nunca diminui.
 
-### Etapa 2 — Negócio (P2) ✅
-- Trigger `handle_new_user` atualizado para criar automaticamente conta de afiliado com código único e `status='active'`
-- Configurações `affiliate_repurchase_enabled=true` e `affiliate_repurchase_commission_rate=10` inseridas em `system_settings`
+## Solução
 
-### Etapa 3 — Arquitetura (P2) ✅
-- `AdminDashboard.tsx` refatorado de ~1834 linhas para ~250 linhas (orquestrador)
-- Sub-componentes extraídos: `AuctionDetailsTab`, `AuctionManagementTab`, `UserManagementTab`, `PackagesManagementTab`
-- Tipos e helpers compartilhados em `AdminDashboard/types.ts` e `AdminDashboard/helpers.ts`
-- Queries paralelas com `Promise.all` no fetch de dados admin
+Criar uma **função RPC `SECURITY DEFINER`** no banco que desconta o saldo atomicamente, e atualizar o frontend para chamá-la ao invés de fazer UPDATE direto.
 
-### Etapa 4 — Performance (P3) ✅
-- Todas as rotas (exceto Index) convertidas para `React.lazy()` com `Suspense`
-- `QueryClient` configurado com `staleTime: 5min` e `gcTime: 10min`
+### 1. Migração SQL — criar RPC `place_bid`
 
-### Avisos Restantes (requerem ação no Dashboard Supabase)
-- Extension pg_net no schema public → mover para extensions
-- RLS policy always true (affiliate_referrals INSERT — agora restrito a converted=false)
-- OTP expiry longo → reduzir no dashboard
-- Leaked password protection desabilitada → habilitar no dashboard
-- Postgres com patches disponíveis → atualizar no dashboard
+```sql
+CREATE OR REPLACE FUNCTION public.place_bid(
+  p_auction_id uuid,
+  p_user_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_balance numeric;
+BEGIN
+  -- Verificar saldo
+  SELECT bids_balance INTO v_balance
+  FROM profiles WHERE user_id = p_user_id FOR UPDATE;
+
+  IF v_balance IS NULL OR v_balance < 1 THEN
+    RAISE EXCEPTION 'Saldo insuficiente';
+  END IF;
+
+  -- Descontar 1 lance
+  UPDATE profiles SET bids_balance = bids_balance - 1
+  WHERE user_id = p_user_id;
+
+  -- Inserir lance
+  INSERT INTO bids (auction_id, user_id, bid_amount, cost_paid)
+  VALUES (p_auction_id, p_user_id, 1, 1.00);
+END;
+$$;
+```
+
+Isso executa com `service_role` internamente, contornando o trigger de proteção.
+
+### 2. Atualizar frontend — `handleBid` em Index.tsx e Auctions.tsx
+
+Substituir o UPDATE manual + INSERT por uma única chamada RPC:
+
+```typescript
+const { error } = await supabase.rpc('place_bid', {
+  p_auction_id: auctionId,
+  p_user_id: user.id
+});
+```
+
+Remover o código de update de `profiles.bids_balance` e insert em `bids` — tudo é feito atomicamente pelo RPC.
+
+### 3. Atualizar o tipo TypeScript
+
+O arquivo `types.ts` é gerado automaticamente, mas precisamos garantir que o RPC `place_bid` seja reconhecido. Após a migração, o tipo será atualizado automaticamente.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---|---|
+| Nova migração SQL | Criar função `place_bid` |
+| `src/pages/Index.tsx` | Substituir UPDATE+INSERT por `supabase.rpc('place_bid')` |
+| `src/pages/Auctions.tsx` | Mesma substituição |
+
+## Impacto
+
+- Corrige o bug de saldo não sendo descontado
+- Torna a operação **atômica** (saldo + lance na mesma transação)
+- Previne race conditions (usa `FOR UPDATE` no saldo)
+
