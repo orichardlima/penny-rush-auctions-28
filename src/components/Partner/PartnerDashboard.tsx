@@ -439,6 +439,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 handlePlanSelectWithTerms(planId, referralCode);
               }}
               loading={submitting}
+              highlighted={plan.id === preselectedPlanId}
             />
           ))}
         </div>

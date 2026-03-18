@@ -34,7 +34,7 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   return (
     <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${
       isFeatured ? 'border-primary shadow-md scale-105' : ''
-    }`}>
+    } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       {isFeatured && (
         <div className="absolute top-0 right-0">
           <Badge className="rounded-none rounded-bl-lg bg-primary">
