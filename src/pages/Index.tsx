@@ -87,41 +87,18 @@ const Index = () => {
     setBidding(prev => new Set(prev).add(auctionId));
     
     try {
-      // 1. Descontar R$ 1,00 do saldo do usuário
-      const newBalance = currentBalance - 1;
-      
-      const { error: balanceError } = await supabase
-        .from('profiles')
-        .update({ bids_balance: newBalance })
-        .eq('user_id', user.id);
+      // Chamada atômica via RPC - desconta saldo e insere lance em uma transação
+      const { error } = await supabase.rpc('place_bid', {
+        p_auction_id: auctionId,
+        p_user_id: user.id
+      });
 
-      if (balanceError) {
-        toast(getErrorToast(balanceError));
+      if (error) {
+        toast(getErrorToast(error));
         return;
       }
 
-      // 2. Inserir o lance no banco de dados
-      const { error: bidError } = await supabase
-        .from('bids')
-        .insert({
-          auction_id: auctionId,
-          user_id: user.id,
-          bid_amount: 1,
-          cost_paid: 1.00
-        });
-
-      if (bidError) {
-        // Reverter o desconto do saldo em caso de erro
-        await supabase
-          .from('profiles')
-          .update({ bids_balance: currentBalance })
-          .eq('user_id', user.id);
-
-        toast(getErrorToast(bidError));
-        return;
-      }
-
-      // 3. Atualizar o perfil do usuário no contexto
+      // Atualizar o perfil do usuário no contexto
       await refreshProfile();
     } catch (error) {
       toast(getErrorToast(error));
