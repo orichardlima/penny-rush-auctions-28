@@ -10,6 +10,7 @@ interface PartnerPlanCardProps {
   onSelect: (planId: string) => void;
   loading?: boolean;
   featured?: boolean;
+  highlighted?: boolean;
 }
 
 export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({ 
