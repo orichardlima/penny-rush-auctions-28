@@ -6,27 +6,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    console.log('=== ORDER PIX PAYMENT START ===')
+    console.log('=== ORDER PIX PAYMENT START (ASAAS) ===')
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
 
-    if (!mercadoPagoAccessToken) {
+    if (!asaasApiKey) {
       return new Response(
-        JSON.stringify({ error: 'Mercado Pago não configurado' }),
+        JSON.stringify({ error: 'Asaas não configurado' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { orderId, userId, userEmail, userName } = await req.json()
+    const { orderId, userId, userEmail, userName, userCpf } = await req.json()
 
     console.log('📦 Order payment request:', { orderId, userId })
 
@@ -40,7 +42,6 @@ serve(async (req) => {
       .single()
 
     if (orderError || !order) {
-      console.error('❌ Order not found or not awaiting payment:', orderError)
       return new Response(
         JSON.stringify({ error: 'Pedido não encontrado ou já pago' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -49,64 +50,101 @@ serve(async (req) => {
 
     console.log('✅ Order found:', order.id, order.product_name, order.final_price)
 
-    // 2. Criar pagamento no Mercado Pago
-    const paymentPayload = {
-      transaction_amount: Number(order.final_price),
-      description: `Pagamento do produto: ${order.product_name}`,
-      payment_method_id: "pix",
-      payer: {
-        email: userEmail,
-        first_name: userName || 'Usuario',
-        last_name: ''
-      },
-      external_reference: `order:${order.id}`,
-      notification_url: `${supabaseUrl}/functions/v1/mercado-pago-webhook`
+    // 2. Buscar CPF do perfil se não enviado
+    let cpf = userCpf
+    if (!cpf) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('cpf')
+        .eq('user_id', userId)
+        .single()
+      cpf = profile?.cpf
     }
 
-    console.log('💳 Creating Mercado Pago payment for order:', paymentPayload)
+    if (!cpf) {
+      return new Response(
+        JSON.stringify({ error: 'CPF é obrigatório para gerar pagamento PIX' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-    const idempotencyKey = `order-${order.id}-${Date.now()}`
-
-    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${mercadoPagoAccessToken}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey
-      },
-      body: JSON.stringify(paymentPayload)
+    // 3. Buscar/criar customer no Asaas
+    const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(userEmail)}`, {
+      headers: { 'access_token': asaasApiKey }
     })
+    const searchData = await searchRes.json()
+    
+    let customerId: string
+    if (searchData.data && searchData.data.length > 0) {
+      customerId = searchData.data[0].id
+    } else {
+      const createRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
+        method: 'POST',
+        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName || 'Usuario',
+          email: userEmail,
+          cpfCnpj: cpf.replace(/\D/g, '')
+        })
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok) {
+        console.error('❌ Failed to create customer:', createData)
+        return new Response(
+          JSON.stringify({ error: 'Erro ao criar cliente no Asaas' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      customerId = createData.id
+    }
 
-    const mpData = await mpResponse.json()
+    // 4. Criar cobrança PIX
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 1)
 
-    if (!mpResponse.ok) {
-      console.error('❌ Mercado Pago API error:', mpData)
+    const chargeRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
+      method: 'POST',
+      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer: customerId,
+        billingType: 'PIX',
+        value: Number(order.final_price),
+        dueDate: dueDate.toISOString().split('T')[0],
+        description: `Pagamento do produto: ${order.product_name}`,
+        externalReference: `order:${order.id}`
+      })
+    })
+    const chargeData = await chargeRes.json()
+
+    if (!chargeRes.ok) {
+      console.error('❌ Asaas charge error:', chargeData)
       return new Response(
         JSON.stringify({ error: 'Erro ao gerar pagamento PIX' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Mercado Pago payment created:', mpData.id)
+    console.log('✅ Asaas charge created:', chargeData.id)
 
-    // 3. Salvar payment_id no pedido
-    const { error: updateError } = await supabase
+    // 5. Obter QR Code
+    const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${chargeData.id}/pixQrCode`, {
+      headers: { 'access_token': asaasApiKey }
+    })
+    const qrData = await qrRes.json()
+
+    // 6. Salvar payment_id no pedido
+    await supabase
       .from('orders')
-      .update({ payment_id: mpData.id.toString() })
+      .update({ payment_id: chargeData.id })
       .eq('id', order.id)
 
-    if (updateError) {
-      console.error('❌ Order update failed:', updateError)
-    }
-
-    // 4. Retornar dados PIX
     const response = {
       orderId: order.id,
-      paymentId: mpData.id,
-      qrCode: mpData.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64: mpData.point_of_interaction?.transaction_data?.qr_code_base64,
-      pixCopyPaste: mpData.point_of_interaction?.transaction_data?.qr_code,
-      status: mpData.status
+      paymentId: chargeData.id,
+      qrCode: qrData.payload,
+      qrCodeBase64: qrData.encodedImage,
+      pixCopyPaste: qrData.payload,
+      status: chargeData.status
     }
 
     console.log('✅ Order payment response ready')

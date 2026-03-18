@@ -6,44 +6,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
+
 interface PartnerUpgradePaymentRequest {
   contractId: string
   newPlanId: string
   userId: string
   userEmail: string
   userName: string
+  userCpf: string
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    console.log('=== PARTNER UPGRADE PAYMENT FUNCTION START ===')
+    console.log('=== PARTNER UPGRADE PAYMENT FUNCTION START (ASAAS) ===')
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
 
-    if (!mercadoPagoAccessToken) {
-      console.error('❌ MERCADO_PAGO_ACCESS_TOKEN não configurado')
+    if (!asaasApiKey) {
       return new Response(
-        JSON.stringify({ error: 'Mercado Pago não configurado' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'Asaas não configurado' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Environment variables OK')
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { contractId, newPlanId, userId, userEmail, userName }: PartnerUpgradePaymentRequest = await req.json()
+    const { contractId, newPlanId, userId, userEmail, userName, userCpf }: PartnerUpgradePaymentRequest = await req.json()
 
-    console.log('📦 Request data:', { contractId, newPlanId, userId, userEmail, userName })
+    if (!userCpf) {
+      return new Response(
+        JSON.stringify({ error: 'CPF é obrigatório para gerar pagamento PIX' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // 1. Buscar contrato atual
     const { data: contract, error: contractError } = await supabase
@@ -54,40 +55,26 @@ serve(async (req) => {
       .single()
 
     if (contractError || !contract) {
-      console.error('❌ Contract not found:', contractError)
       return new Response(
         JSON.stringify({ error: 'Contrato não encontrado' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Contract found:', contract.id, 'Plan:', contract.plan_name)
-
-    // 2. Validar contrato está ativo
+    // 2. Validar contrato ativo
     if (contract.status !== 'ACTIVE') {
-      console.error('❌ Contract not active:', contract.status)
       return new Response(
         JSON.stringify({ error: 'Só é possível fazer upgrade em contratos ativos' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // 3. Validar progresso < 80%
     const progressPercentage = (contract.total_received / contract.total_cap) * 100
     if (progressPercentage >= 80) {
-      console.error('❌ Contract progress >= 80%:', progressPercentage)
       return new Response(
         JSON.stringify({ error: 'Você já atingiu mais de 80% do teto atual. Aguarde o encerramento.' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -100,87 +87,90 @@ serve(async (req) => {
       .single()
 
     if (planError || !newPlan) {
-      console.error('❌ New plan not found:', planError)
       return new Response(
         JSON.stringify({ error: 'Plano não encontrado ou inativo' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    console.log('✅ New plan found:', newPlan.name, newPlan.aporte_value)
 
     // 5. Validar plano superior
     if (newPlan.aporte_value <= contract.aporte_value) {
-      console.error('❌ New plan not superior:', newPlan.aporte_value, '<=', contract.aporte_value)
       return new Response(
         JSON.stringify({ error: 'Só é possível fazer upgrade para um plano superior' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 6. Calcular diferença a pagar
     const differenceToPay = newPlan.aporte_value - contract.aporte_value
     console.log('💰 Difference to pay:', differenceToPay)
 
-    // 7. Criar pagamento no Mercado Pago
-    const externalReference = `upgrade:${contractId}:${newPlanId}`
-    
-    const paymentPayload = {
-      transaction_amount: differenceToPay,
-      description: `Upgrade de Parceria: ${contract.plan_name} → ${newPlan.display_name}`,
-      payment_method_id: "pix",
-      payer: {
-        email: userEmail,
-        first_name: userName || 'Usuario',
-        last_name: ''
-      },
-      external_reference: externalReference,
-      notification_url: `${supabaseUrl}/functions/v1/partner-payment-webhook`
+    // 6. Buscar/criar customer no Asaas
+    const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(userEmail)}`, {
+      headers: { 'access_token': asaasApiKey }
+    })
+    const searchData = await searchRes.json()
+
+    let customerId: string
+    if (searchData.data && searchData.data.length > 0) {
+      customerId = searchData.data[0].id
+    } else {
+      const createRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
+        method: 'POST',
+        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName || 'Usuario',
+          email: userEmail,
+          cpfCnpj: userCpf.replace(/\D/g, '')
+        })
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok) {
+        return new Response(
+          JSON.stringify({ error: 'Erro ao criar cliente no Asaas' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      customerId = createData.id
     }
 
-    console.log('💳 Creating Mercado Pago payment:', paymentPayload)
+    // 7. Criar cobrança PIX
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 1)
+    const externalReference = `upgrade:${contractId}:${newPlanId}`
 
-    // Gerar chave de idempotência única
-    const idempotencyKey = `partner-upgrade-${contractId}-${newPlanId}-${Date.now()}`
-
-    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+    const chargeRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${mercadoPagoAccessToken}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey
-      },
-      body: JSON.stringify(paymentPayload)
+      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer: customerId,
+        billingType: 'PIX',
+        value: differenceToPay,
+        dueDate: dueDate.toISOString().split('T')[0],
+        description: `Upgrade de Parceria: ${contract.plan_name} → ${newPlan.display_name}`,
+        externalReference: externalReference
+      })
     })
+    const chargeData = await chargeRes.json()
 
-    const mpData = await mpResponse.json()
-
-    if (!mpResponse.ok) {
-      console.error('❌ Mercado Pago API error:', mpData)
+    if (!chargeRes.ok) {
       return new Response(
         JSON.stringify({ error: 'Erro ao gerar pagamento PIX' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Mercado Pago payment created:', mpData.id)
+    // 8. Obter QR Code
+    const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${chargeData.id}/pixQrCode`, {
+      headers: { 'access_token': asaasApiKey }
+    })
+    const qrData = await qrRes.json()
 
-    // 8. Retornar dados para o frontend
     const response = {
-      paymentId: mpData.id,
-      qrCode: mpData.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64: mpData.point_of_interaction?.transaction_data?.qr_code_base64,
-      pixCopyPaste: mpData.point_of_interaction?.transaction_data?.qr_code,
-      status: mpData.status,
+      paymentId: chargeData.id,
+      qrCode: qrData.payload,
+      qrCodeBase64: qrData.encodedImage,
+      pixCopyPaste: qrData.payload,
+      status: chargeData.status,
       contractId: contractId,
       previousPlanName: contract.plan_name,
       newPlanName: newPlan.display_name,
@@ -190,24 +180,17 @@ serve(async (req) => {
       newWeeklyCap: newPlan.weekly_cap
     }
 
-    console.log('✅ Partner upgrade payment response ready:', response)
-    console.log('=== PARTNER UPGRADE PAYMENT FUNCTION END ===')
-
+    console.log('✅ Partner upgrade payment response ready')
     return new Response(
       JSON.stringify(response),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     console.error('❌ Function error:', error)
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor', details: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
