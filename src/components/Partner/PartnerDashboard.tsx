@@ -169,24 +169,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     refreshData();
   };
 
-  // Auto-criar contrato se tem plano pré-selecionado e não tem contrato
-  React.useEffect(() => {
-    if (!loading && !contract && preselectedPlanId && plans.length > 0 && !creatingContract && !paymentModalOpen && !contractTermsOpen) {
-      const selectedPlan = plans.find(p => p.id === preselectedPlanId);
-      if (selectedPlan) {
-        // Prioridade: campo manual > URL > localStorage
-        const referralCode = getEffectiveReferralCode();
-        
-        console.log('[PartnerDashboard] Abrindo termos para plano pré-selecionado:', {
-          planId: preselectedPlanId,
-          planName: selectedPlan.name,
-          referralCode: referralCode || 'NENHUM',
-        });
-        
-        handlePlanSelectWithTerms(preselectedPlanId, referralCode);
-      }
-    }
-  }, [loading, contract, preselectedPlanId, plans, creatingContract, paymentModalOpen]);
+  // Scroll para o plano pré-selecionado (apenas destaque visual, sem auto-abrir contrato)
   
   const getDayName = (day: number) => {
     const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
