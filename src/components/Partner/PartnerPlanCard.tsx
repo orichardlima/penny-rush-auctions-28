@@ -10,13 +10,15 @@ interface PartnerPlanCardProps {
   onSelect: (planId: string) => void;
   loading?: boolean;
   featured?: boolean;
+  highlighted?: boolean;
 }
 
 export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({ 
   plan, 
   onSelect, 
   loading = false,
-  featured = false 
+  featured = false,
+  highlighted = false 
 }) => {
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -32,7 +34,7 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   return (
     <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${
       isFeatured ? 'border-primary shadow-md scale-105' : ''
-    }`}>
+    } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       {isFeatured && (
         <div className="absolute top-0 right-0">
           <Badge className="rounded-none rounded-bl-lg bg-primary">
