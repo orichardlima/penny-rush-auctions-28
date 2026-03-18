@@ -414,7 +414,8 @@ export const usePartnerContract = () => {
           newPlanId,
           userId: profile.user_id,
           userEmail,
-          userName
+          userName,
+          userCpf: profile.cpf || ''
         }
       });
 

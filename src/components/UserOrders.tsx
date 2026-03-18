@@ -101,7 +101,8 @@ export const UserOrders = () => {
           orderId: order.id,
           userId: profile.user_id,
           userEmail: profile.email,
-          userName: profile.full_name
+          userName: profile.full_name,
+          userCpf: profile.cpf || ''
         }
       });
 
