@@ -303,6 +303,7 @@ export const usePartnerContract = () => {
           userId: profile.user_id,
           userEmail,
           userName,
+          userCpf: profile.cpf || '',
           referralCode: referralCode || undefined
         }
       });
@@ -413,7 +414,8 @@ export const usePartnerContract = () => {
           newPlanId,
           userId: profile.user_id,
           userEmail,
-          userName
+          userName,
+          userCpf: profile.cpf || ''
         }
       });
 

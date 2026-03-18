@@ -51,13 +51,14 @@ export const usePurchaseProcessor = () => {
       // 2. Capturar código de referral se existir
       const referralCode = getReferralCode();
 
-      // 3. Criar pagamento via Mercado Pago
-      const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('mercado-pago-payment', {
+      // 3. Criar pagamento via Asaas
+      const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('asaas-payment', {
         body: {
           packageId,
           userId: profile.user_id,
           userEmail: profile.email,
           userName: profile.full_name,
+          userCpf: profile.cpf || '',
           referralCode: referralCode || undefined
         }
       });

@@ -6,46 +6,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
+
 interface PartnerPaymentRequest {
   planId: string
   userId: string
   userEmail: string
   userName: string
+  userCpf: string
   referralCode?: string
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    console.log('=== PARTNER PAYMENT FUNCTION START ===')
+    console.log('=== PARTNER PAYMENT FUNCTION START (ASAAS) ===')
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
 
-    if (!mercadoPagoAccessToken) {
-      console.error('❌ MERCADO_PAGO_ACCESS_TOKEN não configurado')
+    if (!asaasApiKey) {
       return new Response(
-        JSON.stringify({ error: 'Mercado Pago não configurado' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'Asaas não configurado' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Environment variables OK')
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { planId, userId, userEmail, userName, referralCode }: PartnerPaymentRequest = await req.json()
+    const { planId, userId, userEmail, userName, userCpf, referralCode }: PartnerPaymentRequest = await req.json()
 
     console.log('📦 Request data:', { planId, userId, userEmail, userName, referralCode })
 
-    // 1. Buscar dados do plano de parceiro
+    if (!userCpf) {
+      return new Response(
+        JSON.stringify({ error: 'CPF é obrigatório para gerar pagamento PIX' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 1. Buscar dados do plano
     const { data: planData, error: planError } = await supabase
       .from('partner_plans')
       .select('*')
@@ -54,19 +57,15 @@ serve(async (req) => {
       .single()
 
     if (planError || !planData) {
-      console.error('❌ Plan not found:', planError)
       return new Response(
         JSON.stringify({ error: 'Plano não encontrado ou inativo' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     console.log('✅ Plan found:', planData.name, planData.aporte_value)
 
-    // 2. Verificar se usuário já tem contrato ativo
+    // 2. Verificar contrato ativo existente
     const { data: existingContract } = await supabase
       .from('partner_contracts')
       .select('id, status')
@@ -75,17 +74,13 @@ serve(async (req) => {
       .maybeSingle()
 
     if (existingContract) {
-      console.log('❌ User already has active contract:', existingContract.id)
       return new Response(
         JSON.stringify({ error: 'Você já possui um contrato ativo' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 3. Limpar intents expirados do mesmo usuário
+    // 3. Limpar intents expirados
     await supabase
       .from('partner_payment_intents')
       .delete()
@@ -93,39 +88,26 @@ serve(async (req) => {
       .eq('payment_status', 'pending')
       .lt('expires_at', new Date().toISOString())
 
-    console.log('🧹 Cleaned up expired intents')
-
-    // 4. Buscar patrocinador se houver código de referral
+    // 4. Buscar patrocinador
     let referredByUserId: string | null = null
     
     if (referralCode) {
       const normalizedCode = referralCode.trim().toUpperCase()
-      console.log('🔍 Buscando referrer com código:', normalizedCode)
-      
-      const { data: referrerContract, error: referrerError } = await supabase
+      const { data: referrerContract } = await supabase
         .from('partner_contracts')
         .select('id, user_id, referral_code')
         .eq('referral_code', normalizedCode)
         .eq('status', 'ACTIVE')
         .maybeSingle()
 
-      if (referrerError) {
-        console.warn('⚠️ Erro ao buscar referrer:', referrerError)
-      } else if (referrerContract) {
-        if (referrerContract.user_id !== userId) {
-          referredByUserId = referrerContract.user_id
-          console.log('✅ Referrer encontrado:', referredByUserId)
-        } else {
-          console.warn('⚠️ Usuário tentando usar próprio código de referral')
-        }
-      } else {
-        console.warn('⚠️ Nenhum contrato ativo encontrado com código:', normalizedCode)
+      if (referrerContract && referrerContract.user_id !== userId) {
+        referredByUserId = referrerContract.user_id
+        console.log('✅ Referrer encontrado:', referredByUserId)
       }
     }
 
-    // 4b. Fallback: herdar referral de intent ou contrato anterior
+    // 4b. Fallback: herdar referral
     if (!referredByUserId) {
-      // Tentar herdar de intent anterior
       const { data: prevIntent } = await supabase
         .from('partner_payment_intents')
         .select('referred_by_user_id')
@@ -137,9 +119,7 @@ serve(async (req) => {
 
       if (prevIntent?.referred_by_user_id) {
         referredByUserId = prevIntent.referred_by_user_id
-        console.log('✅ Referral herdado de intent anterior:', referredByUserId)
       } else {
-        // Tentar herdar de contrato anterior (SUSPENDED/CLOSED)
         const { data: prevContract } = await supabase
           .from('partner_contracts')
           .select('referred_by_user_id')
@@ -152,12 +132,11 @@ serve(async (req) => {
 
         if (prevContract?.referred_by_user_id) {
           referredByUserId = prevContract.referred_by_user_id
-          console.log('✅ Referral herdado de contrato anterior:', referredByUserId)
         }
       }
     }
 
-    // 5. Criar payment intent (NÃO contrato)
+    // 5. Criar payment intent
     const { data: intentData, error: intentError } = await supabase
       .from('partner_payment_intents')
       .insert({
@@ -179,101 +158,103 @@ serve(async (req) => {
       console.error('❌ Payment intent creation failed:', intentError)
       return new Response(
         JSON.stringify({ error: 'Erro ao criar intenção de pagamento' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     console.log('✅ Payment intent created:', intentData.id)
 
-    // 6. Criar pagamento no Mercado Pago
-    const paymentPayload = {
-      transaction_amount: planData.aporte_value,
-      description: `Parceria ${planData.display_name} - Aporte`,
-      payment_method_id: "pix",
-      payer: {
-        email: userEmail,
-        first_name: userName || 'Usuario',
-        last_name: ''
-      },
-      external_reference: intentData.id,
-      notification_url: `${supabaseUrl}/functions/v1/partner-payment-webhook`
+    // 6. Buscar/criar customer no Asaas
+    const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(userEmail)}`, {
+      headers: { 'access_token': asaasApiKey }
+    })
+    const searchData = await searchRes.json()
+
+    let customerId: string
+    if (searchData.data && searchData.data.length > 0) {
+      customerId = searchData.data[0].id
+    } else {
+      const createRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
+        method: 'POST',
+        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName || 'Usuario',
+          email: userEmail,
+          cpfCnpj: userCpf.replace(/\D/g, '')
+        })
+      })
+      const createData = await createRes.json()
+      if (!createRes.ok) {
+        await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)
+        return new Response(
+          JSON.stringify({ error: 'Erro ao criar cliente no Asaas' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      customerId = createData.id
     }
 
-    console.log('💳 Creating Mercado Pago payment:', paymentPayload)
+    // 7. Criar cobrança PIX
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 1)
 
-    const idempotencyKey = `partner-intent-${intentData.id}-${Date.now()}`
-
-    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+    const chargeRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${mercadoPagoAccessToken}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey
-      },
-      body: JSON.stringify(paymentPayload)
+      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer: customerId,
+        billingType: 'PIX',
+        value: planData.aporte_value,
+        dueDate: dueDate.toISOString().split('T')[0],
+        description: `Parceria ${planData.display_name} - Aporte`,
+        externalReference: intentData.id
+      })
     })
+    const chargeData = await chargeRes.json()
 
-    const mpData = await mpResponse.json()
-
-    if (!mpResponse.ok) {
-      console.error('❌ Mercado Pago API error:', mpData)
-      // Deletar intent se falhou
-      await supabase
-        .from('partner_payment_intents')
-        .delete()
-        .eq('id', intentData.id)
-      
+    if (!chargeRes.ok) {
+      await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)
       return new Response(
         JSON.stringify({ error: 'Erro ao gerar pagamento PIX' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Mercado Pago payment created:', mpData.id)
+    // 8. Obter QR Code
+    const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${chargeData.id}/pixQrCode`, {
+      headers: { 'access_token': asaasApiKey }
+    })
+    const qrData = await qrRes.json()
 
-    // 7. Atualizar intent com dados do pagamento
+    // 9. Atualizar intent com payment_id
     await supabase
       .from('partner_payment_intents')
-      .update({ payment_id: mpData.id.toString() })
+      .update({ payment_id: chargeData.id })
       .eq('id', intentData.id)
 
-    // 8. Retornar dados para o frontend
     const response = {
       intentId: intentData.id,
-      paymentId: mpData.id,
-      qrCode: mpData.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64: mpData.point_of_interaction?.transaction_data?.qr_code_base64,
-      pixCopyPaste: mpData.point_of_interaction?.transaction_data?.qr_code,
-      status: mpData.status,
+      paymentId: chargeData.id,
+      qrCode: qrData.payload,
+      qrCodeBase64: qrData.encodedImage,
+      pixCopyPaste: qrData.payload,
+      status: chargeData.status,
       planName: planData.display_name,
       aporteValue: planData.aporte_value,
       bonusBids: planData.bonus_bids || 0
     }
 
-    console.log('✅ Partner payment response ready:', response)
-    console.log('=== PARTNER PAYMENT FUNCTION END ===')
-
+    console.log('✅ Partner payment response ready')
     return new Response(
       JSON.stringify(response),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     console.error('❌ Function error:', error)
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor', details: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
