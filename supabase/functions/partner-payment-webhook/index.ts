@@ -184,8 +184,8 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
     .single()
 
   if (!contract) {
-    console.error('❌ Neither intent nor legacy contract found for payment:', paymentId)
-    return new Response('Not found', { status: 404, headers: corsHeaders })
+    console.log('ℹ️ Payment not related to partner contracts, ignoring:', paymentId)
+    return new Response('OK', { status: 200, headers: corsHeaders })
   }
 
   if (isApproved && contract.payment_status !== 'completed') {
