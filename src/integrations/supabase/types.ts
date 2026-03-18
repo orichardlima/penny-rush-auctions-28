@@ -2618,6 +2618,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      place_bid: {
+        Args: { p_auction_id: string; p_user_id: string }
+        Returns: undefined
+      }
       position_partner_binary: {
         Args: {
           p_contract_id: string
