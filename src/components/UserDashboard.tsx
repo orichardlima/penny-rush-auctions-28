@@ -129,6 +129,13 @@ const UserDashboard = () => {
         .in('status', ['ACTIVE', 'PENDING'])
         .maybeSingle();
 
+      // Buscar contagem de vitórias reais via tabela orders
+      const { count: ordersCount } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('winner_id', profile.user_id)
+        .neq('status', 'cancelled');
+
       setIsAffiliate(!!affiliateData);
       setHasPartnerContract(!!partnerData);
       setBids(bidsData || []);
