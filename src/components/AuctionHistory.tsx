@@ -68,34 +68,46 @@ export const AuctionHistory = () => {
     console.log('🔍 [AUCTION-HISTORY] Buscando lances para user_id:', profile.user_id);
 
     try {
-      // Buscar apenas os lances do usuário logado com informações dos leilões
-      const { data: bidsData, error } = await supabase
-        .from('bids')
-        .select(`
-          auction_id,
-          cost_paid,
-          created_at,
-          auctions (
-            id,
-            title,
-            status,
-            current_price,
-            winner_id
-          )
-        `)
-        .eq('user_id', profile.user_id)
-        .order('created_at', { ascending: false });
+      // Buscar lances do usuário E pedidos do usuário em paralelo
+      const [bidsResult, ordersResult] = await Promise.all([
+        supabase
+          .from('bids')
+          .select(`
+            auction_id,
+            cost_paid,
+            created_at,
+            auctions (
+              id,
+              title,
+              status,
+              current_price,
+              winner_id
+            )
+          `)
+          .eq('user_id', profile.user_id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('orders')
+          .select('auction_id')
+          .eq('winner_id', profile.user_id)
+          .neq('status', 'cancelled')
+      ]);
 
-      if (error) {
-        console.error('Error fetching auction history:', error);
+      if (bidsResult.error) {
+        console.error('Error fetching auction history:', bidsResult.error);
         return;
       }
 
-      console.log('📊 [AUCTION-HISTORY] Dados recebidos:', bidsData?.length, 'lances');
-      console.log('📊 [AUCTION-HISTORY] Dados completos:', bidsData);
+      console.log('📊 [AUCTION-HISTORY] Dados recebidos:', bidsResult.data?.length, 'lances');
 
-      if (bidsData) {
-        processAuctionData(bidsData);
+      // Criar Set de auction_ids onde o usuário tem pedido (fonte de verdade)
+      const wonAuctionIds = new Set(
+        (ordersResult.data || []).map(o => o.auction_id)
+      );
+      console.log('🏆 [AUCTION-HISTORY] Leilões ganhos via orders:', wonAuctionIds.size);
+
+      if (bidsResult.data) {
+        processAuctionData(bidsResult.data, wonAuctionIds);
       }
     } catch (error) {
       console.error('Error fetching auction history:', error);
