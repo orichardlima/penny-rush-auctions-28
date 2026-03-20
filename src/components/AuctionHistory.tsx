@@ -116,7 +116,7 @@ export const AuctionHistory = () => {
     }
   };
 
-  const processAuctionData = (bidsData: any[]) => {
+  const processAuctionData = (bidsData: any[], wonAuctionIds: Set<string>) => {
     console.log('🔄 [AUCTION-HISTORY] Processando dados dos lances...');
     
     // Agrupar lances por leilão
