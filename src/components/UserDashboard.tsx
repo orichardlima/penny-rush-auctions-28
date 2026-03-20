@@ -75,6 +75,7 @@ const UserDashboard = () => {
   const [isAffiliate, setIsAffiliate] = useState<boolean | null>(null);
   const [hasPartnerContract, setHasPartnerContract] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [winsCount, setWinsCount] = useState(0);
 
   useEffect(() => {
     if (profile?.user_id) {
@@ -128,8 +129,16 @@ const UserDashboard = () => {
         .in('status', ['ACTIVE', 'PENDING'])
         .maybeSingle();
 
+      // Buscar contagem de vitórias reais via tabela orders
+      const { count: ordersCount } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('winner_id', profile.user_id)
+        .neq('status', 'cancelled');
+
       setIsAffiliate(!!affiliateData);
       setHasPartnerContract(!!partnerData);
+      setWinsCount(ordersCount || 0);
       setBids(bidsData || []);
       setPurchases(purchasesData || []);
     } catch (error) {
@@ -241,7 +250,7 @@ const UserDashboard = () => {
               <Trophy className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{winsCount}</div>
               <p className="text-xs text-muted-foreground">leilões ganhos</p>
             </CardContent>
           </Card>
