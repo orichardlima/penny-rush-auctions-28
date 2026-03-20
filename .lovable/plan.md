@@ -1,35 +1,46 @@
 
 
-# Fix: Creditar 50 lances do Jose Alcanjo + Análise do erro Asaas
+# Fix: Leilões ganhos não aparecem para o usuário
 
-## Diagnóstico do erro no screenshot
+## Diagnóstico
 
-O erro 500 no webhook `partner-payment-webhook` ocorreu em **2026-03-19 17:58:52** -- isso foi **antes** da nossa correção de constraint ser aplicada. Ou seja, foi exatamente o bug que já corrigimos (unique constraint em `partner_referral_bonuses`).
+O usuário **Paulo Mota** arrematou o leilão "Lenovo IdeaPad Slim 3i" e tem um pedido com status `paid` na tabela `orders`. Porém, o `winner_id` do leilão foi alterado para outro usuário (Valdir Vargas), provavelmente via painel admin.
 
-Após a correção, o contrato do Jose Alcanjo foi ativado com sucesso via Admin (18:00:48), e todos os bônus de referral foram inseridos corretamente (incluindo Fast Start). **O webhook do Asaas não precisa de alteração** -- o erro foi pontual e já está resolvido.
+O componente `AuctionHistory` determina vitórias comparando `auctions.winner_id` com o `user_id` do usuário logado. Como o `winner_id` foi alterado, Paulo não vê mais sua vitória.
 
-## Problema pendente: 50 lances ainda não creditados
+**Tabela `orders` é a fonte de verdade** -- se existe um pedido `paid` para o usuário, ele ganhou aquele leilão.
 
-A migration que criamos (`bids_balance + 50`) não teve efeito porque o trigger `protect_profile_sensitive_fields` bloqueia alterações em `bids_balance` quando o `role` não é `service_role`. Migrations rodam como superuser (postgres), não como service_role, então o trigger reverte o valor.
+## Problemas encontrados
 
-## Correção
+1. **AuctionHistory.tsx**: Usa `auctions.winner_id` para determinar vitórias -- frágil se o winner_id mudar
+2. **UserDashboard.tsx**: Card "Vitórias" está hardcoded como `0` (linha 244) -- nunca mostra vitórias reais
+3. **Dados inconsistentes**: Leilão `82b0a664` tem `winner_id` apontando para Valdir Vargas, mas Paulo Mota tem um pedido `paid`
 
-Nova migration que temporariamente desabilita a proteção para aplicar o crédito:
+## Plano de correção
 
+### 1. Corrigir AuctionHistory.tsx
+- Além de verificar `auctions.winner_id`, também buscar na tabela `orders` os leilões que o usuário ganhou (por `winner_id` na orders)
+- Cruzar os dados: se existe um order com `winner_id = user_id`, marcar como "Ganho" independente do `auctions.winner_id`
+
+### 2. Corrigir card "Vitórias" no UserDashboard.tsx
+- Buscar contagem real de pedidos do usuário via `orders` table (excluindo cancelled)
+- Substituir o `0` hardcoded pelo valor real
+
+### 3. Correção de dados (migration)
+- Verificar se o leilão precisa ter o winner_id corrigido, ou se a alteração foi intencional
+- Como não há audit log da mudança, vamos manter os dados como estão e confiar na tabela `orders` como fonte de verdade
+
+## Detalhes técnicos
+
+**AuctionHistory.tsx** -- No `processAuctionData`, além de `bid.auctions.winner_id === profile.user_id`, adicionar consulta prévia:
 ```sql
--- Temporariamente permitir atualização do bids_balance
-SET LOCAL app.allow_sensitive_profile_update = 'true';
-
-UPDATE profiles 
-SET bids_balance = bids_balance + 50,
-    updated_at = now()
-WHERE user_id = '6684eb32-8e9b-4539-9792-db3bbbc5f1e8'
-  AND bids_balance = 0;
+SELECT auction_id FROM orders WHERE winner_id = user_id
 ```
+Usar esse Set de `auction_id`s para determinar vitórias.
 
-A variável `app.allow_sensitive_profile_update` é verificada pelo trigger e permite o update quando está como `'true'`.
-
-### Nenhuma alteração de frontend ou edge function necessária
-
-O webhook já está funcionando corretamente após a correção anterior do constraint.
+**UserDashboard.tsx** -- No `fetchUserData`, adicionar query:
+```sql
+SELECT count(*) FROM orders WHERE winner_id = user_id AND status != 'cancelled'
+```
+Usar resultado no card "Vitórias".
 
