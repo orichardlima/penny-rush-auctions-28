@@ -75,6 +75,7 @@ const UserDashboard = () => {
   const [isAffiliate, setIsAffiliate] = useState<boolean | null>(null);
   const [hasPartnerContract, setHasPartnerContract] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [winsCount, setWinsCount] = useState(0);
 
   useEffect(() => {
     if (profile?.user_id) {
