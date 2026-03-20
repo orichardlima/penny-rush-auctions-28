@@ -250,7 +250,7 @@ const UserDashboard = () => {
               <Trophy className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{winsCount}</div>
               <p className="text-xs text-muted-foreground">leilões ganhos</p>
             </CardContent>
           </Card>
