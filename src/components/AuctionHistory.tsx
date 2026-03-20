@@ -139,7 +139,8 @@ export const AuctionHistory = () => {
     // Processar cada leilão
     const participations: AuctionParticipation[] = Object.values(auctionGroups).map((group: any) => {
       const totalInvested = group.bids.reduce((sum: number, bid: any) => sum + bid.cost_paid, 0);
-      const isWinner = group.auction_winner_id === profile?.user_id;
+      // Usar orders como fonte de verdade para vitórias (fallback para auctions.winner_id)
+      const isWinner = wonAuctionIds.has(group.auction_id) || group.auction_winner_id === profile?.user_id;
       const lastBidDate = group.bids[0]?.created_at; // Já ordenado por data desc
 
       console.log(`📈 [AUCTION-HISTORY] Leilão: ${group.auction_title} - ${group.bids.length} lances - R$ ${totalInvested.toFixed(2)}`);
