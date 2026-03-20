@@ -138,6 +138,7 @@ const UserDashboard = () => {
 
       setIsAffiliate(!!affiliateData);
       setHasPartnerContract(!!partnerData);
+      setWinsCount(ordersCount || 0);
       setBids(bidsData || []);
       setPurchases(purchasesData || []);
     } catch (error) {
