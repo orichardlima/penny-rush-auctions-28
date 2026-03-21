@@ -1,46 +1,45 @@
 
 
-# Fix: Leilões ganhos não aparecem para o usuário
+# Restringir programa de afiliados para usuários com plano Legend ativo
 
-## Diagnóstico
+## Situação atual
 
-O usuário **Paulo Mota** arrematou o leilão "Lenovo IdeaPad Slim 3i" e tem um pedido com status `paid` na tabela `orders`. Porém, o `winner_id` do leilão foi alterado para outro usuário (Valdir Vargas), provavelmente via painel admin.
+- Todo usuário recebe uma conta de afiliado automaticamente via trigger `handle_new_user`
+- O `AffiliateDashboard` exibe um botão "Ativar Minha Conta de Afiliado" caso não exista registro
+- Não há nenhuma verificação de plano de parceiro
 
-O componente `AuctionHistory` determina vitórias comparando `auctions.winner_id` com o `user_id` do usuário logado. Como o `winner_id` foi alterado, Paulo não vê mais sua vitória.
+## O que muda
 
-**Tabela `orders` é a fonte de verdade** -- se existe um pedido `paid` para o usuário, ele ganhou aquele leilão.
+Somente usuários com um contrato de parceiro **Legend** (`plan_name = 'Legend'`) com status **ACTIVE** poderão ter conta de afiliado. Os demais verão uma mensagem informando que precisam do plano Legend.
 
-## Problemas encontrados
+## Mudanças
 
-1. **AuctionHistory.tsx**: Usa `auctions.winner_id` para determinar vitórias -- frágil se o winner_id mudar
-2. **UserDashboard.tsx**: Card "Vitórias" está hardcoded como `0` (linha 244) -- nunca mostra vitórias reais
-3. **Dados inconsistentes**: Leilão `82b0a664` tem `winner_id` apontando para Valdir Vargas, mas Paulo Mota tem um pedido `paid`
+### 1. Remover criação automática de afiliado no trigger `handle_new_user`
 
-## Plano de correção
+**Migration SQL**: Recriar a função `handle_new_user` removendo o bloco que insere na tabela `affiliates` (linhas 211-220 da versão atual). O afiliado será criado apenas sob demanda quando o usuário tiver plano Legend.
 
-### 1. Corrigir AuctionHistory.tsx
-- Além de verificar `auctions.winner_id`, também buscar na tabela `orders` os leilões que o usuário ganhou (por `winner_id` na orders)
-- Cruzar os dados: se existe um order com `winner_id = user_id`, marcar como "Ganho" independente do `auctions.winner_id`
+### 2. Atualizar `AffiliateDashboard.tsx` -- tela de onboarding
 
-### 2. Corrigir card "Vitórias" no UserDashboard.tsx
-- Buscar contagem real de pedidos do usuário via `orders` table (excluindo cancelled)
-- Substituir o `0` hardcoded pelo valor real
+Quando `affiliateData` é `null`:
+- Verificar se o usuário possui `partner_contracts` com `plan_name = 'Legend'` e `status = 'ACTIVE'`
+- **Se sim**: mostrar o botão "Ativar Conta de Afiliado" (fluxo atual)
+- **Se não**: mostrar mensagem informativa dizendo que o programa de afiliados é exclusivo para parceiros Legend, com botão para ir à página `/minha-parceria`
 
-### 3. Correção de dados (migration)
-- Verificar se o leilão precisa ter o winner_id corrigido, ou se a alteração foi intencional
-- Como não há audit log da mudança, vamos manter os dados como estão e confiar na tabela `orders` como fonte de verdade
+### 3. Corrigir `affiliateHelpers.ts` -- status do insert
 
-## Detalhes técnicos
+Alterar `status: 'active'` para `status: 'pending'` no insert (linha 77), alinhando com a política RLS que exige `status = 'pending'`.
 
-**AuctionHistory.tsx** -- No `processAuctionData`, além de `bid.auctions.winner_id === profile.user_id`, adicionar consulta prévia:
-```sql
-SELECT auction_id FROM orders WHERE winner_id = user_id
-```
-Usar esse Set de `auction_id`s para determinar vitórias.
+Criar uma migration com trigger `AFTER INSERT ON affiliates` que auto-aprova o afiliado (seta `status = 'active'`) via `SECURITY DEFINER`, garantindo ativação imediata sem violar RLS.
 
-**UserDashboard.tsx** -- No `fetchUserData`, adicionar query:
-```sql
-SELECT count(*) FROM orders WHERE winner_id = user_id AND status != 'cancelled'
-```
-Usar resultado no card "Vitórias".
+### 4. Ajustar RLS da tabela `affiliates` (opcional)
+
+A política de INSERT atual já exige `status = 'pending'`. Com a mudança no passo 3, o fluxo ficará alinhado.
+
+### Arquivos alterados
+
+| Arquivo | Mudança |
+|---|---|
+| Nova migration SQL | Remover criação de afiliado do `handle_new_user`; criar trigger auto-approve |
+| `src/pages/AffiliateDashboard.tsx` | Adicionar verificação de plano Legend antes de mostrar botão de ativação |
+| `src/utils/affiliateHelpers.ts` | Mudar `status: 'active'` para `status: 'pending'` |
 
