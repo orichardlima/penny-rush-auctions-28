@@ -74,7 +74,7 @@ export const createAffiliateAccount = async (
       .insert({
         user_id: userId,
         affiliate_code: affiliateCode,
-        status: 'active',
+        status: 'pending',
         commission_rate: 10.00, // Taxa padrão de 10%
         total_referrals: 0,
         total_conversions: 0,
