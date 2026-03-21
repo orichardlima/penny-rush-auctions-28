@@ -84,7 +84,7 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
   if (!intent) {
     // Fallback: legacy contract lookup
     console.log('ℹ️ Intent not found, trying legacy contract lookup...')
-    return await processLegacyContractPayment(supabase, isApproved, isRejected, paymentId)
+    return await processLegacyContractPayment(supabase, isApproved, isRejected, paymentId, externalReference)
   }
 
   console.log('📄 Intent found:', intent.id, 'status:', intent.payment_status)
