@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
@@ -14,11 +14,17 @@ import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart } from 'luci
 interface AdminFinancialOverviewProps {
   auctions: any[];
   users: any[];
+  onSummaryChange?: (summary: any) => void;
+  onLoadingChange?: (loading: boolean) => void;
+  onRefreshFnReady?: (fn: (() => void) | null) => void;
 }
 
 export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
   auctions,
-  users
+  users,
+  onSummaryChange,
+  onLoadingChange,
+  onRefreshFnReady
 }) => {
   const [filters, setFilters] = useState<FinancialFilters>({
     startDate: null,
@@ -28,7 +34,21 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     period: '30d'
   });
 
-  const { summary, auctionDetails, revenueTrends, loading, error } = useFinancialAnalytics(filters);
+  const { summary, auctionDetails, revenueTrends, loading, error, refreshData } = useFinancialAnalytics(filters);
+
+  // Compartilhar dados com o componente pai
+  useEffect(() => {
+    onSummaryChange?.(summary);
+  }, [summary, onSummaryChange]);
+
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
+
+  useEffect(() => {
+    onRefreshFnReady?.(() => refreshData());
+    return () => onRefreshFnReady?.(null);
+  }, [refreshData, onRefreshFnReady]);
 
   if (loading) {
     return (
@@ -61,20 +81,13 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     );
   }
 
-  const totalActiveAuctions = auctions.filter(a => a.status === 'active').length;
-  const totalFinishedAuctions = auctions.filter(a => a.status === 'finished').length;
-  const totalSystemUsers = users.filter(u => !u.is_bot).length;
-  const totalBids = auctions.reduce((sum, auction) => sum + (auction.total_bids || 0), 0);
-
   return (
     <div className="space-y-6">
-      {/* Financial Filters */}
       <FinancialFiltersComponent
         filters={filters}
         onFiltersChange={setFilters}
       />
 
-      {/* Executive Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-success">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -85,9 +98,7 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
             <div className="text-2xl font-bold text-success">
               R$ {summary?.package_revenue?.toFixed(2) || '0.00'}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Pagamentos confirmados
-            </p>
+            <p className="text-xs text-muted-foreground">Pagamentos confirmados</p>
           </CardContent>
         </Card>
 
@@ -100,9 +111,7 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
             <div className="text-2xl font-bold text-primary">
               {summary?.conversion_rate?.toFixed(1) || '0.0'}%
             </div>
-            <p className="text-xs text-muted-foreground">
-              Usuários que compraram pacotes
-            </p>
+            <p className="text-xs text-muted-foreground">Usuários que compraram pacotes</p>
           </CardContent>
         </Card>
 
@@ -115,9 +124,7 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
             <div className="text-2xl font-bold text-accent">
               {summary?.paying_users || 0}
             </div>
-            <p className="text-xs text-muted-foreground">
-              De {summary?.total_users || 0} usuários totais
-            </p>
+            <p className="text-xs text-muted-foreground">De {summary?.total_users || 0} usuários totais</p>
           </CardContent>
         </Card>
 
@@ -130,17 +137,13 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
             <div className="text-2xl font-bold text-warning">
               R$ {summary?.average_auction_revenue?.toFixed(2) || '0.00'}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {summary?.finished_auctions || 0} leilões finalizados
-            </p>
+            <p className="text-xs text-muted-foreground">{summary?.finished_auctions || 0} leilões finalizados</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Financial Summary */}
       <FinancialSummaryCards summary={summary} loading={loading} />
 
-      {/* Detailed Analytics Tabs */}
       <Tabs defaultValue="revenue" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-1">
           <TabsTrigger value="revenue" className="flex items-center gap-1 text-xs sm:text-sm">
