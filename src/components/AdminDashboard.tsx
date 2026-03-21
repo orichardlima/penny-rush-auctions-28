@@ -27,6 +27,7 @@ import AuctionDetailsTab from './AdminDashboard/AuctionDetailsTab';
 import AuctionManagementTab from './AdminDashboard/AuctionManagementTab';
 import UserManagementTab from './AdminDashboard/UserManagementTab';
 import PackagesManagementTab from './AdminDashboard/PackagesManagementTab';
+import RecentPurchasesTab from './AdminDashboard/RecentPurchasesTab';
 import { Auction, User, BidPackage } from './AdminDashboard/types';
 
 const AdminDashboard = () => {
