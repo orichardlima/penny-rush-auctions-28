@@ -218,6 +218,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="vault-config" title="Cofre Fúria" className="flex items-center gap-2 shrink-0">
               <Flame className="h-4 w-4" /><span className="hidden sm:inline">Cofre</span>
             </TabsTrigger>
+            <TabsTrigger value="purchases" title="Compras" className="flex items-center gap-2 shrink-0">
+              <ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Compras</span>
+            </TabsTrigger>
             <TabsTrigger value="my-history" title="Histórico" className="flex items-center gap-2 shrink-0">
               <Target className="h-4 w-4" /><span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
