@@ -450,33 +450,15 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           status: 'ACTIVE',
           referred_by_user_id: referredByUserId,
           referral_code: newReferralCode,
-          is_demo: isDemoContract
+          is_demo: isDemoContract,
+          bonus_bids_received: (!isDemoContract && plan.bonus_bids) ? plan.bonus_bids : 0
         })
         .select()
         .single();
       
       if (contractError) throw contractError;
       
-      // Creditar bônus de lances se existir (e NÃO for demo)
-      if (!isDemoContract && plan.bonus_bids && plan.bonus_bids > 0) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('bids_balance')
-          .eq('user_id', user.user_id)
-          .single();
-        
-        const newBalance = (profileData?.bids_balance || 0) + plan.bonus_bids;
-        
-        await supabase
-          .from('profiles')
-          .update({ bids_balance: newBalance })
-          .eq('user_id', user.user_id);
-        
-        await supabase
-          .from('partner_contracts')
-          .update({ bonus_bids_received: plan.bonus_bids })
-          .eq('id', newContract.id);
-      }
+      // Lances bônus são creditados automaticamente pelo trigger trg_credit_bonus_bids_on_contract
       
       // Registrar no audit log com decisão de sponsor
       const sponsorDecision = referredByUserId 

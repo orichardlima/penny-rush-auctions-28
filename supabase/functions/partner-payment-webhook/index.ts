@@ -175,29 +175,9 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
 
     await supabase
       .from('partner_contracts')
-      .update({ status: 'ACTIVE', payment_status: 'completed' })
+      .update({ status: 'ACTIVE', payment_status: 'completed', bonus_bids_received: planData?.bonus_bids || 0 })
       .eq('id', contract.id)
-
-    const bonusBids = planData?.bonus_bids || 0
-    if (bonusBids > 0) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('bids_balance')
-        .eq('user_id', contract.user_id)
-        .single()
-
-      if (profile) {
-        await supabase
-          .from('profiles')
-          .update({ bids_balance: (profile.bids_balance || 0) + bonusBids })
-          .eq('user_id', contract.user_id)
-
-        await supabase
-          .from('partner_contracts')
-          .update({ bonus_bids_received: bonusBids })
-          .eq('id', contract.id)
-      }
-    }
+    // Nota: para contratos legacy, o trigger só atua no INSERT. O crédito de bônus em UPDATE precisa ser manual ou via nova lógica.
   } else if (isRejected) {
     await supabase
       .from('partner_contracts')
