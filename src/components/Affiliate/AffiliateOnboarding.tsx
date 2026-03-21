@@ -11,7 +11,7 @@ interface AffiliateOnboardingProps {
   seoHead: ReactNode;
   setLoading: (loading: boolean) => void;
   fetchAffiliateData: () => void;
-  toast: (opts: { title: string; description: string; variant?: string }) => void;
+  toast: (opts: { title: string; description: string; variant?: "default" | "destructive" }) => void;
 }
 
 export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffiliateData, toast }: AffiliateOnboardingProps) {
