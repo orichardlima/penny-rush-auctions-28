@@ -276,6 +276,10 @@ const AdminDashboard = () => {
             <PackagesManagementTab bidPackages={bidPackages} onRefresh={fetchAdminData} />
           </TabsContent>
 
+          <TabsContent value="purchases" className="space-y-6">
+            {mountedTabs.has('purchases') && <RecentPurchasesTab />}
+          </TabsContent>
+
           <TabsContent value="templates" className="space-y-6">
             {mountedTabs.has('templates') && <ProductTemplatesManager />}
           </TabsContent>
