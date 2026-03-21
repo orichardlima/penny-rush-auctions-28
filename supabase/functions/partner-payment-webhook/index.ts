@@ -154,7 +154,7 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
   return new Response('OK', { status: 200, headers: corsHeaders })
 }
 
-async function processLegacyContractPayment(supabase: any, isApproved: boolean, isRejected: boolean, paymentId: string) {
+async function processLegacyContractPayment(supabase: any, isApproved: boolean, isRejected: boolean, paymentId: string, externalReference?: string) {
   const { data: contract } = await supabase
     .from('partner_contracts')
     .select('*')
@@ -162,8 +162,9 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
     .single()
 
   if (!contract) {
-    console.log('ℹ️ Payment not related to partner contracts, ignoring:', paymentId)
-    return new Response('OK', { status: 200, headers: corsHeaders })
+    // Fallback: verificar se é uma compra de lances (bid_purchases)
+    console.log('ℹ️ Not a partner contract, checking bid_purchases...')
+    return await processBidPurchaseFallback(supabase, isApproved, isRejected, paymentId, externalReference || '')
   }
 
   if (isApproved && contract.payment_status !== 'completed') {
@@ -177,12 +178,124 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
       .from('partner_contracts')
       .update({ status: 'ACTIVE', payment_status: 'completed', bonus_bids_received: planData?.bonus_bids || 0 })
       .eq('id', contract.id)
-    // Nota: para contratos legacy, o trigger só atua no INSERT. O crédito de bônus em UPDATE precisa ser manual ou via nova lógica.
   } else if (isRejected) {
     await supabase
       .from('partner_contracts')
       .update({ status: 'SUSPENDED', payment_status: 'failed' })
       .eq('id', contract.id)
+  }
+
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
+
+async function processBidPurchaseFallback(supabase: any, isApproved: boolean, isRejected: boolean, paymentId: string, externalReference: string) {
+  // Buscar compra pelo payment_id
+  let purchase = null
+
+  const { data: purchaseByPayment } = await supabase
+    .from('bid_purchases')
+    .select('*')
+    .eq('payment_id', paymentId)
+    .single()
+
+  if (purchaseByPayment) {
+    purchase = purchaseByPayment
+  } else if (externalReference) {
+    // Fallback: buscar pelo external_reference (= purchase.id)
+    const { data: purchaseByRef } = await supabase
+      .from('bid_purchases')
+      .select('*')
+      .eq('id', externalReference)
+      .single()
+    purchase = purchaseByRef
+  }
+
+  // Verificar se é um pedido (order)
+  if (!purchase && externalReference.startsWith('order:')) {
+    const orderId = externalReference.replace('order:', '')
+    console.log('🛒 Processing ORDER payment for:', orderId)
+
+    if (isApproved) {
+      await supabase
+        .from('orders')
+        .update({ status: 'paid', payment_method: 'PIX' })
+        .eq('id', orderId)
+        .neq('status', 'paid')
+      console.log('✅ Order marked as paid')
+    }
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  if (!purchase) {
+    console.log('ℹ️ Payment not related to any known entity, ignoring:', paymentId)
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  console.log('📦 Bid purchase found:', purchase.id, 'status:', purchase.payment_status)
+
+  if (isApproved && purchase.payment_status !== 'completed') {
+    console.log('✅ Bid payment approved, updating purchase and user balance')
+
+    // Atualizar status da compra
+    await supabase
+      .from('bid_purchases')
+      .update({ payment_status: 'completed' })
+      .eq('id', purchase.id)
+
+    // Atualizar saldo do usuário
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('bids_balance')
+      .eq('user_id', purchase.user_id)
+      .single()
+
+    if (profile) {
+      const newBalance = (profile.bids_balance || 0) + purchase.bids_purchased
+      await supabase
+        .from('profiles')
+        .update({ bids_balance: newBalance })
+        .eq('user_id', purchase.user_id)
+    }
+
+    console.log('✅ Bid purchase completed: +' + purchase.bids_purchased + ' lances')
+
+    // Aprovar comissões de afiliado
+    const { data: commissions } = await supabase
+      .from('affiliate_commissions')
+      .select('id, affiliate_id')
+      .eq('purchase_id', purchase.id)
+      .eq('status', 'pending')
+
+    if (commissions && commissions.length > 0) {
+      await supabase
+        .from('affiliate_commissions')
+        .update({
+          status: 'approved',
+          approved_at: new Date().toISOString()
+        })
+        .eq('purchase_id', purchase.id)
+        .eq('status', 'pending')
+
+      for (const comm of commissions) {
+        await supabase.rpc('increment_affiliate_conversions', {
+          affiliate_uuid: comm.affiliate_id
+        })
+      }
+      console.log('✅ Affiliate commissions approved')
+    }
+
+  } else if (isRejected) {
+    console.log('❌ Bid payment rejected')
+    await supabase
+      .from('bid_purchases')
+      .update({ payment_status: 'failed' })
+      .eq('id', purchase.id)
+
+    await supabase
+      .from('affiliate_commissions')
+      .update({ status: 'cancelled' })
+      .eq('purchase_id', purchase.id)
+      .in('status', ['pending', 'approved'])
   }
 
   return new Response('OK', { status: 200, headers: corsHeaders })
