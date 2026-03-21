@@ -1,45 +1,49 @@
 
 
-# Restringir programa de afiliados para usuários com plano Legend ativo
+# Corrigir lentidão no Painel Administrativo
 
-## Situação atual
+## Problema identificado
 
-- Todo usuário recebe uma conta de afiliado automaticamente via trigger `handle_new_user`
-- O `AffiliateDashboard` exibe um botão "Ativar Minha Conta de Afiliado" caso não exista registro
-- Não há nenhuma verificação de plano de parceiro
+O painel admin está extremamente lento por três razões principais:
 
-## O que muda
+### 1. N+1 queries: 410 chamadas individuais ao banco
+A função `fetchAuctionDetails` no hook `useFinancialAnalytics` busca **todos os leilões** e depois faz uma chamada RPC individual (`get_auction_financials`) para **cada um** -- são ~410 chamadas paralelas ao Supabase toda vez que o hook é executado.
 
-Somente usuários com um contrato de parceiro **Legend** (`plan_name = 'Legend'`) com status **ACTIVE** poderão ter conta de afiliado. Os demais verão uma mensagem informando que precisam do plano Legend.
+### 2. Hook duplicado: 3 instâncias simultâneas
+O `useFinancialAnalytics()` é instanciado **3 vezes**:
+- `AdminDashboard.tsx` (linha 39)
+- `AdminFinancialOverview.tsx` (linha 31)  
+- `AdvancedAnalytics.tsx` (linha 8)
 
-## Mudanças
+Cada instância dispara suas próprias 410+ queries. Total: **~1.230 chamadas** ao banco na abertura do painel.
 
-### 1. Remover criação automática de afiliado no trigger `handle_new_user`
+### 3. Todas as abas carregam de uma vez
+Os componentes de todas as abas (Pedidos, Parceiros, Afiliados, etc.) iniciam suas queries no mount, mesmo sem estarem visíveis.
 
-**Migration SQL**: Recriar a função `handle_new_user` removendo o bloco que insere na tabela `affiliates` (linhas 211-220 da versão atual). O afiliado será criado apenas sob demanda quando o usuário tiver plano Legend.
+## Correção
 
-### 2. Atualizar `AffiliateDashboard.tsx` -- tela de onboarding
+### Arquivo: `src/hooks/useFinancialAnalytics.ts`
+- **Limitar `fetchAuctionDetails`**: Em vez de buscar detalhes de todos os 410 leilões, buscar apenas os 20 mais recentes (são os únicos usados na UI -- `auctionDetails.slice(0, 10)`)
+- Adicionar `useRef` para evitar re-fetches desnecessários quando `filters` não muda de fato (o `useEffect` com `[filters]` dispara toda vez que o objeto é recriado)
 
-Quando `affiliateData` é `null`:
-- Verificar se o usuário possui `partner_contracts` com `plan_name = 'Legend'` e `status = 'ACTIVE'`
-- **Se sim**: mostrar o botão "Ativar Conta de Afiliado" (fluxo atual)
-- **Se não**: mostrar mensagem informativa dizendo que o programa de afiliados é exclusivo para parceiros Legend, com botão para ir à página `/minha-parceria`
+### Arquivo: `src/components/AdminDashboard.tsx`
+- **Remover** a instância de `useFinancialAnalytics()` do AdminDashboard (linha 36-39)
+- Usar apenas o `summary?.total_revenue` que já vem dos dados locais de `auctions` para o card de "Receita Estimada", ou passar o summary como prop do componente financeiro
+- **Lazy render das abas**: Envolver cada `TabsContent` com renderização condicional -- o conteúdo só monta quando a aba é selecionada pela primeira vez
 
-### 3. Corrigir `affiliateHelpers.ts` -- status do insert
+### Arquivo: `src/components/AdvancedAnalytics.tsx`
+- **Receber dados via props** em vez de instanciar seu próprio `useFinancialAnalytics()`
+- Aceitar `summary` como prop e remover o hook interno
 
-Alterar `status: 'active'` para `status: 'pending'` no insert (linha 77), alinhando com a política RLS que exige `status = 'pending'`.
+### Arquivo: `src/components/AdminFinancialOverview.tsx`
+- Manter a única instância de `useFinancialAnalytics` aqui (é o componente que realmente usa todos os dados)
+- Passar `summary` para cima via callback ou contexto para o card de receita do AdminDashboard
 
-Criar uma migration com trigger `AFTER INSERT ON affiliates` que auto-aprova o afiliado (seta `status = 'active'`) via `SECURITY DEFINER`, garantindo ativação imediata sem violar RLS.
+## Resultado esperado
 
-### 4. Ajustar RLS da tabela `affiliates` (opcional)
-
-A política de INSERT atual já exige `status = 'pending'`. Com a mudança no passo 3, o fluxo ficará alinhado.
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
+| Antes | Depois |
 |---|---|
-| Nova migration SQL | Remover criação de afiliado do `handle_new_user`; criar trigger auto-approve |
-| `src/pages/AffiliateDashboard.tsx` | Adicionar verificação de plano Legend antes de mostrar botão de ativação |
-| `src/utils/affiliateHelpers.ts` | Mudar `status: 'active'` para `status: 'pending'` |
+| ~1.230 queries ao banco | ~25 queries |
+| 3 instâncias do hook | 1 instância |
+| Todas as abas carregam juntas | Apenas a aba ativa carrega |
 
