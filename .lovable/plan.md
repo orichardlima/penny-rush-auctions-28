@@ -1,49 +1,61 @@
 
 
-# Corrigir lentidão no Painel Administrativo
+# Correção completa: chunks stale, spinner infinito e cache problemático
 
-## Problema identificado
+## Diagnóstico
 
-O painel admin está extremamente lento por três razões principais:
+O Service Worker (`public/sw.js`) é o principal culpado. Ele usa **Cache First** para todos os assets estáticos (linha 92-105), incluindo o `index.html` e os chunks JS. Após cada deploy, o SW serve versões antigas do `index.html` que referenciam chunks com hashes antigos que não existem mais. O resultado: erro de import silencioso → Suspense preso no spinner → loop infinito.
 
-### 1. N+1 queries: 410 chamadas individuais ao banco
-A função `fetchAuctionDetails` no hook `useFinancialAnalytics` busca **todos os leilões** e depois faz uma chamada RPC individual (`get_auction_financials`) para **cada um** -- são ~410 chamadas paralelas ao Supabase toda vez que o hook é executado.
+## Plano de correção (5 partes)
 
-### 2. Hook duplicado: 3 instâncias simultâneas
-O `useFinancialAnalytics()` é instanciado **3 vezes**:
-- `AdminDashboard.tsx` (linha 39)
-- `AdminFinancialOverview.tsx` (linha 31)  
-- `AdvancedAnalytics.tsx` (linha 8)
+### 1. Corrigir o Service Worker (`public/sw.js`)
 
-Cada instância dispara suas próprias 410+ queries. Total: **~1.230 chamadas** ao banco na abertura do painel.
+- Mudar a estratégia do `index.html` para **Network First** (nunca servir HTML antigo do cache)
+- Excluir arquivos `.js` e `.css` com hash do cache estático (Vite gera novos a cada build)
+- Remover `/`, `/leiloes`, `/dashboard`, `/auth` do array `STATIC_ASSETS` (são rotas SPA, não arquivos estáticos)
+- Incrementar `CACHE_NAME` para `v2` para forçar limpeza do cache antigo
+- Adicionar listener de `message` para aceitar comando `SKIP_WAITING` do app
 
-### 3. Todas as abas carregam de uma vez
-Os componentes de todas as abas (Pedidos, Parceiros, Afiliados, etc.) iniciam suas queries no mount, mesmo sem estarem visíveis.
+### 2. Criar `lazyWithRetry` e ErrorBoundary (`src/App.tsx`)
 
-## Correção
+- Função `lazyWithRetry`: envolve `React.lazy()` com retry. Se o import falhar, tenta reload uma vez (usando `sessionStorage` para evitar loop)
+- Componente `ChunkErrorBoundary`: React ErrorBoundary que captura erros de import e exibe tela amigável com botão "Recarregar" em vez de spinner infinito
+- Envolver todas as rotas lazy com `<ChunkErrorBoundary>` + `<Suspense>`
+- O `PageLoader` ganha um timeout de 15s: se ultrapassar, mostra mensagem de erro com botão de reload
 
-### Arquivo: `src/hooks/useFinancialAnalytics.ts`
-- **Limitar `fetchAuctionDetails`**: Em vez de buscar detalhes de todos os 410 leilões, buscar apenas os 20 mais recentes (são os únicos usados na UI -- `auctionDetails.slice(0, 10)`)
-- Adicionar `useRef` para evitar re-fetches desnecessários quando `filters` não muda de fato (o `useEffect` com `[filters]` dispara toda vez que o objeto é recriado)
+### 3. Listener global em `src/main.tsx`
 
-### Arquivo: `src/components/AdminDashboard.tsx`
-- **Remover** a instância de `useFinancialAnalytics()` do AdminDashboard (linha 36-39)
-- Usar apenas o `summary?.total_revenue` que já vem dos dados locais de `auctions` para o card de "Receita Estimada", ou passar o summary como prop do componente financeiro
-- **Lazy render das abas**: Envolver cada `TabsContent` com renderização condicional -- o conteúdo só monta quando a aba é selecionada pela primeira vez
+- Adicionar listener `vite:preloadError` que força reload (com proteção anti-loop via `sessionStorage`)
+- Registrar o SW com `updateOnReload: true` para que novas versões assumam imediatamente
 
-### Arquivo: `src/components/AdvancedAnalytics.tsx`
-- **Receber dados via props** em vez de instanciar seu próprio `useFinancialAnalytics()`
-- Aceitar `summary` como prop e remover o hook interno
+### 4. Telemetria de erros de chunk (novo `src/utils/chunkErrorTelemetry.ts`)
 
-### Arquivo: `src/components/AdminFinancialOverview.tsx`
-- Manter a única instância de `useFinancialAnalytics` aqui (é o componente que realmente usa todos os dados)
-- Passar `summary` para cima via callback ou contexto para o card de receita do AdminDashboard
+- Função que loga no console com detalhes:
+  - Rota onde ocorreu o erro (`window.location.pathname`)
+  - Nome do chunk que falhou
+  - Se o reload foi tentado e se resolveu
+  - Timestamp
+- Opcionalmente envia para o Supabase (tabela de logs) para monitoramento
+
+### 5. PageLoader com timeout (`src/App.tsx`)
+
+- O `PageLoader` atual é um spinner sem limite de tempo
+- Adicionar `useEffect` com `setTimeout(15000)` que muda o estado para "erro"
+- Estado de erro mostra: "A página não carregou. Isso pode acontecer após uma atualização." + botão "Recarregar página"
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---|---|
+| `public/sw.js` | Network First para HTML/navegação, cache v2, excluir rotas SPA |
+| `src/main.tsx` | Listener `vite:preloadError`, SW com `updateOnReload` |
+| `src/App.tsx` | `lazyWithRetry`, `ChunkErrorBoundary`, `PageLoader` com timeout |
+| `src/utils/chunkErrorTelemetry.ts` | Novo arquivo -- logs de erros de chunk |
 
 ## Resultado esperado
 
-| Antes | Depois |
-|---|---|
-| ~1.230 queries ao banco | ~25 queries |
-| 3 instâncias do hook | 1 instância |
-| Todas as abas carregam juntas | Apenas a aba ativa carrega |
+- Usuário com cache antigo → SW busca HTML novo da rede → chunks corretos carregam
+- Chunk falha mesmo assim → retry automático com reload (1 tentativa)
+- Reload não resolve → tela de erro amigável com botão manual (nunca spinner infinito)
+- Telemetria registra cada ocorrência para monitoramento
 
