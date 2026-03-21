@@ -1,17 +1,13 @@
 // Service Worker para funcionalidades PWA
-const CACHE_NAME = 'leiloes-online-v1';
+const CACHE_NAME = 'leiloes-online-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/leiloes',
-  '/dashboard',
-  '/auth',
   '/manifest.json',
   '/favicon.ico'
 ];
 
 // Instalar Service Worker
 self.addEventListener('install', event => {
-  console.log('🔧 Service Worker: Instalando...');
+  console.log('🔧 Service Worker v2: Instalando...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -28,7 +24,7 @@ self.addEventListener('install', event => {
 
 // Ativar Service Worker
 self.addEventListener('activate', event => {
-  console.log('🚀 Service Worker: Ativando...');
+  console.log('🚀 Service Worker v2: Ativando...');
   
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -47,65 +43,84 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Helper: é uma requisição de navegação (HTML)?
+function isNavigationRequest(request) {
+  return request.mode === 'navigate' || 
+    (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
+}
+
+// Helper: é um asset com hash do Vite? (ex: /assets/index-abc123.js)
+function isHashedAsset(url) {
+  return /\/assets\/.*-[a-f0-9]{8,}\.(js|css)$/.test(url);
+}
+
 // Interceptar requisições
 self.addEventListener('fetch', event => {
-  console.log('🌐 SW: Interceptando requisição', event.request.method, event.request.url);
-  
-  // Estratégia: Network First para API calls, Cache First para assets estáticos
-  if (event.request.url.includes('/api/') || event.request.url.includes('supabase.co')) {
-    // Network first para dados dinâmicos
+  const { request } = event;
+
+  // 1. Navegação (HTML) → SEMPRE Network First
+  if (isNavigationRequest(request)) {
     event.respondWith(
-      fetch(event.request)
+      fetch(request)
         .then(response => {
-          // CRÍTICO: Só cachear requisições GET com sucesso
-          if (response.status === 200 && event.request.method === 'GET') {
-            try {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME)
-                .then(cache => {
-                  cache.put(event.request, responseClone)
-                    .catch(cacheError => {
-                      console.log('⚠️ SW: Erro ao cachear (ignorado):', cacheError.message);
-                    });
-                })
-                .catch(openError => {
-                  console.log('⚠️ SW: Erro ao abrir cache (ignorado):', openError.message);
-                });
-            } catch (cloneError) {
-              console.log('⚠️ SW: Erro ao clonar resposta (ignorado):', cloneError.message);
-            }
-          } else if (event.request.method !== 'GET') {
-            console.log('📝 SW: Requisição', event.request.method, 'não cacheada (método não GET)');
-          }
+          // Cachear a versão mais recente do HTML
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
           return response;
         })
-        .catch(networkError => {
-          console.log('❌ SW: Erro de rede para', event.request.url, networkError.message);
-          // Se a rede falha, tenta o cache (apenas para GET)
-          if (event.request.method === 'GET') {
-            return caches.match(event.request);
-          }
-          // Para métodos não GET, falha imediatamente
-          throw networkError;
+        .catch(() => {
+          // Offline: tentar cache como fallback
+          return caches.match(request).then(cached => cached || caches.match('/'));
         })
     );
-  } else {
-    // Cache first para assets estáticos
+    return;
+  }
+
+  // 2. Assets com hash do Vite → Cache First (hash garante unicidade)
+  if (isHashedAsset(request.url)) {
     event.respondWith(
-      caches.match(event.request)
-        .then(response => {
-          if (response) {
-            console.log('📦 SW: Servindo do cache:', event.request.url);
-            return response;
+      caches.match(request).then(cached => {
+        if (cached) return cached;
+        return fetch(request).then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
           }
-          console.log('🌐 SW: Buscando na rede:', event.request.url);
-          return fetch(event.request);
-        })
+          return response;
+        });
+      })
     );
+    return;
+  }
+
+  // 3. API / Supabase → Network only (nunca cachear)
+  if (request.url.includes('/api/') || request.url.includes('supabase.co')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // 4. Outros assets estáticos (imagens, fontes, manifest) → Network First
+  event.respondWith(
+    fetch(request)
+      .then(response => {
+        if (response.ok && request.method === 'GET') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone)).catch(() => {});
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
+  );
+});
+
+// Aceitar comando SKIP_WAITING do app
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
 
-// Notificações Push (preparação para futuras funcionalidades)
+// Notificações Push
 self.addEventListener('push', event => {
   if (!event.data) return;
 
@@ -116,14 +131,8 @@ self.addEventListener('push', event => {
     badge: '/placeholder.svg',
     data: data.url,
     actions: [
-      {
-        action: 'open',
-        title: 'Abrir'
-      },
-      {
-        action: 'close',
-        title: 'Fechar'
-      }
+      { action: 'open', title: 'Abrir' },
+      { action: 'close', title: 'Fechar' }
     ]
   };
 
@@ -135,10 +144,7 @@ self.addEventListener('push', event => {
 // Handle notification clicks
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-
   if (event.action === 'open' || !event.action) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data || '/')
-    );
+    event.waitUntil(clients.openWindow(event.notification.data || '/'));
   }
 });
