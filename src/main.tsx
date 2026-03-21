@@ -12,8 +12,8 @@ if (wasReloadRecent()) {
 }
 
 // Listener global para erros de preload do Vite
-window.addEventListener('vite:preloadError', (event) => {
-  const e = (event as CustomEvent).detail;
+window.addEventListener('vite:preloadError', (event: Event) => {
+  const e = (event as unknown as { payload?: unknown }).payload ?? event;
   logChunkError(e, 'vite:preloadError');
   
   if (!wasReloadRecent()) {
