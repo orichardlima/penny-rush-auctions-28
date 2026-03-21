@@ -200,21 +200,7 @@ Deno.serve(async (req) => {
       throw createError;
     }
 
-    // 10. Credit bonus bids to referred user profile
-    if (plan.bonus_bids && plan.bonus_bids > 0) {
-      const { data: referredProfile } = await adminClient
-        .from('profiles')
-        .select('bids_balance')
-        .eq('user_id', referredUser.id)
-        .single();
-
-      if (referredProfile) {
-        await adminClient
-          .from('profiles')
-          .update({ bids_balance: (referredProfile.bids_balance || 0) + plan.bonus_bids })
-          .eq('user_id', referredUser.id);
-      }
-    }
+    // 10. Lances bônus são creditados automaticamente pelo trigger trg_credit_bonus_bids_on_contract
 
     // 11. Audit log in partner_manual_credits
     await adminClient

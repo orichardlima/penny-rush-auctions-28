@@ -122,7 +122,8 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
         payment_status: 'completed',
         payment_id: paymentId,
         referred_by_user_id: intent.referred_by_user_id,
-        referral_code: newReferralCode
+        referral_code: newReferralCode,
+        bonus_bids_received: intent.bonus_bids || 0
       })
       .select()
       .single()
@@ -133,30 +134,7 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
     }
 
     console.log('✅ Contract created (ACTIVE):', contractData.id)
-
-    // Creditar bônus de lances
-    const bonusBids = intent.bonus_bids || 0
-    if (bonusBids > 0) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('bids_balance')
-        .eq('user_id', intent.user_id)
-        .single()
-
-      if (profile) {
-        await supabase
-          .from('profiles')
-          .update({ bids_balance: (profile.bids_balance || 0) + bonusBids })
-          .eq('user_id', intent.user_id)
-
-        await supabase
-          .from('partner_contracts')
-          .update({ bonus_bids_received: bonusBids })
-          .eq('id', contractData.id)
-
-        console.log('✅ Bonus bids credited:', bonusBids)
-      }
-    }
+    // Lances bônus são creditados automaticamente pelo trigger trg_credit_bonus_bids_on_contract
 
     await supabase
       .from('partner_payment_intents')
@@ -197,29 +175,9 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
 
     await supabase
       .from('partner_contracts')
-      .update({ status: 'ACTIVE', payment_status: 'completed' })
+      .update({ status: 'ACTIVE', payment_status: 'completed', bonus_bids_received: planData?.bonus_bids || 0 })
       .eq('id', contract.id)
-
-    const bonusBids = planData?.bonus_bids || 0
-    if (bonusBids > 0) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('bids_balance')
-        .eq('user_id', contract.user_id)
-        .single()
-
-      if (profile) {
-        await supabase
-          .from('profiles')
-          .update({ bids_balance: (profile.bids_balance || 0) + bonusBids })
-          .eq('user_id', contract.user_id)
-
-        await supabase
-          .from('partner_contracts')
-          .update({ bonus_bids_received: bonusBids })
-          .eq('id', contract.id)
-      }
-    }
+    // Nota: para contratos legacy, o trigger só atua no INSERT. O crédito de bônus em UPDATE precisa ser manual ou via nova lógica.
   } else if (isRejected) {
     await supabase
       .from('partner_contracts')
