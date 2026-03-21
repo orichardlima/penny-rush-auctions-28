@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,6 @@ import {
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
   Handshake, LayoutTemplate
 } from 'lucide-react';
-import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
@@ -33,16 +32,28 @@ import { Auction, User, BidPackage } from './AdminDashboard/types';
 const AdminDashboard = () => {
   const { signOut } = useAuth();
 
-  const {
-    summary, auctionDetails, revenueTrends,
-    loading: analyticsLoading, error: analyticsError, refreshData: refreshAnalytics
-  } = useFinancialAnalytics();
-
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [realUsers, setRealUsers] = useState<User[]>([]);
   const [botUsers, setBotUsers] = useState<User[]>([]);
   const [bidPackages, setBidPackages] = useState<BidPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('auction-details');
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set(['auction-details']));
+
+  // Dados financeiros compartilhados (vêm do AdminFinancialOverview)
+  const [sharedSummary, setSharedSummary] = useState<any>(null);
+  const [financialLoading, setFinancialLoading] = useState(false);
+  const [refreshFinancialFn, setRefreshFinancialFn] = useState<(() => void) | null>(null);
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    setMountedTabs(prev => {
+      if (prev.has(value)) return prev;
+      const next = new Set(prev);
+      next.add(value);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     fetchAdminData();
@@ -80,8 +91,11 @@ const AdminDashboard = () => {
 
   const refreshData = () => {
     fetchAdminData();
-    refreshAnalytics();
+    refreshFinancialFn?.();
   };
+
+  // Calcular receita estimada a partir dos dados locais de auctions
+  const estimatedRevenue = auctions.reduce((sum, a) => sum + (a.company_revenue || 0), 0);
 
   if (loading) {
     return (
@@ -108,8 +122,8 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={refreshData} disabled={analyticsLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${analyticsLoading ? 'animate-spin' : ''}`} />
+            <Button variant="outline" onClick={refreshData} disabled={financialLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${financialLoading ? 'animate-spin' : ''}`} />
               Atualizar Dados
             </Button>
             <Button variant="destructive" onClick={signOut}>Sair</Button>
@@ -154,7 +168,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                R$ {summary?.total_revenue?.toFixed(2) || '0.00'}
+                R$ {sharedSummary?.total_revenue?.toFixed(2) || estimatedRevenue.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">Baseado nos dados atuais</p>
             </CardContent>
@@ -162,7 +176,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="auction-details" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="flex w-full overflow-x-auto lg:grid lg:grid-cols-13 gap-1 pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
             <TabsTrigger value="auction-details" title="Detalhes" className="flex items-center gap-2 shrink-0">
               <Eye className="h-4 w-4" /><span className="hidden sm:inline">Detalhes</span>
@@ -209,29 +223,41 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="auction-details">
-            <AuctionDetailsTab auctions={auctions} auctionDetails={auctionDetails} />
+            <AuctionDetailsTab auctions={auctions} auctionDetails={[]} />
           </TabsContent>
 
           <TabsContent value="financial" className="space-y-6">
-            <AdminFinancialOverview auctions={auctions} users={[...realUsers, ...botUsers]} />
+            {mountedTabs.has('financial') && (
+              <AdminFinancialOverview 
+                auctions={auctions} 
+                users={[...realUsers, ...botUsers]}
+                onSummaryChange={setSharedSummary}
+                onLoadingChange={setFinancialLoading}
+                onRefreshFnReady={setRefreshFinancialFn}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-6">
-            <AdminOrdersManagement />
+            {mountedTabs.has('orders') && <AdminOrdersManagement />}
           </TabsContent>
 
           <TabsContent value="partners" className="space-y-6">
-            <AdminPartnerManagement />
+            {mountedTabs.has('partners') && <AdminPartnerManagement />}
           </TabsContent>
 
           <TabsContent value="affiliates" className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">Gerenciamento de Afiliados</h2>
-                <p className="text-muted-foreground">Controle total sobre o programa de afiliados</p>
-              </div>
-            </div>
-            <AdminAffiliateManagement />
+            {mountedTabs.has('affiliates') && (
+              <>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold">Gerenciamento de Afiliados</h2>
+                    <p className="text-muted-foreground">Controle total sobre o programa de afiliados</p>
+                  </div>
+                </div>
+                <AdminAffiliateManagement />
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="auctions">
@@ -247,52 +273,64 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-6">
-            <ProductTemplatesManager />
+            {mountedTabs.has('templates') && <ProductTemplatesManager />}
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Analytics Avançado</h2>
-                <p className="text-muted-foreground">Dashboard executivo com insights e métricas estratégicas</p>
-              </div>
-              <Button variant="outline" onClick={refreshData} disabled={analyticsLoading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${analyticsLoading ? 'animate-spin' : ''}`} />
-                Atualizar Analytics
-              </Button>
-            </div>
-            <AdvancedAnalytics />
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-              <ActivityHeatmap />
-            </div>
+            {mountedTabs.has('analytics') && (
+              <>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">Analytics Avançado</h2>
+                    <p className="text-muted-foreground">Dashboard executivo com insights e métricas estratégicas</p>
+                  </div>
+                  <Button variant="outline" onClick={refreshData} disabled={financialLoading}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${financialLoading ? 'animate-spin' : ''}`} />
+                    Atualizar Analytics
+                  </Button>
+                </div>
+                <AdvancedAnalytics summary={sharedSummary} loading={financialLoading} />
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+                  <ActivityHeatmap />
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="audit" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Log de Auditoria</h2>
-                <p className="text-muted-foreground">Histórico completo de ações administrativas e segurança</p>
-              </div>
-            </div>
-            <AdminAuditLog />
+            {mountedTabs.has('audit') && (
+              <>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">Log de Auditoria</h2>
+                    <p className="text-muted-foreground">Histórico completo de ações administrativas e segurança</p>
+                  </div>
+                </div>
+                <AdminAuditLog />
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <SystemSettings />
+            {mountedTabs.has('settings') && <SystemSettings />}
           </TabsContent>
 
           <TabsContent value="vault-config" className="space-y-6">
-            <FuryVaultConfigManager />
+            {mountedTabs.has('vault-config') && <FuryVaultConfigManager />}
           </TabsContent>
 
           <TabsContent value="my-history" className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">Meu Histórico de Leilões</h2>
-                <p className="text-muted-foreground">Seus lances e participações pessoais</p>
-              </div>
-            </div>
-            <AuctionHistory />
+            {mountedTabs.has('my-history') && (
+              <>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold">Meu Histórico de Leilões</h2>
+                    <p className="text-muted-foreground">Seus lances e participações pessoais</p>
+                  </div>
+                </div>
+                <AuctionHistory />
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>
