@@ -8,7 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate
+  Handshake, LayoutTemplate, ShoppingCart
 } from 'lucide-react';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
