@@ -2,11 +2,29 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, TrendingUp, Users, Target, DollarSign, Zap } from 'lucide-react';
-import { useFinancialAnalytics } from '@/hooks/useFinancialAnalytics';
 
-const AdvancedAnalytics: React.FC = () => {
-  const { summary, loading } = useFinancialAnalytics();
+interface FinancialSummary {
+  total_revenue: number;
+  auction_revenue: number;
+  package_revenue: number;
+  total_auctions: number;
+  active_auctions: number;
+  finished_auctions: number;
+  total_users: number;
+  paying_users: number;
+  average_auction_revenue: number;
+  total_bids: number;
+  user_bids: number;
+  bot_bids: number;
+  conversion_rate: number;
+}
 
+interface AdvancedAnalyticsProps {
+  summary: FinancialSummary | null;
+  loading?: boolean;
+}
+
+const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ summary, loading }) => {
   if (loading) {
     return (
       <div className="space-y-6">
@@ -24,7 +42,6 @@ const AdvancedAnalytics: React.FC = () => {
     );
   }
 
-  // Calcular métricas avançadas
   const userConversionRate = summary?.total_users ? 
     (summary.paying_users / summary.total_users * 100) : 0;
   
