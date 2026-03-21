@@ -8,7 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate
+  Handshake, LayoutTemplate, ShoppingCart
 } from 'lucide-react';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
@@ -27,6 +27,7 @@ import AuctionDetailsTab from './AdminDashboard/AuctionDetailsTab';
 import AuctionManagementTab from './AdminDashboard/AuctionManagementTab';
 import UserManagementTab from './AdminDashboard/UserManagementTab';
 import PackagesManagementTab from './AdminDashboard/PackagesManagementTab';
+import RecentPurchasesTab from './AdminDashboard/RecentPurchasesTab';
 import { Auction, User, BidPackage } from './AdminDashboard/types';
 
 const AdminDashboard = () => {
@@ -217,6 +218,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="vault-config" title="Cofre Fúria" className="flex items-center gap-2 shrink-0">
               <Flame className="h-4 w-4" /><span className="hidden sm:inline">Cofre</span>
             </TabsTrigger>
+            <TabsTrigger value="purchases" title="Compras" className="flex items-center gap-2 shrink-0">
+              <ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Compras</span>
+            </TabsTrigger>
             <TabsTrigger value="my-history" title="Histórico" className="flex items-center gap-2 shrink-0">
               <Target className="h-4 w-4" /><span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
@@ -270,6 +274,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="packages">
             <PackagesManagementTab bidPackages={bidPackages} onRefresh={fetchAdminData} />
+          </TabsContent>
+
+          <TabsContent value="purchases" className="space-y-6">
+            {mountedTabs.has('purchases') && <RecentPurchasesTab />}
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-6">
