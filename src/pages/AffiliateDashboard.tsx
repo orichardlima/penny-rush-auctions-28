@@ -27,6 +27,7 @@ import { AffiliateReferralsList } from '@/components/Affiliate/AffiliateReferral
 import { AffiliatePurchaseHistory } from '@/components/Affiliate/AffiliatePurchaseHistory';
 import { Footer } from '@/components/Footer';
 import { useAffiliateManager } from '@/hooks/useAffiliateManager';
+import { AffiliateOnboarding } from '@/components/Affiliate/AffiliateOnboarding';
 
 interface AffiliateData {
   id: string;
