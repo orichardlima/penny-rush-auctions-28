@@ -70,7 +70,8 @@ async function createPixCharge(apiKey: string, customerId: string, value: number
       value: value,
       dueDate: dueDateStr,
       description: description,
-      externalReference: externalReference
+      externalReference: externalReference,
+      callbackUrl: 'https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/asaas-webhook'
     })
   })
   const chargeData = await chargeRes.json()
