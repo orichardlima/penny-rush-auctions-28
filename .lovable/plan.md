@@ -1,41 +1,51 @@
 
 
-# Adicionar aba "Últimas Compras" no Painel Administrativo
+# Correção do webhook Asaas + crédito dos lances da Meriane
 
-## Situação atual
+## Contexto confirmado
 
-- O admin só vê compras abrindo o modal individual de cada usuário (ícone 🛒)
-- Não há visão consolidada de todas as compras recentes da plataforma
+- Webhook configurado no painel Asaas (v3, URL correta)
+- Meriane tem **6 compras pendentes** de 15 lances cada (total: 90 lances, R$90)
+- Saldo atual: **0 lances**
 
-## O que será criado
+## Mudanças
 
-Uma nova aba **"Compras"** no `AdminDashboard` que exibe uma tabela com todas as compras de lances (`bid_purchases`) ordenadas por data, com:
+### 1. Adicionar `callbackUrl` na criação da cobrança (`supabase/functions/asaas-payment/index.ts`)
 
-- Nome do usuário (join com `profiles`)
-- Pacote comprado (join com `bid_packages`)
-- Quantidade de lances
-- Valor pago
-- Status do pagamento
-- Data/hora
-- Filtros por período e status
-- Paginação (20 por página)
+Na função `createPixCharge` (linha 67-74), adicionar o campo:
+```
+callbackUrl: "https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/asaas-webhook"
+```
 
-## Arquivos
+Isso garante que cada cobrança individual notifique o endpoint correto, como redundância à configuração global.
+
+### 2. Corrigir lances da Meriane (migration SQL)
+
+Você confirmou que ela pagou. Vou atualizar as 6 compras para `completed` e creditar 90 lances no perfil:
+
+```sql
+UPDATE bid_purchases 
+SET payment_status = 'completed' 
+WHERE user_id = '56158a8e-29a5-405f-9c18-d10cbcb5db1d' 
+  AND payment_status = 'pending';
+
+UPDATE profiles 
+SET bids_balance = bids_balance + 90, updated_at = now() 
+WHERE user_id = '56158a8e-29a5-405f-9c18-d10cbcb5db1d';
+```
+
+### 3. Deploy da edge function
+
+Deploy automático da `asaas-payment` após a edição.
+
+## Arquivos alterados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/AdminDashboard/RecentPurchasesTab.tsx` | Novo componente com tabela de compras globais |
-| `src/components/AdminDashboard.tsx` | Adicionar nova aba "Compras" com lazy loading |
+| `supabase/functions/asaas-payment/index.ts` | Adicionar `callbackUrl` na cobrança PIX |
+| Migration SQL | Corrigir compras + saldo da Meriane |
 
-## Detalhes técnicos
+## Pergunta importante
 
-### RecentPurchasesTab.tsx
-- Query no `bid_purchases` com join em `profiles(full_name)` e `bid_packages(name)`
-- Paginação server-side via `.range()`
-- Filtros: período (7d, 30d, 90d, todos) e status (completed, pending, failed)
-- Cards de resumo no topo: total de compras, receita total, lances vendidos (apenas status `completed`)
-
-### AdminDashboard.tsx
-- Adicionar `TabsTrigger` "Compras" com ícone `ShoppingCart`
-- Lazy render igual às outras abas (só carrega quando selecionada)
+Todas as 6 compras da Meriane foram pagas? Ou apenas algumas? Se apenas algumas, me diga quais para eu creditar o valor correto.
 
