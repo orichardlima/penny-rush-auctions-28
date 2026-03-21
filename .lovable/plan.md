@@ -1,51 +1,49 @@
 
 
-# Correção do webhook Asaas + crédito dos lances da Meriane
+# Correção definitiva: unificar processamento de webhooks
 
-## Contexto confirmado
+## Problema confirmado pelos logs
 
-- Webhook configurado no painel Asaas (v3, URL correta)
-- Meriane tem **6 compras pendentes** de 15 lances cada (total: 90 lances, R$90)
-- Saldo atual: **0 lances**
+- `asaas-webhook`: **0 logs** -- nunca recebeu nenhuma notificação
+- `partner-payment-webhook`: recebe TUDO, inclusive pagamentos de lances (pay_7g3icvoo46lnl9os com "Pacote Popular - 65 lances")
+- Quando recebe pagamento de lances, cai no fallback "Payment not related to partner contracts, ignoring" e descarta
 
-## Mudanças
+## Solução
 
-### 1. Adicionar `callbackUrl` na criação da cobrança (`supabase/functions/asaas-payment/index.ts`)
+Modificar o `partner-payment-webhook` para, quando não encontrar contrato de parceiro, verificar se é uma compra de lances (`bid_purchases`) e processá-la. Isso elimina a dependência de dois webhooks separados.
 
-Na função `createPixCharge` (linha 67-74), adicionar o campo:
-```
-callbackUrl: "https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/asaas-webhook"
-```
+### Arquivo: `supabase/functions/partner-payment-webhook/index.ts`
 
-Isso garante que cada cobrança individual notifique o endpoint correto, como redundância à configuração global.
+Na função `processLegacyContractPayment`, no bloco onde o contrato não é encontrado (linha 164-167), em vez de apenas ignorar:
 
-### 2. Corrigir lances da Meriane (migration SQL)
+1. Buscar na tabela `bid_purchases` pelo `paymentId` ou `externalReference`
+2. Se encontrar, processar a compra: atualizar status para `completed`, creditar lances no perfil, aprovar comissões de afiliado
+3. Se não encontrar em nenhuma tabela, aí sim ignorar
 
-Você confirmou que ela pagou. Vou atualizar as 6 compras para `completed` e creditar 90 lances no perfil:
+Isso é essencialmente copiar a lógica de `processBidPurchase` do `asaas-webhook` para dentro do `partner-payment-webhook`.
+
+### Correção manual: Richard Lima (pay_7g3icvoo46lnl9os)
+
+Baseado nos logs, Richard Lima comprou "Pacote Popular - 65 lances" (R$50), pagou via PIX (status RECEIVED), mas os lances não foram creditados. Corrigir via migration SQL:
 
 ```sql
-UPDATE bid_purchases 
-SET payment_status = 'completed' 
-WHERE user_id = '56158a8e-29a5-405f-9c18-d10cbcb5db1d' 
-  AND payment_status = 'pending';
+UPDATE bid_purchases SET payment_status = 'completed' 
+WHERE payment_id = 'pay_7g3icvoo46lnl9os' AND payment_status = 'pending';
 
-UPDATE profiles 
-SET bids_balance = bids_balance + 90, updated_at = now() 
-WHERE user_id = '56158a8e-29a5-405f-9c18-d10cbcb5db1d';
+UPDATE profiles SET bids_balance = bids_balance + 65, updated_at = now() 
+WHERE user_id = '18c062cb-1bd6-4889-b20f-c359da2f5971';
 ```
-
-### 3. Deploy da edge function
-
-Deploy automático da `asaas-payment` após a edição.
 
 ## Arquivos alterados
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/asaas-payment/index.ts` | Adicionar `callbackUrl` na cobrança PIX |
-| Migration SQL | Corrigir compras + saldo da Meriane |
+| `supabase/functions/partner-payment-webhook/index.ts` | Adicionar fallback para processar `bid_purchases` quando não encontrar contrato |
+| Migration SQL | Creditar 65 lances do Richard Lima |
 
-## Pergunta importante
+## Resultado
 
-Todas as 6 compras da Meriane foram pagas? Ou apenas algumas? Se apenas algumas, me diga quais para eu creditar o valor correto.
+- Um único webhook (`partner-payment-webhook`) processa tudo: parceiros, upgrades E compras de lances
+- Não depende mais do `asaas-webhook` receber notificações (que nunca recebeu)
+- Qualquer compra futura será processada automaticamente
 
