@@ -1,61 +1,90 @@
 
 
-# Correção completa: chunks stale, spinner infinito e cache problemático
+# Correção definitiva: crédito automático de lances bônus via trigger no banco
 
-## Diagnóstico
+## Causa raiz
 
-O Service Worker (`public/sw.js`) é o principal culpado. Ele usa **Cache First** para todos os assets estáticos (linha 92-105), incluindo o `index.html` e os chunks JS. Após cada deploy, o SW serve versões antigas do `index.html` que referenciam chunks com hashes antigos que não existem mais. O resultado: erro de import silencioso → Suspense preso no spinner → loop infinito.
+O trigger `protect_profile_sensitive_fields` bloqueia silenciosamente atualizações em `bids_balance` quando a operação não é feita pelo `service_role`. O painel admin roda no browser como `anon`, então toda tentativa de creditar lances via frontend é **ignorada sem erro**. Isso afeta:
 
-## Plano de correção (5 partes)
+- Ativação manual pelo admin (`AdminUserManagement.tsx`)
+- Ativação via sponsor (`sponsor-activate-partner` edge function — esta usa service_role, mas depende de lógica separada)
+- Webhook do Asaas (`partner-payment-webhook` — usa service_role, mas se falhar por constraint ou outro erro, os lances se perdem)
 
-### 1. Corrigir o Service Worker (`public/sw.js`)
+## Solução: trigger no banco de dados
 
-- Mudar a estratégia do `index.html` para **Network First** (nunca servir HTML antigo do cache)
-- Excluir arquivos `.js` e `.css` com hash do cache estático (Vite gera novos a cada build)
-- Remover `/`, `/leiloes`, `/dashboard`, `/auth` do array `STATIC_ASSETS` (são rotas SPA, não arquivos estáticos)
-- Incrementar `CACHE_NAME` para `v2` para forçar limpeza do cache antigo
-- Adicionar listener de `message` para aceitar comando `SKIP_WAITING` do app
+Criar um trigger `AFTER INSERT ON partner_contracts` com `SECURITY DEFINER` que credita automaticamente os lances bônus no perfil quando um contrato ACTIVE é criado com `bonus_bids_received > 0`.
 
-### 2. Criar `lazyWithRetry` e ErrorBoundary (`src/App.tsx`)
+Isso garante que **independente de como o contrato é criado** (admin, webhook, sponsor, migration), os lances são sempre creditados.
 
-- Função `lazyWithRetry`: envolve `React.lazy()` com retry. Se o import falhar, tenta reload uma vez (usando `sessionStorage` para evitar loop)
-- Componente `ChunkErrorBoundary`: React ErrorBoundary que captura erros de import e exibe tela amigável com botão "Recarregar" em vez de spinner infinito
-- Envolver todas as rotas lazy com `<ChunkErrorBoundary>` + `<Suspense>`
-- O `PageLoader` ganha um timeout de 15s: se ultrapassar, mostra mensagem de erro com botão de reload
+## Mudanças
 
-### 3. Listener global em `src/main.tsx`
+### 1. Migration SQL
 
-- Adicionar listener `vite:preloadError` que força reload (com proteção anti-loop via `sessionStorage`)
-- Registrar o SW com `updateOnReload: true` para que novas versões assumam imediatamente
+```sql
+-- Função que credita lances bônus automaticamente
+CREATE OR REPLACE FUNCTION credit_partner_bonus_bids()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.status = 'ACTIVE' 
+     AND NEW.bonus_bids_received > 0 
+     AND NEW.is_demo = false THEN
+    
+    UPDATE profiles
+    SET bids_balance = bids_balance + NEW.bonus_bids_received,
+        updated_at = now()
+    WHERE user_id = NEW.user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-### 4. Telemetria de erros de chunk (novo `src/utils/chunkErrorTelemetry.ts`)
+-- Trigger no INSERT
+CREATE TRIGGER trg_credit_bonus_bids_on_contract
+AFTER INSERT ON partner_contracts
+FOR EACH ROW
+EXECUTE FUNCTION credit_partner_bonus_bids();
 
-- Função que loga no console com detalhes:
-  - Rota onde ocorreu o erro (`window.location.pathname`)
-  - Nome do chunk que falhou
-  - Se o reload foi tentado e se resolveu
-  - Timestamp
-- Opcionalmente envia para o Supabase (tabela de logs) para monitoramento
+-- Corrigir Tiago Vieira (caso pendente)
+UPDATE profiles
+SET bids_balance = bids_balance + 1200,
+    updated_at = now()
+WHERE user_id = 'fadb0e25-821c-4dd5-bb48-32d25efbec14'
+  AND bids_balance = 0;
+```
 
-### 5. PageLoader com timeout (`src/App.tsx`)
+O `SECURITY DEFINER` faz a função executar como owner (postgres), contornando o trigger de proteção.
 
-- O `PageLoader` atual é um spinner sem limite de tempo
-- Adicionar `useEffect` com `setTimeout(15000)` que muda o estado para "erro"
-- Estado de erro mostra: "A página não carregou. Isso pode acontecer após uma atualização." + botão "Recarregar página"
+### 2. Remover crédito duplicado do frontend (`AdminUserManagement.tsx`)
+
+Remover as linhas 461-478 que tentam creditar `bids_balance` e `bonus_bids_received` manualmente — o trigger agora faz isso. Manter apenas o insert do contrato com `bonus_bids_received` já preenchido.
+
+### 3. Remover crédito duplicado do webhook (`partner-payment-webhook`)
+
+Remover os blocos que fazem `update profiles set bids_balance` (linhas 139-158 e 203-221) — o trigger cuida disso no momento do INSERT do contrato. Manter apenas o `bonus_bids_received` no insert do contrato.
+
+### 4. Remover crédito duplicado do sponsor-activate (`sponsor-activate-partner`)
+
+Remover o bloco de linhas 200-216 que credita manualmente — o trigger cuida disso.
+
+## Resultado
+
+| Antes | Depois |
+|---|---|
+| 4 locais diferentes tentam creditar lances | 1 trigger centralizado no banco |
+| Frontend falha silenciosamente (trigger de proteção) | Trigger SECURITY DEFINER contorna proteção |
+| Falhas parciais perdem lances | Crédito é atômico com criação do contrato |
+| Correções manuais por migration | Nunca mais necessário |
 
 ## Arquivos alterados
 
 | Arquivo | Mudança |
 |---|---|
-| `public/sw.js` | Network First para HTML/navegação, cache v2, excluir rotas SPA |
-| `src/main.tsx` | Listener `vite:preloadError`, SW com `updateOnReload` |
-| `src/App.tsx` | `lazyWithRetry`, `ChunkErrorBoundary`, `PageLoader` com timeout |
-| `src/utils/chunkErrorTelemetry.ts` | Novo arquivo -- logs de erros de chunk |
-
-## Resultado esperado
-
-- Usuário com cache antigo → SW busca HTML novo da rede → chunks corretos carregam
-- Chunk falha mesmo assim → retry automático com reload (1 tentativa)
-- Reload não resolve → tela de erro amigável com botão manual (nunca spinner infinito)
-- Telemetria registra cada ocorrência para monitoramento
+| Nova migration SQL | Trigger `credit_partner_bonus_bids` + correção Tiago |
+| `src/components/AdminUserManagement.tsx` | Remover crédito manual de bids_balance |
+| `supabase/functions/partner-payment-webhook/index.ts` | Remover crédito manual de bids_balance |
+| `supabase/functions/sponsor-activate-partner/index.ts` | Remover crédito manual de bids_balance |
 
