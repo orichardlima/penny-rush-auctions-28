@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown, UserPlus, Unlink } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown, UserPlus, Unlink, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatPrice } from '@/lib/utils';
@@ -28,6 +28,7 @@ import { AffiliatePurchaseHistory } from '@/components/Affiliate/AffiliatePurcha
 import { Footer } from '@/components/Footer';
 import { useAffiliateManager } from '@/hooks/useAffiliateManager';
 import { AffiliateOnboarding } from '@/components/Affiliate/AffiliateOnboarding';
+import { AffiliateWithdrawalSection } from '@/components/Affiliate/AffiliateWithdrawalSection';
 
 interface AffiliateData {
   id: string;
@@ -44,6 +45,8 @@ interface AffiliateData {
   total_commission_earned: number;
   total_commission_paid: number;
   role?: string;
+  pix_key?: string | null;
+  bank_details?: any;
 }
 
 interface CPAGoal {
@@ -238,7 +241,7 @@ export default function AffiliateDashboard() {
 
         {/* Tabs Principal */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className={`grid w-full ${isManager ? 'grid-cols-5' : 'grid-cols-4'} lg:w-auto lg:inline-grid`}>
+          <TabsList className={`grid w-full ${isManager ? 'grid-cols-6' : 'grid-cols-5'} lg:w-auto lg:inline-grid`}>
             <TabsTrigger value="overview" className="gap-2">
               <DollarSign className="h-4 w-4" />
               Visão Geral
@@ -252,6 +255,10 @@ export default function AffiliateDashboard() {
             <TabsTrigger value="referrals" className="gap-2">
               <Users className="h-4 w-4" />
               Indicados
+            </TabsTrigger>
+            <TabsTrigger value="withdrawals" className="gap-2">
+              <Wallet className="h-4 w-4" />
+              Saques
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -661,6 +668,16 @@ export default function AffiliateDashboard() {
           <TabsContent value="referrals" className="space-y-6">
             <AffiliateReferralsList affiliateId={affiliateData.id} />
             <AffiliatePurchaseHistory affiliateId={affiliateData.id} />
+          </TabsContent>
+
+          {/* Tab: Saques */}
+          <TabsContent value="withdrawals" className="space-y-6">
+            <AffiliateWithdrawalSection
+              affiliateId={affiliateData.id}
+              commissionBalance={affiliateData.commission_balance}
+              pixKey={affiliateData.pix_key ?? undefined}
+              bankDetails={affiliateData.bank_details as any}
+            />
           </TabsContent>
 
           {/* Tab: Analytics */}
