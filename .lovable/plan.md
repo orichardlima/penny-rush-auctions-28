@@ -1,50 +1,49 @@
 
 
-# Funcionalidade de Saque para Afiliados
+# Correção: Comissões de afiliado não criadas no webhook de pagamento
 
-## Resumo
+## Problema
 
-Criar um sistema completo de saque para afiliados, reutilizando padrões já existentes no sistema de parceiros (`PartnerWithdrawalSection`). A tabela `affiliate_withdrawals` já existe com RLS configurado.
+O fluxo atual está assim:
 
-## Arquivos a criar/modificar
-
-### 1. Novo: `src/hooks/useAffiliateWithdrawals.ts`
-
-Hook dedicado para gerenciar saques de afiliados:
-- `fetchWithdrawals()` — lista saques do afiliado
-- `requestWithdrawal(amount, pixKey, pixKeyType, holderName)` — insere na `affiliate_withdrawals`
-- `calculateAvailableBalance()` — `commission_balance` do afiliado (já calculado pelo sistema)
-- Validação de saldo mínimo buscando `affiliate_min_withdrawal` da tabela `system_settings`
-- Validação de saque pendente (não permitir novo se já existe um `pending`)
-
-### 2. Novo: `src/components/Affiliate/AffiliateWithdrawalSection.tsx`
-
-Componente com:
-- Card de saldo disponível (usa `commission_balance` do affiliateData)
-- Card de dados PIX (cadastro/edição da chave PIX — salva em `affiliates.pix_key` e `affiliates.bank_details`)
-- Botão "Solicitar Saque" com dialog (valor + dados PIX)
-- Tabela de histórico de saques com status (Pendente/Pago/Rejeitado)
-- Validação: saldo mínimo, saque pendente existente
-
-### 3. Modificar: `src/pages/AffiliateDashboard.tsx`
-
-- Adicionar nova tab "Saques" (ícone Wallet) no TabsList
-- Ajustar grid-cols (4→5 sem manager, 5→6 com manager)
-- Importar e renderizar `AffiliateWithdrawalSection` na nova tab
-
-### 4. Migration SQL: adicionar setting de saldo mínimo
-
-```sql
-INSERT INTO system_settings (key, value, description)
-VALUES ('affiliate_min_withdrawal', '50', 'Valor mínimo para saque de afiliado (R$)')
-ON CONFLICT (key) DO NOTHING;
+```text
+Frontend → asaas-payment (cria compra + comissão) → Asaas processa → partner-payment-webhook (aprova comissão)
 ```
 
-## Detalhes técnicos
+O `partner-payment-webhook` na linha 262-284 **apenas aprova** comissões existentes. Se a comissão não foi criada no `asaas-payment` (por falha, referralCode ausente no localStorage, etc.), o pagamento é confirmado mas a comissão nunca é gerada.
 
-- O saldo disponível é `affiliateData.commission_balance` (já mantido pelo sistema de comissões)
-- Ao solicitar saque, o status é `pending` (diferente do parceiro que vai direto para `approved`)
-- A chave PIX é salva na coluna `affiliates.pix_key` e `affiliates.bank_details` (já existem)
-- RLS de INSERT na `affiliate_withdrawals` já permite afiliados inserirem seus próprios saques
-- O `payment_details` (jsonb) armazena `{ pix_key, pix_key_type, holder_name }`
+No caso do Richard Lima: o "Teste comissão" está registrado como indicado (referral convertido), pagou R$15, mas a comissão simplesmente não existe na tabela `affiliate_commissions`.
+
+## Solução
+
+### 1. Arquivo: `supabase/functions/partner-payment-webhook/index.ts`
+
+Na função `processBidPurchaseFallback`, após aprovar a compra e creditar lances (linha 260), adicionar lógica para **criar a comissão** quando não existir nenhuma:
+
+- Se não existem comissões pendentes para esta compra (`purchase_id`)
+- Buscar na tabela `affiliate_referrals` se o comprador foi indicado por algum afiliado
+- Se sim, buscar dados do afiliado (taxa de comissão, status ativo)
+- Verificar se é 1ª compra ou recompra
+- Criar a comissão com status `approved` (pois o pagamento já foi confirmado)
+- Atualizar `commission_balance` e `total_commission_earned` do afiliado
+
+Essa lógica é essencialmente a mesma que existe no `asaas-payment` (linhas 300-370), mas adaptada para rodar no webhook.
+
+### 2. Migration SQL: Corrigir o caso do Richard Lima
+
+Criar a comissão manualmente para a compra `19e0bac1` do "Teste comissão":
+- R$15 × 10% = R$1,50 de comissão
+- Status: `approved`
+- Atualizar `commission_balance` e `total_commission_earned` do afiliado
+
+## Resultado
+
+- Comissões serão criadas automaticamente no webhook mesmo que o frontend falhe em enviá-las
+- Richard Lima receberá R$1,50 de comissão
+- O "Histórico de Compras dos Indicados" passará a mostrar a compra
+
+| Arquivo | Mudança |
+|---|---|
+| `supabase/functions/partner-payment-webhook/index.ts` | Adicionar criação de comissão quando não existir |
+| Migration SQL | Creditar comissão do Richard Lima |
 
