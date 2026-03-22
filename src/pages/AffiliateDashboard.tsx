@@ -45,6 +45,8 @@ interface AffiliateData {
   total_commission_earned: number;
   total_commission_paid: number;
   role?: string;
+  pix_key?: string | null;
+  bank_details?: any;
 }
 
 interface CPAGoal {
