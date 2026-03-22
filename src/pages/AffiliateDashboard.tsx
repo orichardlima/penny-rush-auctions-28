@@ -668,6 +668,16 @@ export default function AffiliateDashboard() {
             <AffiliatePurchaseHistory affiliateId={affiliateData.id} />
           </TabsContent>
 
+          {/* Tab: Saques */}
+          <TabsContent value="withdrawals" className="space-y-6">
+            <AffiliateWithdrawalSection
+              affiliateId={affiliateData.id}
+              commissionBalance={affiliateData.commission_balance}
+              pixKey={affiliateData.pix_key ?? undefined}
+              bankDetails={affiliateData.bank_details as any}
+            />
+          </TabsContent>
+
           {/* Tab: Analytics */}
           <TabsContent value="analytics" className="space-y-6">
             {/* Funil de Conversão */}
