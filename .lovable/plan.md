@@ -1,49 +1,42 @@
 
 
-# Correção definitiva: unificar processamento de webhooks
+# Fix: Affiliate purchase history showing blank data due to RLS
 
-## Problema confirmado pelos logs
+## Problem
 
-- `asaas-webhook`: **0 logs** -- nunca recebeu nenhuma notificação
-- `partner-payment-webhook`: recebe TUDO, inclusive pagamentos de lances (pay_7g3icvoo46lnl9os com "Pacote Popular - 65 lances")
-- Quando recebe pagamento de lances, cai no fallback "Payment not related to partner contracts, ignoring" e descarta
+In `AffiliatePurchaseHistory.tsx`:
+- **Line 61-65**: Queries `profiles` directly for `full_name` -- RLS blocks access to other users' profiles
+- **Line 71-85**: Queries `bid_purchases` and `bid_packages` -- RLS blocks access to other users' purchases
 
-## Solução
+Result: All rows show "Usuário", "Pacote", "0 lances".
 
-Modificar o `partner-payment-webhook` para, quando não encontrar contrato de parceiro, verificar se é uma compra de lances (`bid_purchases`) e processá-la. Isso elimina a dependência de dois webhooks separados.
+## Solution
 
-### Arquivo: `supabase/functions/partner-payment-webhook/index.ts`
+### 1. New RPC function (migration SQL)
 
-Na função `processLegacyContractPayment`, no bloco onde o contrato não é encontrado (linha 164-167), em vez de apenas ignorar:
+Create a `SECURITY DEFINER` function `get_affiliate_purchase_details` that:
+- Takes an `affiliate_id` UUID, page number, and page size
+- Validates the caller owns this affiliate account (security check)
+- Joins `affiliate_commissions` with `profiles` (for referred user name), `bid_purchases` (for bids count), and `bid_packages` (for package name)
+- Returns all needed fields in one query, bypassing RLS safely
+- Includes a total count for pagination
 
-1. Buscar na tabela `bid_purchases` pelo `paymentId` ou `externalReference`
-2. Se encontrar, processar a compra: atualizar status para `completed`, creditar lances no perfil, aprovar comissões de afiliado
-3. Se não encontrar em nenhuma tabela, aí sim ignorar
+### 2. Update `AffiliatePurchaseHistory.tsx`
 
-Isso é essencialmente copiar a lógica de `processBidPurchase` do `asaas-webhook` para dentro do `partner-payment-webhook`.
+Replace the current N+1 query pattern (1 query per commission row) with a single RPC call to `get_affiliate_purchase_details`. This fixes both the RLS issue and the performance problem (currently makes 2-3 queries per row).
 
-### Correção manual: Richard Lima (pay_7g3icvoo46lnl9os)
+## Files changed
 
-Baseado nos logs, Richard Lima comprou "Pacote Popular - 65 lances" (R$50), pagou via PIX (status RECEIVED), mas os lances não foram creditados. Corrigir via migration SQL:
-
-```sql
-UPDATE bid_purchases SET payment_status = 'completed' 
-WHERE payment_id = 'pay_7g3icvoo46lnl9os' AND payment_status = 'pending';
-
-UPDATE profiles SET bids_balance = bids_balance + 65, updated_at = now() 
-WHERE user_id = '18c062cb-1bd6-4889-b20f-c359da2f5971';
-```
-
-## Arquivos alterados
-
-| Arquivo | Mudança |
+| File | Change |
 |---|---|
-| `supabase/functions/partner-payment-webhook/index.ts` | Adicionar fallback para processar `bid_purchases` quando não encontrar contrato |
-| Migration SQL | Creditar 65 lances do Richard Lima |
+| Migration SQL | New `get_affiliate_purchase_details` RPC function |
+| `src/components/Affiliate/AffiliatePurchaseHistory.tsx` | Use RPC instead of direct table queries |
 
-## Resultado
+## Also fix: AffiliateReferralsList
 
-- Um único webhook (`partner-payment-webhook`) processa tudo: parceiros, upgrades E compras de lances
-- Não depende mais do `asaas-webhook` receber notificações (que nunca recebeu)
-- Qualquer compra futura será processada automaticamente
+The same issue affects `AffiliateReferralsList.tsx` (line 82-84) which also queries `profiles` directly for referred user names. Will update it to use the existing `get_public_profiles` RPC instead.
+
+| File | Change |
+|---|---|
+| `src/components/Affiliate/AffiliateReferralsList.tsx` | Use `get_public_profiles` RPC for user names |
 
