@@ -232,7 +232,7 @@ const RecentPurchasesTab: React.FC = () => {
                       <TableCell className="whitespace-nowrap text-sm">
                         {format(new Date(p.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                       </TableCell>
-                      <TableCell className="font-medium">{p.profiles?.full_name || 'Desconhecido'}</TableCell>
+                      <TableCell className="font-medium">{p.userName}</TableCell>
                       <TableCell>{p.bid_packages?.name || '—'}</TableCell>
                       <TableCell className="text-right">{p.bids_purchased}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">R$ {p.amount_paid.toFixed(2)}</TableCell>
