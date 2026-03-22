@@ -21,7 +21,7 @@ interface PurchaseRow {
   payment_status: string | null;
   created_at: string;
   user_id: string;
-  profiles: { full_name: string | null } | null;
+  userName: string;
   bid_packages: { name: string } | null;
 }
 
