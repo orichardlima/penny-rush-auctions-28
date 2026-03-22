@@ -59,7 +59,7 @@ const RecentPurchasesTab: React.FC = () => {
     try {
       let query = supabase
         .from('bid_purchases')
-        .select('id, amount_paid, bids_purchased, payment_status, created_at, user_id, profiles!bid_purchases_user_id_fkey(full_name), bid_packages(name)', { count: 'exact' })
+        .select('id, amount_paid, bids_purchased, payment_status, created_at, user_id, bid_packages(name)', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -70,7 +70,24 @@ const RecentPurchasesTab: React.FC = () => {
       const { data, count, error } = await query;
       if (error) throw error;
 
-      setPurchases((data as unknown as PurchaseRow[]) || []);
+      const rows = (data || []) as unknown as Array<{
+        id: string; amount_paid: number; bids_purchased: number;
+        payment_status: string | null; created_at: string; user_id: string;
+        bid_packages: { name: string } | null;
+      }>;
+
+      // Fetch user names separately
+      const userIds = [...new Set(rows.map(r => r.user_id))];
+      const nameMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+        (profiles || []).forEach((p: any) => { nameMap[p.user_id] = p.full_name || 'Desconhecido'; });
+      }
+
+      setPurchases(rows.map(r => ({ ...r, userName: nameMap[r.user_id] || 'Desconhecido' })));
       setTotalCount(count || 0);
     } catch (err) {
       console.error('Erro ao buscar compras:', err);
