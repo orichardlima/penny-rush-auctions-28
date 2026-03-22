@@ -1,42 +1,43 @@
 
 
-# Fix: Affiliate purchase history showing blank data due to RLS
+# Fix: Admin não consegue alterar saldo de lances manualmente
 
-## Problem
+## Causa raiz
 
-In `AffiliatePurchaseHistory.tsx`:
-- **Line 61-65**: Queries `profiles` directly for `full_name` -- RLS blocks access to other users' profiles
-- **Line 71-85**: Queries `bid_purchases` and `bid_packages` -- RLS blocks access to other users' purchases
+O trigger `protect_profile_sensitive_fields` (linha 17) força `NEW.bids_balance := OLD.bids_balance` para qualquer role que não seja `service_role`. O painel admin roda no browser como `anon`/`authenticated`, então toda alteração manual de saldo é **silenciosamente ignorada**.
 
-Result: All rows show "Usuário", "Pacote", "0 lances".
+## Solução
 
-## Solution
+Alterar a função `protect_profile_fields()` para permitir updates quando o usuário autenticado é admin:
 
-### 1. New RPC function (migration SQL)
+```sql
+CREATE OR REPLACE FUNCTION public.protect_profile_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_setting('role') != 'service_role' 
+     AND NOT is_admin_user(auth.uid()) THEN
+    NEW.is_admin := OLD.is_admin;
+    NEW.is_blocked := OLD.is_blocked;
+    NEW.bids_balance := OLD.bids_balance;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+```
 
-Create a `SECURITY DEFINER` function `get_affiliate_purchase_details` that:
-- Takes an `affiliate_id` UUID, page number, and page size
-- Validates the caller owns this affiliate account (security check)
-- Joins `affiliate_commissions` with `profiles` (for referred user name), `bid_purchases` (for bids count), and `bid_packages` (for package name)
-- Returns all needed fields in one query, bypassing RLS safely
-- Includes a total count for pagination
+Isso permite que admins alterem `bids_balance`, `is_blocked` e `is_admin` pelo painel, enquanto usuários normais continuam bloqueados.
 
-### 2. Update `AffiliatePurchaseHistory.tsx`
+## Correção manual do Deivide
 
-Replace the current N+1 query pattern (1 query per commission row) with a single RPC call to `get_affiliate_purchase_details`. This fixes both the RLS issue and the performance problem (currently makes 2-3 queries per row).
+Creditar o saldo correto via migration (informar quantos lances foram comprados para eu incluir na migration).
 
-## Files changed
+## Arquivos alterados
 
-| File | Change |
+| Arquivo | Mudança |
 |---|---|
-| Migration SQL | New `get_affiliate_purchase_details` RPC function |
-| `src/components/Affiliate/AffiliatePurchaseHistory.tsx` | Use RPC instead of direct table queries |
-
-## Also fix: AffiliateReferralsList
-
-The same issue affects `AffiliateReferralsList.tsx` (line 82-84) which also queries `profiles` directly for referred user names. Will update it to use the existing `get_public_profiles` RPC instead.
-
-| File | Change |
-|---|---|
-| `src/components/Affiliate/AffiliateReferralsList.tsx` | Use `get_public_profiles` RPC for user names |
+| Migration SQL | Atualizar `protect_profile_fields()` para permitir admins |
 
