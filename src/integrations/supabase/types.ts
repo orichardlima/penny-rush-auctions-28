@@ -2414,6 +2414,22 @@ export type Database = {
           target_type: string
         }[]
       }
+      get_affiliate_purchase_details: {
+        Args: { _affiliate_id: string; _page?: number; _page_size?: number }
+        Returns: {
+          bids_purchased: number
+          commission_amount: number
+          commission_rate: number
+          created_at: string
+          id: string
+          is_repurchase: boolean
+          package_name: string
+          purchase_amount: number
+          referred_user_name: string
+          status: string
+          total_count: number
+        }[]
+      }
       get_auction_financials: {
         Args: { auction_uuid: string }
         Returns: {

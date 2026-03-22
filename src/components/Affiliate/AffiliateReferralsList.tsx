@@ -72,39 +72,46 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
 
       setTotalCount(count || 0);
 
-      // Fetch user names and commissions for referrals with user_id
-      const referralsWithDetails: ReferralItem[] = await Promise.all(
-        (referralsData || []).map(async (ref) => {
-          let userName: string | null = null;
-          let commissionAmount: number | null = null;
-
-          if (ref.referred_user_id) {
-            // Get user name via secure RPC
-            const { data: profileData } = await supabase
-              .rpc('get_public_profiles', { user_ids: [ref.referred_user_id] });
-
-            userName = profileData?.[0]?.full_name || 'Usuário';
-
-            // Get commission if converted
-            if (ref.converted) {
-              const { data: commissionData } = await supabase
-                .from('affiliate_commissions')
-                .select('commission_amount')
-                .eq('affiliate_id', affiliateId)
-                .eq('referred_user_id', ref.referred_user_id)
-                .single();
-
-              commissionAmount = commissionData?.commission_amount || null;
-            }
+      // Fetch user names via secure RPC (batch)
+      const userIds = (referralsData || [])
+        .filter(r => r.referred_user_id)
+        .map(r => r.referred_user_id!);
+      
+      let profilesMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profileData } = await supabase
+          .rpc('get_public_profiles', { user_ids: userIds });
+        if (profileData) {
+          for (const p of profileData) {
+            profilesMap[p.user_id] = p.full_name || 'Usuário';
           }
+        }
+      }
 
-          return {
-            ...ref,
-            user_name: userName,
-            commission_amount: commissionAmount,
-          };
-        })
-      );
+      // Fetch commissions for converted referrals
+      const convertedUserIds = (referralsData || [])
+        .filter(r => r.converted && r.referred_user_id)
+        .map(r => r.referred_user_id!);
+      
+      let commissionsMap: Record<string, number> = {};
+      if (convertedUserIds.length > 0) {
+        const { data: commissionData } = await supabase
+          .from('affiliate_commissions')
+          .select('referred_user_id, commission_amount')
+          .eq('affiliate_id', affiliateId)
+          .in('referred_user_id', convertedUserIds);
+        if (commissionData) {
+          for (const c of commissionData) {
+            commissionsMap[c.referred_user_id] = c.commission_amount;
+          }
+        }
+      }
+
+      const referralsWithDetails: ReferralItem[] = (referralsData || []).map((ref) => ({
+        ...ref,
+        user_name: ref.referred_user_id ? (profilesMap[ref.referred_user_id] || 'Usuário') : null,
+        commission_amount: ref.referred_user_id ? (commissionsMap[ref.referred_user_id] || null) : null,
+      }));
 
       setReferrals(referralsWithDetails);
     } catch (error) {

@@ -40,66 +40,32 @@ export function AffiliatePurchaseHistory({ affiliateId }: AffiliatePurchaseHisto
   const fetchPurchases = async () => {
     setLoading(true);
     try {
-      const from = (page - 1) * perPage;
-      const to = from + perPage - 1;
-
-      const { data: commissions, error, count } = await supabase
-        .from('affiliate_commissions')
-        .select('*', { count: 'exact' })
-        .eq('affiliate_id', affiliateId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+      const { data, error } = await supabase.rpc('get_affiliate_purchase_details', {
+        _affiliate_id: affiliateId,
+        _page: page,
+        _page_size: perPage,
+      });
 
       if (error) throw error;
 
-      setTotalCount(count || 0);
-
-      const purchasesWithDetails: PurchaseItem[] = await Promise.all(
-        (commissions || []).map(async (comm) => {
-          // Get referred user name
-          let userName = 'Usuário';
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('user_id', comm.referred_user_id)
-            .single();
-          if (profileData?.full_name) userName = profileData.full_name;
-
-          // Get package info from bid_purchases
-          let packageName = 'Pacote';
-          let bidsPurchased = 0;
-          const { data: purchaseData } = await supabase
-            .from('bid_purchases')
-            .select('bids_purchased, package_id')
-            .eq('id', comm.purchase_id)
-            .single();
-
-          if (purchaseData) {
-            bidsPurchased = purchaseData.bids_purchased;
-            const { data: packageData } = await supabase
-              .from('bid_packages')
-              .select('name')
-              .eq('id', purchaseData.package_id)
-              .single();
-            if (packageData?.name) packageName = packageData.name;
-          }
-
-          return {
-            id: comm.id,
-            created_at: comm.created_at,
-            purchase_amount: comm.purchase_amount,
-            commission_amount: comm.commission_amount,
-            commission_rate: comm.commission_rate,
-            is_repurchase: comm.is_repurchase,
-            status: comm.status,
-            referred_user_name: userName,
-            package_name: packageName,
-            bids_purchased: bidsPurchased,
-          };
-        })
-      );
-
-      setPurchases(purchasesWithDetails);
+      if (data && data.length > 0) {
+        setTotalCount(Number(data[0].total_count) || 0);
+        setPurchases(data.map((row: any) => ({
+          id: row.id,
+          created_at: row.created_at,
+          purchase_amount: row.purchase_amount,
+          commission_amount: row.commission_amount,
+          commission_rate: row.commission_rate,
+          is_repurchase: row.is_repurchase,
+          status: row.status,
+          referred_user_name: row.referred_user_name,
+          package_name: row.package_name,
+          bids_purchased: row.bids_purchased,
+        })));
+      } else {
+        setTotalCount(0);
+        setPurchases([]);
+      }
     } catch (error) {
       console.error('Error fetching purchase history:', error);
     } finally {
