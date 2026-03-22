@@ -1,41 +1,26 @@
 
 
-# Creditar indicações de Luis Paulo Mota para 3 usuários
+# Correção: Aba de compras não carrega dados
 
-## Estado atual no banco
+## Problema
 
-| Usuário | user_id | Referral p/ Luis Paulo | Purchases | Comissões pendentes |
-|---|---|---|---|---|
-| **Adriana Barreto** | `264055be` | Existe (não convertido) | 4 pending, 0 completed | Nenhuma |
-| **Deivide Araújo** | `75a0a41b` | Existe (não convertido) | 2 pending, 0 completed | 2 pendentes |
-| **Meriane de Sousa** | `56158a8e` | **Não existe** | 6 completed | 6 pendentes |
+Na linha 62 do `RecentPurchasesTab.tsx`, o query usa:
+```
+profiles!bid_purchases_user_id_fkey(full_name)
+```
+Mas `bid_purchases.user_id` tem FK para `auth.users`, não para `profiles`. O PostgREST não consegue resolver esse join e a query falha silenciosamente — resultado: nenhuma compra aparece.
 
-**Luis Paulo Mota** - affiliate_id: `92e39f3b`, taxa: 50% (1ª compra), 10% (recompra)
+## Solução
 
-## Ações (via SQL insert tool)
+Remover o join quebrado e buscar os nomes dos usuários em uma query separada.
 
-### 1. Marcar 1 compra de cada como `completed` (Adriana e Deivide)
-- Adriana: `cffc1160` → completed
-- Deivide: `51ce2d60` → completed
+### Arquivo: `src/components/AdminDashboard/RecentPurchasesTab.tsx`
 
-### 2. Criar referral para Meriane
-- Inserir `affiliate_referrals` com affiliate_id de Luis Paulo, referred_user_id da Meriane, converted=true, click_source='manual_admin_link'
+1. Remover `profiles!bid_purchases_user_id_fkey(full_name)` do select
+2. Após buscar as compras, coletar os `user_id`s únicos e buscar nomes na tabela `profiles`
+3. Mapear os nomes de volta nas linhas da tabela
 
-### 3. Marcar referrals existentes como convertidos
-- Adriana e Deivide: UPDATE converted=true
-
-### 4. Criar comissões para Adriana e Deivide
-- R$15 × 50% = R$7,50 de comissão (1ª compra) para cada
-
-### 5. Aprovar todas as comissões pendentes
-- Meriane: 6 comissões → status 'approved'
-- Deivide: 2 comissões → status 'approved'
-- Adriana: 1 comissão nova → já criada como 'approved'
-
-### 6. Atualizar métricas do Luis Paulo
-- Incrementar `total_conversions` em +2 (Adriana e Deivide; Meriane já deve estar contabilizada)
-
-## Resultado esperado
-- Luis Paulo recebe crédito pelas 3 indicações no dashboard de afiliado
-- Comissões ficam visíveis como aprovadas
+| Arquivo | Mudança |
+|---|---|
+| `src/components/AdminDashboard/RecentPurchasesTab.tsx` | Separar query de compras e nomes de usuários |
 
