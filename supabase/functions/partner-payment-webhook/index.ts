@@ -259,7 +259,7 @@ async function processBidPurchaseFallback(supabase: any, isApproved: boolean, is
 
     console.log('✅ Bid purchase completed: +' + purchase.bids_purchased + ' lances')
 
-    // Aprovar comissões de afiliado
+    // Aprovar comissões de afiliado existentes
     const { data: commissions } = await supabase
       .from('affiliate_commissions')
       .select('id, affiliate_id')
@@ -282,6 +282,79 @@ async function processBidPurchaseFallback(supabase: any, isApproved: boolean, is
         })
       }
       console.log('✅ Affiliate commissions approved')
+    } else {
+      // FALLBACK: Criar comissão se não existe nenhuma para esta compra
+      console.log('🔍 No commissions found, checking affiliate_referrals for buyer...')
+      
+      const { data: referral } = await supabase
+        .from('affiliate_referrals')
+        .select('affiliate_id')
+        .eq('referred_user_id', purchase.user_id)
+        .eq('converted', true)
+        .limit(1)
+        .maybeSingle()
+
+      if (referral) {
+        const { data: affiliate } = await supabase
+          .from('affiliates')
+          .select('id, commission_rate, repurchase_commission_rate, status, commission_balance, total_commission_earned, total_conversions')
+          .eq('id', referral.affiliate_id)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (affiliate) {
+          // Verificar se já existe alguma comissão (qualquer status) para esta compra
+          const { data: existingComm } = await supabase
+            .from('affiliate_commissions')
+            .select('id')
+            .eq('purchase_id', purchase.id)
+            .limit(1)
+
+          if (!existingComm || existingComm.length === 0) {
+            // Verificar se é 1ª compra ou recompra
+            const { count: prevPurchases } = await supabase
+              .from('bid_purchases')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', purchase.user_id)
+              .eq('payment_status', 'completed')
+              .neq('id', purchase.id)
+
+            const isRepurchase = (prevPurchases || 0) > 0
+            const rate = isRepurchase 
+              ? (affiliate.repurchase_commission_rate || affiliate.commission_rate) 
+              : affiliate.commission_rate
+            const commissionAmount = purchase.amount_paid * (rate / 100)
+
+            console.log(`💰 Creating commission: R$${commissionAmount} (${rate}%, repurchase=${isRepurchase})`)
+
+            await supabase.from('affiliate_commissions').insert({
+              affiliate_id: affiliate.id,
+              purchase_id: purchase.id,
+              referred_user_id: purchase.user_id,
+              purchase_amount: purchase.amount_paid,
+              commission_rate: rate,
+              commission_amount: commissionAmount,
+              is_repurchase: isRepurchase,
+              status: 'approved',
+              approved_at: new Date().toISOString()
+            })
+
+            // Atualizar saldo e totais do afiliado
+            await supabase
+              .from('affiliates')
+              .update({
+                commission_balance: (affiliate.commission_balance || 0) + commissionAmount,
+                total_commission_earned: (affiliate.total_commission_earned || 0) + commissionAmount,
+                total_conversions: (affiliate.total_conversions || 0) + 1
+              })
+              .eq('id', affiliate.id)
+
+            console.log('✅ Affiliate commission created via webhook fallback')
+          }
+        }
+      } else {
+        console.log('ℹ️ Buyer has no affiliate referral, skipping commission')
+      }
     }
 
   } else if (isRejected) {
