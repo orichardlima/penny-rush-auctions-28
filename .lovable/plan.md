@@ -1,43 +1,41 @@
 
 
-# Fix: Admin não consegue alterar saldo de lances manualmente
+# Creditar indicações de Luis Paulo Mota para 3 usuários
 
-## Causa raiz
+## Estado atual no banco
 
-O trigger `protect_profile_sensitive_fields` (linha 17) força `NEW.bids_balance := OLD.bids_balance` para qualquer role que não seja `service_role`. O painel admin roda no browser como `anon`/`authenticated`, então toda alteração manual de saldo é **silenciosamente ignorada**.
+| Usuário | user_id | Referral p/ Luis Paulo | Purchases | Comissões pendentes |
+|---|---|---|---|---|
+| **Adriana Barreto** | `264055be` | Existe (não convertido) | 4 pending, 0 completed | Nenhuma |
+| **Deivide Araújo** | `75a0a41b` | Existe (não convertido) | 2 pending, 0 completed | 2 pendentes |
+| **Meriane de Sousa** | `56158a8e` | **Não existe** | 6 completed | 6 pendentes |
 
-## Solução
+**Luis Paulo Mota** - affiliate_id: `92e39f3b`, taxa: 50% (1ª compra), 10% (recompra)
 
-Alterar a função `protect_profile_fields()` para permitir updates quando o usuário autenticado é admin:
+## Ações (via SQL insert tool)
 
-```sql
-CREATE OR REPLACE FUNCTION public.protect_profile_fields()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF current_setting('role') != 'service_role' 
-     AND NOT is_admin_user(auth.uid()) THEN
-    NEW.is_admin := OLD.is_admin;
-    NEW.is_blocked := OLD.is_blocked;
-    NEW.bids_balance := OLD.bids_balance;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-```
+### 1. Marcar 1 compra de cada como `completed` (Adriana e Deivide)
+- Adriana: `cffc1160` → completed
+- Deivide: `51ce2d60` → completed
 
-Isso permite que admins alterem `bids_balance`, `is_blocked` e `is_admin` pelo painel, enquanto usuários normais continuam bloqueados.
+### 2. Criar referral para Meriane
+- Inserir `affiliate_referrals` com affiliate_id de Luis Paulo, referred_user_id da Meriane, converted=true, click_source='manual_admin_link'
 
-## Correção manual do Deivide
+### 3. Marcar referrals existentes como convertidos
+- Adriana e Deivide: UPDATE converted=true
 
-Creditar o saldo correto via migration (informar quantos lances foram comprados para eu incluir na migration).
+### 4. Criar comissões para Adriana e Deivide
+- R$15 × 50% = R$7,50 de comissão (1ª compra) para cada
 
-## Arquivos alterados
+### 5. Aprovar todas as comissões pendentes
+- Meriane: 6 comissões → status 'approved'
+- Deivide: 2 comissões → status 'approved'
+- Adriana: 1 comissão nova → já criada como 'approved'
 
-| Arquivo | Mudança |
-|---|---|
-| Migration SQL | Atualizar `protect_profile_fields()` para permitir admins |
+### 6. Atualizar métricas do Luis Paulo
+- Incrementar `total_conversions` em +2 (Adriana e Deivide; Meriane já deve estar contabilizada)
+
+## Resultado esperado
+- Luis Paulo recebe crédito pelas 3 indicações no dashboard de afiliado
+- Comissões ficam visíveis como aprovadas
 
