@@ -28,6 +28,7 @@ import { AffiliatePurchaseHistory } from '@/components/Affiliate/AffiliatePurcha
 import { Footer } from '@/components/Footer';
 import { useAffiliateManager } from '@/hooks/useAffiliateManager';
 import { AffiliateOnboarding } from '@/components/Affiliate/AffiliateOnboarding';
+import { AffiliateWithdrawalSection } from '@/components/Affiliate/AffiliateWithdrawalSection';
 
 interface AffiliateData {
   id: string;
