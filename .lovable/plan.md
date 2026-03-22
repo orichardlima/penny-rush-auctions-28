@@ -1,49 +1,61 @@
 
 
-# Correção: Comissões de afiliado não criadas no webhook de pagamento
+# Correção: Saldo de comissões do Luis Paulo Mota
 
-## Problema
+## Problemas encontrados
 
-O fluxo atual está assim:
+1. **`commission_balance` e `total_commission_earned` = R$ 756,50** — valor inflado por scripts retroativos que incrementaram sem verificar o saldo real
+2. **17 comissões pendentes** cujas compras já foram pagas (`completed`) — deveriam ser `approved`
+3. **1 comissão aprovada** cuja compra **não foi paga** (`pending`) — deveria ser `pending`
 
-```text
-Frontend → asaas-payment (cria compra + comissão) → Asaas processa → partner-payment-webhook (aprova comissão)
+## Valor correto
+
+- Comissões aprovadas de compras pagas: **R$ 326,50**
+- Comissões pendentes de compras pagas (serão aprovadas): **R$ 205,00**
+- **Total correto: R$ 531,50**
+
+## Ações (via migration SQL)
+
+### 1. Aprovar as 17 comissões pendentes com compras já pagas
+
+```sql
+UPDATE affiliate_commissions ac
+SET status = 'approved', approved_at = NOW()
+FROM bid_purchases bp
+WHERE ac.purchase_id = bp.id
+  AND ac.affiliate_id = '92e39f3b-4ea7-4b9d-a193-5ab981b4112a'
+  AND ac.status = 'pending'
+  AND bp.payment_status = 'completed';
 ```
 
-O `partner-payment-webhook` na linha 262-284 **apenas aprova** comissões existentes. Se a comissão não foi criada no `asaas-payment` (por falha, referralCode ausente no localStorage, etc.), o pagamento é confirmado mas a comissão nunca é gerada.
+### 2. Reverter a comissão aprovada cuja compra não foi paga
 
-No caso do Richard Lima: o "Teste comissão" está registrado como indicado (referral convertido), pagou R$15, mas a comissão simplesmente não existe na tabela `affiliate_commissions`.
+```sql
+UPDATE affiliate_commissions
+SET status = 'pending', approved_at = NULL
+WHERE affiliate_id = '92e39f3b-4ea7-4b9d-a193-5ab981b4112a'
+  AND status = 'approved'
+  AND purchase_id IN (
+    SELECT id FROM bid_purchases WHERE payment_status = 'pending'
+  );
+```
 
-## Solução
+### 3. Corrigir o saldo para o valor real
 
-### 1. Arquivo: `supabase/functions/partner-payment-webhook/index.ts`
-
-Na função `processBidPurchaseFallback`, após aprovar a compra e creditar lances (linha 260), adicionar lógica para **criar a comissão** quando não existir nenhuma:
-
-- Se não existem comissões pendentes para esta compra (`purchase_id`)
-- Buscar na tabela `affiliate_referrals` se o comprador foi indicado por algum afiliado
-- Se sim, buscar dados do afiliado (taxa de comissão, status ativo)
-- Verificar se é 1ª compra ou recompra
-- Criar a comissão com status `approved` (pois o pagamento já foi confirmado)
-- Atualizar `commission_balance` e `total_commission_earned` do afiliado
-
-Essa lógica é essencialmente a mesma que existe no `asaas-payment` (linhas 300-370), mas adaptada para rodar no webhook.
-
-### 2. Migration SQL: Corrigir o caso do Richard Lima
-
-Criar a comissão manualmente para a compra `19e0bac1` do "Teste comissão":
-- R$15 × 10% = R$1,50 de comissão
-- Status: `approved`
-- Atualizar `commission_balance` e `total_commission_earned` do afiliado
+```sql
+UPDATE affiliates
+SET commission_balance = 531.50,
+    total_commission_earned = 531.50
+WHERE id = '92e39f3b-4ea7-4b9d-a193-5ab981b4112a';
+```
 
 ## Resultado
 
-- Comissões serão criadas automaticamente no webhook mesmo que o frontend falhe em enviá-las
-- Richard Lima receberá R$1,50 de comissão
-- O "Histórico de Compras dos Indicados" passará a mostrar a compra
+- Saldo corrigido de R$ 756,50 → **R$ 531,50**
+- 17 comissões promovidas de `pending` → `approved`
+- 1 comissão revertida de `approved` → `pending`
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/partner-payment-webhook/index.ts` | Adicionar criação de comissão quando não existir |
-| Migration SQL | Creditar comissão do Richard Lima |
+| Migration SQL | Corrigir status das comissões e saldo do afiliado |
 
