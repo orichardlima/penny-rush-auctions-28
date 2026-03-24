@@ -472,6 +472,73 @@ export const usePartnerContract = () => {
     }
   };
 
+  const upgradeCotasContract = async (newCotas: number): Promise<{ success: boolean; paymentData?: PartnerUpgradePaymentData }> => {
+    if (!contract || !profile?.user_id) return { success: false };
+
+    // Validações
+    if (contract.status !== 'ACTIVE') {
+      toast({ variant: "destructive", title: "Contrato inativo", description: "Só é possível fazer upgrade em contratos ativos." });
+      return { success: false };
+    }
+
+    if (newCotas <= contract.cotas) {
+      toast({ variant: "destructive", title: "Upgrade inválido", description: "Só é possível aumentar o número de cotas." });
+      return { success: false };
+    }
+
+    const progressPercentage = (contract.total_received / contract.total_cap) * 100;
+    if (progressPercentage >= 80) {
+      toast({ variant: "destructive", title: "Upgrade não disponível", description: "Você já atingiu mais de 80% do teto atual." });
+      return { success: false };
+    }
+
+    setSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email || '';
+      const userName = profile.full_name || 'Usuário';
+
+      const { data, error } = await supabase.functions.invoke('partner-upgrade-payment', {
+        body: {
+          contractId: contract.id,
+          upgradeCotas: newCotas,
+          userId: profile.user_id,
+          userEmail,
+          userName,
+          userCpf: profile.cpf || ''
+        }
+      });
+
+      if (error) throw new Error(error.message || 'Erro ao gerar pagamento');
+      if (data.error) throw new Error(data.error);
+
+      const paymentData: PartnerUpgradePaymentData = {
+        paymentId: data.paymentId,
+        qrCode: data.qrCode,
+        qrCodeBase64: data.qrCodeBase64,
+        pixCopyPaste: data.pixCopyPaste,
+        status: data.status,
+        contractId: data.contractId,
+        previousPlanName: data.previousPlanName,
+        newPlanName: data.newPlanName,
+        differenceToPay: data.differenceToPay,
+        newAporteValue: data.newAporteValue,
+        newTotalCap: data.newTotalCap,
+        newWeeklyCap: data.newWeeklyCap,
+        isCotasUpgrade: data.isCotasUpgrade,
+        previousCotas: data.previousCotas,
+        newCotas: data.newCotas
+      };
+
+      return { success: true, paymentData };
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erro ao criar pagamento", description: error.message || "Não foi possível gerar o pagamento PIX." });
+      return { success: false };
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getProgress = useCallback(() => {
     if (!contract) return { percentage: 0, remaining: 0 };
     
@@ -495,8 +562,12 @@ export const usePartnerContract = () => {
     if (!contract) return false;
     if (contract.status !== 'ACTIVE') return false;
     const progressPercentage = (contract.total_received / contract.total_cap) * 100;
-    return progressPercentage < 80 && getAvailableUpgrades().length > 0;
-  }, [contract, getAvailableUpgrades]);
+    if (progressPercentage >= 80) return false;
+    // Can upgrade plan OR cotas
+    const currentPlan = plans.find(p => p.name === contract.plan_name);
+    const canUpgradeCotas = currentPlan ? contract.cotas < (currentPlan.max_cotas || 1) : false;
+    return getAvailableUpgrades().length > 0 || canUpgradeCotas;
+  }, [contract, getAvailableUpgrades, plans]);
 
   useEffect(() => {
     const loadData = async () => {
