@@ -1,0 +1,1 @@
+DELETE FROM partner_payment_intents WHERE id = 'bf5736c0-44b8-4cbe-9d0f-856fad0b0f34';
