@@ -119,9 +119,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   };
 
   // Abre o dialog de termos antes de gerar o PIX
-  const handlePlanSelectWithTerms = (planId: string, referralCode?: string) => {
+  const handlePlanSelectWithTerms = (planId: string, cotas: number = 1, referralCode?: string) => {
     setPendingPlanId(planId);
     setPendingReferralCode(referralCode);
+    setPendingCotas(cotas);
     setContractTermsOpen(true);
   };
 
