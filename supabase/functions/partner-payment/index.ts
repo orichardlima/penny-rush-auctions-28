@@ -65,7 +65,22 @@ serve(async (req) => {
       )
     }
 
-    console.log('✅ Plan found:', planData.name, planData.aporte_value)
+    // Validar cotas
+    const maxCotas = planData.max_cotas || 1
+    if (cotas < 1 || cotas > maxCotas) {
+      return new Response(
+        JSON.stringify({ error: `Quantidade de cotas inválida. Máximo permitido: ${maxCotas}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Calcular valores proporcionais às cotas
+    const aporteValue = planData.aporte_value * cotas
+    const weeklyCap = planData.weekly_cap * cotas
+    const totalCap = planData.total_cap * cotas
+    const bonusBids = (planData.bonus_bids || 0) * cotas
+
+    console.log('✅ Plan found:', planData.name, 'cotas:', cotas, 'aporte:', aporteValue)
 
     // 2. Verificar contrato ativo existente
     const { data: existingContract } = await supabase
