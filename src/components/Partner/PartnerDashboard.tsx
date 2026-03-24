@@ -68,6 +68,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     submitting,
     createContract,
     upgradeContract,
+    upgradeCotasContract,
     getProgress,
     getLastPayout,
     canUpgrade,
@@ -562,6 +563,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               contract={contract}
               plans={plans}
               onUpgrade={upgradeContract}
+              onUpgradeCotas={upgradeCotasContract}
               onPaymentData={handleUpgradePaymentData}
               submitting={submitting}
             />
@@ -599,6 +601,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                 <div className={cn("text-sm text-muted-foreground space-y-0.5", isDemo && "opacity-50")}>
                   <p>Aporte: <span className="font-medium text-foreground">{formatPrice(contract.aporte_value)}</span></p>
                   <p>Teto: <span className="font-medium text-foreground">{formatPrice(contract.total_cap)}</span></p>
+                  {contract.cotas > 1 && (
+                    <p>Cotas: <span className="font-medium text-foreground">{contract.cotas}x {contract.plan_name}</span></p>
+                  )}
                   {isDemo && <p className="text-xs italic text-amber-600">Valores simulados</p>}
                 </div>
               </div>

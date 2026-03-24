@@ -44,7 +44,13 @@ serve(async (req) => {
       return new Response('OK', { status: 200, headers: corsHeaders })
     }
 
-    // Verificar se é UPGRADE
+    // Verificar se é UPGRADE DE COTAS
+    if (externalReference.startsWith('cotas-upgrade:')) {
+      console.log('📦 Processing COTAS UPGRADE payment')
+      return await processCotasUpgradePayment(supabase, isApproved, isRejected, externalReference, paymentId)
+    }
+
+    // Verificar se é UPGRADE DE PLANO
     if (externalReference.startsWith('upgrade:')) {
       console.log('🔄 Processing UPGRADE payment')
       return await processUpgradePayment(supabase, isApproved, isRejected, externalReference, paymentId)
@@ -370,6 +376,86 @@ async function processBidPurchaseFallback(supabase: any, isApproved: boolean, is
       .update({ status: 'cancelled' })
       .eq('purchase_id', purchase.id)
       .in('status', ['pending', 'approved'])
+  }
+
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
+
+async function processCotasUpgradePayment(supabase: any, isApproved: boolean, isRejected: boolean, externalReference: string, paymentId: string) {
+  // Format: cotas-upgrade:{contractId}:{newCotas}
+  const parts = externalReference.split(':')
+  if (parts.length !== 3) {
+    console.error('❌ Invalid cotas upgrade reference:', externalReference)
+    return new Response('Invalid reference', { status: 400, headers: corsHeaders })
+  }
+
+  const contractId = parts[1]
+  const newCotas = parseInt(parts[2], 10)
+
+  const { data: contract } = await supabase
+    .from('partner_contracts')
+    .select('*')
+    .eq('id', contractId)
+    .single()
+
+  if (!contract) {
+    return new Response('Contract not found', { status: 404, headers: corsHeaders })
+  }
+
+  // Buscar plano atual
+  const { data: currentPlan } = await supabase
+    .from('partner_plans')
+    .select('*')
+    .eq('name', contract.plan_name)
+    .eq('is_active', true)
+    .single()
+
+  if (!currentPlan) {
+    return new Response('Plan not found', { status: 404, headers: corsHeaders })
+  }
+
+  if (isApproved) {
+    console.log('✅ Cotas upgrade payment approved, applying upgrade:', contract.cotas, '→', newCotas)
+
+    const cotasDiff = newCotas - contract.cotas
+    const differencePaid = currentPlan.aporte_value * cotasDiff
+    const newAporteValue = currentPlan.aporte_value * newCotas
+    const newTotalCap = currentPlan.total_cap * newCotas
+    const newWeeklyCap = currentPlan.weekly_cap * newCotas
+    const newBonusBids = currentPlan.bonus_bids * newCotas
+
+    // Registrar upgrade
+    await supabase.from('partner_upgrades').insert({
+      partner_contract_id: contract.id,
+      previous_plan_name: contract.plan_name,
+      previous_aporte_value: contract.aporte_value,
+      previous_weekly_cap: contract.weekly_cap,
+      previous_total_cap: contract.total_cap,
+      new_plan_name: contract.plan_name,
+      new_aporte_value: newAporteValue,
+      new_weekly_cap: newWeeklyCap,
+      new_total_cap: newTotalCap,
+      total_received_at_upgrade: contract.total_received,
+      difference_paid: differencePaid,
+      notes: `Upgrade de cotas: ${contract.cotas} → ${newCotas}. Pagamento Asaas ID: ${paymentId}`
+    })
+
+    // Atualizar contrato
+    await supabase
+      .from('partner_contracts')
+      .update({
+        cotas: newCotas,
+        aporte_value: newAporteValue,
+        weekly_cap: newWeeklyCap,
+        total_cap: newTotalCap,
+        bonus_bids_received: newBonusBids,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', contract.id)
+
+    console.log('✅ Contract cotas upgraded:', contract.cotas, '→', newCotas)
+  } else if (isRejected) {
+    console.log('❌ Cotas upgrade payment rejected')
   }
 
   return new Response('OK', { status: 200, headers: corsHeaders })
