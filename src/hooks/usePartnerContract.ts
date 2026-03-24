@@ -309,7 +309,8 @@ export const usePartnerContract = () => {
           userEmail,
           userName,
           userCpf: profile.cpf || '',
-          referralCode: referralCode || undefined
+          referralCode: referralCode || undefined,
+          cotas
         }
       });
 
