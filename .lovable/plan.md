@@ -1,54 +1,88 @@
 
 
-# Corrigir propagação binária: remover regra de qualificador
+# Implementacao: Sistema de Cotas nos Planos de Parceiro
 
-## Problema identificado
+## Resumo
 
-A função `propagate_binary_points` possui uma regra que **pula o sponsor** na propagação de pontos. No caso do Alex:
+Adicionar coluna `max_cotas` nos planos e `cotas` nos contratos/intents. Legend tera `max_cotas = 3`. Os valores de aporte, caps e pontuacao binaria serao proporcionais ao numero de cotas.
 
-```text
-Alex (source, 600pts)
-  → Tiago (parent, depth 1) ✅ recebeu 600pts
-  → Luis Paulo (depth 2, É O SPONSOR) ❌ PULADO pela regra de qualificador
-  → Luiz Claudio (depth 3) ✅ recebeu 600pts
-  → ... (demais uplines) ✅ receberam
-```
+## 1. Migracao SQL
 
-Trecho problemático na função (linhas 50-53 da migration `20260311031637`):
-```sql
-v_is_qualifier := (v_current_id = v_sponsor_id);
-IF NOT v_is_qualifier THEN
-  -- só adiciona pontos se NÃO for o sponsor
-```
-
-## Solução
-
-### 1. Atualizar `propagate_binary_points` — remover a regra de qualificador
-
-Remover completamente a lógica que pula o sponsor. Os pontos devem subir para **todos** os uplines na cadeia física, sem exceção.
-
-A função ficará mais simples: percorre a cadeia `parent_contract_id` adicionando pontos em cada nó, sem verificar se é sponsor.
-
-### 2. Corrigir retroativamente os pontos do Luis Paulo
-
-Adicionar os 600 pontos que foram pulados para Luis Paulo (contract `f54fe7ca-bc23-4db8-b4cb-39ead3d4a1e8`). Alex está na perna **right** do Tiago, e Tiago está na perna **right** do Luis Paulo, então os pontos do Alex chegam pelo lado **right** do Luis Paulo.
+Adicionar colunas e atualizar funcao de posicionamento binario:
 
 ```sql
--- Adicionar 600 pontos na perna direita do Luis Paulo
-UPDATE partner_binary_positions
-SET right_points = right_points + 600,
-    total_right_points = total_right_points + 600
-WHERE partner_contract_id = 'f54fe7ca-bc23-4db8-b4cb-39ead3d4a1e8';
+-- Novas colunas
+ALTER TABLE partner_plans ADD COLUMN max_cotas INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE partner_plans ADD COLUMN monthly_return_cap NUMERIC NOT NULL DEFAULT 0.10;
+ALTER TABLE partner_plans ADD COLUMN total_return_cap NUMERIC NOT NULL DEFAULT 2.0;
 
--- Registrar no log
-INSERT INTO binary_points_log (partner_contract_id, source_contract_id, points_added, position, reason)
-VALUES ('f54fe7ca-bc23-4db8-b4cb-39ead3d4a1e8', 'c7627efd-b8f1-44a4-86ed-4481846ded31', 600, 'right', 'retroactive_fix_qualifier_rule');
+ALTER TABLE partner_contracts ADD COLUMN cotas INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE partner_payment_intents ADD COLUMN cotas INTEGER NOT NULL DEFAULT 1;
+
+-- Definir max_cotas = 3 para Legend
+UPDATE partner_plans SET max_cotas = 3 WHERE UPPER(name) = 'LEGEND';
 ```
 
-## Detalhes técnicos
+Atualizar funcao `position_partner_binary` para multiplicar pontos pelas cotas:
 
-| Arquivo / Recurso | Mudança |
+```sql
+-- Apos buscar v_points do partner_level_points:
+SELECT COALESCE(pc.cotas, 1) INTO v_cotas FROM partner_contracts pc WHERE pc.id = p_contract_id;
+v_points := v_points * v_cotas;
+```
+
+## 2. Edge Functions
+
+### `partner-payment/index.ts`
+- Receber campo `cotas` (default 1)
+- Validar: `cotas >= 1 && cotas <= planData.max_cotas`
+- Calcular valores proporcionais:
+  - `aporte_value = plan.aporte_value * cotas`
+  - `weekly_cap = plan.weekly_cap * cotas`
+  - `total_cap = plan.total_cap * cotas`
+  - `bonus_bids = plan.bonus_bids * cotas`
+- Gravar `cotas` no payment intent
+- Gerar PIX pelo valor total
+
+### `partner-payment-webhook/index.ts`
+- Ao criar contrato, copiar `cotas` do intent para o contrato
+
+### `sponsor-activate-partner/index.ts`
+- Receber `cotas` (default 1)
+- Validar, calcular proporcionalmente, debitar `plan.aporte_value * cotas`
+
+## 3. Frontend
+
+### `usePartnerContract.ts`
+- Adicionar `max_cotas`, `monthly_return_cap`, `total_return_cap` ao `PartnerPlan`
+- Adicionar `cotas` ao `PartnerContract`
+- `createContract` recebe `cotas` e envia para edge function
+
+### `PartnerPlanCard.tsx`
+- Se `max_cotas > 1`, exibir seletor de cotas (botoes +/-) abaixo do preco
+- Atualizar em tempo real: valor total, teto semanal, teto total
+- `onSelect` passa `planId` e `cotas`
+
+### `PartnerDashboard.tsx`
+- Ajustar `handlePlanSelect` e `handlePlanSelectWithTerms` para receber `cotas`
+- Exibir cotas no dashboard do contrato ativo (ex: "2 cotas Legend")
+
+### `SponsorActivateDialog.tsx`
+- Seletor de cotas quando plano selecionado tem `max_cotas > 1`
+- Calcular valor total e validar saldo
+
+---
+
+## Arquivos modificados
+
+| Arquivo | Mudanca |
 |---|---|
-| Migration SQL (nova) | Recriar `propagate_binary_points` sem a lógica `v_is_qualifier` |
-| Migration SQL (mesma) | Correção retroativa dos pontos do Luis Paulo |
+| Nova migracao SQL | Colunas + atualizar `position_partner_binary` |
+| `supabase/functions/partner-payment/index.ts` | Receber/validar cotas |
+| `supabase/functions/partner-payment-webhook/index.ts` | Gravar cotas no contrato |
+| `supabase/functions/sponsor-activate-partner/index.ts` | Suporte a cotas |
+| `src/hooks/usePartnerContract.ts` | Interfaces + createContract com cotas |
+| `src/components/Partner/PartnerPlanCard.tsx` | Seletor de cotas |
+| `src/components/Partner/PartnerDashboard.tsx` | Passar cotas no fluxo |
+| `src/components/Partner/SponsorActivateDialog.tsx` | Seletor de cotas |
 
