@@ -258,7 +258,7 @@ export const usePartnerContract = () => {
     }
   }, [contract?.id]);
 
-  const createContract = async (planId: string, referralCode?: string): Promise<{ success: boolean; paymentData?: PartnerPaymentData }> => {
+  const createContract = async (planId: string, referralCode?: string, cotas: number = 1): Promise<{ success: boolean; paymentData?: PartnerPaymentData }> => {
     if (!profile?.user_id) return { success: false };
 
     const plan = plans.find(p => p.id === planId);
