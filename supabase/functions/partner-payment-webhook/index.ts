@@ -44,7 +44,13 @@ serve(async (req) => {
       return new Response('OK', { status: 200, headers: corsHeaders })
     }
 
-    // Verificar se é UPGRADE
+    // Verificar se é UPGRADE DE COTAS
+    if (externalReference.startsWith('cotas-upgrade:')) {
+      console.log('📦 Processing COTAS UPGRADE payment')
+      return await processCotasUpgradePayment(supabase, isApproved, isRejected, externalReference, paymentId)
+    }
+
+    // Verificar se é UPGRADE DE PLANO
     if (externalReference.startsWith('upgrade:')) {
       console.log('🔄 Processing UPGRADE payment')
       return await processUpgradePayment(supabase, isApproved, isRejected, externalReference, paymentId)
