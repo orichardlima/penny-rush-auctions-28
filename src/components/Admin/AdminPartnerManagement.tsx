@@ -118,7 +118,10 @@ const AdminPartnerManagement = () => {
     sort_order: 0,
     referral_bonus_percentage: 10,
     bonus_bids: 0,
-    binary_points: 0
+    binary_points: 0,
+    max_cotas: 1,
+    monthly_return_cap: 0.10,
+    total_return_cap: 2.0
   });
 
   // Manual Credit State
@@ -349,7 +352,10 @@ const AdminPartnerManagement = () => {
       sort_order: plans.length,
       referral_bonus_percentage: 10,
       bonus_bids: 0,
-      binary_points: 0
+      binary_points: 0,
+      max_cotas: 1,
+      monthly_return_cap: 0.10,
+      total_return_cap: 2.0
     });
   };
 
@@ -981,6 +987,55 @@ const AdminPartnerManagement = () => {
                         Pontos propagados na rede binária ao ativar este plano
                       </p>
                     </div>
+
+                    <div className="border-t pt-4 space-y-4">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Coins className="h-4 w-4" />
+                        Configuração de Cotas
+                      </h4>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label>Máx. Cotas</Label>
+                          <Input 
+                            type="number"
+                            min={1}
+                            value={newPlan.max_cotas}
+                            onChange={(e) => setNewPlan({...newPlan, max_cotas: parseInt(e.target.value) || 1})}
+                          />
+                          <p className="text-xs text-muted-foreground">Limite de cotas por parceiro</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cap Mensal (%)</Label>
+                          <Input 
+                            type="number"
+                            step={0.01}
+                            min={0}
+                            value={newPlan.monthly_return_cap}
+                            onChange={(e) => setNewPlan({...newPlan, monthly_return_cap: parseFloat(e.target.value) || 0})}
+                          />
+                          <p className="text-xs text-muted-foreground">Ex: 0.10 = 10%</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cap Total (%)</Label>
+                          <Input 
+                            type="number"
+                            step={0.01}
+                            min={0}
+                            value={newPlan.total_return_cap}
+                            onChange={(e) => setNewPlan({...newPlan, total_return_cap: parseFloat(e.target.value) || 0})}
+                          />
+                          <p className="text-xs text-muted-foreground">Ex: 2.0 = 200%</p>
+                        </div>
+                      </div>
+                      {newPlan.max_cotas > 1 && newPlan.aporte_value > 0 && (
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm space-y-1">
+                          <p className="font-medium text-blue-700">Resumo com {newPlan.max_cotas} cotas:</p>
+                          <p className="text-muted-foreground">Aporte total: <span className="font-medium">{formatPrice(newPlan.aporte_value * newPlan.max_cotas)}</span></p>
+                          <p className="text-muted-foreground">Teto total: <span className="font-medium">{formatPrice(newPlan.total_cap * newPlan.max_cotas)}</span></p>
+                          <p className="text-muted-foreground">Teto semanal: <span className="font-medium">{formatPrice(newPlan.weekly_cap * newPlan.max_cotas)}</span></p>
+                        </div>
+                      )}
+                    </div>
                     
                     {newPlan.aporte_value > 0 && newPlan.total_cap > 0 && (
                       <div className="p-3 bg-muted/50 rounded-lg">
@@ -1022,7 +1077,16 @@ const AdminPartnerManagement = () => {
                 <TableBody>
                   {plans.map((plan) => (
                     <TableRow key={plan.id}>
-                      <TableCell className="font-medium">{plan.display_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {plan.display_name}
+                          {(plan as any).max_cotas > 1 && (
+                            <Badge variant="outline" className="text-xs">
+                              Até {(plan as any).max_cotas} cotas
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{formatPrice(plan.aporte_value)}</TableCell>
                       <TableCell>{formatPrice(plan.weekly_cap)}</TableCell>
                       <TableCell>{formatPrice(plan.total_cap)}</TableCell>
@@ -1139,6 +1203,54 @@ const AdminPartnerManagement = () => {
                                     <p className="text-xs text-muted-foreground">
                                       Pontos propagados na rede binária ao ativar este plano
                                     </p>
+                                  </div>
+
+                                  <div className="border-t pt-4 space-y-4">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                                      <Coins className="h-4 w-4" />
+                                      Configuração de Cotas
+                                    </h4>
+                                    <div className="grid grid-cols-3 gap-4">
+                                      <div className="space-y-2">
+                                        <Label>Máx. Cotas</Label>
+                                        <Input 
+                                          type="number"
+                                          min={1}
+                                          value={editingPlan.max_cotas ?? 1}
+                                          onChange={(e) => setEditingPlan({...editingPlan, max_cotas: parseInt(e.target.value) || 1})}
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Cap Mensal (%)</Label>
+                                        <Input 
+                                          type="number"
+                                          step={0.01}
+                                          min={0}
+                                          value={editingPlan.monthly_return_cap ?? 0.10}
+                                          onChange={(e) => setEditingPlan({...editingPlan, monthly_return_cap: parseFloat(e.target.value) || 0})}
+                                        />
+                                        <p className="text-xs text-muted-foreground">Ex: 0.10 = 10%</p>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Cap Total (%)</Label>
+                                        <Input 
+                                          type="number"
+                                          step={0.01}
+                                          min={0}
+                                          value={editingPlan.total_return_cap ?? 2.0}
+                                          onChange={(e) => setEditingPlan({...editingPlan, total_return_cap: parseFloat(e.target.value) || 0})}
+                                        />
+                                        <p className="text-xs text-muted-foreground">Ex: 2.0 = 200%</p>
+                                      </div>
+                                    </div>
+                                    {(editingPlan.max_cotas ?? 1) > 1 && editingPlan.aporte_value > 0 && (
+                                      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm space-y-1">
+                                        <p className="font-medium text-blue-700">Resumo com {editingPlan.max_cotas} cotas:</p>
+                                        <p className="text-muted-foreground">Aporte total: <span className="font-medium">{formatPrice(editingPlan.aporte_value * editingPlan.max_cotas)}</span></p>
+                                        <p className="text-muted-foreground">Teto total: <span className="font-medium">{formatPrice(editingPlan.total_cap * editingPlan.max_cotas)}</span></p>
+                                        <p className="text-muted-foreground">Teto semanal: <span className="font-medium">{formatPrice(editingPlan.weekly_cap * editingPlan.max_cotas)}</span></p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               )}
