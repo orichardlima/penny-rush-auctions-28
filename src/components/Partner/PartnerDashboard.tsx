@@ -104,6 +104,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const [contractTermsOpen, setContractTermsOpen] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(undefined);
+  const [pendingCotas, setPendingCotas] = useState<number>(1);
 
   // Estado para código de indicação manual
   const [manualReferralCode, setManualReferralCode] = useState<string>(() => {
