@@ -1,36 +1,55 @@
 
 
-# Adicionar campos de Cotas na interface administrativa de planos
+# Upgrade de Cotas no Mesmo Plano
 
-## Problema
-Os campos `max_cotas`, `monthly_return_cap` e `total_return_cap` foram criados no banco de dados mas **não aparecem** nos formulários de criar/editar plano no painel admin. O administrador não consegue configurar cotas pela interface.
+## Cenario
 
-## Solucao
+Parceiro com 1 cota Legend quer comprar mais 1 cota (ir para 2). Paga apenas a diferenca de 1 aporte e tem seus caps recalculados proporcionalmente.
 
-Adicionar 3 campos nos dois formularios (criar e editar plano) em `AdminPartnerManagement.tsx`:
+## Regras de negocio
 
-### Campos a adicionar
+- So pode aumentar cotas, nunca diminuir
+- Maximo = `max_cotas` do plano (ex: 3 para Legend)
+- Mesma restricao de progresso < 80% do teto atual
+- Diferenca a pagar = `plan.aporte_value * (novas_cotas - cotas_atuais)`
+- Apos pagamento: `aporte_value`, `weekly_cap`, `total_cap` sao recalculados para `plan_value * novas_cotas`
+- `total_received` e preservado (nao zera)
 
-| Campo | Label | Tipo | Default |
-|---|---|---|---|
-| `max_cotas` | Max Cotas | number (min 1) | 1 |
-| `monthly_return_cap` | Cap Mensal (%) | number (step 0.01) | 0.10 |
-| `total_return_cap` | Cap Total (%) | number (step 0.01) | 2.0 |
+## Mudancas
 
-### Mudancas
+### 1. Edge Function: `partner-upgrade-payment/index.ts`
+- Aceitar novo campo opcional `upgradeCotas: number` (alternativa ao `newPlanId`)
+- Quando `upgradeCotas` presente:
+  - Buscar plano atual pelo `plan_name` do contrato
+  - Validar `upgradeCotas > contract.cotas && upgradeCotas <= plan.max_cotas`
+  - Calcular diferenca: `plan.aporte_value * (upgradeCotas - contract.cotas)`
+  - Gerar PIX com `externalReference = "cotas-upgrade:{contractId}:{upgradeCotas}"`
 
-**`src/components/Admin/AdminPartnerManagement.tsx`**:
-1. Adicionar `max_cotas: 1`, `monthly_return_cap: 0.10`, `total_return_cap: 2.0` ao estado `newPlan` (formulario de criacao, ~linha 342-353)
-2. Adicionar 3 inputs no formulario de criacao (~linha 970, apos "Pontos Gerados")
-3. Adicionar 3 inputs no formulario de edicao (~linha 1142, apos "Pontos Gerados")
-4. Exibir resumo calculado: "Com X cotas: Aporte total R$ Y, Teto total R$ Z"
-5. Na tabela de planos, exibir badge com `max_cotas` quando > 1
+### 2. Edge Function: `partner-payment-webhook/index.ts`
+- Detectar prefixo `cotas-upgrade:` no externalReference
+- Ao confirmar pagamento: atualizar contrato com novos valores proporcionais e novo numero de cotas
 
-Os campos serao salvos automaticamente pois `updatePlan` e `createPlan` ja gravam todos os campos do objeto no banco.
+### 3. Frontend: `PartnerUpgradeDialog.tsx`
+- Adicionar aba/opcao "Aumentar Cotas" quando `contract.cotas < plan.max_cotas`
+- Seletor de cotas desejadas (de `contract.cotas + 1` ate `max_cotas`)
+- Exibir diferenca a pagar e novos limites
+- Chamar `onUpgrade` com dados de cotas em vez de `newPlanId`
 
-## Arquivo modificado
+### 4. Hook: `usePartnerContract.ts`
+- Adicionar funcao `upgradeCotas(contractId, newCotas)` que chama a edge function com `upgradeCotas`
+- Atualizar `PartnerUpgradePaymentData` para incluir info de cotas
+
+### 5. `PartnerDashboard.tsx`
+- Exibir cotas atuais no dashboard (ex: "2/3 cotas Legend")
+- Conectar botao de upgrade de cotas ao dialog
+
+## Arquivos modificados
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/Admin/AdminPartnerManagement.tsx` | Campos max_cotas, monthly_return_cap, total_return_cap nos forms de criar/editar + badge na listagem |
+| `supabase/functions/partner-upgrade-payment/index.ts` | Suporte a upgradeCotas |
+| `supabase/functions/partner-payment-webhook/index.ts` | Processar cotas-upgrade no webhook |
+| `src/components/Partner/PartnerUpgradeDialog.tsx` | Aba de upgrade de cotas |
+| `src/hooks/usePartnerContract.ts` | Funcao upgradeCotas |
+| `src/components/Partner/PartnerDashboard.tsx` | Exibir cotas e conectar upgrade |
 
