@@ -15,6 +15,7 @@ interface PartnerPaymentRequest {
   userName: string
   userCpf: string
   referralCode?: string
+  cotas?: number
 }
 
 serve(async (req) => {
