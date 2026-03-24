@@ -221,9 +221,9 @@ Deno.serve(async (req) => {
       .from('partner_manual_credits')
       .insert({
         partner_contract_id: sponsorContract.id,
-        amount: -plan.aporte_value,
+        amount: -aporteValue,
         credit_type: 'sponsor_activation',
-        description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}`,
+        description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
         created_by: sponsorUserId,
         consumes_cap: false,
       });

@@ -258,8 +258,9 @@ serve(async (req) => {
       pixCopyPaste: qrData.payload,
       status: chargeData.status,
       planName: planData.display_name,
-      aporteValue: planData.aporte_value,
-      bonusBids: planData.bonus_bids || 0
+      aporteValue: aporteValue,
+      bonusBids: bonusBids,
+      cotas
     }
 
     console.log('✅ Partner payment response ready')
