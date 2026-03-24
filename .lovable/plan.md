@@ -1,88 +1,36 @@
 
 
-# Implementacao: Sistema de Cotas nos Planos de Parceiro
+# Adicionar campos de Cotas na interface administrativa de planos
 
-## Resumo
+## Problema
+Os campos `max_cotas`, `monthly_return_cap` e `total_return_cap` foram criados no banco de dados mas **não aparecem** nos formulários de criar/editar plano no painel admin. O administrador não consegue configurar cotas pela interface.
 
-Adicionar coluna `max_cotas` nos planos e `cotas` nos contratos/intents. Legend tera `max_cotas = 3`. Os valores de aporte, caps e pontuacao binaria serao proporcionais ao numero de cotas.
+## Solucao
 
-## 1. Migracao SQL
+Adicionar 3 campos nos dois formularios (criar e editar plano) em `AdminPartnerManagement.tsx`:
 
-Adicionar colunas e atualizar funcao de posicionamento binario:
+### Campos a adicionar
 
-```sql
--- Novas colunas
-ALTER TABLE partner_plans ADD COLUMN max_cotas INTEGER NOT NULL DEFAULT 1;
-ALTER TABLE partner_plans ADD COLUMN monthly_return_cap NUMERIC NOT NULL DEFAULT 0.10;
-ALTER TABLE partner_plans ADD COLUMN total_return_cap NUMERIC NOT NULL DEFAULT 2.0;
+| Campo | Label | Tipo | Default |
+|---|---|---|---|
+| `max_cotas` | Max Cotas | number (min 1) | 1 |
+| `monthly_return_cap` | Cap Mensal (%) | number (step 0.01) | 0.10 |
+| `total_return_cap` | Cap Total (%) | number (step 0.01) | 2.0 |
 
-ALTER TABLE partner_contracts ADD COLUMN cotas INTEGER NOT NULL DEFAULT 1;
-ALTER TABLE partner_payment_intents ADD COLUMN cotas INTEGER NOT NULL DEFAULT 1;
+### Mudancas
 
--- Definir max_cotas = 3 para Legend
-UPDATE partner_plans SET max_cotas = 3 WHERE UPPER(name) = 'LEGEND';
-```
+**`src/components/Admin/AdminPartnerManagement.tsx`**:
+1. Adicionar `max_cotas: 1`, `monthly_return_cap: 0.10`, `total_return_cap: 2.0` ao estado `newPlan` (formulario de criacao, ~linha 342-353)
+2. Adicionar 3 inputs no formulario de criacao (~linha 970, apos "Pontos Gerados")
+3. Adicionar 3 inputs no formulario de edicao (~linha 1142, apos "Pontos Gerados")
+4. Exibir resumo calculado: "Com X cotas: Aporte total R$ Y, Teto total R$ Z"
+5. Na tabela de planos, exibir badge com `max_cotas` quando > 1
 
-Atualizar funcao `position_partner_binary` para multiplicar pontos pelas cotas:
+Os campos serao salvos automaticamente pois `updatePlan` e `createPlan` ja gravam todos os campos do objeto no banco.
 
-```sql
--- Apos buscar v_points do partner_level_points:
-SELECT COALESCE(pc.cotas, 1) INTO v_cotas FROM partner_contracts pc WHERE pc.id = p_contract_id;
-v_points := v_points * v_cotas;
-```
-
-## 2. Edge Functions
-
-### `partner-payment/index.ts`
-- Receber campo `cotas` (default 1)
-- Validar: `cotas >= 1 && cotas <= planData.max_cotas`
-- Calcular valores proporcionais:
-  - `aporte_value = plan.aporte_value * cotas`
-  - `weekly_cap = plan.weekly_cap * cotas`
-  - `total_cap = plan.total_cap * cotas`
-  - `bonus_bids = plan.bonus_bids * cotas`
-- Gravar `cotas` no payment intent
-- Gerar PIX pelo valor total
-
-### `partner-payment-webhook/index.ts`
-- Ao criar contrato, copiar `cotas` do intent para o contrato
-
-### `sponsor-activate-partner/index.ts`
-- Receber `cotas` (default 1)
-- Validar, calcular proporcionalmente, debitar `plan.aporte_value * cotas`
-
-## 3. Frontend
-
-### `usePartnerContract.ts`
-- Adicionar `max_cotas`, `monthly_return_cap`, `total_return_cap` ao `PartnerPlan`
-- Adicionar `cotas` ao `PartnerContract`
-- `createContract` recebe `cotas` e envia para edge function
-
-### `PartnerPlanCard.tsx`
-- Se `max_cotas > 1`, exibir seletor de cotas (botoes +/-) abaixo do preco
-- Atualizar em tempo real: valor total, teto semanal, teto total
-- `onSelect` passa `planId` e `cotas`
-
-### `PartnerDashboard.tsx`
-- Ajustar `handlePlanSelect` e `handlePlanSelectWithTerms` para receber `cotas`
-- Exibir cotas no dashboard do contrato ativo (ex: "2 cotas Legend")
-
-### `SponsorActivateDialog.tsx`
-- Seletor de cotas quando plano selecionado tem `max_cotas > 1`
-- Calcular valor total e validar saldo
-
----
-
-## Arquivos modificados
+## Arquivo modificado
 
 | Arquivo | Mudanca |
 |---|---|
-| Nova migracao SQL | Colunas + atualizar `position_partner_binary` |
-| `supabase/functions/partner-payment/index.ts` | Receber/validar cotas |
-| `supabase/functions/partner-payment-webhook/index.ts` | Gravar cotas no contrato |
-| `supabase/functions/sponsor-activate-partner/index.ts` | Suporte a cotas |
-| `src/hooks/usePartnerContract.ts` | Interfaces + createContract com cotas |
-| `src/components/Partner/PartnerPlanCard.tsx` | Seletor de cotas |
-| `src/components/Partner/PartnerDashboard.tsx` | Passar cotas no fluxo |
-| `src/components/Partner/SponsorActivateDialog.tsx` | Seletor de cotas |
+| `src/components/Admin/AdminPartnerManagement.tsx` | Campos max_cotas, monthly_return_cap, total_return_cap nos forms de criar/editar + badge na listagem |
 
