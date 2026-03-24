@@ -44,6 +44,9 @@ export interface PartnerUpgradePaymentData {
   newAporteValue: number;
   newTotalCap: number;
   newWeeklyCap: number;
+  isCotasUpgrade?: boolean;
+  previousCotas?: number;
+  newCotas?: number;
 }
 
 export interface PartnerContract {
