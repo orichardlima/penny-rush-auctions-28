@@ -192,14 +192,15 @@ Deno.serve(async (req) => {
       .insert({
         user_id: referredUser.id,
         plan_name: plan.name,
-        aporte_value: plan.aporte_value,
-        weekly_cap: plan.weekly_cap,
-        total_cap: plan.total_cap,
+        aporte_value: aporteValue,
+        weekly_cap: weeklyCap,
+        total_cap: totalCap,
+        cotas,
         status: 'ACTIVE',
         referred_by_user_id: actualReferrerId,
         referral_code: referralCode,
         payment_status: 'completed',
-        bonus_bids_received: plan.bonus_bids || 0,
+        bonus_bids_received: bonusBids,
       })
       .select()
       .single();
