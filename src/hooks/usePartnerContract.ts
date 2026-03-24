@@ -595,6 +595,7 @@ export const usePartnerContract = () => {
     submitting,
     createContract,
     upgradeContract,
+    upgradeCotasContract,
     getProgress,
     getLastPayout,
     getAvailableUpgrades,
