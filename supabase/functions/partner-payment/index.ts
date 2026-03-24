@@ -222,9 +222,9 @@ serve(async (req) => {
       body: JSON.stringify({
         customer: customerId,
         billingType: 'PIX',
-        value: planData.aporte_value,
+        value: aporteValue,
         dueDate: dueDate.toISOString().split('T')[0],
-        description: `Parceria ${planData.display_name} - Aporte`,
+        description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
         externalReference: intentData.id
       })
     })
