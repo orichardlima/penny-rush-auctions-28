@@ -206,6 +206,7 @@ export const usePartnerContract = () => {
         bonus_bids_received: data.bonus_bids_received || 0,
         referred_by_user_id: data.referred_by_user_id,
         referral_code: data.referral_code,
+        cotas: data.cotas || 1,
         sponsor_name: sponsorName,
         sponsor_plan_name: sponsorPlanName,
         // Campos de pagamento PIX
