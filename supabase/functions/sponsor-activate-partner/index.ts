@@ -84,10 +84,10 @@ Deno.serve(async (req) => {
 
     // 3. Check balance (using cents to avoid floating point issues)
     const balanceCents = Math.round(sponsorContract.available_balance * 100);
-    const aporteCents = Math.round(plan.aporte_value * 100);
+    const aporteCents = Math.round(aporteValue * 100);
 
     if (balanceCents < aporteCents) {
-      return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${plan.aporte_value.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // 4. Find referred user by email
