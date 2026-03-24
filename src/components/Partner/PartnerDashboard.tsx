@@ -131,15 +131,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const handleContractAccepted = () => {
     setContractTermsOpen(false);
     if (pendingPlanId) {
-      handlePlanSelect(pendingPlanId, pendingReferralCode);
+      handlePlanSelect(pendingPlanId, pendingCotas, pendingReferralCode);
     }
     setPendingPlanId(null);
     setPendingReferralCode(undefined);
+    setPendingCotas(1);
   };
-  const handlePlanSelect = async (planId: string, referralCode?: string) => {
-    console.log('[PartnerDashboard] Selecionando plano:', planId, 'referral:', referralCode);
+  const handlePlanSelect = async (planId: string, cotas: number = 1, referralCode?: string) => {
+    console.log('[PartnerDashboard] Selecionando plano:', planId, 'cotas:', cotas, 'referral:', referralCode);
     
-    const result = await createContract(planId, referralCode);
+    const result = await createContract(planId, referralCode, cotas);
     
     if (result.success && result.paymentData) {
       // Abrir modal de pagamento PIX
