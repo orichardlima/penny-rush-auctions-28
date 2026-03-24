@@ -55,6 +55,18 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Plano não encontrado ou inativo' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Validar cotas
+    const maxCotas = plan.max_cotas || 1;
+    if (cotas < 1 || cotas > maxCotas) {
+      return new Response(JSON.stringify({ error: `Quantidade de cotas inválida. Máximo permitido: ${maxCotas}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Calcular valores proporcionais
+    const aporteValue = plan.aporte_value * cotas;
+    const weeklyCap = plan.weekly_cap * cotas;
+    const totalCap = plan.total_cap * cotas;
+    const bonusBids = (plan.bonus_bids || 0) * cotas;
+
     // 2. Fetch sponsor's ACTIVE contract
     const { data: sponsorContract, error: sponsorError } = await adminClient
       .from('partner_contracts')
