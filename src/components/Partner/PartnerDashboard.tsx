@@ -436,10 +436,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <PartnerPlanCard
               key={plan.id}
               plan={plan}
-              onSelect={(planId) => {
+              onSelect={(planId, cotas) => {
                 const referralCode = getEffectiveReferralCode();
-                console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode);
-                handlePlanSelectWithTerms(planId, referralCode);
+                console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode, 'cotas:', cotas);
+                handlePlanSelectWithTerms(planId, cotas, referralCode);
               }}
               loading={submitting}
               highlighted={plan.id === preselectedPlanId}
