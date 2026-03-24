@@ -118,7 +118,10 @@ const AdminPartnerManagement = () => {
     sort_order: 0,
     referral_bonus_percentage: 10,
     bonus_bids: 0,
-    binary_points: 0
+    binary_points: 0,
+    max_cotas: 1,
+    monthly_return_cap: 0.10,
+    total_return_cap: 2.0
   });
 
   // Manual Credit State
