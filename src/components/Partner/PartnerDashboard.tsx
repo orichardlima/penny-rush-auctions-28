@@ -68,6 +68,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     submitting,
     createContract,
     upgradeContract,
+    upgradeCotasContract,
     getProgress,
     getLastPayout,
     canUpgrade,
