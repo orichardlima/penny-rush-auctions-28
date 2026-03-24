@@ -15,6 +15,7 @@ interface PartnerPaymentRequest {
   userName: string
   userCpf: string
   referralCode?: string
+  cotas?: number
 }
 
 serve(async (req) => {
@@ -37,9 +38,10 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { planId, userId, userEmail, userName, userCpf, referralCode }: PartnerPaymentRequest = await req.json()
+    const { planId, userId, userEmail, userName, userCpf, referralCode, cotas: rawCotas }: PartnerPaymentRequest = await req.json()
+    const cotas = rawCotas || 1
 
-    console.log('📦 Request data:', { planId, userId, userEmail, userName, referralCode })
+    console.log('📦 Request data:', { planId, userId, userEmail, userName, referralCode, cotas })
 
     if (!userCpf) {
       return new Response(
@@ -63,7 +65,22 @@ serve(async (req) => {
       )
     }
 
-    console.log('✅ Plan found:', planData.name, planData.aporte_value)
+    // Validar cotas
+    const maxCotas = planData.max_cotas || 1
+    if (cotas < 1 || cotas > maxCotas) {
+      return new Response(
+        JSON.stringify({ error: `Quantidade de cotas inválida. Máximo permitido: ${maxCotas}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Calcular valores proporcionais às cotas
+    const aporteValue = planData.aporte_value * cotas
+    const weeklyCap = planData.weekly_cap * cotas
+    const totalCap = planData.total_cap * cotas
+    const bonusBids = (planData.bonus_bids || 0) * cotas
+
+    console.log('✅ Plan found:', planData.name, 'cotas:', cotas, 'aporte:', aporteValue)
 
     // 2. Verificar contrato ativo existente
     const { data: existingContract } = await supabase
@@ -143,10 +160,11 @@ serve(async (req) => {
         user_id: userId,
         plan_id: planId,
         plan_name: planData.name,
-        aporte_value: planData.aporte_value,
-        weekly_cap: planData.weekly_cap,
-        total_cap: planData.total_cap,
-        bonus_bids: planData.bonus_bids || 0,
+        aporte_value: aporteValue,
+        weekly_cap: weeklyCap,
+        total_cap: totalCap,
+        bonus_bids: bonusBids,
+        cotas,
         referral_code: referralCode?.trim().toUpperCase() || null,
         referred_by_user_id: referredByUserId,
         payment_status: 'pending'
@@ -204,9 +222,9 @@ serve(async (req) => {
       body: JSON.stringify({
         customer: customerId,
         billingType: 'PIX',
-        value: planData.aporte_value,
+        value: aporteValue,
         dueDate: dueDate.toISOString().split('T')[0],
-        description: `Parceria ${planData.display_name} - Aporte`,
+        description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
         externalReference: intentData.id
       })
     })
@@ -240,8 +258,9 @@ serve(async (req) => {
       pixCopyPaste: qrData.payload,
       status: chargeData.status,
       planName: planData.display_name,
-      aporteValue: planData.aporte_value,
-      bonusBids: planData.bonus_bids || 0
+      aporteValue: aporteValue,
+      bonusBids: bonusBids,
+      cotas
     }
 
     console.log('✅ Partner payment response ready')

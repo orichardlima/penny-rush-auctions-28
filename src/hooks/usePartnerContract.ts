@@ -14,6 +14,9 @@ export interface PartnerPlan {
   sort_order: number;
   referral_bonus_percentage: number;
   bonus_bids: number;
+  max_cotas: number;
+  monthly_return_cap: number;
+  total_return_cap: number;
 }
 
 export interface PartnerPaymentData {
@@ -60,6 +63,7 @@ export interface PartnerContract {
   bonus_bids_received: number;
   referred_by_user_id: string | null;
   referral_code: string | null;
+  cotas: number;
   // Campos extras para exibição do patrocinador
   sponsor_name?: string | null;
   sponsor_plan_name?: string | null;
@@ -202,6 +206,7 @@ export const usePartnerContract = () => {
         bonus_bids_received: data.bonus_bids_received || 0,
         referred_by_user_id: data.referred_by_user_id,
         referral_code: data.referral_code,
+        cotas: data.cotas || 1,
         sponsor_name: sponsorName,
         sponsor_plan_name: sponsorPlanName,
         // Campos de pagamento PIX
@@ -253,7 +258,7 @@ export const usePartnerContract = () => {
     }
   }, [contract?.id]);
 
-  const createContract = async (planId: string, referralCode?: string): Promise<{ success: boolean; paymentData?: PartnerPaymentData }> => {
+  const createContract = async (planId: string, referralCode?: string, cotas: number = 1): Promise<{ success: boolean; paymentData?: PartnerPaymentData }> => {
     if (!profile?.user_id) return { success: false };
 
     const plan = plans.find(p => p.id === planId);
@@ -304,7 +309,8 @@ export const usePartnerContract = () => {
           userEmail,
           userName,
           userCpf: profile.cpf || '',
-          referralCode: referralCode || undefined
+          referralCode: referralCode || undefined,
+          cotas
         }
       });
 

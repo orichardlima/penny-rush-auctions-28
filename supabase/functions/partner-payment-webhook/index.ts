@@ -118,6 +118,7 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
         aporte_value: intent.aporte_value,
         weekly_cap: intent.weekly_cap,
         total_cap: intent.total_cap,
+        cotas: intent.cotas || 1,
         status: 'ACTIVE',
         payment_status: 'completed',
         payment_id: paymentId,

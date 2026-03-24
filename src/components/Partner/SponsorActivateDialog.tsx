@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
-import { DollarSign, UserPlus, Loader2 } from 'lucide-react';
+import { DollarSign, UserPlus, Loader2, Minus, Plus } from 'lucide-react';
 
 interface SponsorActivateDialogProps {
   open: boolean;
@@ -27,13 +27,22 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [cotas, setCotas] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
-  const hasSufficientBalance = selectedPlan ? availableBalance >= selectedPlan.aporte_value : false;
+  const maxCotas = selectedPlan?.max_cotas || 1;
+  const totalAporte = selectedPlan ? selectedPlan.aporte_value * cotas : 0;
+  const hasSufficientBalance = selectedPlan ? availableBalance >= totalAporte : false;
 
   const formatPrice = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+  // Reset cotas when plan changes
+  const handlePlanChange = (planId: string) => {
+    setSelectedPlanId(planId);
+    setCotas(1);
+  };
 
   const handleSubmit = async () => {
     if (!email.trim() || !selectedPlanId) {
@@ -44,7 +53,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
-        body: { referredEmail: email.trim(), planId: selectedPlanId },
+        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas },
       });
 
       if (error) throw new Error(error.message);
@@ -57,6 +66,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
 
       setEmail('');
       setSelectedPlanId('');
+      setCotas(1);
       onOpenChange(false);
       onSuccess();
     } catch (err: any) {
@@ -74,6 +84,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
     if (!submitting) {
       setEmail('');
       setSelectedPlanId('');
+      setCotas(1);
       onOpenChange(false);
     }
   };
@@ -116,7 +127,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
           {/* Seletor de plano */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Plano</label>
-            <Select value={selectedPlanId} onValueChange={setSelectedPlanId} disabled={submitting}>
+            <Select value={selectedPlanId} onValueChange={handlePlanChange} disabled={submitting}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o plano" />
               </SelectTrigger>
@@ -130,25 +141,62 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
             </Select>
           </div>
 
+          {/* Seletor de cotas */}
+          {selectedPlan && maxCotas > 1 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Quantidade de cotas</label>
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCotas(Math.max(1, cotas - 1))}
+                  disabled={cotas <= 1 || submitting}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="text-lg font-bold w-8 text-center">{cotas}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCotas(Math.min(maxCotas, cotas + 1))}
+                  disabled={cotas >= maxCotas || submitting}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground">(máx {maxCotas})</span>
+              </div>
+            </div>
+          )}
+
           {/* Resumo */}
           {selectedPlan && (
             <div className="border rounded-lg p-3 space-y-1 text-sm">
+              {cotas > 1 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cotas:</span>
+                  <span className="font-medium">{cotas}x {selectedPlan.display_name}</span>
+                </div>
+              )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Valor do plano:</span>
-                <span className="font-medium">{formatPrice(selectedPlan.aporte_value)}</span>
+                <span className="text-muted-foreground">Valor total:</span>
+                <span className="font-medium">{formatPrice(totalAporte)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Saldo após ativação:</span>
                 <span className={`font-medium ${hasSufficientBalance ? 'text-green-600' : 'text-destructive'}`}>
                   {hasSufficientBalance
-                    ? formatPrice(availableBalance - selectedPlan.aporte_value)
+                    ? formatPrice(availableBalance - totalAporte)
                     : 'Saldo insuficiente'}
                 </span>
               </div>
-              {selectedPlan.bonus_bids > 0 && (
+              {(selectedPlan.bonus_bids || 0) * cotas > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bônus de lances:</span>
-                  <span className="font-medium text-primary">{selectedPlan.bonus_bids} lances</span>
+                  <span className="font-medium text-primary">{(selectedPlan.bonus_bids || 0) * cotas} lances</span>
                 </div>
               )}
             </div>

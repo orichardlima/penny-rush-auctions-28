@@ -104,6 +104,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const [contractTermsOpen, setContractTermsOpen] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(undefined);
+  const [pendingCotas, setPendingCotas] = useState<number>(1);
 
   // Estado para código de indicação manual
   const [manualReferralCode, setManualReferralCode] = useState<string>(() => {
@@ -119,9 +120,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   };
 
   // Abre o dialog de termos antes de gerar o PIX
-  const handlePlanSelectWithTerms = (planId: string, referralCode?: string) => {
+  const handlePlanSelectWithTerms = (planId: string, cotas: number = 1, referralCode?: string) => {
     setPendingPlanId(planId);
     setPendingReferralCode(referralCode);
+    setPendingCotas(cotas);
     setContractTermsOpen(true);
   };
 
@@ -129,15 +131,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const handleContractAccepted = () => {
     setContractTermsOpen(false);
     if (pendingPlanId) {
-      handlePlanSelect(pendingPlanId, pendingReferralCode);
+      handlePlanSelect(pendingPlanId, pendingCotas, pendingReferralCode);
     }
     setPendingPlanId(null);
     setPendingReferralCode(undefined);
+    setPendingCotas(1);
   };
-  const handlePlanSelect = async (planId: string, referralCode?: string) => {
-    console.log('[PartnerDashboard] Selecionando plano:', planId, 'referral:', referralCode);
+  const handlePlanSelect = async (planId: string, cotas: number = 1, referralCode?: string) => {
+    console.log('[PartnerDashboard] Selecionando plano:', planId, 'cotas:', cotas, 'referral:', referralCode);
     
-    const result = await createContract(planId, referralCode);
+    const result = await createContract(planId, referralCode, cotas);
     
     if (result.success && result.paymentData) {
       // Abrir modal de pagamento PIX
@@ -433,10 +436,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <PartnerPlanCard
               key={plan.id}
               plan={plan}
-              onSelect={(planId) => {
+              onSelect={(planId, cotas) => {
                 const referralCode = getEffectiveReferralCode();
-                console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode);
-                handlePlanSelectWithTerms(planId, referralCode);
+                console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode, 'cotas:', cotas);
+                handlePlanSelectWithTerms(planId, cotas, referralCode);
               }}
               loading={submitting}
               highlighted={plan.id === preselectedPlanId}

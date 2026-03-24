@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
     // Service client for all operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { referredEmail, planId } = await req.json();
+    const { referredEmail, planId, cotas: rawCotas } = await req.json();
+    const cotas = rawCotas || 1;
 
     if (!referredEmail || !planId) {
       return new Response(JSON.stringify({ error: 'Email do indicado e plano são obrigatórios' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -53,6 +54,18 @@ Deno.serve(async (req) => {
     if (planError || !plan) {
       return new Response(JSON.stringify({ error: 'Plano não encontrado ou inativo' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // Validar cotas
+    const maxCotas = plan.max_cotas || 1;
+    if (cotas < 1 || cotas > maxCotas) {
+      return new Response(JSON.stringify({ error: `Quantidade de cotas inválida. Máximo permitido: ${maxCotas}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Calcular valores proporcionais
+    const aporteValue = plan.aporte_value * cotas;
+    const weeklyCap = plan.weekly_cap * cotas;
+    const totalCap = plan.total_cap * cotas;
+    const bonusBids = (plan.bonus_bids || 0) * cotas;
 
     // 2. Fetch sponsor's ACTIVE contract
     const { data: sponsorContract, error: sponsorError } = await adminClient
@@ -71,10 +84,10 @@ Deno.serve(async (req) => {
 
     // 3. Check balance (using cents to avoid floating point issues)
     const balanceCents = Math.round(sponsorContract.available_balance * 100);
-    const aporteCents = Math.round(plan.aporte_value * 100);
+    const aporteCents = Math.round(aporteValue * 100);
 
     if (balanceCents < aporteCents) {
-      return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${plan.aporte_value.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // 4. Find referred user by email
@@ -165,7 +178,7 @@ Deno.serve(async (req) => {
     }
 
     // 8. Debit sponsor balance
-    const newBalance = sponsorContract.available_balance - plan.aporte_value;
+    const newBalance = sponsorContract.available_balance - aporteValue;
     const { error: debitError } = await adminClient
       .from('partner_contracts')
       .update({ available_balance: newBalance, updated_at: new Date().toISOString() })
@@ -179,14 +192,15 @@ Deno.serve(async (req) => {
       .insert({
         user_id: referredUser.id,
         plan_name: plan.name,
-        aporte_value: plan.aporte_value,
-        weekly_cap: plan.weekly_cap,
-        total_cap: plan.total_cap,
+        aporte_value: aporteValue,
+        weekly_cap: weeklyCap,
+        total_cap: totalCap,
+        cotas,
         status: 'ACTIVE',
         referred_by_user_id: actualReferrerId,
         referral_code: referralCode,
         payment_status: 'completed',
-        bonus_bids_received: plan.bonus_bids || 0,
+        bonus_bids_received: bonusBids,
       })
       .select()
       .single();
@@ -207,9 +221,9 @@ Deno.serve(async (req) => {
       .from('partner_manual_credits')
       .insert({
         partner_contract_id: sponsorContract.id,
-        amount: -plan.aporte_value,
+        amount: -aporteValue,
         credit_type: 'sponsor_activation',
-        description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}`,
+        description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
         created_by: sponsorUserId,
         consumes_cap: false,
       });
