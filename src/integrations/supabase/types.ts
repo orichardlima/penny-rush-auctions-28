@@ -1447,6 +1447,7 @@ export type Database = {
           bonus_bids_received: number | null
           closed_at: string | null
           closed_reason: string | null
+          cotas: number
           created_at: string
           id: string
           is_demo: boolean
@@ -1473,6 +1474,7 @@ export type Database = {
           bonus_bids_received?: number | null
           closed_at?: string | null
           closed_reason?: string | null
+          cotas?: number
           created_at?: string
           id?: string
           is_demo?: boolean
@@ -1499,6 +1501,7 @@ export type Database = {
           bonus_bids_received?: number | null
           closed_at?: string | null
           closed_reason?: string | null
+          cotas?: number
           created_at?: string
           id?: string
           is_demo?: boolean
@@ -1714,6 +1717,7 @@ export type Database = {
         Row: {
           aporte_value: number
           bonus_bids: number
+          cotas: number
           created_at: string
           expires_at: string | null
           id: string
@@ -1730,6 +1734,7 @@ export type Database = {
         Insert: {
           aporte_value: number
           bonus_bids?: number
+          cotas?: number
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -1746,6 +1751,7 @@ export type Database = {
         Update: {
           aporte_value?: number
           bonus_bids?: number
+          cotas?: number
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -1827,10 +1833,13 @@ export type Database = {
           display_name: string
           id: string
           is_active: boolean
+          max_cotas: number
+          monthly_return_cap: number
           name: string
           referral_bonus_percentage: number | null
           sort_order: number
           total_cap: number
+          total_return_cap: number
           updated_at: string
           weekly_cap: number
         }
@@ -1841,10 +1850,13 @@ export type Database = {
           display_name: string
           id?: string
           is_active?: boolean
+          max_cotas?: number
+          monthly_return_cap?: number
           name: string
           referral_bonus_percentage?: number | null
           sort_order?: number
           total_cap: number
+          total_return_cap?: number
           updated_at?: string
           weekly_cap: number
         }
@@ -1855,10 +1867,13 @@ export type Database = {
           display_name?: string
           id?: string
           is_active?: boolean
+          max_cotas?: number
+          monthly_return_cap?: number
           name?: string
           referral_bonus_percentage?: number | null
           sort_order?: number
           total_cap?: number
+          total_return_cap?: number
           updated_at?: string
           weekly_cap?: number
         }
