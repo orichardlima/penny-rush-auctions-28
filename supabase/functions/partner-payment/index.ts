@@ -38,9 +38,10 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const { planId, userId, userEmail, userName, userCpf, referralCode }: PartnerPaymentRequest = await req.json()
+    const { planId, userId, userEmail, userName, userCpf, referralCode, cotas: rawCotas }: PartnerPaymentRequest = await req.json()
+    const cotas = rawCotas || 1
 
-    console.log('📦 Request data:', { planId, userId, userEmail, userName, referralCode })
+    console.log('📦 Request data:', { planId, userId, userEmail, userName, referralCode, cotas })
 
     if (!userCpf) {
       return new Response(
