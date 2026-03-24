@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     }
 
     // 8. Debit sponsor balance
-    const newBalance = sponsorContract.available_balance - plan.aporte_value;
+    const newBalance = sponsorContract.available_balance - aporteValue;
     const { error: debitError } = await adminClient
       .from('partner_contracts')
       .update({ available_balance: newBalance, updated_at: new Date().toISOString() })
