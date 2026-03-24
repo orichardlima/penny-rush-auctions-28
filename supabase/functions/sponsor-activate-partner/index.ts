@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
     // Service client for all operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { referredEmail, planId } = await req.json();
+    const { referredEmail, planId, cotas: rawCotas } = await req.json();
+    const cotas = rawCotas || 1;
 
     if (!referredEmail || !planId) {
       return new Response(JSON.stringify({ error: 'Email do indicado e plano são obrigatórios' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
