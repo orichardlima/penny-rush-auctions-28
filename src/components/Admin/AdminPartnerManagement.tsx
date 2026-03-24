@@ -1077,7 +1077,16 @@ const AdminPartnerManagement = () => {
                 <TableBody>
                   {plans.map((plan) => (
                     <TableRow key={plan.id}>
-                      <TableCell className="font-medium">{plan.display_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {plan.display_name}
+                          {(plan as any).max_cotas > 1 && (
+                            <Badge variant="outline" className="text-xs">
+                              Até {(plan as any).max_cotas} cotas
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{formatPrice(plan.aporte_value)}</TableCell>
                       <TableCell>{formatPrice(plan.weekly_cap)}</TableCell>
                       <TableCell>{formatPrice(plan.total_cap)}</TableCell>
