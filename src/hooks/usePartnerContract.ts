@@ -14,6 +14,9 @@ export interface PartnerPlan {
   sort_order: number;
   referral_bonus_percentage: number;
   bonus_bids: number;
+  max_cotas: number;
+  monthly_return_cap: number;
+  total_return_cap: number;
 }
 
 export interface PartnerPaymentData {
