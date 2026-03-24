@@ -563,6 +563,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               contract={contract}
               plans={plans}
               onUpgrade={upgradeContract}
+              onUpgradeCotas={upgradeCotasContract}
               onPaymentData={handleUpgradePaymentData}
               submitting={submitting}
             />
