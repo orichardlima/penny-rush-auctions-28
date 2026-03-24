@@ -1,61 +1,19 @@
 
 
-# Correção: Saldo de comissões do Luis Paulo Mota
+# Cancelar payment intent de teste
 
-## Problemas encontrados
+O payment intent de teste criado durante a verificação do fluxo PIX precisa ser removido do banco.
 
-1. **`commission_balance` e `total_commission_earned` = R$ 756,50** — valor inflado por scripts retroativos que incrementaram sem verificar o saldo real
-2. **17 comissões pendentes** cujas compras já foram pagas (`completed`) — deveriam ser `approved`
-3. **1 comissão aprovada** cuja compra **não foi paga** (`pending`) — deveria ser `pending`
+## Ação
 
-## Valor correto
-
-- Comissões aprovadas de compras pagas: **R$ 326,50**
-- Comissões pendentes de compras pagas (serão aprovadas): **R$ 205,00**
-- **Total correto: R$ 531,50**
-
-## Ações (via migration SQL)
-
-### 1. Aprovar as 17 comissões pendentes com compras já pagas
+Executar DELETE via insert tool para remover o registro `bf5736c0-44b8-4cbe-9d0f-856fad0b0f34` da tabela `partner_payment_intents`.
 
 ```sql
-UPDATE affiliate_commissions ac
-SET status = 'approved', approved_at = NOW()
-FROM bid_purchases bp
-WHERE ac.purchase_id = bp.id
-  AND ac.affiliate_id = '92e39f3b-4ea7-4b9d-a193-5ab981b4112a'
-  AND ac.status = 'pending'
-  AND bp.payment_status = 'completed';
+DELETE FROM partner_payment_intents
+WHERE id = 'bf5736c0-44b8-4cbe-9d0f-856fad0b0f34';
 ```
-
-### 2. Reverter a comissão aprovada cuja compra não foi paga
-
-```sql
-UPDATE affiliate_commissions
-SET status = 'pending', approved_at = NULL
-WHERE affiliate_id = '92e39f3b-4ea7-4b9d-a193-5ab981b4112a'
-  AND status = 'approved'
-  AND purchase_id IN (
-    SELECT id FROM bid_purchases WHERE payment_status = 'pending'
-  );
-```
-
-### 3. Corrigir o saldo para o valor real
-
-```sql
-UPDATE affiliates
-SET commission_balance = 531.50,
-    total_commission_earned = 531.50
-WHERE id = '92e39f3b-4ea7-4b9d-a193-5ab981b4112a';
-```
-
-## Resultado
-
-- Saldo corrigido de R$ 756,50 → **R$ 531,50**
-- 17 comissões promovidas de `pending` → `approved`
-- 1 comissão revertida de `approved` → `pending`
 
 | Arquivo | Mudança |
 |---|---|
-| Migration SQL | Corrigir status das comissões e saldo do afiliado |
+| SQL (insert tool) | Remover payment intent de teste |
 
