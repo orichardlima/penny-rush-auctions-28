@@ -63,6 +63,7 @@ export interface PartnerContract {
   bonus_bids_received: number;
   referred_by_user_id: string | null;
   referral_code: string | null;
+  cotas: number;
   // Campos extras para exibição do patrocinador
   sponsor_name?: string | null;
   sponsor_plan_name?: string | null;
