@@ -41,7 +41,7 @@ export const useRecentWinners = () => {
         .not('winner_name', 'is', null)
         .gt('total_bids', 0)
         .order('finished_at', { ascending: false })
-        .limit(6);
+        .limit(12);
 
       if (auctionsError) {
         throw auctionsError;
@@ -110,7 +110,17 @@ export const useRecentWinners = () => {
           };
         });
 
-        setWinners(formattedWinners);
+        // Deduplicar por winner_id - manter apenas a vitória mais recente
+        const seen = new Set<string>();
+        const uniqueWinners = formattedWinners.filter(w => {
+          const auctionData = filteredAuctions.find(a => a.id === w.id);
+          const winnerId = auctionData?.winner_id;
+          if (!winnerId || seen.has(winnerId)) return false;
+          seen.add(winnerId);
+          return true;
+        }).slice(0, 6);
+
+        setWinners(uniqueWinners);
       } else {
         // Fallback to static data if no real winners
         setWinners(getStaticWinners());
