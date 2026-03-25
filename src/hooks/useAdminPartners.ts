@@ -1423,6 +1423,23 @@ export const useAdminPartners = () => {
         }
       }
 
+      // Recalculate referral bonuses proportional to new cotas
+      const { data: existingBonuses } = await supabase
+        .from('partner_referral_bonuses')
+        .select('id, bonus_percentage')
+        .eq('referred_contract_id', contractId)
+        .eq('is_fast_start_bonus', false);
+
+      if (existingBonuses?.length) {
+        for (const bonus of existingBonuses) {
+          const newBonusValue = newAporte * (bonus.bonus_percentage / 100);
+          await supabase
+            .from('partner_referral_bonuses')
+            .update({ aporte_value: newAporte, bonus_value: newBonusValue })
+            .eq('id', bonus.id);
+        }
+      }
+
       // Audit log
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
