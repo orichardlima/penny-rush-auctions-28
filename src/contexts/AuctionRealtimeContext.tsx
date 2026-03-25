@@ -309,9 +309,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       auctionsWithBidders.sort((a, b) => a._originalIndex - b._originalIndex);
       const cleanAuctions = auctionsWithBidders.map(({ _originalIndex, ...auction }) => auction) as AuctionData[];
       
-      const visibleAuctions = cleanAuctions.filter(
-        a => !(a.auctionStatus === 'finished' && (a.totalBids ?? 0) <= 0)
-      );
+      const visibleAuctions = cleanAuctions.filter(a => {
+        if (a.auctionStatus === 'finished' && (a.totalBids ?? 0) <= 0) return false;
+        if (a.auctionStatus === 'finished' && a.winnerName?.toLowerCase().includes('ailton nobre')) return false;
+        return true;
+      });
 
       setAuctions(visibleAuctions);
 
