@@ -1,55 +1,56 @@
 
 
-# Corrigir propagação de pontos no upgrade de cotas
+# Corrigir bônus de indicação do João Batista (2 cotas) + prevenção futura
 
 ## Problema
 
-Quando o admin faz upgrade de cotas (1→2), os valores financeiros são atualizados mas os pontos binários adicionais não são propagados. No caso do João Batista: recebeu upgrade de 1→2 cotas do Legend, mas apenas 1000 pts (1 cota) foram propagados na ativação original. Faltam 1000 pts para cada upline.
+Os 3 bônus de indicação gerados pela ativação do João Batista foram calculados sobre R$ 9.999 (1 cota), mas ele tem 2 cotas (R$ 19.998). Valores atuais vs corretos:
+
+| Nível | % | Valor atual | Valor correto |
+|---|---|---|---|
+| 1 (Abraão) | 12% | R$ 1.199,88 | R$ 2.399,76 |
+| 2 | 2% | R$ 199,98 | R$ 399,96 |
+| 3 | 0.5% | R$ 49,99 | R$ 99,99 |
 
 ## Solução
 
-### 1. Correção retroativa (migração SQL)
+### 1. Correção retroativa (SQL via insert tool)
 
-Propagar os 1000 pontos faltantes do João Batista para todos os uplines:
+Atualizar os 3 registros na tabela `partner_referral_bonuses` com os valores corretos:
 
 ```sql
-SELECT propagate_binary_points(
-  '236eac8e-c587-44cb-bfad-9f78b38a21ce', -- João Batista
-  1000,                                      -- pontos da 2ª cota
-  'cotas_upgrade_fix',
-  '9b8abf57-77e7-446c-84ff-a6acc5c851e2'   -- sponsor
-);
+UPDATE partner_referral_bonuses SET aporte_value = 19998, bonus_value = 2399.76 WHERE id = '363edf42-...'; -- Nível 1
+UPDATE partner_referral_bonuses SET aporte_value = 19998, bonus_value = 399.96  WHERE id = 'e190e577-...'; -- Nível 2
+UPDATE partner_referral_bonuses SET aporte_value = 19998, bonus_value = 99.99   WHERE id = '7e02ae51-...'; -- Nível 3
 ```
 
-### 2. Prevenção futura: propagar pontos no upgrade de cotas
+### 2. Prevenção futura: recalcular bônus no upgrade de cotas
 
-**`src/hooks/useAdminPartners.ts`** — Na função `upgradeContractCotas`, após atualizar o contrato, chamar uma RPC que propaga os pontos adicionais:
+Na função `upgradeContractCotas` em `src/hooks/useAdminPartners.ts`, após propagar pontos binários, adicionar recálculo dos bônus de indicação:
 
 ```typescript
-// Após o update do contrato, propagar pontos da(s) cota(s) extra(s)
-const extraCotas = newCotas - currentCotas;
-const pointsPerCota = planPoints; // do partner_level_points
-const extraPoints = extraCotas * pointsPerCota;
+// Recalcular bônus de indicação proporcionais às novas cotas
+const { data: existingBonuses } = await supabase
+  .from('partner_referral_bonuses')
+  .select('id, bonus_percentage')
+  .eq('referred_contract_id', contractId)
+  .eq('is_fast_start_bonus', false);
 
-if (extraPoints > 0) {
-  await supabase.rpc('propagate_binary_points', {
-    p_source_contract_id: contractId,
-    p_points: extraPoints,
-    p_reason: 'cotas_upgrade',
-    p_sponsor_contract_id: sponsorContractId
-  });
+if (existingBonuses?.length) {
+  for (const bonus of existingBonuses) {
+    const newBonusValue = newAporte * (bonus.bonus_percentage / 100);
+    await supabase
+      .from('partner_referral_bonuses')
+      .update({ aporte_value: newAporte, bonus_value: newBonusValue })
+      .eq('id', bonus.id);
+  }
 }
 ```
-
-Para isso, o hook precisa:
-- Buscar os pontos do plano em `partner_level_points`
-- Buscar o `sponsor_contract_id` da posição binária do contrato
-- Chamar a RPC `propagate_binary_points` existente
 
 ## Arquivos modificados
 
 | Arquivo | Mudança |
 |---|---|
-| Nova migração SQL | Correção retroativa (1000 pts) + prevenção futura via RPC |
-| `src/hooks/useAdminPartners.ts` | Adicionar propagação de pontos extras na função `upgradeContractCotas` |
+| Banco (UPDATE via insert tool) | Corrigir os 3 bônus existentes |
+| `src/hooks/useAdminPartners.ts` | Adicionar recálculo de bônus na função `upgradeContractCotas` |
 
