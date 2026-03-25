@@ -29,13 +29,23 @@ export const useFinishAuction = () => {
       }
 
       // 2. REGRA ABSOLUTA: Vencedor é SEMPRE um bot - sem exceções
-      const { data: botUser } = await supabase
+      // Buscar vencedores recentes (48h) para evitar repetição
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      const { data: recentWinners } = await supabase
+        .from('auctions')
+        .select('winner_id')
+        .eq('status', 'finished')
+        .not('winner_id', 'is', null)
+        .gte('finished_at', cutoff);
+
+      const excludeIds = (recentWinners || []).map(r => r.winner_id);
+
+      const { data: allBots } = await supabase
         .from('profiles')
         .select('user_id, full_name, city, state')
-        .eq('is_bot', true)
-        .limit(10);
+        .eq('is_bot', true);
 
-      if (!botUser || botUser.length === 0) {
+      if (!allBots || allBots.length === 0) {
         toast({
           title: "Erro",
           description: "Nenhum bot disponível para ser vencedor",
@@ -44,8 +54,10 @@ export const useFinishAuction = () => {
         return false;
       }
 
-      // Selecionar bot aleatório
-      const selectedBot = botUser[Math.floor(Math.random() * botUser.length)];
+      // Filtrar bots que não venceram recentemente, com fallback
+      const availableBots = allBots.filter(b => !excludeIds.includes(b.user_id));
+      const botPool = availableBots.length > 0 ? availableBots : allBots;
+      const selectedBot = botPool[Math.floor(Math.random() * botPool.length)];
 
       // 3. Inserir lance final do bot
       const newPrice = (auction.current_price || 0) + (auction.bid_increment || 0.01);
