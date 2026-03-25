@@ -17,13 +17,30 @@ function sleep(ms: number): Promise<void> {
 
 // Helper: buscar bot aleatório com nome formatado
 async function getRandomBot(supabase: any) {
+  // Buscar bots que NÃO venceram nas últimas 48h
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const { data: recentWinnerIds } = await supabase
+    .from('auctions')
+    .select('winner_id')
+    .eq('status', 'finished')
+    .not('winner_id', 'is', null)
+    .gte('finished_at', cutoff);
+
+  const excludeIds = (recentWinnerIds || []).map((r: any) => r.winner_id);
+
   const { data: bots } = await supabase
     .from('profiles')
     .select('user_id, full_name, city, state')
     .eq('is_bot', true);
 
   if (!bots || bots.length === 0) return null;
-  return bots[Math.floor(Math.random() * bots.length)];
+
+  // Filtrar bots que não venceram recentemente
+  const availableBots = bots.filter((b: any) => !excludeIds.includes(b.user_id));
+  
+  // Fallback: se todos venceram, usar qualquer bot
+  const pool = availableBots.length > 0 ? availableBots : bots;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function formatBotWinnerName(bot: any): string {
