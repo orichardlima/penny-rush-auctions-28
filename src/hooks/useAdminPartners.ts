@@ -1356,6 +1356,74 @@ export const useAdminPartners = () => {
     }
   };
 
+  const upgradeContractCotas = async (contractId: string, newCotas: number) => {
+    setProcessing(true);
+    try {
+      const contract = contracts.find(c => c.id === contractId);
+      if (!contract) throw new Error('Contrato não encontrado');
+      if (contract.status !== 'ACTIVE') throw new Error('Apenas contratos ativos podem ter upgrade de cotas');
+
+      const currentCotas = (contract as any).cotas || 1;
+      if (newCotas <= currentCotas) throw new Error('Novas cotas devem ser maior que as atuais');
+
+      // Find the plan to get unit values
+      const plan = plans.find(p => p.name === contract.plan_name);
+      if (!plan) throw new Error('Plano não encontrado');
+
+      const maxCotas = (plan as any).max_cotas || 1;
+      if (newCotas > maxCotas) throw new Error(`Máximo de ${maxCotas} cotas para este plano`);
+
+      // Calculate new proportional values
+      const newAporte = plan.aporte_value * newCotas;
+      const newWeeklyCap = plan.weekly_cap * newCotas;
+      const newTotalCap = plan.total_cap * newCotas;
+
+      const { error } = await supabase
+        .from('partner_contracts')
+        .update({
+          cotas: newCotas,
+          aporte_value: newAporte,
+          weekly_cap: newWeeklyCap,
+          total_cap: newTotalCap,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (error) throw error;
+
+      // Audit log
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('admin_audit_log').insert({
+          admin_user_id: user.id,
+          admin_name: 'Admin',
+          action_type: 'UPGRADE_COTAS',
+          target_type: 'partner_contract',
+          target_id: contractId,
+          description: `Upgrade de cotas: ${currentCotas} → ${newCotas} no plano ${contract.plan_name}`,
+          old_values: { cotas: currentCotas, aporte_value: contract.aporte_value, weekly_cap: contract.weekly_cap, total_cap: contract.total_cap },
+          new_values: { cotas: newCotas, aporte_value: newAporte, weekly_cap: newWeeklyCap, total_cap: newTotalCap }
+        });
+      }
+
+      toast({
+        title: "Upgrade de cotas realizado!",
+        description: `Contrato atualizado para ${newCotas} cota(s). Novo aporte: R$ ${newAporte.toFixed(2)}`
+      });
+
+      await fetchContracts();
+    } catch (error: any) {
+      console.error('Error upgrading cotas:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer upgrade de cotas",
+        description: error.message || "Não foi possível atualizar as cotas."
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return {
     contracts,
     plans,
@@ -1378,6 +1446,7 @@ export const useAdminPartners = () => {
     markWithdrawalAsPaid,
     correctBonusBids,
     addManualCredit,
+    upgradeContractCotas,
     refreshData: async () => {
       await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations(), fetchWithdrawals()]);
     }
