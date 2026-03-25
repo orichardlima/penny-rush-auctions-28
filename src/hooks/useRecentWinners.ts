@@ -39,9 +39,10 @@ export const useRecentWinners = () => {
         .eq('status', 'finished')
         .not('winner_id', 'is', null)
         .not('winner_name', 'is', null)
+        .not('winner_name', 'ilike', '%Ailton Nobre%')
         .gt('total_bids', 0)
         .order('finished_at', { ascending: false })
-        .limit(12);
+        .limit(24);
 
       if (auctionsError) {
         throw auctionsError;
