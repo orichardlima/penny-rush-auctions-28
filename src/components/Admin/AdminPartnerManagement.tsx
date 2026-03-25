@@ -2306,6 +2306,84 @@ const AdminPartnerManagement = () => {
           onClose={() => setSelectedPartnerForDetail(null)}
         />
       )}
+
+      {/* Upgrade Cotas Dialog */}
+      <Dialog open={isUpgradeCotasOpen} onOpenChange={setIsUpgradeCotasOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upgrade de Cotas</DialogTitle>
+            <DialogDescription>
+              Alterar a quantidade de cotas do contrato
+            </DialogDescription>
+          </DialogHeader>
+          {selectedContractForUpgrade && (() => {
+            const plan = plans.find(p => p.name === selectedContractForUpgrade.plan_name);
+            const maxCotas = (plan as any)?.max_cotas || 1;
+            const currentCotas = (selectedContractForUpgrade as any).cotas || 1;
+            const unitAporte = plan?.aporte_value || 0;
+            const unitWeeklyCap = plan?.weekly_cap || 0;
+            const unitTotalCap = plan?.total_cap || 0;
+            const newAporte = unitAporte * newCotasValue;
+            const newWeeklyCap = unitWeeklyCap * newCotasValue;
+            const newTotalCap = unitTotalCap * newCotasValue;
+
+            return (
+              <div className="space-y-4 py-4">
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium">{selectedContractForUpgrade.user_name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedContractForUpgrade.plan_name} — {currentCotas} cota(s) atual(is)</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Novas cotas</Label>
+                  <Select value={String(newCotasValue)} onValueChange={(v) => setNewCotasValue(Number(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: maxCotas - currentCotas }, (_, i) => currentCotas + 1 + i).map(v => (
+                        <SelectItem key={v} value={String(v)}>{v} cota(s)</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="p-3 rounded-lg border space-y-1">
+                  <p className="text-sm font-medium mb-2">Novos valores:</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Aporte total</span>
+                    <span className="font-medium">{formatPrice(newAporte)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Teto semanal</span>
+                    <span className="font-medium">{formatPrice(newWeeklyCap)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Teto total</span>
+                    <span className="font-medium">{formatPrice(newTotalCap)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-1 border-t mt-1">
+                    <span className="text-muted-foreground">Total recebido (preservado)</span>
+                    <span className="font-medium">{formatPrice(selectedContractForUpgrade.total_received)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpgradeCotasOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                await upgradeContractCotas(selectedContractForUpgrade.id, newCotasValue);
+                setIsUpgradeCotasOpen(false);
+              }}
+              disabled={processing}
+            >
+              {processing ? 'Atualizando...' : 'Confirmar Upgrade'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
