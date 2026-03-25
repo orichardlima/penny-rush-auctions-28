@@ -1391,6 +1391,38 @@ export const useAdminPartners = () => {
 
       if (error) throw error;
 
+      // Propagate extra binary points for the additional cotas
+      const extraCotas = newCotas - currentCotas;
+      if (extraCotas > 0) {
+        // Get points per cota from partner_level_points
+        const { data: levelPointsData } = await supabase
+          .from('partner_level_points')
+          .select('points')
+          .eq('plan_name', contract.plan_name)
+          .single();
+
+        const pointsPerCota = levelPointsData?.points || 0;
+        const extraPoints = extraCotas * pointsPerCota;
+
+        if (extraPoints > 0) {
+          // Get sponsor contract id from binary position
+          const { data: binaryPos } = await supabase
+            .from('partner_binary_positions')
+            .select('sponsor_contract_id')
+            .eq('partner_contract_id', contractId)
+            .single();
+
+          const sponsorId = binaryPos?.sponsor_contract_id || null;
+
+          await supabase.rpc('propagate_binary_points', {
+            p_source_contract_id: contractId,
+            p_points: extraPoints,
+            p_reason: 'cotas_upgrade',
+            p_sponsor_contract_id: sponsorId ?? null
+          });
+        }
+      }
+
       // Audit log
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -1408,7 +1440,7 @@ export const useAdminPartners = () => {
 
       toast({
         title: "Upgrade de cotas realizado!",
-        description: `Contrato atualizado para ${newCotas} cota(s). Novo aporte: R$ ${newAporte.toFixed(2)}`
+        description: `Contrato atualizado para ${newCotas} cota(s). Novo aporte: R$ ${newAporte.toFixed(2)}. Pontos binários propagados.`
       });
 
       await fetchContracts();
