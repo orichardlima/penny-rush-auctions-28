@@ -81,6 +81,7 @@ const AdminPartnerManagement = () => {
     markWithdrawalAsPaid,
     correctBonusBids,
     addManualCredit,
+    upgradeContractCotas,
     refreshData 
   } = useAdminPartners();
 
@@ -137,6 +138,11 @@ const AdminPartnerManagement = () => {
 
   // PIX Payment Confirmation Dialog State
   const [pixConfirmWithdrawal, setPixConfirmWithdrawal] = useState<any>(null);
+
+  // Upgrade Cotas State
+  const [isUpgradeCotasOpen, setIsUpgradeCotasOpen] = useState(false);
+  const [selectedContractForUpgrade, setSelectedContractForUpgrade] = useState<any>(null);
+  const [newCotasValue, setNewCotasValue] = useState(2);
 
   const copyToClipboard = (text: string, label: string = 'Texto') => {
     navigator.clipboard.writeText(text).then(() => {
