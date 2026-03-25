@@ -740,25 +740,25 @@ const AdminPartnerManagement = () => {
                               const plan = plans.find(p => p.name === contract.plan_name);
                               const maxCotas = (plan as any)?.max_cotas || 1;
                               const currentCotas = (contract as any).cotas || 1;
-                              return maxCotas > 1 && currentCotas < maxCotas;
-                            })() && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  const plan = plans.find(p => p.name === contract.plan_name);
-                                  const currentCotas = (contract as any).cotas || 1;
-                                  setSelectedContractForUpgrade(contract);
-                                  setNewCotasValue(currentCotas + 1);
-                                  setIsUpgradeCotasOpen(true);
-                                }}
-                                title="Upgrade de cotas"
-                                className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                              >
-                                <TrendingUp className="h-4 w-4" />
-                              </Button>
-                            )}
-                            )}
+                              if (maxCotas > 1 && currentCotas < maxCotas) {
+                                return (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedContractForUpgrade(contract);
+                                      setNewCotasValue(currentCotas + 1);
+                                      setIsUpgradeCotasOpen(true);
+                                    }}
+                                    title="Upgrade de cotas"
+                                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                  >
+                                    <TrendingUp className="h-4 w-4" />
+                                  </Button>
+                                );
+                              }
+                              return null;
+                            })()}
                             {contract.status === 'ACTIVE' && (
                               <Dialog>
                                 <DialogTrigger asChild>
