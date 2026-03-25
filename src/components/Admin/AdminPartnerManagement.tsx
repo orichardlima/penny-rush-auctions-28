@@ -682,7 +682,12 @@ const AdminPartnerManagement = () => {
                             <p className="text-xs text-muted-foreground">{contract.user_email}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{contract.plan_name}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {contract.plan_name}
+                          {(contract as any).cotas > 1 && (
+                            <Badge variant="outline" className="ml-1 text-[10px]">{(contract as any).cotas}x</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{formatPrice(contract.aporte_value)}</TableCell>
                         <TableCell className="text-green-600 font-medium hidden sm:table-cell">{formatPrice(contract.total_received)}</TableCell>
                         <TableCell className="hidden lg:table-cell">{formatPrice(contract.total_cap)}</TableCell>
