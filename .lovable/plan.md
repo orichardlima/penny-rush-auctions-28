@@ -1,56 +1,64 @@
 
 
-# Corrigir bônus de indicação do João Batista (2 cotas) + prevenção futura
+# Evitar bot vencedor repetido em leilões recentes
 
 ## Problema
 
-Os 3 bônus de indicação gerados pela ativação do João Batista foram calculados sobre R$ 9.999 (1 cota), mas ele tem 2 cotas (R$ 19.998). Valores atuais vs corretos:
+A função `get_random_bot()` seleciona bots puramente por `ORDER BY random()`, sem verificar se o bot já venceu recentemente. Com 1.202 bots, a chance e baixa mas aconteceu: Ailton Nobre venceu 3 leiloes nas ultimas 24h, prejudicando a credibilidade.
 
-| Nível | % | Valor atual | Valor correto |
-|---|---|---|---|
-| 1 (Abraão) | 12% | R$ 1.199,88 | R$ 2.399,76 |
-| 2 | 2% | R$ 199,98 | R$ 399,96 |
-| 3 | 0.5% | R$ 49,99 | R$ 99,99 |
+## Solucao
 
-## Solução
+Alterar a funcao SQL `get_random_bot()` para excluir bots que ja venceram leiloes nas ultimas 48 horas. Se todos os bots ja venceram (improvavel com 1.202), cai no fallback aleatorio normal.
 
-### 1. Correção retroativa (SQL via insert tool)
-
-Atualizar os 3 registros na tabela `partner_referral_bonuses` com os valores corretos:
+### Migracao SQL
 
 ```sql
-UPDATE partner_referral_bonuses SET aporte_value = 19998, bonus_value = 2399.76 WHERE id = '363edf42-...'; -- Nível 1
-UPDATE partner_referral_bonuses SET aporte_value = 19998, bonus_value = 399.96  WHERE id = 'e190e577-...'; -- Nível 2
-UPDATE partner_referral_bonuses SET aporte_value = 19998, bonus_value = 99.99   WHERE id = '7e02ae51-...'; -- Nível 3
+CREATE OR REPLACE FUNCTION public.get_random_bot()
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  bot_user_id uuid;
+BEGIN
+  -- Selecionar bot que NAO venceu nenhum leilao nas ultimas 48h
+  SELECT p.user_id INTO bot_user_id
+  FROM public.profiles p
+  WHERE p.is_bot = true
+    AND p.user_id NOT IN (
+      SELECT a.winner_id FROM public.auctions a
+      WHERE a.status = 'finished'
+        AND a.winner_id IS NOT NULL
+        AND a.finished_at >= now() - interval '48 hours'
+    )
+  ORDER BY random()
+  LIMIT 1;
+  
+  -- Fallback: se todos ja venceram, pegar qualquer bot
+  IF bot_user_id IS NULL THEN
+    SELECT user_id INTO bot_user_id
+    FROM public.profiles
+    WHERE is_bot = true
+    ORDER BY random()
+    LIMIT 1;
+  END IF;
+  
+  IF bot_user_id IS NULL THEN
+    bot_user_id := 'c793d66c-06c5-4fdf-9c2c-0baedd2694f6'::uuid;
+  END IF;
+  
+  RETURN bot_user_id;
+END;
+$$;
 ```
 
-### 2. Prevenção futura: recalcular bônus no upgrade de cotas
-
-Na função `upgradeContractCotas` em `src/hooks/useAdminPartners.ts`, após propagar pontos binários, adicionar recálculo dos bônus de indicação:
-
-```typescript
-// Recalcular bônus de indicação proporcionais às novas cotas
-const { data: existingBonuses } = await supabase
-  .from('partner_referral_bonuses')
-  .select('id, bonus_percentage')
-  .eq('referred_contract_id', contractId)
-  .eq('is_fast_start_bonus', false);
-
-if (existingBonuses?.length) {
-  for (const bonus of existingBonuses) {
-    const newBonusValue = newAporte * (bonus.bonus_percentage / 100);
-    await supabase
-      .from('partner_referral_bonuses')
-      .update({ aporte_value: newAporte, bonus_value: newBonusValue })
-      .eq('id', bonus.id);
-  }
-}
-```
+Tambem aplicar a mesma logica na Edge Function `sync-timers-and-protection` (funcao `getRandomBot`) e no hook `useFinishAuction.ts` (selecao de bot para finalizacao manual).
 
 ## Arquivos modificados
 
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---|---|
-| Banco (UPDATE via insert tool) | Corrigir os 3 bônus existentes |
-| `src/hooks/useAdminPartners.ts` | Adicionar recálculo de bônus na função `upgradeContractCotas` |
+| Nova migracao SQL | Recriar `get_random_bot()` excluindo vencedores das ultimas 48h |
+| `supabase/functions/sync-timers-and-protection/index.ts` | Funcao `getRandomBot` exclui vencedores recentes |
+| `src/hooks/useFinishAuction.ts` | Query de bot exclui vencedores recentes |
 
