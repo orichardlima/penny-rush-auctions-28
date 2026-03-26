@@ -238,6 +238,17 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               <Badge className={getClassificationColor(analytics.user_classification)}>
                 {analytics.user_classification}
               </Badge>
+              {partnerContract && (
+                <>
+                  <Badge className="bg-blue-100 text-blue-800">{partnerContract.plan_name}</Badge>
+                  {partnerContract.is_demo && (
+                    <Badge className="bg-orange-100 text-orange-800">Demo</Badge>
+                  )}
+                  {partnerContract.cotas > 1 && (
+                    <Badge className="bg-indigo-100 text-indigo-800">{partnerContract.cotas} Cotas</Badge>
+                  )}
+                </>
+              )}
               {analytics.is_bot && (
                 <Badge variant="secondary">Bot</Badge>
               )}
