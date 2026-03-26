@@ -1,30 +1,36 @@
 
-# Remover os arremates do Ailton Nobre da home
 
-## Diagnóstico
-O problema do print não está na seção "Vencedores Recentes". Ela já filtra `winner_name` no hook `useRecentWinners`.
+# Corrigir classificação "Inativo" para contas com parceria ativa
 
-O que ainda aparece é a grade principal da home (`Leilões Ativos Agora`), que também inclui leilões `finished` por algumas horas. Esses cards vêm do `AuctionRealtimeContext`, e hoje não existe filtro ali para ocultar leilões finalizados cujo ganhador seja "Ailton Nobre".
+## Problema
 
-## Implementação
-Vou ajustar a origem correta dos cards da home:
+A badge de status ("Inativo") vem da função SQL `get_user_analytics`, que classifica usuários **apenas com base em lances em leilões**. Contas de parceria ativa (mesmo em modo demo) que nunca deram lances são marcadas como "Inativo", o que é incorreto.
 
-1. Em `src/contexts/AuctionRealtimeContext.tsx`
-   - Criar uma checagem para identificar vencedores que contenham `"Ailton Nobre"` no nome.
-   - Aplicar essa regra apenas para leilões `finished`, antes de salvar os itens visíveis no estado.
-   - Considerar tanto `winner_name` bruto quanto o nome enriquecido com cidade/UF (`winnerName`), para o filtro continuar funcionando mesmo após formatação.
+## Solução
 
-2. Manter o comportamento atual dos demais leilões
-   - `active` e `waiting` continuam aparecendo normalmente.
-   - Apenas os finalizados com esse vencedor deixam de aparecer na home.
+Alterar a lógica de `user_classification` na função `get_user_analytics` para considerar contratos de parceria ativos. Se o usuário tem um contrato ativo em `partner_contracts`, ele deve ser classificado como "Parceiro" (ou manter a classificação de lances se esta for superior, como VIP/Premium).
 
-3. Preservar a exclusão já existente em `useRecentWinners`
-   - Não preciso mexer nela, porque o problema do print vem de outro fluxo.
+Nova lógica do CASE:
+```sql
+CASE 
+  WHEN ... >= 10000 THEN 'VIP'
+  WHEN ... >= 5000 THEN 'Premium'
+  WHEN EXISTS (SELECT 1 FROM public.partner_contracts pc WHERE pc.user_id = user_uuid AND pc.status = 'active') THEN 'Parceiro'
+  WHEN ... >= 10 THEN 'Ativo'
+  WHEN ... > 0 THEN 'Casual'
+  ELSE 'Inativo'
+END
+```
 
-## Arquivo
+Também adicionar a cor do badge "Parceiro" no `UserProfileCard.tsx`:
+```typescript
+case 'Parceiro': return 'bg-emerald-100 text-emerald-800';
+```
+
+## Arquivos modificados
+
 | Arquivo | Mudança |
 |---|---|
-| `src/contexts/AuctionRealtimeContext.tsx` | Filtrar da home os leilões finalizados cujo vencedor seja Ailton Nobre |
+| Nova migração SQL | Recriar `get_user_analytics` com classificação "Parceiro" para contratos ativos |
+| `src/components/UserProfileCard.tsx` | Adicionar cor para badge "Parceiro" + texto comportamental |
 
-## Resultado esperado
-Depois da correção, os cards de leilões encerrados ganhos por Ailton Nobre deixam de aparecer na home, inclusive na grade principal mostrada no print.
