@@ -28,6 +28,19 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin;
 
+  const { data: partnerContract } = useQuery({
+    queryKey: ['user-partner-contract', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('partner_contracts')
+        .select('plan_name, is_demo, cotas, status')
+        .eq('user_id', userId)
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: referralInfo } = useQuery({
     queryKey: ['user-referral-info', userId],
     queryFn: async () => {
