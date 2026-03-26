@@ -1,36 +1,41 @@
 
 
-# Corrigir classificação "Inativo" para contas com parceria ativa
+# Exibir plano e modo Demo no perfil do usuário
 
-## Problema
+## Mudança
 
-A badge de status ("Inativo") vem da função SQL `get_user_analytics`, que classifica usuários **apenas com base em lances em leilões**. Contas de parceria ativa (mesmo em modo demo) que nunca deram lances são marcadas como "Inativo", o que é incorreto.
+Adicionar uma query no `UserProfileCard.tsx` para buscar o contrato ativo do usuário em `partner_contracts` e exibir o tipo de plano (ex: "Legend", "Diamond"), número de cotas e se é conta Demo.
 
-## Solução
+## Implementação
 
-Alterar a lógica de `user_classification` na função `get_user_analytics` para considerar contratos de parceria ativos. Se o usuário tem um contrato ativo em `partner_contracts`, ele deve ser classificado como "Parceiro" (ou manter a classificação de lances se esta for superior, como VIP/Premium).
+**No `UserProfileCard.tsx`:**
 
-Nova lógica do CASE:
-```sql
-CASE 
-  WHEN ... >= 10000 THEN 'VIP'
-  WHEN ... >= 5000 THEN 'Premium'
-  WHEN EXISTS (SELECT 1 FROM public.partner_contracts pc WHERE pc.user_id = user_uuid AND pc.status = 'active') THEN 'Parceiro'
-  WHEN ... >= 10 THEN 'Ativo'
-  WHEN ... > 0 THEN 'Casual'
-  ELSE 'Inativo'
-END
-```
-
-Também adicionar a cor do badge "Parceiro" no `UserProfileCard.tsx`:
+1. Adicionar uma nova query com `useQuery` para buscar `partner_contracts` do usuário:
 ```typescript
-case 'Parceiro': return 'bg-emerald-100 text-emerald-800';
+const { data: partnerContract } = useQuery({
+  queryKey: ['user-partner-contract', userId],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('partner_contracts')
+      .select('plan_name, is_demo, cotas, status')
+      .eq('user_id', userId)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+    return data;
+  },
+});
 ```
 
-## Arquivos modificados
+2. Exibir badges junto ao badge de classificação existente ("Parceiro"):
+   - Badge com nome do plano: ex. "Legend" ou "Diamond"
+   - Badge "Demo" se `is_demo === true`
+   - Badge com cotas se > 1: ex. "2 Cotas"
+
+Exemplo visual: `[Parceiro] [Legend] [Demo] [2 Cotas]`
+
+## Arquivo modificado
 
 | Arquivo | Mudança |
 |---|---|
-| Nova migração SQL | Recriar `get_user_analytics` com classificação "Parceiro" para contratos ativos |
-| `src/components/UserProfileCard.tsx` | Adicionar cor para badge "Parceiro" + texto comportamental |
+| `src/components/UserProfileCard.tsx` | Nova query para `partner_contracts` + badges de plano/demo/cotas |
 
