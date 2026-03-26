@@ -28,6 +28,19 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin;
 
+  const { data: partnerContract } = useQuery({
+    queryKey: ['user-partner-contract', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('partner_contracts')
+        .select('plan_name, is_demo, cotas, status')
+        .eq('user_id', userId)
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: referralInfo } = useQuery({
     queryKey: ['user-referral-info', userId],
     queryFn: async () => {
@@ -225,6 +238,17 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               <Badge className={getClassificationColor(analytics.user_classification)}>
                 {analytics.user_classification}
               </Badge>
+              {partnerContract && (
+                <>
+                  <Badge className="bg-blue-100 text-blue-800">{partnerContract.plan_name}</Badge>
+                  {partnerContract.is_demo && (
+                    <Badge className="bg-orange-100 text-orange-800">Demo</Badge>
+                  )}
+                  {partnerContract.cotas > 1 && (
+                    <Badge className="bg-indigo-100 text-indigo-800">{partnerContract.cotas} Cotas</Badge>
+                  )}
+                </>
+              )}
               {analytics.is_bot && (
                 <Badge variant="secondary">Bot</Badge>
               )}
