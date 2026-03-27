@@ -113,4 +113,54 @@ export async function createVeopagDeposit(params: {
   }
 }
 
+export async function createVeopagWithdrawal(params: {
+  amount: number
+  external_id: string
+  pix_key: string
+  key_type: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE_EVP'
+  taxId: string
+  name: string
+  description?: string
+}) {
+  const token = await getVeopagToken()
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const webhookUrl = `${supabaseUrl}/functions/v1/veopag-webhook`
+
+  console.log('💸 Creating VeoPag withdrawal:', params.external_id, 'amount:', params.amount)
+
+  const res = await fetch(`${VEOPAG_API_URL}/api/withdrawals/withdraw`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      amount: params.amount,
+      external_id: params.external_id,
+      pix_key: params.pix_key,
+      key_type: params.key_type,
+      taxId: params.taxId.replace(/\D/g, ''),
+      name: params.name,
+      description: params.description || 'Saque parceiro - Penny Rush',
+      clientCallbackUrl: webhookUrl
+    })
+  })
+
+  if (!res.ok) {
+    const errorData = await res.text()
+    console.error('❌ VeoPag withdrawal failed:', res.status, errorData)
+    throw new Error(`Erro ao enviar PIX via VeoPag: ${errorData}`)
+  }
+
+  const data = await res.json()
+  console.log('📋 VeoPag withdrawal response:', JSON.stringify(data))
+
+  return {
+    transaction_id: data.withdrawal?.transaction_id || data.transaction_id,
+    status: data.withdrawal?.status || data.status,
+    amount: data.withdrawal?.amount || params.amount,
+    fee: data.withdrawal?.fee || 0
+  }
+}
+
 export { VEOPAG_API_URL }

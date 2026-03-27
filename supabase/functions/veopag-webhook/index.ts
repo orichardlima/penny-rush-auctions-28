@@ -40,6 +40,10 @@ serve(async (req) => {
     }
 
     // Route by external_id prefix
+    if (external_id.startsWith('withdrawal:')) {
+      return await processWithdrawalCallback(supabase, isApproved, isRejected, external_id, transaction_id)
+    }
+
     if (external_id.startsWith('order:')) {
       return await processOrderPayment(supabase, isApproved, isRejected, external_id)
     }
@@ -397,6 +401,73 @@ async function processCotasUpgradePayment(supabase: any, isApproved: boolean, is
       .eq('id', contract.id)
 
     console.log('✅ Contract cotas upgraded:', contract.cotas, '→', newCotas)
+  }
+
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
+
+// ===== WITHDRAWAL CALLBACK =====
+async function processWithdrawalCallback(supabase: any, isApproved: boolean, isRejected: boolean, externalId: string, transactionId: string) {
+  const withdrawalId = externalId.replace('withdrawal:', '')
+  console.log('💸 Processing WITHDRAWAL callback for:', withdrawalId)
+
+  const { data: withdrawal } = await supabase
+    .from('partner_withdrawals')
+    .select('*')
+    .eq('id', withdrawalId)
+    .single()
+
+  if (!withdrawal) {
+    console.log('⚠️ Withdrawal not found:', withdrawalId)
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  // Idempotency: skip if already PAID
+  if (withdrawal.status === 'PAID') {
+    console.log('ℹ️ Withdrawal already PAID, skipping')
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  if (isApproved && withdrawal.status === 'APPROVED') {
+    console.log('✅ Withdrawal confirmed by VeoPag webhook')
+
+    const paymentDetails = withdrawal.payment_details as any
+    await supabase
+      .from('partner_withdrawals')
+      .update({
+        status: 'PAID',
+        paid_at: new Date().toISOString(),
+        payment_details: {
+          ...paymentDetails,
+          paid_via: 'veopag_webhook',
+          veopag_transaction_id: transactionId,
+          veopag_confirmed_at: new Date().toISOString()
+        },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', withdrawalId)
+
+    // Update contract total_withdrawn
+    const { data: contractData } = await supabase
+      .from('partner_contracts')
+      .select('total_withdrawn')
+      .eq('id', withdrawal.partner_contract_id)
+      .single()
+
+    if (contractData) {
+      await supabase
+        .from('partner_contracts')
+        .update({
+          total_withdrawn: (contractData.total_withdrawn || 0) + withdrawal.amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', withdrawal.partner_contract_id)
+    }
+
+    console.log('✅ Withdrawal marked as PAID via webhook')
+  } else if (isRejected) {
+    console.log('❌ Withdrawal rejected by VeoPag')
+    // Don't change status - admin can retry
   }
 
   return new Response('OK', { status: 200, headers: corsHeaders })

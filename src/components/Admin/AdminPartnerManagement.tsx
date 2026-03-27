@@ -1639,7 +1639,7 @@ const AdminPartnerManagement = () => {
                     ) : (
                       <CheckCircle className="h-4 w-4 mr-2" />
                     )}
-                    {processing ? 'Processando...' : 'Já fiz o PIX — Confirmar Pagamento'}
+                    {processing ? 'Enviando PIX...' : 'Enviar PIX Automático'}
                   </Button>
                 </div>
               )}

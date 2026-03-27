@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
+import { createVeopagWithdrawal } from '../_shared/veopag-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,11 +82,54 @@ serve(async (req) => {
       )
     }
 
-    // 2. Update withdrawal to PAID (manual flow)
+    // 2. Extract payment details
     const paymentDetails = withdrawal.payment_details as any
+    const pixKey = paymentDetails?.pix_key
+    const pixKeyType = paymentDetails?.pix_key_type || 'CPF'
+    const holderName = paymentDetails?.holder_name || 'Parceiro'
+    const taxId = paymentDetails?.tax_id || paymentDetails?.cpf || pixKey || ''
+
+    if (!pixKey) {
+      return new Response(
+        JSON.stringify({ error: 'Chave PIX não encontrada nos dados do saque' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Map pix_key_type to VeoPag key_type
+    const keyTypeMap: Record<string, string> = {
+      'cpf': 'CPF',
+      'cnpj': 'CNPJ',
+      'email': 'EMAIL',
+      'telefone': 'PHONE_EVP',
+      'phone': 'PHONE_EVP',
+      'aleatoria': 'PHONE_EVP',
+      'random': 'PHONE_EVP',
+    }
+    const veopagKeyType = keyTypeMap[pixKeyType.toLowerCase()] || 'CPF'
+
+    // 3. Call VeoPag to send PIX
+    console.log('💸 Sending PIX via VeoPag:', withdrawal.amount, 'to', pixKey)
+    
+    const veopagResult = await createVeopagWithdrawal({
+      amount: withdrawal.amount,
+      external_id: `withdrawal:${withdrawalId}`,
+      pix_key: pixKey,
+      key_type: veopagKeyType as any,
+      taxId: taxId,
+      name: holderName,
+      description: `Saque parceiro - Penny Rush #${withdrawalId.slice(0, 8)}`
+    })
+
+    console.log('✅ VeoPag withdrawal result:', JSON.stringify(veopagResult))
+
+    // 4. Update withdrawal to PAID
     const updatedPaymentDetails = {
       ...paymentDetails,
-      paid_via: 'manual'
+      paid_via: 'veopag_auto',
+      veopag_transaction_id: veopagResult.transaction_id,
+      veopag_status: veopagResult.status,
+      veopag_fee: veopagResult.fee
     }
 
     const { error: updateError } = await supabase
@@ -102,12 +146,12 @@ serve(async (req) => {
     if (updateError) {
       console.error('❌ Error updating withdrawal:', updateError)
       return new Response(
-        JSON.stringify({ error: 'Erro ao atualizar status do saque' }),
+        JSON.stringify({ error: 'PIX enviado mas erro ao atualizar status do saque' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 3. Update contract total_withdrawn
+    // 5. Update contract total_withdrawn
     const { data: contractData } = await supabase
       .from('partner_contracts')
       .select('total_withdrawn')
@@ -124,16 +168,18 @@ serve(async (req) => {
         .eq('id', withdrawal.partner_contract_id)
     }
 
-    console.log('✅ Withdrawal marked as PAID (manual)')
+    console.log('✅ Withdrawal PAID via VeoPag auto-PIX')
     console.log('=== PROCESS PARTNER WITHDRAWAL END ===')
 
     return new Response(
       JSON.stringify({
         success: true,
         amount: withdrawal.amount,
-        pix_key: paymentDetails?.pix_key || null,
-        pix_key_type: paymentDetails?.pix_key_type || null,
-        holder_name: paymentDetails?.holder_name || null
+        transaction_id: veopagResult.transaction_id,
+        fee: veopagResult.fee,
+        pix_key: pixKey,
+        pix_key_type: pixKeyType,
+        holder_name: holderName
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -141,7 +187,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Function error:', error)
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor', details: error.message }),
+      JSON.stringify({ error: error.message || 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
