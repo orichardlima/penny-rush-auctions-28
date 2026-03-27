@@ -1,12 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
+import { createVeopagDeposit } from '../_shared/veopag-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
-
-const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,18 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== ORDER PIX PAYMENT START (ASAAS) ===')
+    console.log('=== ORDER PIX PAYMENT START (VEOPAG) ===')
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-
-    if (!asaasApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Asaas não configurado' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { orderId, userId, userEmail, userName, userCpf } = await req.json()
@@ -68,83 +59,31 @@ serve(async (req) => {
       )
     }
 
-    // 3. Buscar/criar customer no Asaas
-    const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(userEmail)}`, {
-      headers: { 'access_token': asaasApiKey }
-    })
-    const searchData = await searchRes.json()
-    
-    let customerId: string
-    if (searchData.data && searchData.data.length > 0) {
-      customerId = searchData.data[0].id
-    } else {
-      const createRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
-        method: 'POST',
-        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: userName || 'Usuario',
-          email: userEmail,
-          cpfCnpj: cpf.replace(/\D/g, '')
-        })
-      })
-      const createData = await createRes.json()
-      if (!createRes.ok) {
-        console.error('❌ Failed to create customer:', createData)
-        return new Response(
-          JSON.stringify({ error: 'Erro ao criar cliente no Asaas' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+    // 3. Criar cobrança VeoPag
+    const externalId = `order:${order.id}`
+    const depositResult = await createVeopagDeposit({
+      amount: Number(order.final_price),
+      external_id: externalId,
+      description: `Pagamento do produto: ${order.product_name}`,
+      payer: {
+        name: userName || 'Usuario',
+        email: userEmail,
+        document: cpf
       }
-      customerId = createData.id
-    }
-
-    // 4. Criar cobrança PIX
-    const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + 1)
-
-    const chargeRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
-      method: 'POST',
-      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer: customerId,
-        billingType: 'PIX',
-        value: Number(order.final_price),
-        dueDate: dueDate.toISOString().split('T')[0],
-        description: `Pagamento do produto: ${order.product_name}`,
-        externalReference: `order:${order.id}`
-      })
     })
-    const chargeData = await chargeRes.json()
 
-    if (!chargeRes.ok) {
-      console.error('❌ Asaas charge error:', chargeData)
-      return new Response(
-        JSON.stringify({ error: 'Erro ao gerar pagamento PIX' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('✅ Asaas charge created:', chargeData.id)
-
-    // 5. Obter QR Code
-    const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${chargeData.id}/pixQrCode`, {
-      headers: { 'access_token': asaasApiKey }
-    })
-    const qrData = await qrRes.json()
-
-    // 6. Salvar payment_id no pedido
+    // 4. Salvar payment_id no pedido
     await supabase
       .from('orders')
-      .update({ payment_id: chargeData.id })
+      .update({ payment_id: depositResult.transactionId })
       .eq('id', order.id)
 
     const response = {
       orderId: order.id,
-      paymentId: chargeData.id,
-      qrCode: qrData.payload,
-      qrCodeBase64: qrData.encodedImage,
-      pixCopyPaste: qrData.payload,
-      status: chargeData.status
+      paymentId: depositResult.transactionId,
+      qrCodeBase64: depositResult.qrCodeBase64,
+      pixCopyPaste: null,
+      status: depositResult.status
     }
 
     console.log('✅ Order payment response ready')

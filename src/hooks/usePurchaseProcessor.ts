@@ -52,7 +52,7 @@ export const usePurchaseProcessor = () => {
       const referralCode = getReferralCode();
 
       // 3. Criar pagamento via Asaas
-      const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('asaas-payment', {
+      const { data: paymentResponse, error: paymentError } = await supabase.functions.invoke('veopag-payment', {
         body: {
           packageId,
           userId: profile.user_id,

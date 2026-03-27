@@ -1,12 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
+import { createVeopagDeposit } from '../_shared/veopag-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
-
-const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
 
 interface PartnerPaymentRequest {
   planId: string
@@ -24,18 +23,10 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== PARTNER PAYMENT FUNCTION START (ASAAS) ===')
+    console.log('=== PARTNER PAYMENT FUNCTION START (VEOPAG) ===')
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-
-    if (!asaasApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Asaas não configurado' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { planId, userId, userEmail, userName, userCpf, referralCode, cotas: rawCotas }: PartnerPaymentRequest = await req.json()
@@ -74,7 +65,6 @@ serve(async (req) => {
       )
     }
 
-    // Calcular valores proporcionais às cotas
     const aporteValue = planData.aporte_value * cotas
     const weeklyCap = planData.weekly_cap * cotas
     const totalCap = planData.total_cap * cotas
@@ -182,81 +172,36 @@ serve(async (req) => {
 
     console.log('✅ Payment intent created:', intentData.id)
 
-    // 6. Buscar/criar customer no Asaas
-    const searchRes = await fetch(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(userEmail)}`, {
-      headers: { 'access_token': asaasApiKey }
-    })
-    const searchData = await searchRes.json()
-
-    let customerId: string
-    if (searchData.data && searchData.data.length > 0) {
-      customerId = searchData.data[0].id
-    } else {
-      const createRes = await fetch(`${ASAAS_BASE_URL}/customers`, {
-        method: 'POST',
-        headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    // 6. Criar cobrança VeoPag
+    let depositResult
+    try {
+      depositResult = await createVeopagDeposit({
+        amount: aporteValue,
+        external_id: intentData.id,
+        description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
+        payer: {
           name: userName || 'Usuario',
           email: userEmail,
-          cpfCnpj: userCpf.replace(/\D/g, '')
-        })
+          document: userCpf
+        }
       })
-      const createData = await createRes.json()
-      if (!createRes.ok) {
-        await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)
-        return new Response(
-          JSON.stringify({ error: 'Erro ao criar cliente no Asaas' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      customerId = createData.id
-    }
-
-    // 7. Criar cobrança PIX
-    const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + 1)
-
-    const chargeRes = await fetch(`${ASAAS_BASE_URL}/payments`, {
-      method: 'POST',
-      headers: { 'access_token': asaasApiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer: customerId,
-        billingType: 'PIX',
-        value: aporteValue,
-        dueDate: dueDate.toISOString().split('T')[0],
-        description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
-        externalReference: intentData.id
-      })
-    })
-    const chargeData = await chargeRes.json()
-
-    if (!chargeRes.ok) {
+    } catch (err) {
       await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)
-      return new Response(
-        JSON.stringify({ error: 'Erro ao gerar pagamento PIX' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      throw err
     }
 
-    // 8. Obter QR Code
-    const qrRes = await fetch(`${ASAAS_BASE_URL}/payments/${chargeData.id}/pixQrCode`, {
-      headers: { 'access_token': asaasApiKey }
-    })
-    const qrData = await qrRes.json()
-
-    // 9. Atualizar intent com payment_id
+    // 7. Atualizar intent com payment_id
     await supabase
       .from('partner_payment_intents')
-      .update({ payment_id: chargeData.id })
+      .update({ payment_id: depositResult.transactionId })
       .eq('id', intentData.id)
 
     const response = {
       intentId: intentData.id,
-      paymentId: chargeData.id,
-      qrCode: qrData.payload,
-      qrCodeBase64: qrData.encodedImage,
-      pixCopyPaste: qrData.payload,
-      status: chargeData.status,
+      paymentId: depositResult.transactionId,
+      qrCodeBase64: depositResult.qrCodeBase64,
+      pixCopyPaste: null,
+      status: depositResult.status,
       planName: planData.display_name,
       aporteValue: aporteValue,
       bonusBids: bonusBids,
