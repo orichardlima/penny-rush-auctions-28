@@ -1067,8 +1067,8 @@ export const useAdminPartners = () => {
       }
 
       toast({
-        title: "Saque marcado como pago ✅",
-        description: `Valor: R$ ${withdrawal.amount.toFixed(2)} — Faça o PIX manualmente.`
+        title: "PIX enviado com sucesso ✅",
+        description: `Valor: R$ ${withdrawal.amount.toFixed(2)} — Transferência automática via VeoPag.`
       });
 
       await Promise.all([fetchWithdrawals(), fetchContracts()]);
