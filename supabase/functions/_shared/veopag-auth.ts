@@ -103,6 +103,7 @@ export async function createVeopagDeposit(params: {
   return {
     transactionId: data.qrCodeResponse?.transactionId,
     status: data.qrCodeResponse?.status,
+    pixCopyPaste: rawQr,
     qrCodeBase64,
     qrCodeUrl,
     amount: data.qrCodeResponse?.amount

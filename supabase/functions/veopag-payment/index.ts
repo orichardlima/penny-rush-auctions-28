@@ -166,7 +166,7 @@ serve(async (req) => {
       paymentId: depositResult.transactionId,
       qrCodeBase64: depositResult.qrCodeBase64,
       qrCodeUrl: depositResult.qrCodeUrl,
-      pixCopyPaste: null,
+      pixCopyPaste: depositResult.pixCopyPaste || null,
       status: depositResult.status,
       promoApplied,
       finalBidsCount
