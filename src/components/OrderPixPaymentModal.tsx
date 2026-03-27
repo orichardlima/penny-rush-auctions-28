@@ -6,6 +6,7 @@ import { Copy, QrCode, Check, Clock, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/utils";
+import { QRCodeSVG } from "qrcode.react";
 
 interface OrderPixPaymentModalProps {
   open: boolean;
@@ -144,18 +145,22 @@ export const OrderPixPaymentModal = ({
                 💡 O pagamento será detectado automaticamente
               </div>
 
-              {(paymentData.qrCodeBase64 || paymentData.qrCodeUrl) && (
+              {(paymentData.pixCopyPaste || paymentData.qrCodeBase64 || paymentData.qrCodeUrl) && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2">
                     <QrCode className="w-5 h-5" />
                     <span className="font-medium">Escaneie o QR Code</span>
                   </div>
                   <div className="flex justify-center">
-                    <img
-                      src={paymentData.qrCodeUrl || `data:image/png;base64,${paymentData.qrCodeBase64}`}
-                      alt="QR Code PIX"
-                      className="w-48 h-48 border rounded"
-                    />
+                    {paymentData.pixCopyPaste && !paymentData.qrCodeBase64 && !paymentData.qrCodeUrl ? (
+                      <QRCodeSVG value={paymentData.pixCopyPaste} size={192} />
+                    ) : (
+                      <img
+                        src={paymentData.qrCodeUrl || `data:image/png;base64,${paymentData.qrCodeBase64}`}
+                        alt="QR Code PIX"
+                        className="w-48 h-48 border rounded"
+                      />
+                    )}
                   </div>
                 </div>
               )}
