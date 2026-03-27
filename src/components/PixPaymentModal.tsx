@@ -15,6 +15,7 @@ interface PixPaymentModalProps {
     paymentId: string;
     qrCode?: string;
     qrCodeBase64?: string;
+    qrCodeUrl?: string;
     pixCopyPaste?: string;
   };
   packageInfo: {
@@ -261,7 +262,7 @@ export const PixPaymentModal = ({
               </div>
               
               {/* QR Code */}
-              {paymentData.qrCodeBase64 && (
+              {(paymentData.qrCodeBase64 || paymentData.qrCodeUrl) && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2">
                     <QrCode className="w-5 h-5" />
@@ -269,7 +270,7 @@ export const PixPaymentModal = ({
                   </div>
                   <div className="flex justify-center">
                     <img 
-                      src={`data:image/png;base64,${paymentData.qrCodeBase64}`}
+                      src={paymentData.qrCodeUrl || `data:image/png;base64,${paymentData.qrCodeBase64}`}
                       alt="QR Code PIX"
                       className="w-48 h-48 border rounded"
                     />
