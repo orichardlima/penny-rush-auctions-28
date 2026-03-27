@@ -12,6 +12,7 @@ interface PurchaseResult {
     paymentId: string;
     qrCode?: string;
     qrCodeBase64?: string;
+    qrCodeUrl?: string;
     pixCopyPaste?: string;
   };
 }
@@ -80,6 +81,7 @@ export const usePurchaseProcessor = () => {
           paymentId: paymentResponse.paymentId,
           qrCode: paymentResponse.qrCode,
           qrCodeBase64: paymentResponse.qrCodeBase64,
+          qrCodeUrl: paymentResponse.qrCodeUrl,
           pixCopyPaste: paymentResponse.pixCopyPaste
         }
       };

@@ -80,12 +80,31 @@ export async function createVeopagDeposit(params: {
   }
 
   const data = await res.json()
+  console.log('📋 VeoPag full response:', JSON.stringify(data))
   console.log('✅ VeoPag deposit created:', data.qrCodeResponse?.transactionId)
+
+  // Handle multiple QR code formats
+  const rawQr = data.qrCodeResponse?.qrcode || data.qrCodeResponse?.qr_code || data.qrCodeResponse?.qrCode || ''
+  let qrCodeBase64 = ''
+  let qrCodeUrl = ''
+
+  if (typeof rawQr === 'string' && rawQr.length > 0) {
+    if (rawQr.startsWith('http')) {
+      qrCodeUrl = rawQr
+    } else if (rawQr.startsWith('data:')) {
+      qrCodeBase64 = rawQr.replace(/^data:image\/\w+;base64,/, '')
+    } else {
+      qrCodeBase64 = rawQr
+    }
+  }
+
+  console.log('🖼️ QR format:', qrCodeBase64 ? 'base64' : qrCodeUrl ? 'url' : 'none', '| length:', rawQr.length)
 
   return {
     transactionId: data.qrCodeResponse?.transactionId,
     status: data.qrCodeResponse?.status,
-    qrCodeBase64: data.qrCodeResponse?.qrcode,
+    qrCodeBase64,
+    qrCodeUrl,
     amount: data.qrCodeResponse?.amount
   }
 }
