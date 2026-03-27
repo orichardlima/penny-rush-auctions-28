@@ -54,5 +54,11 @@ verify_jwt = false
 [functions.admin-update-user-email]
 verify_jwt = false
 
+[functions.veopag-payment]
+verify_jwt = false
+
+[functions.veopag-webhook]
+verify_jwt = false
+
 [functions.order-pix-payment]
 verify_jwt = false
