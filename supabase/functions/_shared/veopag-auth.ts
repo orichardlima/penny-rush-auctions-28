@@ -93,6 +93,9 @@ export async function createVeopagDeposit(params: {
       qrCodeUrl = rawQr
     } else if (rawQr.startsWith('data:')) {
       qrCodeBase64 = rawQr.replace(/^data:image\/\w+;base64,/, '')
+    } else if (rawQr.startsWith('0002') || rawQr.length < 100) {
+      // PIX EMV copy-paste string, NOT a base64 image
+      // Leave qrCodeBase64 empty, frontend will use QRCodeSVG
     } else {
       qrCodeBase64 = rawQr
     }
