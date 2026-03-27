@@ -1,115 +1,70 @@
 
 
-# Migrar Pagamentos do Asaas para VeoPag
+# Fix: QR Code da VeoPag nao renderiza
 
-## Resumo
+## Problema
 
-Substituir completamente o Asaas pela VeoPag em todos os fluxos de pagamento PIX (compra de lances, adesao a parcerias, upgrade de plano/cotas, pagamento de pedidos).
+A edge function `veopag-payment` cria o deposito com sucesso (logs confirmam), mas o QR Code aparece quebrado no modal. O campo `data.qrCodeResponse?.qrcode` pode:
+- Ser uma URL em vez de base64 puro
+- Ja conter o prefixo `data:image/...`
+- Ter um nome de campo diferente do esperado
+- Estar vazio/undefined
 
-## API VeoPag (extraido dos prints)
+Nao temos visibilidade porque o codigo nao loga a resposta completa da VeoPag.
 
-```text
-Auth:    POST https://api.veopag.com/api/auth/login
-         Body: { client_id, client_secret }
-         Resp: { token, expires_in: 3600 }
-         Usage: Authorization: Bearer TOKEN
+## Solucao
 
-Deposit: POST https://api.veopag.com/api/payments/deposit
-         Headers: { Authorization: Bearer TOKEN }
-         Body: { amount, external_id, clientCallbackUrl, payer: { name, email, document }, split? }
-         Resp: { message, qrCodeResponse: { transactionId, status: "PENDING", qrcode: "base64...", amount } }
+### 1. Adicionar log da resposta completa na `veopag-auth.ts`
 
-Webhook: POST to clientCallbackUrl (or portal config)
-         Headers: { Authorization: Bearer CLIENT_CALLBACK_SECRET, X-Webhook-Signature (optional) }
-         Payload: { type: "Deposit", external_id, transaction_id, status: "COMPLETED", amount, fee, payer_name, payer_cpf, ... }
-         Statuses: PENDING, PROCESSING, COMPLETED, FAILED
+Em `createVeopagDeposit`, logo apos `const data = await res.json()`, adicionar:
+```
+console.log('📋 VeoPag full response:', JSON.stringify(data))
 ```
 
-## Diferencias chave Asaas vs VeoPag
+Isso nos mostra a estrutura exata retornada pela API.
 
-| Aspecto | Asaas | VeoPag |
-|---|---|---|
-| Auth | API key no header `access_token` | OAuth `client_id/client_secret` → Bearer token |
-| Customer | Precisa criar/buscar customer antes | Nao precisa - payer vai inline no deposit |
-| QR Code | Endpoint separado `/pixQrCode` | Vem na resposta do deposit (`qrcode` base64) |
-| Webhook payload | `{ event, payment: { id, externalReference, status } }` | `{ type, external_id, transaction_id, status }` |
-| Status aprovado | RECEIVED/CONFIRMED | COMPLETED |
+### 2. Tratar multiplos formatos de QR Code na `veopag-auth.ts`
 
-## Pre-requisitos (secrets)
+Ao retornar `qrCodeBase64`, verificar se o valor:
+- E uma URL (comeca com `http`) → retornar como `qrCodeUrl`
+- Ja tem prefixo `data:` → extrair so o base64
+- E base64 puro → retornar como esta
 
-Preciso configurar 2 secrets no Supabase:
-- `VEOPAG_CLIENT_ID`
-- `VEOPAG_CLIENT_SECRET`
+```typescript
+const rawQr = data.qrCodeResponse?.qrcode || data.qrCodeResponse?.qr_code || data.qrCodeResponse?.qrCode || ''
+let qrCodeBase64 = ''
+let qrCodeUrl = ''
 
-Opcionalmente: `VEOPAG_WEBHOOK_SECRET` (se configurar signature no portal)
+if (rawQr.startsWith('http')) {
+  qrCodeUrl = rawQr
+} else if (rawQr.startsWith('data:')) {
+  qrCodeBase64 = rawQr.replace(/^data:image\/\w+;base64,/, '')
+} else if (rawQr.length > 0) {
+  qrCodeBase64 = rawQr
+}
+```
 
-## Etapas de implementacao
+### 3. Atualizar o frontend `PixPaymentModal.tsx` e `OrderPixPaymentModal.tsx`
 
-### 1. Criar utilitario de auth VeoPag
-**Novo:** `supabase/functions/_shared/veopag-auth.ts`
-- Funcao `getVeopagToken()` que faz POST login com client_id/client_secret
-- Cache do token em variavel de modulo (renovar quando expirar)
+Suportar tanto `qrCodeBase64` quanto `qrCodeUrl`:
+- Se `qrCodeBase64` → usar `data:image/png;base64,...`
+- Se `qrCodeUrl` → usar a URL diretamente como `src`
 
-### 2. Criar `veopag-payment` (substitui `asaas-payment`)
-**Novo:** `supabase/functions/veopag-payment/index.ts`
-- Mesma logica de negocio (buscar pacote, promo, criar bid_purchase, comissao afiliado)
-- Remover logica de customer Asaas
-- Usar `POST /api/payments/deposit` com `{ amount, external_id: purchaseId, clientCallbackUrl, payer: { name, email, document: cpf } }`
-- Retornar `qrCodeResponse.qrcode` como `qrCodeBase64` e `pixCopyPaste` (copia-cola nao existe separado na VeoPag - usar qrcode base64)
+### 4. Propagar `qrCodeUrl` pelo fluxo
 
-### 3. Criar `veopag-webhook` (substitui `asaas-webhook` + unifica com `partner-payment-webhook`)
-**Novo:** `supabase/functions/veopag-webhook/index.ts`
-- Recebe payload VeoPag: `{ type, external_id, transaction_id, status }`
-- Valida Authorization header (se secret configurado)
-- Idempotencia: verifica status atual antes de processar
-- Roteamento por `external_id`:
-  - UUID direto → bid_purchase OU partner_payment_intent
-  - `order:{id}` → pedido
-  - `upgrade:{contractId}:{planId}` → upgrade de plano
-  - `cotas-upgrade:{contractId}:{cotas}` → upgrade de cotas
-- So processa quando `status === 'COMPLETED'`
-- Toda logica de processamento copiada dos webhooks atuais (creditar lances, ativar contrato, aprovar comissoes, etc.)
+Atualizar `veopag-payment/index.ts` e `usePurchaseProcessor.ts` para incluir `qrCodeUrl` na resposta/interface.
 
-### 4. Atualizar `partner-payment` → VeoPag
-**Editar:** `supabase/functions/partner-payment/index.ts`
-- Remover logica Asaas (customer, charge, qrCode separado)
-- Usar `getVeopagToken()` + `POST /api/payments/deposit`
-- `external_id` = intentData.id
-- `clientCallbackUrl` = URL do veopag-webhook
+## Arquivos
 
-### 5. Atualizar `partner-upgrade-payment` → VeoPag
-**Editar:** `supabase/functions/partner-upgrade-payment/index.ts`
-- Mesma substituicao
-
-### 6. Atualizar `order-pix-payment` → VeoPag
-**Editar:** `supabase/functions/order-pix-payment/index.ts`
-- Mesma substituicao, `external_id` = `order:{orderId}`
-
-### 7. Atualizar frontend
-**Editar:** `src/hooks/usePurchaseProcessor.ts`
-- Mudar invoke de `asaas-payment` → `veopag-payment`
-
-**Editar:** `src/components/PixPaymentModal.tsx`
-- O QR Code ja usa `data:image/png;base64,${qrCodeBase64}` - compativel
-- Remover referencia a `pixCopyPaste` se VeoPag nao retornar copia-cola separado (ou manter com fallback)
-
-### 8. Configurar `supabase/config.toml`
-- Adicionar `[functions.veopag-payment]` e `[functions.veopag-webhook]` com `verify_jwt = false`
-
-## Arquivos modificados/criados
-
-| Arquivo | Acao |
+| Arquivo | Mudanca |
 |---|---|
-| `supabase/functions/_shared/veopag-auth.ts` | Criar - auth + cache de token |
-| `supabase/functions/veopag-payment/index.ts` | Criar - substitui asaas-payment |
-| `supabase/functions/veopag-webhook/index.ts` | Criar - webhook unificado |
-| `supabase/functions/partner-payment/index.ts` | Editar - Asaas → VeoPag |
-| `supabase/functions/partner-upgrade-payment/index.ts` | Editar - Asaas → VeoPag |
-| `supabase/functions/order-pix-payment/index.ts` | Editar - Asaas → VeoPag |
-| `supabase/config.toml` | Adicionar veopag-payment e veopag-webhook |
-| `src/hooks/usePurchaseProcessor.ts` | invoke veopag-payment |
+| `supabase/functions/_shared/veopag-auth.ts` | Log resposta completa + tratar formatos de QR |
+| `supabase/functions/veopag-payment/index.ts` | Incluir `qrCodeUrl` na resposta |
+| `src/hooks/usePurchaseProcessor.ts` | Adicionar `qrCodeUrl` na interface |
+| `src/components/PixPaymentModal.tsx` | Renderizar QR por URL ou base64 |
+| `src/components/OrderPixPaymentModal.tsx` | Mesma correcao |
 
-## Proximo passo
+## Resultado
 
-Antes de implementar, preciso que voce configure os secrets `VEOPAG_CLIENT_ID` e `VEOPAG_CLIENT_SECRET` no Supabase. Voce ja tem essas credenciais na sua conta VeoPag?
+Apos deploy, o proximo pagamento vai logar a resposta completa da VeoPag. O frontend vai renderizar o QR Code independente do formato retornado (URL, base64, ou data URI).
 
