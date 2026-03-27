@@ -1,58 +1,47 @@
 
 
-# Fix: QR Code PIX nao renderiza - string EMV, nao base64
+# Fix QR Code VeoPag - PIX EMV string tratada como base64
 
-## Diagnostico (dos logs)
+## Problema raiz
 
-A resposta da VeoPag retorna no campo `qrcode`:
-```
-"00020101021226810014br.gov.bcb.pix2559qr.woovi.com/qr/v2/cob/..."
-```
+Em `veopag-auth.ts` linha 97, a string PIX EMV (ex: `00020101...`) cai no `else` e é atribuída a `qrCodeBase64`. No frontend (`PixPaymentModal.tsx` linha 273), a condição `!paymentData.qrCodeBase64` é `false`, então renderiza `<img src="data:image/png;base64,00020101...">` -- imagem quebrada.
 
-Isso e uma **string EMV do PIX** (copia e cola), **NAO** uma imagem base64. O codigo atual tenta renderizar como `data:image/png;base64,00020101...` que resulta em imagem quebrada.
+## Correção
 
-## Solucao
+### 1. `supabase/functions/_shared/veopag-auth.ts`
 
-### 1. Instalar `qrcode.react` para gerar QR Code no frontend
-
-Biblioteca leve que gera QR Code a partir de qualquer string.
-
-### 2. Atualizar `veopag-auth.ts` - tratar o campo como PIX copia-e-cola
-
-Retornar o valor de `qrcode` como `pixCopyPaste` (string para copiar) em vez de `qrCodeBase64`:
+Detectar string PIX EMV (começa com `0002`) e **não** atribuir a `qrCodeBase64`:
 
 ```typescript
-return {
-  transactionId: ...,
-  pixCopyPaste: rawQr,  // string EMV para copia-e-cola
-  qrCodeBase64: '',     // VeoPag nao retorna imagem
-  qrCodeUrl: '',
+if (rawQr.startsWith('http')) {
+  qrCodeUrl = rawQr
+} else if (rawQr.startsWith('data:')) {
+  qrCodeBase64 = rawQr.replace(/^data:image\/\w+;base64,/, '')
+} else if (rawQr.startsWith('0002') || rawQr.length < 100) {
+  // PIX EMV copy-paste string, NOT a base64 image
+  // Leave qrCodeBase64 empty, frontend will use QRCodeSVG
+} else {
+  qrCodeBase64 = rawQr
 }
 ```
 
-### 3. Propagar `pixCopyPaste` pelo fluxo
+Isso garante que `qrCodeBase64` fica vazio e `pixCopyPaste` (já setado na linha 106) carrega a string EMV.
 
-- `veopag-payment/index.ts` → incluir `pixCopyPaste` na resposta
-- `usePurchaseProcessor.ts` → propagar o campo
+### 2. Frontend - sem mudanças necessárias
 
-### 4. Atualizar `PixPaymentModal.tsx` e `OrderPixPaymentModal.tsx`
+A lógica atual nos modais já funciona corretamente quando `qrCodeBase64` é vazio:
+- Linha 273: `pixCopyPaste && !qrCodeBase64 && !qrCodeUrl` → `true` → renderiza `<QRCodeSVG>`
+- Copy-paste, polling, botão "Já fiz o pagamento" já implementados
 
-- Usar `<QRCodeSVG value={pixCopyPaste} />` para gerar QR Code visual
-- Exibir o texto PIX copia-e-cola com botao de copiar
-- Fallback: se existir `qrCodeBase64` ou `qrCodeUrl`, usar imagem como antes
+### 3. Re-deploy da edge function `veopag-payment`
 
-## Arquivos
+## Arquivo modificado
 
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---|---|
-| `package.json` | Adicionar `qrcode.react` |
-| `supabase/functions/_shared/veopag-auth.ts` | Retornar `pixCopyPaste` com a string EMV |
-| `supabase/functions/veopag-payment/index.ts` | Incluir `pixCopyPaste` na resposta |
-| `src/hooks/usePurchaseProcessor.ts` | Propagar `pixCopyPaste` |
-| `src/components/PixPaymentModal.tsx` | Gerar QR com `qrcode.react` + exibir copia-e-cola |
-| `src/components/OrderPixPaymentModal.tsx` | Mesma correcao |
+| `supabase/functions/_shared/veopag-auth.ts` | Não atribuir string PIX EMV a `qrCodeBase64` |
 
 ## Resultado
 
-O QR Code sera gerado no frontend a partir da string PIX EMV. O usuario tambem podera copiar o codigo PIX manualmente.
+`qrCodeBase64` ficará vazio → frontend usa `QRCodeSVG` para gerar QR visual → imagem funciona.
 
