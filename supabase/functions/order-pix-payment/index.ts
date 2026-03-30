@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
-import { createVeopagDeposit } from '../_shared/veopag-auth.ts'
+import { createMagenDeposit } from '../_shared/magen-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,17 +59,14 @@ serve(async (req) => {
       )
     }
 
-    // 3. Criar cobrança VeoPag
-    const externalId = `order:${order.id}`
-    const depositResult = await createVeopagDeposit({
+    // 3. Criar cobrança MagenPay
+    const txId = `order:${order.id}`
+    const depositResult = await createMagenDeposit({
       amount: Number(order.final_price),
-      external_id: externalId,
+      txId,
       description: `Pagamento do produto: ${order.product_name}`,
-      payer: {
-        name: userName || 'Usuario',
-        email: userEmail,
-        document: cpf
-      }
+      payerName: userName || 'Usuario',
+      payerTaxId: cpf
     })
 
     // 4. Salvar payment_id no pedido
