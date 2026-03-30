@@ -1,51 +1,51 @@
 
 
-# Painel Admin: Visão Global de Bônus de Indicação
+# Fix: Bônus de Indicação nunca sai de PENDENTE
 
-## Resumo
+## Problema
 
-Adicionar uma nova aba **"Bônus"** no `AdminPartnerManagement` que mostra todos os `partner_referral_bonuses` da plataforma, com cards de resumo e tabela filtrável por status.
+Os bônus são criados com `status = 'PENDING'` e `available_at = created_at + 7 dias`, mas **não existe nenhum mecanismo** (trigger, cron, ou edge function) que atualize o status para `AVAILABLE` quando `available_at` é atingido. Os bônus ficam pendentes para sempre.
 
-## Arquivos a criar/modificar
+## Solução
 
-| Arquivo | Ação |
-|---|---|
-| `src/components/Admin/AdminReferralBonusesTab.tsx` | **Novo** — componente da aba com cards de stats + tabela |
-| `src/components/Admin/AdminPartnerManagement.tsx` | Adicionar TabsTrigger "Bônus" + TabsContent importando o novo componente |
+Criar uma função SQL + trigger que automaticamente atualiza o status para `AVAILABLE` quando a data de liberação é atingida, combinado com uma verificação periódica para bônus que já passaram da data.
 
-## Detalhes
+## Implementação
 
-### AdminReferralBonusesTab.tsx
+### 1. Migration SQL
 
-- Busca todos os registros de `partner_referral_bonuses` (admin tem RLS ALL)
-- Usa RPC `get_public_profiles` para resolver nomes dos referrers e referidos
-- Join com `partner_contracts` para mostrar plano e aporte
+Uma única migration que:
 
-**Cards de resumo (4 cards):**
-- Total de bônus (contagem)
-- Valor total em bônus
-- Disponíveis (valor + contagem)
-- Pendentes (valor + contagem)
+1. **Atualiza imediatamente** todos os bônus que já passaram de `available_at` (corrige os existentes)
+2. **Cria um cron job** via `pg_cron` que roda a cada hora, atualizando bônus cujo `available_at <= now()` de PENDING para AVAILABLE
 
-**Tabela com colunas:**
-- Referenciador (nome)
-- Indicado (nome)
-- Nível
-- Valor do Aporte
-- % Bônus
-- Valor do Bônus
-- Status (badge colorido: PENDING/AVAILABLE/PAID)
-- Data de liberação
-- Data de criação
-- Fast Start (badge se `is_fast_start_bonus`)
+```text
+-- Correção retroativa
+UPDATE partner_referral_bonuses
+SET status = 'AVAILABLE'
+WHERE status = 'PENDING'
+  AND available_at IS NOT NULL
+  AND available_at <= now();
 
-**Filtros:**
-- Dropdown de status (Todos, PENDING, AVAILABLE, PAID)
-- Campo de busca por nome
+-- Função para rodar periodicamente
+CREATE FUNCTION release_pending_referral_bonuses() ...
+  UPDATE partner_referral_bonuses
+  SET status = 'AVAILABLE'
+  WHERE status = 'PENDING'
+    AND available_at IS NOT NULL
+    AND available_at <= now();
 
-### AdminPartnerManagement.tsx
+-- Cron job a cada hora
+SELECT cron.schedule('release-referral-bonuses', '0 * * * *', $$...$$);
+```
 
-- Import do novo componente
-- Nova `TabsTrigger value="bonuses"` com ícone Gift
-- Nova `TabsContent value="bonuses"` renderizando `<AdminReferralBonusesTab />`
+### 2. Nenhuma alteração no frontend
+
+O `AdminReferralBonusesTab` e demais componentes já exibem os status corretamente — só falta o dado mudar no banco.
+
+## Resultado
+
+- Bônus existentes que já passaram de 7 dias: corrigidos imediatamente
+- Novos bônus: atualizados automaticamente a cada hora após `available_at`
+- Zero alterações no frontend
 
