@@ -57,6 +57,7 @@ import BinaryNetworkManager from './BinaryNetworkManager';
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
 import FastStartTiersManager from './FastStartTiersManager';
+import AdminReferralBonusesTab from './AdminReferralBonusesTab';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminPartnerManagement = () => {
