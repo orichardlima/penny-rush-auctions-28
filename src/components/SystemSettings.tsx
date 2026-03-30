@@ -414,6 +414,63 @@ export const SystemSettings: React.FC = () => {
         <h2 className="text-xl font-semibold">Configurações do Sistema</h2>
       </div>
 
+      {/* Gateway de Pagamento PIX */}
+      <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-green-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-emerald-500" />
+            <CardTitle className="text-emerald-600">Gateway de Pagamento PIX</CardTitle>
+          </div>
+          <CardDescription>
+            Escolha qual provedor de pagamento PIX será usado para recebimentos. A troca é instantânea e afeta apenas novos pagamentos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Gateway Ativo</Label>
+            <Select value={activeGateway} onValueChange={setActiveGateway}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o gateway" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="veopag">VeoPag</SelectItem>
+                <SelectItem value="magenpay">MagenPay</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className={`p-3 rounded-lg text-sm ${activeGateway === 'veopag' ? 'bg-blue-500/10 text-blue-700 border border-blue-500/20' : 'bg-purple-500/10 text-purple-700 border border-purple-500/20'}`}>
+            <strong>Ativo:</strong> {activeGateway === 'veopag' ? '🔵 VeoPag' : '🟣 MagenPay'} — Todos os novos pagamentos PIX serão processados por este provedor.
+          </div>
+
+          <Button
+            onClick={async () => {
+              setSavingGateway(true);
+              try {
+                await updateSetting('active_payment_gateway', activeGateway);
+                toast({
+                  title: "Gateway atualizado!",
+                  description: `Pagamentos PIX agora usam ${activeGateway === 'veopag' ? 'VeoPag' : 'MagenPay'}.`,
+                });
+              } catch (error) {
+                toast({
+                  title: "Erro",
+                  description: "Não foi possível salvar o gateway.",
+                  variant: "destructive"
+                });
+              } finally {
+                setSavingGateway(false);
+              }
+            }}
+            disabled={savingGateway}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {savingGateway ? 'Salvando...' : 'Salvar Gateway'}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Contratos Legais */}
       <Card className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-indigo-500/5">
         <CardHeader>
