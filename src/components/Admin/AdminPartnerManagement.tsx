@@ -583,6 +583,11 @@ const AdminPartnerManagement = () => {
           <FastStartTiersManager />
         </TabsContent>
 
+        {/* Bônus de Indicação Tab */}
+        <TabsContent value="bonuses">
+          <AdminReferralBonusesTab />
+        </TabsContent>
+
         {/* Projeções Tab */}
         <TabsContent value="projections">
           <RevenueProjectionDashboard />
