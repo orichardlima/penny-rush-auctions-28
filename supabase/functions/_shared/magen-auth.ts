@@ -1,3 +1,6 @@
+import * as secp from "https://esm.sh/@noble/secp256k1@2.1.0"
+import { sha256 } from "https://esm.sh/@noble/hashes@1.6.1/sha256"
+
 const MAGEN_BASE_URL = Deno.env.get('MAGEN_BASE_URL') || 'https://api.magenpay.io'
 
 function generateNonce(): string {
@@ -6,28 +9,35 @@ function generateNonce(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-function pemToArrayBuffer(pem: string): ArrayBuffer {
+function pemToPrivateKeyBytes(pem: string): Uint8Array {
   const b64 = pem
     .replace(/-----BEGIN (?:EC )?PRIVATE KEY-----/g, '')
     .replace(/-----END (?:EC )?PRIVATE KEY-----/g, '')
     .replace(/\s/g, '')
   const binary = atob(b64)
-  const bytes = new Uint8Array(binary.length)
+  const der = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
+    der[i] = binary.charCodeAt(i)
   }
-  return bytes.buffer
-}
 
-async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  const keyData = pemToArrayBuffer(pem)
-  return await crypto.subtle.importKey(
-    'pkcs8',
-    keyData,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['sign']
-  )
+  // secp256k1 EC private key in DER/PKCS8 format
+  // The raw 32-byte key is typically at the end of the DER structure
+  // For EC PRIVATE KEY (SEC1): key is after octet string tag (0x04) at offset ~7
+  // For PRIVATE KEY (PKCS8): key is deeper in the structure
+  // We search for the 32-byte private key by looking for the OID or extracting last 32 bytes
+  
+  // Strategy: find 0x04 0x20 (octet string, 32 bytes) which contains the raw key
+  for (let i = 0; i < der.length - 33; i++) {
+    if (der[i] === 0x04 && der[i + 1] === 0x20) {
+      return der.slice(i + 2, i + 34)
+    }
+  }
+
+  // Fallback: for some PKCS8 formats, try finding the key after the OID
+  // If der is exactly 32 bytes already (unlikely but handle)
+  if (der.length === 32) return der
+
+  throw new Error('Não foi possível extrair a chave privada secp256k1 do PEM')
 }
 
 interface SignedData {
@@ -51,19 +61,14 @@ function buildSignedData(method: string, url: string, body: string): SignedData 
   }
 }
 
-async function signData(privateKey: CryptoKey, signedData: SignedData): Promise<string> {
+function signData(privateKeyBytes: Uint8Array, signedData: SignedData): string {
   const dataStr = JSON.stringify(signedData)
-  const encoder = new TextEncoder()
-  const data = encoder.encode(dataStr)
-  const signature = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    privateKey,
-    data
-  )
-  // Convert ArrayBuffer to base64
-  const bytes = new Uint8Array(signature)
+  const msgHash = sha256(new TextEncoder().encode(dataStr))
+  const signature = secp.sign(msgHash, privateKeyBytes)
+  const sigBytes = signature.toDERRawBytes()
+  // Convert to base64
   let binary = ''
-  for (const b of bytes) {
+  for (const b of sigBytes) {
     binary += String.fromCharCode(b)
   }
   return btoa(binary)
@@ -104,9 +109,9 @@ export async function createMagenDeposit(params: {
   }
   const bodyStr = JSON.stringify(bodyObj)
 
-  const privateKey = await importPrivateKey(privateKeyPem)
+  const privateKeyBytes = pemToPrivateKeyBytes(privateKeyPem)
   const signedData = buildSignedData('POST', url, bodyStr)
-  const signature = await signData(privateKey, signedData)
+  const signature = signData(privateKeyBytes, signedData)
 
   const res = await fetch(url, {
     method: 'POST',
@@ -134,7 +139,6 @@ export async function createMagenDeposit(params: {
 
   console.log('✅ MagenPay deposit created, txId:', txId)
 
-  // Return compatible structure with createVeopagDeposit
   return {
     transactionId: txId,
     status: data.status || 'pending',
