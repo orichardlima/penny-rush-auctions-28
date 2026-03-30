@@ -1,80 +1,60 @@
 
 
-# Saque Automático via VeoPag (PIX OUT)
+# Fix: Lances dados sem consumir créditos
 
-## Resumo
+## Causa raiz
 
-Quando o admin clicar em "Marcar como Pago", o sistema enviará automaticamente o PIX para o parceiro via API da VeoPag (`POST /api/withdrawals/withdraw`), em vez de apenas marcar no banco e exigir transferência manual.
-
-## API VeoPag Withdrawal (dos prints)
+A migration mais recente (`20260322`) sobrescreveu a função `protect_profile_fields()` e **removeu** a verificação da flag de sessão `app.allow_sensitive_profile_update`. A versão anterior (`20260318`) verificava essa flag para permitir que `place_bid` alterasse o `bids_balance`.
 
 ```text
-POST https://api.veopag.com/api/withdrawals/withdraw
-Auth: Bearer {token}
-
-Body (PIX Key):
-{
-  amount, external_id, pix_key, key_type (CPF|CNPJ|EMAIL|PHONE_EVP),
-  taxId, name, description, clientCallbackUrl
-}
-
-Response: { message, withdrawal: { transaction_id, status: "COMPLETED", amount, fee } }
+Fluxo atual (quebrado):
+1. place_bid() seta flag 'app.allow_sensitive_profile_update' = 'true'
+2. place_bid() faz UPDATE profiles SET bids_balance = bids_balance - 1
+3. Trigger protect_profile_fields() dispara
+4. Trigger ignora a flag (código removido) → verifica current_setting('role') e is_admin_user()
+5. Usuário não é admin nem service_role → bids_balance é revertido para OLD.bids_balance
+6. Lance é inserido mas saldo não muda
 ```
 
-## Implementação
+## Correção
 
-### 1. Nova função em `_shared/veopag-auth.ts` — `createVeopagWithdrawal`
+Uma única migration para restaurar a verificação da flag de sessão na função `protect_profile_fields`, mantendo também a verificação `is_admin_user` que foi adicionada na migration mais recente.
 
-Adicionar função que chama `POST /api/withdrawals/withdraw` com:
-- `amount`: valor do saque
-- `external_id`: `withdrawal:{withdrawalId}` (idempotência)
-- `pix_key`: chave PIX do parceiro
-- `key_type`: tipo da chave (CPF, CNPJ, EMAIL, PHONE_EVP)
-- `taxId`: CPF do parceiro (dos payment_details ou profile)
-- `name`: nome do titular
-- `description`: "Saque parceiro - Penny Rush"
-- `clientCallbackUrl`: URL do webhook para confirmação
+### Nova `protect_profile_fields()`:
 
-Retorna `{ transaction_id, status, amount, fee }`.
+```sql
+CREATE OR REPLACE FUNCTION public.protect_profile_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_setting('role', true) != 'service_role'
+     AND coalesce(current_setting('app.allow_sensitive_profile_update', true), '') != 'true'
+     AND NOT is_admin_user(auth.uid())
+  THEN
+    NEW.is_admin := OLD.is_admin;
+    NEW.is_blocked := OLD.is_blocked;
+    NEW.bids_balance := OLD.bids_balance;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+```
 
-### 2. Atualizar `process-partner-withdrawal/index.ts`
+Mudanças vs versão atual:
+- Adiciona `current_setting('role', true)` com o parâmetro `true` (evita erro se variável não existir)
+- Restaura check da flag `app.allow_sensitive_profile_update`
+- Mantém `is_admin_user()` da versão recente
 
-Fluxo atual: marca como PAID no banco (manual).
-Novo fluxo:
-1. Chamar `createVeopagWithdrawal` com dados do saque
-2. Se VeoPag retornar `status: "COMPLETED"` → marcar como PAID
-3. Se falhar → retornar erro sem alterar status, admin pode tentar novamente
-4. Salvar `transaction_id` e `fee` no `payment_details`
+## Arquivo
 
-### 3. Atualizar webhook `veopag-webhook/index.ts`
-
-Adicionar roteamento para prefixo `withdrawal:` no `external_id`:
-- Localizar saque pelo ID
-- Se status VeoPag === COMPLETED e saque ainda APPROVED → marcar como PAID
-- Idempotência: ignorar se já PAID
-
-### 4. Frontend — `AdminPartnerManagement.tsx`
-
-Alterar texto do botão de "Marcar como Pago" para "Enviar PIX" e atualizar toast de sucesso para refletir envio automático. Adicionar feedback de erro caso a VeoPag rejeite (saldo insuficiente, chave inválida, etc).
-
-### 5. Frontend — `useAdminPartners.ts`
-
-Atualizar toast em `markWithdrawalAsPaid` para mostrar que o PIX foi enviado automaticamente (não mais manual).
-
-## Arquivos modificados
-
-| Arquivo | Mudança |
+| Arquivo | Ação |
 |---|---|
-| `supabase/functions/_shared/veopag-auth.ts` | Nova função `createVeopagWithdrawal` |
-| `supabase/functions/process-partner-withdrawal/index.ts` | Chamar VeoPag antes de marcar PAID |
-| `supabase/functions/veopag-webhook/index.ts` | Roteamento `withdrawal:` no external_id |
-| `src/components/Admin/AdminPartnerManagement.tsx` | Texto do botão → "Enviar PIX" |
-| `src/hooks/useAdminPartners.ts` | Toast de sucesso atualizado |
+| `supabase/migrations/new_fix.sql` | Nova migration com a função corrigida |
 
-## Segurança
+## Resultado
 
-- Apenas admins podem acionar o endpoint (validação já existe)
-- `external_id` com prefixo `withdrawal:` garante idempotência
-- Webhook valida se saque existe e está em status APPROVED antes de confirmar
-- Falha na VeoPag não altera status do saque (admin pode retentar)
+`place_bid` volta a funcionar: seta a flag → trigger permite a alteração → `bids_balance` é decrementado corretamente.
 
