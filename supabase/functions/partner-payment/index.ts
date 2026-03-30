@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
-import { createMagenDeposit } from '../_shared/magen-auth.ts'
+import { createDeposit } from '../_shared/payment-router.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -175,12 +175,13 @@ serve(async (req) => {
     // 6. Criar cobrança VeoPag
     let depositResult
     try {
-      depositResult = await createMagenDeposit({
+      depositResult = await createDeposit(supabase, {
         amount: aporteValue,
-        txId: intentData.id,
+        externalId: intentData.id,
         description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
         payerName: userName || 'Usuario',
-        payerTaxId: userCpf
+        payerEmail: userEmail,
+        payerDocument: userCpf
       })
     } catch (err) {
       await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)

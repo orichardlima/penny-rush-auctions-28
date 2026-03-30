@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
-import { createMagenDeposit } from '../_shared/magen-auth.ts'
+import { createDeposit } from '../_shared/payment-router.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -140,12 +140,13 @@ serve(async (req) => {
     console.log('✅ Purchase created:', purchaseData.id, `(${finalBidsCount} lances)`)
 
     // 5. Criar cobrança MagenPay
-    const depositResult = await createMagenDeposit({
+    const depositResult = await createDeposit(supabase, {
       amount: packageData.price,
-      txId: purchaseData.id,
+      externalId: purchaseData.id,
       description: `${packageData.name} - ${finalBidsCount} lances`,
       payerName: userName || 'Usuario',
-      payerTaxId: userCpf
+      payerEmail: userEmail,
+      payerDocument: userCpf
     })
 
     // 6. Atualizar compra com dados do pagamento

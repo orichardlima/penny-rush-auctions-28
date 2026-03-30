@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
-import { createMagenDeposit } from '../_shared/magen-auth.ts'
+import { createDeposit } from '../_shared/payment-router.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,12 +123,12 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
   const differenceToPay = currentPlan.aporte_value * cotasDiff
   const externalReference = `cotas-upgrade:${contract.id}:${upgradeCotas}`
 
-  const depositResult = await createMagenDeposit({
+  const depositResult = await createDeposit(supabase, {
     amount: differenceToPay,
-    txId: externalReference,
+    externalId: externalReference,
     description: `Upgrade de Cotas: ${contract.plan_name} ${contract.cotas} → ${upgradeCotas} cotas`,
     payerName: userName || 'Usuario',
-    payerTaxId: userCpf
+    payerDocument: userCpf
   })
 
   const newAporteValue = currentPlan.aporte_value * upgradeCotas
@@ -184,12 +184,12 @@ async function processPlanUpgrade(supabase: any, contract: any, newPlanId: strin
   const differenceToPay = newPlan.aporte_value - contract.aporte_value
   const externalReference = `upgrade:${contract.id}:${newPlanId}`
 
-  const depositResult = await createMagenDeposit({
+  const depositResult = await createDeposit(supabase, {
     amount: differenceToPay,
-    txId: externalReference,
+    externalId: externalReference,
     description: `Upgrade de Parceria: ${contract.plan_name} → ${newPlan.display_name}`,
     payerName: userName || 'Usuario',
-    payerTaxId: userCpf
+    payerDocument: userCpf
   })
 
   const response = {
