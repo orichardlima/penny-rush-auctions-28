@@ -49,13 +49,15 @@ import {
   Rocket,
   Copy,
   ClipboardCopy,
-  Zap
+  Zap,
+  Gift
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
 import FastStartTiersManager from './FastStartTiersManager';
+import AdminReferralBonusesTab from './AdminReferralBonusesTab';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminPartnerManagement = () => {
@@ -552,6 +554,10 @@ const AdminPartnerManagement = () => {
             <Rocket className="h-4 w-4 mr-1" />
             Início Rápido
           </TabsTrigger>
+          <TabsTrigger value="bonuses" className="shrink-0">
+            <Gift className="h-4 w-4 mr-1" />
+            Bônus
+          </TabsTrigger>
         </TabsList>
 
         {/* Níveis de Indicação Tab */}
@@ -577,6 +583,11 @@ const AdminPartnerManagement = () => {
         {/* Início Rápido Tab */}
         <TabsContent value="faststart">
           <FastStartTiersManager />
+        </TabsContent>
+
+        {/* Bônus de Indicação Tab */}
+        <TabsContent value="bonuses">
+          <AdminReferralBonusesTab />
         </TabsContent>
 
         {/* Projeções Tab */}
