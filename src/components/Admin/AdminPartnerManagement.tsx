@@ -552,6 +552,10 @@ const AdminPartnerManagement = () => {
             <Rocket className="h-4 w-4 mr-1" />
             Início Rápido
           </TabsTrigger>
+          <TabsTrigger value="bonuses" className="shrink-0">
+            <Gift className="h-4 w-4 mr-1" />
+            Bônus
+          </TabsTrigger>
         </TabsList>
 
         {/* Níveis de Indicação Tab */}
