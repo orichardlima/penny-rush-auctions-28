@@ -49,7 +49,8 @@ import {
   Rocket,
   Copy,
   ClipboardCopy,
-  Zap
+  Zap,
+  Gift
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
