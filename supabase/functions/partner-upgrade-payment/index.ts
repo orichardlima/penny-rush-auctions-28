@@ -123,12 +123,12 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
   const differenceToPay = currentPlan.aporte_value * cotasDiff
   const externalReference = `cotas-upgrade:${contract.id}:${upgradeCotas}`
 
-  const depositResult = await createMagenDeposit({
+  const depositResult = await createDeposit(supabase, {
     amount: differenceToPay,
-    txId: externalReference,
+    externalId: externalReference,
     description: `Upgrade de Cotas: ${contract.plan_name} ${contract.cotas} → ${upgradeCotas} cotas`,
     payerName: userName || 'Usuario',
-    payerTaxId: userCpf
+    payerDocument: userCpf
   })
 
   const newAporteValue = currentPlan.aporte_value * upgradeCotas
