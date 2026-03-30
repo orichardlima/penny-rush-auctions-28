@@ -1,51 +1,48 @@
 
 
-# Fix: Bônus de Indicação nunca sai de PENDENTE
+# Fix: Bônus nunca ficam DISPONÍVEIS — `available_at` nunca é preenchido
 
-## Problema
+## Problema raiz
 
-Os bônus são criados com `status = 'PENDING'` e `available_at = created_at + 7 dias`, mas **não existe nenhum mecanismo** (trigger, cron, ou edge function) que atualize o status para `AVAILABLE` quando `available_at` é atingido. Os bônus ficam pendentes para sempre.
+A função `ensure_partner_referral_bonuses` insere bônus com `status = 'PENDING'` mas **não preenche a coluna `available_at`**. Ela fica `NULL` em todos os 43 registros. O cron job criado anteriormente verifica `available_at IS NOT NULL AND available_at <= now()`, então nunca encontra registros para atualizar.
 
-## Solução
+## Solução (1 migration)
 
-Criar uma função SQL + trigger que automaticamente atualiza o status para `AVAILABLE` quando a data de liberação é atingida, combinado com uma verificação periódica para bônus que já passaram da data.
-
-## Implementação
-
-### 1. Migration SQL
-
-Uma única migration que:
-
-1. **Atualiza imediatamente** todos os bônus que já passaram de `available_at` (corrige os existentes)
-2. **Cria um cron job** via `pg_cron` que roda a cada hora, atualizando bônus cujo `available_at <= now()` de PENDING para AVAILABLE
-
-```text
--- Correção retroativa
+### 1. Corrigir registros existentes
+```sql
 UPDATE partner_referral_bonuses
-SET status = 'AVAILABLE'
-WHERE status = 'PENDING'
-  AND available_at IS NOT NULL
-  AND available_at <= now();
-
--- Função para rodar periodicamente
-CREATE FUNCTION release_pending_referral_bonuses() ...
-  UPDATE partner_referral_bonuses
-  SET status = 'AVAILABLE'
-  WHERE status = 'PENDING'
-    AND available_at IS NOT NULL
-    AND available_at <= now();
-
--- Cron job a cada hora
-SELECT cron.schedule('release-referral-bonuses', '0 * * * *', $$...$$);
+SET available_at = created_at + INTERVAL '7 days'
+WHERE available_at IS NULL;
 ```
 
-### 2. Nenhuma alteração no frontend
+### 2. Definir default na coluna
+```sql
+ALTER TABLE partner_referral_bonuses
+ALTER COLUMN available_at SET DEFAULT (timezone('America/Sao_Paulo', now()) + INTERVAL '7 days');
+```
 
-O `AdminReferralBonusesTab` e demais componentes já exibem os status corretamente — só falta o dado mudar no banco.
+### 3. Atualizar a função `ensure_partner_referral_bonuses`
+Adicionar `available_at` nos 3 INSERTs (nível 1, 2, 3):
+```sql
+INSERT INTO partner_referral_bonuses (
+  ..., available_at
+) VALUES (
+  ..., NOW() + INTERVAL '7 days'
+)
+```
+
+### 4. Liberar imediatamente os que já passaram de 7 dias
+```sql
+SELECT public.release_pending_referral_bonuses();
+```
+Todos os bônus criados antes de 23/Mar (7+ dias atrás) serão marcados como AVAILABLE.
 
 ## Resultado
 
-- Bônus existentes que já passaram de 7 dias: corrigidos imediatamente
-- Novos bônus: atualizados automaticamente a cada hora após `available_at`
-- Zero alterações no frontend
+- Os 43 bônus existentes recebem `available_at = created_at + 7 dias`
+- Bônus com mais de 7 dias (criados antes de 23/Mar) ficam AVAILABLE imediatamente
+- Novos bônus sempre terão `available_at` preenchido automaticamente
+- O cron job existente passa a funcionar corretamente
+
+## Nenhuma alteração no frontend
 
