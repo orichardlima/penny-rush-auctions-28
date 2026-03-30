@@ -63,6 +63,10 @@ export const SystemSettings: React.FC = () => {
   const [contractPartnerText, setContractPartnerText] = useState<string>('');
   const [savingContract, setSavingContract] = useState(false);
 
+  // Payment Gateway State
+  const [activeGateway, setActiveGateway] = useState<string>('veopag');
+  const [savingGateway, setSavingGateway] = useState(false);
+
   // Auto-Replenish State
   const [autoReplenishEnabled, setAutoReplenishEnabled] = useState<boolean>(true);
   const [autoReplenishMinActive, setAutoReplenishMinActive] = useState<string>('3');
