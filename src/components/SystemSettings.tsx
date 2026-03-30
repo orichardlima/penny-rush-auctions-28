@@ -133,6 +133,9 @@ export const SystemSettings: React.FC = () => {
       setContractBettorText(getSettingValue('contract_bettor_text', ''));
       setContractPartnerText(getSettingValue('contract_partner_text', ''));
 
+      // Payment Gateway
+      setActiveGateway(getSettingValue('active_payment_gateway', 'veopag'));
+
       // Auto-Replenish
       setAutoReplenishEnabled(getSettingValue('auto_replenish_enabled', true));
       setAutoReplenishMinActive(getSettingValue('auto_replenish_min_active', 3).toString());
