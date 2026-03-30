@@ -60,13 +60,14 @@ serve(async (req) => {
     }
 
     // 3. Criar cobrança MagenPay
-    const txId = `order:${order.id}`
-    const depositResult = await createMagenDeposit({
+    const externalId = `order:${order.id}`
+    const depositResult = await createDeposit(supabase, {
       amount: Number(order.final_price),
-      txId,
+      externalId,
       description: `Pagamento do produto: ${order.product_name}`,
       payerName: userName || 'Usuario',
-      payerTaxId: cpf
+      payerEmail: userEmail,
+      payerDocument: cpf
     })
 
     // 4. Salvar payment_id no pedido

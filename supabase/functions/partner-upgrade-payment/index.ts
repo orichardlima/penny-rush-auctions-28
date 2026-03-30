@@ -184,12 +184,12 @@ async function processPlanUpgrade(supabase: any, contract: any, newPlanId: strin
   const differenceToPay = newPlan.aporte_value - contract.aporte_value
   const externalReference = `upgrade:${contract.id}:${newPlanId}`
 
-  const depositResult = await createMagenDeposit({
+  const depositResult = await createDeposit(supabase, {
     amount: differenceToPay,
-    txId: externalReference,
+    externalId: externalReference,
     description: `Upgrade de Parceria: ${contract.plan_name} → ${newPlan.display_name}`,
     payerName: userName || 'Usuario',
-    payerTaxId: userCpf
+    payerDocument: userCpf
   })
 
   const response = {
