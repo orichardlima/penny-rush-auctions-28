@@ -2688,6 +2688,7 @@ export type Database = {
             }
             Returns: number
           }
+      release_pending_referral_bonuses: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
