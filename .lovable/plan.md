@@ -1,60 +1,100 @@
 
 
-# Fix: Lances dados sem consumir créditos
+# Migração PIX IN: VeoPag → MagenPay
 
-## Causa raiz
+## Resumo
 
-A migration mais recente (`20260322`) sobrescreveu a função `protect_profile_fields()` e **removeu** a verificação da flag de sessão `app.allow_sensitive_profile_update`. A versão anterior (`20260318`) verificava essa flag para permitir que `place_bid` alterasse o `bids_balance`.
+Substituir a VeoPag pela MagenPay para todos os recebimentos PIX (compra de lances, adesão a planos, upgrades, pedidos). Saques (PIX OUT) continuam na VeoPag.
+
+## Autenticação MagenPay
+
+A MagenPay usa assinatura ECDSA/SHA256 com chave privada PEM. Cada request precisa de:
+- `X-Signature`: assinatura base64 do `signedData`
+- `X-Timestamp`, `X-Nonce`, `X-Public-Key-ID`
+
+## Arquivos modificados
+
+| Arquivo | Mudança |
+|---|---|
+| `supabase/functions/_shared/magen-auth.ts` | **Novo** — função `createMagenDeposit()` com assinatura ECDSA |
+| `supabase/functions/veopag-payment/index.ts` | Trocar import de `createVeopagDeposit` → `createMagenDeposit` |
+| `supabase/functions/partner-payment/index.ts` | Idem |
+| `supabase/functions/partner-upgrade-payment/index.ts` | Idem |
+| `supabase/functions/order-pix-payment/index.ts` | Idem |
+| `supabase/functions/magen-webhook/index.ts` | **Novo** — recebe `pixRequestIn` da MagenPay, roteia igual ao veopag-webhook |
+| `supabase/functions/_shared/veopag-auth.ts` | Mantém `createVeopagWithdrawal()` (saques continuam VeoPag) |
+
+## Secrets necessários (manual no painel Supabase)
+
+- `MAGEN_BASE_URL` = `https://api.magenpay.io`
+- `MAGEN_PUBLIC_KEY_ID` = seu public key ID
+- `MAGEN_PRIVATE_KEY` = chave privada PEM (secp256k1)
+- `MAGEN_PIX_KEY_ID` = keyId da chave PIX cadastrada na MagenPay
+
+## Detalhes técnicos
+
+### 1. `magen-auth.ts` (novo shared)
 
 ```text
-Fluxo atual (quebrado):
-1. place_bid() seta flag 'app.allow_sensitive_profile_update' = 'true'
-2. place_bid() faz UPDATE profiles SET bids_balance = bids_balance - 1
-3. Trigger protect_profile_fields() dispara
-4. Trigger ignora a flag (código removido) → verifica current_setting('role') e is_admin_user()
-5. Usuário não é admin nem service_role → bids_balance é revertido para OLD.bids_balance
-6. Lance é inserido mas saldo não muda
+- buildSignedData(method, url, body) → { method, path, query, body, timestamp, nonce }
+- signRequest(privateKeyPem, signedData) → base64 signature usando crypto.createSign("SHA256")
+- createMagenDeposit({ amount, txId, description, payerName, payerTaxId, keyId })
+  → POST /qrcode/api/v1/external/instant
+  → Retorna { pixCopiaECola, txId, status }
+  → Interface de retorno compatível com createVeopagDeposit (mesmos campos)
 ```
 
-## Correção
+Nota: Deno usa `crypto.subtle` (Web Crypto API). Importaremos a chave PEM como PKCS8 e assinaremos com ECDSA P-256 + SHA-256.
 
-Uma única migration para restaurar a verificação da flag de sessão na função `protect_profile_fields`, mantendo também a verificação `is_admin_user` que foi adicionada na migration mais recente.
+### 2. Adaptação nas 4 edge functions de pagamento
 
-### Nova `protect_profile_fields()`:
+Mudança mínima: trocar `import { createVeopagDeposit }` por `import { createMagenDeposit }` e ajustar os parâmetros:
+- `external_id` → `txId` (formato: `bids_<purchaseId>`, `order:<orderId>`, etc.)
+- `payer.name/document` → `payerName/payerTaxId`
 
-```sql
-CREATE OR REPLACE FUNCTION public.protect_profile_fields()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF current_setting('role', true) != 'service_role'
-     AND coalesce(current_setting('app.allow_sensitive_profile_update', true), '') != 'true'
-     AND NOT is_admin_user(auth.uid())
-  THEN
-    NEW.is_admin := OLD.is_admin;
-    NEW.is_blocked := OLD.is_blocked;
-    NEW.bids_balance := OLD.bids_balance;
-  END IF;
-  RETURN NEW;
-END;
-$$;
+O retorno será mapeado para a mesma estrutura (`pixCopyPaste`, `qrCodeBase64: ''`, etc.) para não alterar o frontend.
+
+### 3. `magen-webhook/index.ts` (novo)
+
+```text
+- Recebe POST com { type: "pixRequestIn", data: { txId, amount, status, endToEndId } }
+- Valida type === "pixRequestIn" e data.status === "success"
+- Extrai txId → roteia igual ao veopag-webhook:
+  - "order:" → processOrderPayment
+  - "upgrade:" → processUpgradePayment
+  - "cotas-upgrade:" → processCotasUpgradePayment
+  - "withdrawal:" → ignora (saques são VeoPag)
+  - UUID → tenta partner_payment_intent, depois bid_purchase
+- Reutiliza as mesmas funções de processamento do veopag-webhook (extraídas para shared ou duplicadas)
 ```
 
-Mudanças vs versão atual:
-- Adiciona `current_setting('role', true)` com o parâmetro `true` (evita erro se variável não existir)
-- Restaura check da flag `app.allow_sensitive_profile_update`
-- Mantém `is_admin_user()` da versão recente
+### 4. Frontend
 
-## Arquivo
+Nenhuma alteração. O retorno de `createMagenDeposit` será mapeado para `{ pixCopyPaste, qrCodeBase64: '', transactionId, status }` — o `PixPaymentModal` já renderiza QRCodeSVG quando `qrCodeBase64` está vazio.
 
-| Arquivo | Ação |
-|---|---|
-| `supabase/migrations/new_fix.sql` | Nova migration com a função corrigida |
+### 5. Webhook URL
 
-## Resultado
+Na criação do depósito, o `callbackUrl` ou campo equivalente apontará para:
+`{SUPABASE_URL}/functions/v1/magen-webhook`
 
-`place_bid` volta a funcionar: seta a flag → trigger permite a alteração → `bids_balance` é decrementado corretamente.
+A MagenPay precisa ser configurada no painel deles para enviar webhooks para essa URL (ou o campo no body do request, se suportado).
+
+## Fluxo
+
+```text
+1. Usuário compra lances
+2. Edge function cria cobrança na MagenPay (POST /qrcode/api/v1/external/instant)
+3. Frontend exibe QR Code via QRCodeSVG (pixCopiaECola)
+4. Usuário paga
+5. MagenPay envia webhook pixRequestIn → magen-webhook
+6. Webhook valida, credita lances/ativa contrato
+```
+
+## Ordem de implementação
+
+1. Adicionar secrets no painel Supabase (manual)
+2. Criar `magen-auth.ts`
+3. Criar `magen-webhook/index.ts`
+4. Atualizar as 4 edge functions de pagamento
+5. Testar com sandbox da MagenPay
 
