@@ -59,17 +59,14 @@ serve(async (req) => {
       )
     }
 
-    // 3. Criar cobrança VeoPag
-    const externalId = `order:${order.id}`
-    const depositResult = await createVeopagDeposit({
+    // 3. Criar cobrança MagenPay
+    const txId = `order:${order.id}`
+    const depositResult = await createMagenDeposit({
       amount: Number(order.final_price),
-      external_id: externalId,
+      txId,
       description: `Pagamento do produto: ${order.product_name}`,
-      payer: {
-        name: userName || 'Usuario',
-        email: userEmail,
-        document: cpf
-      }
+      payerName: userName || 'Usuario',
+      payerTaxId: cpf
     })
 
     // 4. Salvar payment_id no pedido

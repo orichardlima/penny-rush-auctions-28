@@ -139,16 +139,13 @@ serve(async (req) => {
 
     console.log('✅ Purchase created:', purchaseData.id, `(${finalBidsCount} lances)`)
 
-    // 5. Criar cobrança VeoPag
-    const depositResult = await createVeopagDeposit({
+    // 5. Criar cobrança MagenPay
+    const depositResult = await createMagenDeposit({
       amount: packageData.price,
-      external_id: purchaseData.id,
+      txId: purchaseData.id,
       description: `${packageData.name} - ${finalBidsCount} lances`,
-      payer: {
-        name: userName || 'Usuario',
-        email: userEmail,
-        document: userCpf
-      }
+      payerName: userName || 'Usuario',
+      payerTaxId: userCpf
     })
 
     // 6. Atualizar compra com dados do pagamento

@@ -175,15 +175,12 @@ serve(async (req) => {
     // 6. Criar cobrança VeoPag
     let depositResult
     try {
-      depositResult = await createVeopagDeposit({
+      depositResult = await createMagenDeposit({
         amount: aporteValue,
-        external_id: intentData.id,
+        txId: intentData.id,
         description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
-        payer: {
-          name: userName || 'Usuario',
-          email: userEmail,
-          document: userCpf
-        }
+        payerName: userName || 'Usuario',
+        payerTaxId: userCpf
       })
     } catch (err) {
       await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)
