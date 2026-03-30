@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
-import { createVeopagDeposit } from '../_shared/veopag-auth.ts'
+import { createMagenDeposit } from '../_shared/magen-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
