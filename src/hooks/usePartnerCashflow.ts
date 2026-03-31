@@ -120,7 +120,7 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
       const isInPeriod = (dateStr: string) => !cutoffDate || new Date(dateStr) >= cutoffDate;
 
       // Keep ALL contracts for name resolution (independent of period filter)
-      const allContracts = contractsResult.data || [];
+      const allContracts = (contractsResult.data || []);
       const allContractsMap = new Map(allContracts.map(c => [c.id, c]));
 
       // Filtered data for financial calculations only
