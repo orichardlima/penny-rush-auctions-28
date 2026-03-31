@@ -20,6 +20,7 @@ import {
   FileText
 } from 'lucide-react';
 import { usePartnerCashflow, ReferralBonusDetail, CashflowMovement } from '@/hooks/usePartnerCashflow';
+import { PeriodFilter, PeriodType } from '@/components/Affiliate/PeriodFilter';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, Legend, ComposedChart, Line } from 'recharts';
 
