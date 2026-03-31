@@ -85,7 +85,7 @@ const formatWeekLabel = (weekStart: string): string => {
   return `${day}/${month}`;
 };
 
-export const usePartnerCashflow = () => {
+export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all') => {
   const [data, setData] = useState<PartnerCashflowData | null>(null);
   const [loading, setLoading] = useState(true);
 
