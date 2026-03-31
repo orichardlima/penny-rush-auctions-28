@@ -119,31 +119,21 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
       const cutoffDate = getCutoffDate();
       const isInPeriod = (dateStr: string) => !cutoffDate || new Date(dateStr) >= cutoffDate;
 
-      const contracts = (contractsResult.data || []).filter(c => isInPeriod(c.created_at));
+      // Keep ALL contracts for name resolution (independent of period filter)
+      const allContracts = contractsResult.data || [];
+      const allContractsMap = new Map(allContracts.map(c => [c.id, c]));
+
+      // Filtered data for financial calculations only
+      const contracts = allContracts.filter(c => isInPeriod(c.created_at));
       const upgrades = (upgradesResult.data || []).filter(u => isInPeriod(u.created_at));
       const payouts = (payoutsResult.data || []).filter(p => isInPeriod(p.created_at));
       const withdrawals = (withdrawalsResult.data || []).filter(w => isInPeriod(w.created_at));
       const referralBonuses = (referralBonusesResult.data || []).filter(r => isInPeriod(r.created_at));
 
-      // Collect all unique user_ids needed
+      // Collect user_ids from ALL contracts (not just filtered) for name resolution
       const userIdSet = new Set<string>();
-      contracts.forEach(c => userIdSet.add(c.user_id));
+      allContracts.forEach(c => userIdSet.add(c.user_id));
       referralBonuses.forEach(rb => userIdSet.add(rb.referred_user_id));
-      const allUserIds = Array.from(userIdSet);
-
-      // Fetch profiles via RPC (bypasses RLS)
-      const profilesMap = new Map<string, string>();
-      if (allUserIds.length > 0) {
-        const { data: profilesData } = await supabase.rpc('get_public_profiles', { user_ids: allUserIds });
-        if (profilesData) {
-          (profilesData as Array<{ user_id: string; full_name: string | null }>).forEach(p => {
-            profilesMap.set(p.user_id, p.full_name || 'Usuário');
-          });
-        }
-      }
-
-      // Create contracts map for lookups
-      const contractsMap = new Map(contracts.map(c => [c.id, c]));
 
       // Calculate summary
       const totalAportes = contracts.reduce((sum, c) => sum + Number(c.aporte_value || 0), 0);
