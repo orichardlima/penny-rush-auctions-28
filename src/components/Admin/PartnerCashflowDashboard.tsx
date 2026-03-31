@@ -71,7 +71,8 @@ const chartConfig = {
 };
 
 export const PartnerCashflowDashboard: React.FC = () => {
-  const { data, loading, refresh } = usePartnerCashflow();
+  const [period, setPeriod] = useState<PeriodType>('all');
+  const { data, loading, refresh } = usePartnerCashflow(period);
   const [movementFilter, setMovementFilter] = useState<'all' | 'entrada' | 'saida'>('all');
 
   if (loading) {
