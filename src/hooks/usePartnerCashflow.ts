@@ -85,7 +85,7 @@ const formatWeekLabel = (weekStart: string): string => {
   return `${day}/${month}`;
 };
 
-export const usePartnerCashflow = () => {
+export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all') => {
   const [data, setData] = useState<PartnerCashflowData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -107,11 +107,23 @@ export const usePartnerCashflow = () => {
         supabase.from('partner_referral_bonuses').select('id, referrer_contract_id, referred_contract_id, referred_user_id, aporte_value, bonus_percentage, bonus_value, status, referral_level, created_at, paid_at')
       ]);
 
-      const contracts = contractsResult.data || [];
-      const upgrades = upgradesResult.data || [];
-      const payouts = payoutsResult.data || [];
-      const withdrawals = withdrawalsResult.data || [];
-      const referralBonuses = referralBonusesResult.data || [];
+      // Calculate cutoff date based on period
+      const getCutoffDate = (): Date | null => {
+        if (period === 'all') return null;
+        const now = new Date();
+        const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+        now.setDate(now.getDate() - days);
+        now.setHours(0, 0, 0, 0);
+        return now;
+      };
+      const cutoffDate = getCutoffDate();
+      const isInPeriod = (dateStr: string) => !cutoffDate || new Date(dateStr) >= cutoffDate;
+
+      const contracts = (contractsResult.data || []).filter(c => isInPeriod(c.created_at));
+      const upgrades = (upgradesResult.data || []).filter(u => isInPeriod(u.created_at));
+      const payouts = (payoutsResult.data || []).filter(p => isInPeriod(p.created_at));
+      const withdrawals = (withdrawalsResult.data || []).filter(w => isInPeriod(w.created_at));
+      const referralBonuses = (referralBonusesResult.data || []).filter(r => isInPeriod(r.created_at));
 
       // Collect all unique user_ids needed
       const userIdSet = new Set<string>();
@@ -175,12 +187,13 @@ export const usePartnerCashflow = () => {
         referralBonusesCount: paidReferralBonuses.length
       };
 
-      // Calculate weekly flow (last 12 weeks)
+      // Calculate weekly flow
       const weeklyMap = new Map<string, { entradas: number; saidas: number }>();
       const now = new Date();
+      const weeksCount = period === '7d' ? 2 : period === '30d' ? 5 : period === '90d' ? 13 : 12;
       
-      // Initialize last 12 weeks
-      for (let i = 11; i >= 0; i--) {
+      // Initialize weeks
+      for (let i = weeksCount - 1; i >= 0; i--) {
         const weekDate = new Date(now);
         weekDate.setDate(weekDate.getDate() - (i * 7));
         const weekKey = getWeekStart(weekDate);
@@ -370,7 +383,7 @@ export const usePartnerCashflow = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchCashflowData();

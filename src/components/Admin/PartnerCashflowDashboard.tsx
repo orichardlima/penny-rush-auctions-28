@@ -20,6 +20,7 @@ import {
   FileText
 } from 'lucide-react';
 import { usePartnerCashflow, ReferralBonusDetail, CashflowMovement } from '@/hooks/usePartnerCashflow';
+import { PeriodFilter, PeriodType } from '@/components/Affiliate/PeriodFilter';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, Legend, ComposedChart, Line } from 'recharts';
 
@@ -70,7 +71,8 @@ const chartConfig = {
 };
 
 export const PartnerCashflowDashboard: React.FC = () => {
-  const { data, loading, refresh } = usePartnerCashflow();
+  const [period, setPeriod] = useState<PeriodType>('all');
+  const { data, loading, refresh } = usePartnerCashflow(period);
   const [movementFilter, setMovementFilter] = useState<'all' | 'entrada' | 'saida'>('all');
 
   if (loading) {
@@ -140,7 +142,8 @@ export const PartnerCashflowDashboard: React.FC = () => {
           <h2 className="text-2xl font-bold">Caixa Financeiro - Parceiros</h2>
           <p className="text-muted-foreground">Visão completa de entradas e saídas do módulo de parceiros</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <PeriodFilter value={period} onChange={setPeriod} />
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
