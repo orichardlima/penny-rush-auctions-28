@@ -1,21 +1,36 @@
 
 
-# Fix: Nomes reais no Caixa Financeiro (PartnerCashflowDashboard)
+# Filtro por Período no Caixa Financeiro
 
-## Problema
+## Resumo
 
-No `usePartnerCashflow.ts` (linha 109), a query `supabase.from('profiles').select('user_id, full_name')` tenta ler **todos** os perfis diretamente, mas a tabela `profiles` tem RLS restritivo que impede leitura de perfis de outros usuários. O resultado volta vazio, e todos os nomes caem nos fallbacks `'Parceiro'` e `'Indicado'`.
+Adicionar um seletor de período (7 dias, 30 dias, 3 meses, todo o período) no topo do Caixa Financeiro. O filtro será aplicado no frontend, filtrando os dados já carregados por data, sem alterar as queries do banco.
 
-## Solução
+## Como funciona
 
-Substituir a query direta à tabela `profiles` pela RPC `get_public_profiles` (SECURITY DEFINER), que já existe e contorna o RLS.
+O hook `usePartnerCashflow` já busca todos os dados de uma vez. O filtro será aplicado no componente `PartnerCashflowDashboard`, recalculando o summary, weeklyFlow e movements com base no período selecionado.
 
-### Arquivo: `src/hooks/usePartnerCashflow.ts`
+## Arquivos a modificar
 
-1. Remover a query `supabase.from('profiles').select(...)` do `Promise.all`
-2. Após receber os dados, coletar todos os `user_id`s necessários (dos contratos + `referred_user_id` dos bônus)
-3. Chamar `supabase.rpc('get_public_profiles', { user_ids: allUserIds })`
-4. Montar o `profilesMap` a partir do resultado da RPC
+| Arquivo | Acao |
+|---|---|
+| `src/hooks/usePartnerCashflow.ts` | Aceitar parâmetro `period` opcional, filtrar dados por data antes de calcular summary/weekly/movements |
+| `src/components/Admin/PartnerCashflowDashboard.tsx` | Adicionar seletor de período no header, passar para o hook |
 
-A mudança é interna ao hook -- nenhuma alteração na UI ou em outros arquivos.
+## Detalhes técnicos
+
+### usePartnerCashflow.ts
+
+1. Aceitar parâmetro `period: '7d' | '30d' | '90d' | 'all'` (default `'all'`)
+2. Após buscar todos os dados, calcular `cutoffDate` com base no period
+3. Filtrar contracts, upgrades, payouts, withdrawals e referralBonuses por `created_at >= cutoffDate` antes de calcular o summary
+4. Ajustar o gráfico semanal para mostrar apenas semanas dentro do período
+
+### PartnerCashflowDashboard.tsx
+
+1. Adicionar `useState<PeriodType>('all')` para o período
+2. No header (ao lado do botão Atualizar), renderizar o `PeriodFilter` component que já existe em `src/components/Affiliate/PeriodFilter.tsx`
+3. Passar o period para `usePartnerCashflow(period)`
+
+## Nenhuma alteração no banco de dados
 
