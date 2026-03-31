@@ -1,26 +1,21 @@
 
 
-# Fix: Caixa Financeiro contando contratos Demo como dinheiro real
+# Fix: Nomes reais no Caixa Financeiro (PartnerCashflowDashboard)
 
 ## Problema
 
-O hook `usePartnerCashflow.ts` busca **todos** os `partner_contracts` sem filtrar `is_demo`. Contas de posicionamento (demo) são incluídas nos aportes iniciais, inflando o valor de entradas e distorcendo o saldo líquido.
+No `usePartnerCashflow.ts` (linha 109), a query `supabase.from('profiles').select('user_id, full_name')` tenta ler **todos** os perfis diretamente, mas a tabela `profiles` tem RLS restritivo que impede leitura de perfis de outros usuários. O resultado volta vazio, e todos os nomes caem nos fallbacks `'Parceiro'` e `'Indicado'`.
 
 ## Solução
 
-Filtrar contratos demo em todas as queries relevantes no `usePartnerCashflow.ts`:
+Substituir a query direta à tabela `profiles` pela RPC `get_public_profiles` (SECURITY DEFINER), que já existe e contorna o RLS.
 
 ### Arquivo: `src/hooks/usePartnerCashflow.ts`
 
-1. **Query de contratos**: adicionar `.eq('is_demo', false)` na busca de `partner_contracts`
-2. **Bônus de indicação**: manter todos (bônus de indicação podem existir mesmo com contratos demo na rede, mas os valores de aporte referenciados nos bônus devem refletir apenas contratos reais)
-3. **Movimentos recentes**: contratos demo não aparecerão mais como "Aporte Inicial"
+1. Remover a query `supabase.from('profiles').select(...)` do `Promise.all`
+2. Após receber os dados, coletar todos os `user_id`s necessários (dos contratos + `referred_user_id` dos bônus)
+3. Chamar `supabase.rpc('get_public_profiles', { user_ids: allUserIds })`
+4. Montar o `profilesMap` a partir do resultado da RPC
 
-A mudança é mínima — adicionar um filtro `.eq('is_demo', false)` na linha da query de contratos. Os upgrades, payouts, withdrawals e referral bonuses são vinculados a contratos, então se o contrato é demo, os payouts já não existem (conforme regra de negócio de que contas demo não geram payouts).
-
-## Impacto
-
-- "Aportes Iniciais" mostrará apenas dinheiro real
-- "Total Entradas" e "Saldo Líquido" refletirão valores reais
-- Nenhuma alteração na UI, apenas no filtro de dados
+A mudança é interna ao hook -- nenhuma alteração na UI ou em outros arquivos.
 
