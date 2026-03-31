@@ -265,10 +265,10 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
 
       // Build referral bonuses details
       const referralBonusDetails: ReferralBonusDetail[] = referralBonuses.map(rb => {
-        const referrerContract = contractsMap.get(rb.referrer_contract_id);
+        const referrerContract = allContractsMap.get(rb.referrer_contract_id);
         const referrerName = referrerContract ? profilesMap.get(referrerContract.user_id) || 'Parceiro' : 'Parceiro';
         const referredName = profilesMap.get(rb.referred_user_id) || 'Indicado';
-        const referredContract = contractsMap.get(rb.referred_contract_id);
+        const referredContract = allContractsMap.get(rb.referred_contract_id);
         
         return {
           id: rb.id,
@@ -305,7 +305,7 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
 
       // Add upgrades as movements
       upgrades.forEach(u => {
-        const contract = contractsMap.get(u.partner_contract_id);
+        const contract = allContractsMap.get(u.partner_contract_id);
         const partnerName = contract ? profilesMap.get(contract.user_id) || 'Parceiro' : 'Parceiro';
         movements.push({
           id: `upgrade-${u.id}`,
@@ -321,7 +321,7 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
 
       // Add payouts as movements
       payouts.forEach(p => {
-        const contract = contractsMap.get(p.partner_contract_id);
+        const contract = allContractsMap.get(p.partner_contract_id);
         const partnerName = contract ? profilesMap.get(contract.user_id) || 'Parceiro' : 'Parceiro';
         movements.push({
           id: `payout-${p.id}`,
@@ -337,7 +337,7 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
 
       // Add withdrawals as movements
       withdrawals.forEach(w => {
-        const contract = contractsMap.get(w.partner_contract_id);
+        const contract = allContractsMap.get(w.partner_contract_id);
         const partnerName = contract ? profilesMap.get(contract.user_id) || 'Parceiro' : 'Parceiro';
         movements.push({
           id: `withdrawal-${w.id}`,
@@ -353,7 +353,7 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
 
       // Add referral bonuses as movements
       referralBonuses.forEach(rb => {
-        const referrerContract = contractsMap.get(rb.referrer_contract_id);
+        const referrerContract = allContractsMap.get(rb.referrer_contract_id);
         const partnerName = referrerContract ? profilesMap.get(referrerContract.user_id) || 'Parceiro' : 'Parceiro';
         const referredName = profilesMap.get(rb.referred_user_id) || 'Indicado';
         movements.push({
