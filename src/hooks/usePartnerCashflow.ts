@@ -98,15 +98,13 @@ export const usePartnerCashflow = () => {
         upgradesResult,
         payoutsResult,
         withdrawalsResult,
-        referralBonusesResult,
-        profilesResult
+        referralBonusesResult
       ] = await Promise.all([
         supabase.from('partner_contracts').select('id, user_id, aporte_value, plan_name, created_at, status').eq('is_demo', false),
         supabase.from('partner_upgrades').select('id, partner_contract_id, difference_paid, previous_plan_name, new_plan_name, created_at'),
         supabase.from('partner_payouts').select('id, partner_contract_id, amount, status, period_start, paid_at, created_at'),
         supabase.from('partner_withdrawals').select('id, partner_contract_id, amount, status, requested_at, paid_at, created_at'),
-        supabase.from('partner_referral_bonuses').select('id, referrer_contract_id, referred_contract_id, referred_user_id, aporte_value, bonus_percentage, bonus_value, status, referral_level, created_at, paid_at'),
-        supabase.from('profiles').select('user_id, full_name')
+        supabase.from('partner_referral_bonuses').select('id, referrer_contract_id, referred_contract_id, referred_user_id, aporte_value, bonus_percentage, bonus_value, status, referral_level, created_at, paid_at')
       ]);
 
       const contracts = contractsResult.data || [];
@@ -114,10 +112,23 @@ export const usePartnerCashflow = () => {
       const payouts = payoutsResult.data || [];
       const withdrawals = withdrawalsResult.data || [];
       const referralBonuses = referralBonusesResult.data || [];
-      const profiles = profilesResult.data || [];
 
-      // Create profiles map
-      const profilesMap = new Map(profiles.map(p => [p.user_id, p.full_name || 'Usuário']));
+      // Collect all unique user_ids needed
+      const userIdSet = new Set<string>();
+      contracts.forEach(c => userIdSet.add(c.user_id));
+      referralBonuses.forEach(rb => userIdSet.add(rb.referred_user_id));
+      const allUserIds = Array.from(userIdSet);
+
+      // Fetch profiles via RPC (bypasses RLS)
+      const profilesMap = new Map<string, string>();
+      if (allUserIds.length > 0) {
+        const { data: profilesData } = await supabase.rpc('get_public_profiles', { user_ids: allUserIds });
+        if (profilesData) {
+          (profilesData as Array<{ user_id: string; full_name: string | null }>).forEach(p => {
+            profilesMap.set(p.user_id, p.full_name || 'Usuário');
+          });
+        }
+      }
 
       // Create contracts map for lookups
       const contractsMap = new Map(contracts.map(c => [c.id, c]));
