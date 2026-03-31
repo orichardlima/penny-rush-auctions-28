@@ -187,12 +187,13 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
         referralBonusesCount: paidReferralBonuses.length
       };
 
-      // Calculate weekly flow (last 12 weeks)
+      // Calculate weekly flow
       const weeklyMap = new Map<string, { entradas: number; saidas: number }>();
       const now = new Date();
+      const weeksCount = period === '7d' ? 2 : period === '30d' ? 5 : period === '90d' ? 13 : 12;
       
-      // Initialize last 12 weeks
-      for (let i = 11; i >= 0; i--) {
+      // Initialize weeks
+      for (let i = weeksCount - 1; i >= 0; i--) {
         const weekDate = new Date(now);
         weekDate.setDate(weekDate.getDate() - (i * 7));
         const weekKey = getWeekStart(weekDate);
