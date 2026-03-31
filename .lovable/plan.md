@@ -1,36 +1,28 @@
 
 
-# Filtro por Período no Caixa Financeiro
+# Fix: Nome "Parceiro" no Nível 3 — contrato do referrer fora do período filtrado
 
-## Resumo
+## Problema
 
-Adicionar um seletor de período (7 dias, 30 dias, 3 meses, todo o período) no topo do Caixa Financeiro. O filtro será aplicado no frontend, filtrando os dados já carregados por data, sem alterar as queries do banco.
+O `contractsMap` (linha 146) é construído apenas com contratos **filtrados pelo período**. Quando um bônus de Nível 3 referencia um `referrer_contract_id` cujo contrato foi criado fora do período selecionado, o contrato não está no mapa, e o `user_id` do referrer nunca é coletado para busca de perfil. Resultado: nome cai no fallback "Parceiro".
 
-## Como funciona
+No banco, todos os bônus Nível 3 têm nomes reais (ex: "Mariano roney lima teles", "Richard Lima").
 
-O hook `usePartnerCashflow` já busca todos os dados de uma vez. O filtro será aplicado no componente `PartnerCashflowDashboard`, recalculando o summary, weeklyFlow e movements com base no período selecionado.
+## Solução
 
-## Arquivos a modificar
+Criar um `allContractsMap` com **todos** os contratos (sem filtro de período) para resolver nomes e lookups de referral. Manter o `contracts` filtrado apenas para cálculos financeiros (aportes, entradas).
 
-| Arquivo | Acao |
-|---|---|
-| `src/hooks/usePartnerCashflow.ts` | Aceitar parâmetro `period` opcional, filtrar dados por data antes de calcular summary/weekly/movements |
-| `src/components/Admin/PartnerCashflowDashboard.tsx` | Adicionar seletor de período no header, passar para o hook |
+### Arquivo: `src/hooks/usePartnerCashflow.ts`
 
-## Detalhes técnicos
+1. Guardar `contractsResult.data` completo em `allContracts` (sem filtro de período)
+2. Criar `allContractsMap` a partir de `allContracts`
+3. Coletar `user_ids` de `allContracts` (não só dos filtrados) para o `profilesMap`
+4. Usar `allContractsMap` em todas as resoluções de nomes (referral bonuses, movements)
+5. Manter `contracts` (filtrado) apenas para cálculos de totais financeiros
 
-### usePartnerCashflow.ts
+## Impacto
 
-1. Aceitar parâmetro `period: '7d' | '30d' | '90d' | 'all'` (default `'all'`)
-2. Após buscar todos os dados, calcular `cutoffDate` com base no period
-3. Filtrar contracts, upgrades, payouts, withdrawals e referralBonuses por `created_at >= cutoffDate` antes de calcular o summary
-4. Ajustar o gráfico semanal para mostrar apenas semanas dentro do período
-
-### PartnerCashflowDashboard.tsx
-
-1. Adicionar `useState<PeriodType>('all')` para o período
-2. No header (ao lado do botão Atualizar), renderizar o `PeriodFilter` component que já existe em `src/components/Affiliate/PeriodFilter.tsx`
-3. Passar o period para `usePartnerCashflow(period)`
-
-## Nenhuma alteração no banco de dados
+- Nomes reais aparecem em todos os níveis, independente do filtro de período
+- Cálculos financeiros continuam corretos (usam dados filtrados)
+- Nenhuma alteração na UI ou no banco
 
