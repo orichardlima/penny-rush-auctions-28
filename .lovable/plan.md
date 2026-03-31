@@ -1,48 +1,26 @@
 
 
-# Fix: Bônus nunca ficam DISPONÍVEIS — `available_at` nunca é preenchido
+# Fix: Caixa Financeiro contando contratos Demo como dinheiro real
 
-## Problema raiz
+## Problema
 
-A função `ensure_partner_referral_bonuses` insere bônus com `status = 'PENDING'` mas **não preenche a coluna `available_at`**. Ela fica `NULL` em todos os 43 registros. O cron job criado anteriormente verifica `available_at IS NOT NULL AND available_at <= now()`, então nunca encontra registros para atualizar.
+O hook `usePartnerCashflow.ts` busca **todos** os `partner_contracts` sem filtrar `is_demo`. Contas de posicionamento (demo) são incluídas nos aportes iniciais, inflando o valor de entradas e distorcendo o saldo líquido.
 
-## Solução (1 migration)
+## Solução
 
-### 1. Corrigir registros existentes
-```sql
-UPDATE partner_referral_bonuses
-SET available_at = created_at + INTERVAL '7 days'
-WHERE available_at IS NULL;
-```
+Filtrar contratos demo em todas as queries relevantes no `usePartnerCashflow.ts`:
 
-### 2. Definir default na coluna
-```sql
-ALTER TABLE partner_referral_bonuses
-ALTER COLUMN available_at SET DEFAULT (timezone('America/Sao_Paulo', now()) + INTERVAL '7 days');
-```
+### Arquivo: `src/hooks/usePartnerCashflow.ts`
 
-### 3. Atualizar a função `ensure_partner_referral_bonuses`
-Adicionar `available_at` nos 3 INSERTs (nível 1, 2, 3):
-```sql
-INSERT INTO partner_referral_bonuses (
-  ..., available_at
-) VALUES (
-  ..., NOW() + INTERVAL '7 days'
-)
-```
+1. **Query de contratos**: adicionar `.eq('is_demo', false)` na busca de `partner_contracts`
+2. **Bônus de indicação**: manter todos (bônus de indicação podem existir mesmo com contratos demo na rede, mas os valores de aporte referenciados nos bônus devem refletir apenas contratos reais)
+3. **Movimentos recentes**: contratos demo não aparecerão mais como "Aporte Inicial"
 
-### 4. Liberar imediatamente os que já passaram de 7 dias
-```sql
-SELECT public.release_pending_referral_bonuses();
-```
-Todos os bônus criados antes de 23/Mar (7+ dias atrás) serão marcados como AVAILABLE.
+A mudança é mínima — adicionar um filtro `.eq('is_demo', false)` na linha da query de contratos. Os upgrades, payouts, withdrawals e referral bonuses são vinculados a contratos, então se o contrato é demo, os payouts já não existem (conforme regra de negócio de que contas demo não geram payouts).
 
-## Resultado
+## Impacto
 
-- Os 43 bônus existentes recebem `available_at = created_at + 7 dias`
-- Bônus com mais de 7 dias (criados antes de 23/Mar) ficam AVAILABLE imediatamente
-- Novos bônus sempre terão `available_at` preenchido automaticamente
-- O cron job existente passa a funcionar corretamente
-
-## Nenhuma alteração no frontend
+- "Aportes Iniciais" mostrará apenas dinheiro real
+- "Total Entradas" e "Saldo Líquido" refletirão valores reais
+- Nenhuma alteração na UI, apenas no filtro de dados
 
