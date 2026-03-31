@@ -134,8 +134,19 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
       const userIdSet = new Set<string>();
       allContracts.forEach(c => userIdSet.add(c.user_id));
       referralBonuses.forEach(rb => userIdSet.add(rb.referred_user_id));
+      const allUserIds = Array.from(userIdSet);
 
-      // Calculate summary
+      // Fetch profiles via RPC (bypasses RLS)
+      const profilesMap = new Map<string, string>();
+      if (allUserIds.length > 0) {
+        const { data: profilesData } = await supabase.rpc('get_public_profiles', { user_ids: allUserIds });
+        if (profilesData) {
+          (profilesData as Array<{ user_id: string; full_name: string | null }>).forEach(p => {
+            profilesMap.set(p.user_id, p.full_name || 'Usuário');
+          });
+        }
+      }
+
       const totalAportes = contracts.reduce((sum, c) => sum + Number(c.aporte_value || 0), 0);
       const totalUpgrades = upgrades.reduce((sum, u) => sum + Number(u.difference_paid || 0), 0);
       const totalEntradas = totalAportes + totalUpgrades;
