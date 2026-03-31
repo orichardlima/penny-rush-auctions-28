@@ -383,7 +383,7 @@ export const usePartnerCashflow = (period: '7d' | '30d' | '90d' | 'all' = 'all')
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchCashflowData();

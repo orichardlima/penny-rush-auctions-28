@@ -142,7 +142,8 @@ export const PartnerCashflowDashboard: React.FC = () => {
           <h2 className="text-2xl font-bold">Caixa Financeiro - Parceiros</h2>
           <p className="text-muted-foreground">Visão completa de entradas e saídas do módulo de parceiros</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <PeriodFilter value={period} onChange={setPeriod} />
           <Button variant="outline" size="sm" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
