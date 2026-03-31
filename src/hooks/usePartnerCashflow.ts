@@ -101,7 +101,7 @@ export const usePartnerCashflow = () => {
         referralBonusesResult,
         profilesResult
       ] = await Promise.all([
-        supabase.from('partner_contracts').select('id, user_id, aporte_value, plan_name, created_at, status'),
+        supabase.from('partner_contracts').select('id, user_id, aporte_value, plan_name, created_at, status').eq('is_demo', false),
         supabase.from('partner_upgrades').select('id, partner_contract_id, difference_paid, previous_plan_name, new_plan_name, created_at'),
         supabase.from('partner_payouts').select('id, partner_contract_id, amount, status, period_start, paid_at, created_at'),
         supabase.from('partner_withdrawals').select('id, partner_contract_id, amount, status, requested_at, paid_at, created_at'),
