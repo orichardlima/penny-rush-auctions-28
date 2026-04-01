@@ -103,6 +103,13 @@ const AdminPartnerManagement = () => {
   const [contractSearch, setContractSearch] = useState('');
   const [contractStatusFilter, setContractStatusFilter] = useState('all');
   const [contractPlanFilter, setContractPlanFilter] = useState('all');
+  const [financialStatusFilter, setFinancialStatusFilter] = useState('all');
+  
+  // Financial status dialog state
+  const [financialStatusDialogOpen, setFinancialStatusDialogOpen] = useState(false);
+  const [selectedContractForFinancial, setSelectedContractForFinancial] = useState<any>(null);
+  const [newFinancialStatus, setNewFinancialStatus] = useState('paid');
+  const [financialStatusNote, setFinancialStatusNote] = useState('');
   
   // Manual mode state
   const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual' | 'daily'>('automatic');
