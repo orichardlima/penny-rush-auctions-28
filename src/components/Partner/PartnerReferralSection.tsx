@@ -31,7 +31,7 @@ interface PartnerReferralSectionProps {
   isDefaulting?: boolean;
 }
 
-const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planName }) => {
+const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planName, isDefaulting = false }) => {
   const { 
     bonuses, 
     referralCode,
