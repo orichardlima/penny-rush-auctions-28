@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.order-pix-payment]
 verify_jwt = false
+
+[functions.partner-regularize-payment]
+verify_jwt = false
