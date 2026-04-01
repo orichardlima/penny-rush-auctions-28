@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
 import { toZonedTime, format } from 'date-fns-tz';
-import { Clock, Gavel, TrendingUp, Trophy } from 'lucide-react';
+import { Clock, Users, TrendingUp, Trophy } from 'lucide-react';
 import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
 
 interface AuctionCardProps {
