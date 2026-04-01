@@ -1,53 +1,71 @@
 
 
-# Bloqueio Total para Parceiros Inadimplentes
+# Botão "Pagar Agora" no Banner de Inadimplência
 
 ## Resumo
 
-Quando `financial_status !== 'paid'`, o parceiro deve ter **todas** as funcionalidades operacionais bloqueadas nos dois painéis (Parceiro e Afiliado), mantendo apenas visualização de dados.
+Adicionar botão no banner de inadimplência do PartnerDashboard que gera um pagamento PIX com o valor do aporte do contrato. Ao confirmar pagamento, o `financial_status` é atualizado para `paid` automaticamente via webhook.
 
-## O que já está bloqueado
+## Arquitetura
 
-- Saques de parceiro e de afiliado
-- Ativação de indicado por saldo
-- Upgrade de plano
-- Repasses semanais (Edge Function)
-- Banner de alerta nos dois dashboards
+Usa o padrão de prefixo no `external_id` já existente (`regularize:{contractId}`) para roteamento nos webhooks.
 
-## O que FALTA bloquear
+## Alterações
 
-### Painel do Parceiro (`PartnerDashboard.tsx`)
+### 1. Nova Edge Function: `partner-regularize-payment/index.ts`
 
-1. **Central de Anúncios** (tab `ads`) — bloquear envio de completions. Exibir alerta de bloqueio na `AdCenterDashboard`
-2. **Encerramento Antecipado** — esconder o `PartnerEarlyTerminationDialog` para inadimplentes
-3. **Link de indicação / Copiar / Compartilhar** — bloquear na `PartnerReferralSection` (desabilitar botão de copiar e compartilhar)
+- Recebe `contractId`, `userId`, `userEmail`, `userName`, `userCpf`
+- Valida que o contrato existe, pertence ao user, status ACTIVE e `financial_status !== 'paid'`
+- Chama `createDeposit` do payment-router com `externalId: 'regularize:{contractId}'`
+- Retorna QR Code / pixCopyPaste para o frontend
 
-### Painel de Afiliado (`AffiliateDashboard.tsx`)
+### 2. Webhook VeoPag: `veopag-webhook/index.ts`
 
-4. **Link de indicação** — desabilitar botões de copiar/compartilhar/QR Code
-5. **Ferramentas** — bloquear funcionalidades na tab "Ferramentas"
+- Adicionar rota `regularize:` no roteamento por prefixo
+- Nova função `processRegularizationPayment`: quando aprovado, faz `UPDATE partner_contracts SET financial_status = 'paid', financial_status_note = 'Pagamento regularizado via PIX' WHERE id = contractId`
 
-## Alterações por arquivo
+### 3. Webhook MagenPay: `magen-webhook/index.ts`
 
-### `src/components/Partner/PartnerDashboard.tsx`
-- Passar `isDefaulting` para `AdCenterDashboard` e `PartnerReferralSection`
-- Esconder `PartnerEarlyTerminationDialog` quando inadimplente (já esconde upgrade)
+- Mesma rota `regularize:` com mesma lógica de atualização
 
-### `src/components/Partner/AdCenterDashboard.tsx`
-- Aceitar prop `isDefaulting?: boolean`
-- Quando true: exibir alerta no topo e desabilitar botões de envio de completions
+### 4. Frontend: `src/components/Partner/PartnerDashboard.tsx`
 
-### `src/components/Partner/PartnerReferralSection.tsx`
-- Aceitar prop `isDefaulting?: boolean`
-- Quando true: desabilitar botão de copiar link e compartilhar, com mensagem de bloqueio
+- Adicionar estado `regularizationLoading` e `regularizationPaymentData`
+- Função `handleRegularize` que chama `supabase.functions.invoke('partner-regularize-payment', ...)`
+- Botão "Pagar agora" no banner de inadimplência
+- Ao clicar, gera pagamento e abre `PartnerPixPaymentModal` com os dados
+- No `onSuccess`, faz `refreshData()` para atualizar o contrato
 
-### `src/pages/AffiliateDashboard.tsx`
-- Quando `partnerFinancialStatus !== 'paid'`: desabilitar botões de copiar/compartilhar link e QR Code
-- Passar `isDefaulting` para componentes de ferramentas
+### 5. Hook: `src/hooks/usePartnerContract.ts`
 
-## Não será alterado
+- Nenhuma alteração necessaria — o `refreshData` já existe e recarrega o contrato
 
-- Nenhum dado será ocultado — apenas ações operacionais bloqueadas
-- Nenhuma tabela, migration ou Edge Function alterada
-- Fluxos de pagamento, webhooks e compra de lances permanecem intactos
+## Fluxo
+
+```text
+[Banner] → Clica "Pagar agora"
+        → Chama edge function partner-regularize-payment
+        → Retorna QR Code PIX
+        → Abre PartnerPixPaymentModal
+        → Parceiro paga
+        → Webhook recebe confirmação (prefix regularize:)
+        → UPDATE financial_status = 'paid'
+        → Modal detecta via polling no partner_payment_intents
+        → refreshData() → banner desaparece
+```
+
+## Arquivos modificados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/functions/partner-regularize-payment/index.ts` | Nova edge function |
+| `supabase/functions/veopag-webhook/index.ts` | Rota `regularize:` |
+| `supabase/functions/magen-webhook/index.ts` | Rota `regularize:` |
+| `src/components/Partner/PartnerDashboard.tsx` | Botão + modal no banner |
+
+## Nao sera alterado
+
+- Nenhum fluxo existente de pagamento, webhook ou compra de lances
+- Nenhuma tabela ou migration (usa campos existentes)
+- Nenhum outro componente
 
