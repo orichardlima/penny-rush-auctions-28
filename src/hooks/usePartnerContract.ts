@@ -220,6 +220,7 @@ export const usePartnerContract = () => {
           ? data.bank_details as Record<string, unknown> 
           : null,
         is_demo: data.is_demo ?? false,
+        financial_status: data.financial_status ?? 'paid',
       };
       
       setContract(contractWithSponsor);

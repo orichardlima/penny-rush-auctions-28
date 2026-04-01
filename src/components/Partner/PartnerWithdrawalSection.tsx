@@ -211,11 +211,13 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
             <div>
               <h4 className="font-medium">Solicitar Saque</h4>
               <p className="text-sm text-muted-foreground">
-                {hasPendingWithdrawal 
-                  ? 'Você já possui uma solicitação aguardando pagamento'
-                  : availableBalance > 0 
-                    ? 'Solicite a transferência do seu saldo disponível'
-                    : 'Sem saldo disponível para saque'
+                {(contract as any).financial_status && (contract as any).financial_status !== 'paid'
+                  ? '⚠️ Saques bloqueados por pendência financeira. Regularize seu pagamento.'
+                  : hasPendingWithdrawal 
+                    ? 'Você já possui uma solicitação aguardando pagamento'
+                    : availableBalance > 0 
+                      ? 'Solicite a transferência do seu saldo disponível'
+                      : 'Sem saldo disponível para saque'
                 }
               </p>
             </div>

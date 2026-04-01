@@ -126,14 +126,28 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
           {/* Botão Ativar Indicado com Saldo */}
           {availableBalance > 0 && contract?.status === 'ACTIVE' && (
-            <Button
-              variant="default"
-              className="w-full"
-              onClick={() => setSponsorDialogOpen(true)}
-            >
-              <UserPlus className="h-4 w-4" />
-              Ativar indicado com saldo ({formatPrice(availableBalance)})
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="w-full">
+                    <Button
+                      variant="default"
+                      className="w-full"
+                      onClick={() => setSponsorDialogOpen(true)}
+                      disabled={contract.financial_status !== 'paid'}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Ativar indicado com saldo ({formatPrice(availableBalance)})
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {contract.financial_status !== 'paid' && (
+                  <TooltipContent>
+                    <p>Ativação bloqueada por pendência financeira</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           )}
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

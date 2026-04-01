@@ -584,7 +584,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {canUpgrade() && (
+          {canUpgrade() && contract.financial_status === 'paid' && (
             <PartnerUpgradeDialog
               contract={contract}
               plans={plans}
