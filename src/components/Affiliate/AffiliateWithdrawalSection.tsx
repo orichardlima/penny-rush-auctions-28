@@ -18,6 +18,7 @@ interface AffiliateWithdrawalSectionProps {
   commissionBalance: number;
   pixKey?: string | null;
   bankDetails?: { pix_key_type?: string; holder_name?: string } | null;
+  isDefaulting?: boolean;
 }
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
