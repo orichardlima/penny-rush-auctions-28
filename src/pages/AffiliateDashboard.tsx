@@ -69,6 +69,7 @@ export default function AffiliateDashboard() {
   const [cpaGoals, setCpaGoals] = useState<CPAGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('30d');
+  const [partnerFinancialStatus, setPartnerFinancialStatus] = useState<string>('paid');
   const isManager = affiliateData?.role === 'manager';
   const { influencers, stats: managerStats, loading: influencersLoading, linkInfluencerByCode, unlinkMyInfluencer } = useAffiliateManager(isManager ? affiliateData?.id ?? null : null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
