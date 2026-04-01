@@ -308,9 +308,13 @@ export const AuctionCard = ({
 
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
             <div className="flex items-center text-muted-foreground">
-              <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-              <span aria-label={`${displayParticipants} pessoas disputando`}>{displayParticipants} disputando</span>
+              <span aria-label={`${displayParticipants} participantes`}>👥 {displayParticipants} participantes</span>
             </div>
+            {displayStatus === 'active' && (
+              <div className="flex items-center">
+                <span className="font-medium">{activityLabel}</span>
+              </div>
+            )}
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
               <div className="flex items-center text-muted-foreground">
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
