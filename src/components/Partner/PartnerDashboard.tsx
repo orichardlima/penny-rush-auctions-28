@@ -1186,7 +1186,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Indicações */}
         <TabsContent value="referrals">
-          <PartnerReferralSection planName={contract.plan_name} />
+          <PartnerReferralSection planName={contract.plan_name} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
         {/* Tab de Rede Binária */}
