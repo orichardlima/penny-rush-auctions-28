@@ -544,3 +544,30 @@ async function processUpgradePayment(supabase: any, isApproved: boolean, isRejec
 
   return new Response('OK', { status: 200, headers: corsHeaders })
 }
+
+// ===== REGULARIZATION PAYMENT =====
+async function processRegularizationPayment(supabase: any, isApproved: boolean, isRejected: boolean, externalId: string) {
+  const contractId = externalId.replace('regularize:', '')
+  console.log('🔄 Processing REGULARIZATION payment for contract:', contractId)
+
+  if (isApproved) {
+    const { error } = await supabase
+      .from('partner_contracts')
+      .update({
+        financial_status: 'paid',
+        financial_status_note: 'Pagamento regularizado via PIX',
+        financial_status_updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', contractId)
+      .neq('financial_status', 'paid')
+
+    if (error) {
+      console.error('❌ Regularization update failed:', error)
+    } else {
+      console.log('✅ Contract regularized successfully')
+    }
+  }
+
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
