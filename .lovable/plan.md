@@ -1,31 +1,62 @@
 
 
-# Adicionar data de ativação no PartnerDetailModal
+# Marcar Parceiros Inadimplentes (Admin)
 
-## O que será feito
+## Contexto
 
-Adicionar a data de ativação (campo `created_at` do contrato) na linha de descrição do modal, ao lado do plano, aporte e status.
+Parceiros ativados manualmente pela plataforma sem pagamento confirmado precisam ser identificados. O administrador precisa de um campo para marcar quem de fato não pagou, e o sistema deve restringir benefícios desses parceiros.
 
-## Alteração
+## Abordagem
 
-### `src/components/Admin/PartnerDetailModal.tsx`
+Adicionar um campo `financial_status` na tabela `partner_contracts` com valores: `paid` (padrão), `pending_payment`, `overdue`. O admin pode alterar esse campo manualmente na tabela de contratos. Parceiros marcados como inadimplentes terão restrições visuais e operacionais.
 
-Linha 84 — expandir o `DialogDescription` para incluir a data de ativação:
+## Fase 1 — Banco de Dados
 
-```
-Plano Legend · Aporte R$ 9.999,00 · Status: ACTIVE
-```
+**Migration:**
+- Adicionar coluna `financial_status TEXT NOT NULL DEFAULT 'paid'` na tabela `partner_contracts`
+- Adicionar coluna `financial_status_updated_at TIMESTAMPTZ` para rastreamento
+- Adicionar coluna `financial_status_note TEXT` para observações do admin
 
-Passará a exibir:
+## Fase 2 — Painel Admin (AdminPartnerManagement.tsx)
 
-```
-Plano Legend · Aporte R$ 9.999,00 · Ativado em 05/03/2026 · Status: ACTIVE
-```
+**Na tabela de contratos:**
+- Adicionar indicador visual (badge) na coluna de status: se `financial_status != 'paid'`, mostrar badge "Inadimplente" ou "Pgto Pendente" em vermelho/amarelo
+- Adicionar botão de ação para o admin alterar o `financial_status` de cada contrato (dropdown com opções: `paid`, `pending_payment`, `overdue`)
+- Campo de observação opcional ao alterar o status
 
-Usa `formatDate(contract?.created_at)` que já existe no componente.
+**Nos filtros:**
+- Adicionar filtro por `financial_status` (Todos, Pago, Pendente, Inadimplente)
 
-## Impacto
+**No PartnerDetailModal:**
+- Exibir o `financial_status` atual e nota do admin
 
-- Apenas visual, uma informação extra na descrição do modal
-- Nenhuma alteração em queries, tabelas ou outros componentes
+## Fase 3 — Hook useAdminPartners
+
+- Incluir `financial_status`, `financial_status_updated_at`, `financial_status_note` na query de contratos
+- Adicionar função `updateFinancialStatus(contractId, status, note)` que faz UPDATE no contrato e registra no `admin_audit_log`
+
+## Fase 4 — Restrições no Backend (partner-weekly-payouts)
+
+- Na edge function de repasses semanais, verificar `financial_status`: se for `pending_payment` ou `overdue`, pular o contrato (não gerar repasse)
+
+## Fase 5 — Dashboard do Parceiro (PartnerDashboard)
+
+- Se o contrato do usuário logado tiver `financial_status != 'paid'`, exibir banner de alerta com a mensagem adequada e botão "Pagar agora" (link para pagamento)
+- Bloquear ações de saque e ativação de indicados quando inadimplente
+
+## Arquivos modificados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| Migration SQL | Nova coluna `financial_status` + `financial_status_updated_at` + `financial_status_note` |
+| `src/hooks/useAdminPartners.ts` | Incluir campos na query + função `updateFinancialStatus` |
+| `src/components/Admin/AdminPartnerManagement.tsx` | Badge, botão de ação, filtro por financial_status |
+| `src/components/Admin/PartnerDetailModal.tsx` | Exibir financial_status e nota |
+| `supabase/functions/partner-weekly-payouts/index.ts` | Filtrar contratos inadimplentes |
+| `src/components/Partner/PartnerDashboard.tsx` | Banner de alerta para inadimplentes |
+
+## Não será alterado
+
+- Nenhum fluxo existente de pagamento, webhook, ou UI de compra de lances
+- Nenhuma funcionalidade atual será removida ou modificada
 
