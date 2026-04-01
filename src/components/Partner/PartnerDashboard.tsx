@@ -606,15 +606,35 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               <>
                 <strong className="text-base">⏳ Pagamento Pendente</strong>
                 <br />
-                Identificamos uma pendência financeira no seu contrato. Algumas funções estão temporariamente limitadas até a regularização. Entre em contato com o suporte para efetuar o pagamento.
+                Identificamos uma pendência financeira no seu contrato. Algumas funções estão temporariamente limitadas até a regularização.
               </>
             ) : (
               <>
                 <strong className="text-base">🚫 Contrato Inadimplente</strong>
                 <br />
-                Seu contrato está em atraso. Repasses semanais, saques e ativação de indicados estão temporariamente bloqueados até a regularização do pagamento. Entre em contato com o suporte.
+                Seu contrato está em atraso. Repasses semanais, saques e ativação de indicados estão temporariamente bloqueados até a regularização do pagamento.
               </>
             )}
+            <div className="mt-3">
+              <Button
+                size="sm"
+                onClick={handleRegularize}
+                disabled={regularizationLoading}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {regularizationLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando PIX...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Pagar agora ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.aporte_value)})
+                  </>
+                )}
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
