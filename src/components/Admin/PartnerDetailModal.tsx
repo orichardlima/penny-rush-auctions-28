@@ -82,6 +82,14 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
           </DialogTitle>
           <DialogDescription>
             Plano {contract?.plan_name} · Aporte {formatPrice(contract?.aporte_value)} · Ativado em {formatDate(contract?.created_at)} · Status: {contract?.status}
+            {contract?.financial_status && contract.financial_status !== 'paid' && (
+              <Badge className={`ml-2 ${contract.financial_status === 'pending_payment' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                {contract.financial_status === 'pending_payment' ? 'Pgto Pendente' : 'Inadimplente'}
+              </Badge>
+            )}
+            {contract?.financial_status_note && (
+              <span className="block text-xs text-muted-foreground mt-1">Obs: {contract.financial_status_note}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 

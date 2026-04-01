@@ -1537,6 +1537,7 @@ export const useAdminPartners = () => {
     loading,
     processing,
     updateContractStatus,
+    updateFinancialStatus,
     updatePlan,
     createPlan,
     deletePlan,
