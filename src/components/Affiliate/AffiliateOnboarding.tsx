@@ -16,7 +16,7 @@ interface AffiliateOnboardingProps {
 
 export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffiliateData, toast }: AffiliateOnboardingProps) {
   const navigate = useNavigate();
-  const [hasLegend, setHasLegend] = useState<boolean | null>(null);
+  const [hasActiveContract, setHasActiveContract] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
