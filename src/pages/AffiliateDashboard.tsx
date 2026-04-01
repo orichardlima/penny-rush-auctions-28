@@ -69,6 +69,7 @@ export default function AffiliateDashboard() {
   const [cpaGoals, setCpaGoals] = useState<CPAGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('30d');
+  const [partnerFinancialStatus, setPartnerFinancialStatus] = useState<string>('paid');
   const isManager = affiliateData?.role === 'manager';
   const { influencers, stats: managerStats, loading: influencersLoading, linkInfluencerByCode, unlinkMyInfluencer } = useAffiliateManager(isManager ? affiliateData?.id ?? null : null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -105,6 +106,20 @@ export default function AffiliateDashboard() {
         }
       } else {
         setAffiliateData(data);
+        
+        // Buscar financial_status do contrato de parceiro
+        if (profile?.user_id) {
+          const { data: contract } = await supabase
+            .from('partner_contracts')
+            .select('financial_status')
+            .eq('user_id', profile.user_id)
+            .eq('status', 'ACTIVE')
+            .single();
+          
+          if (contract?.financial_status) {
+            setPartnerFinancialStatus(contract.financial_status);
+          }
+        }
         
         // Se é CPA, buscar metas
         if (data.commission_type === 'cpa') {
@@ -225,6 +240,25 @@ export default function AffiliateDashboard() {
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Banner de inadimplência */}
+        {partnerFinancialStatus !== 'paid' && (
+          <div className={`mb-6 p-4 rounded-lg border flex items-center gap-3 ${
+            partnerFinancialStatus === 'overdue'
+              ? 'bg-destructive/10 border-destructive/30 text-destructive'
+              : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400'
+          }`}>
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="font-semibold">
+                {partnerFinancialStatus === 'overdue' ? 'Contrato em atraso' : 'Pagamento pendente'}
+              </p>
+              <p className="text-sm opacity-90">
+                Seus saques de comissão estão bloqueados até a regularização do pagamento do seu contrato de parceiro.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header com Nível */}
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -677,6 +711,7 @@ export default function AffiliateDashboard() {
               commissionBalance={affiliateData.commission_balance}
               pixKey={affiliateData.pix_key ?? undefined}
               bankDetails={affiliateData.bank_details as any}
+              isDefaulting={partnerFinancialStatus !== 'paid'}
             />
           </TabsContent>
 
