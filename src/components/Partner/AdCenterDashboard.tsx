@@ -96,6 +96,16 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
 
   return (
     <div className="space-y-6">
+      {/* Alerta de inadimplência */}
+      {isDefaulting && (
+        <Alert className="bg-destructive/10 border-destructive/30">
+          <Lock className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-sm text-destructive">
+            <strong>Central de Anúncios bloqueada.</strong> Regularize o pagamento do seu contrato para confirmar divulgações e acumular pontos.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Alert explicativo */}
       <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
         <Megaphone className="h-4 w-4 text-amber-600" />
