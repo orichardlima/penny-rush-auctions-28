@@ -197,8 +197,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       });
 
       if (error || data?.error) {
-        const { toast } = await import('@/hooks/use-toast');
-        toast.call(null, { title: 'Erro', description: data?.error || 'Erro ao gerar pagamento', variant: 'destructive' as const });
+        console.error('Regularization payment error:', data?.error || error);
         return;
       }
 
