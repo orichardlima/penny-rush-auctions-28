@@ -354,11 +354,11 @@ export default function AffiliateDashboard() {
                 
                 {/* Botões de ação principais */}
                 <div className="flex flex-wrap gap-3">
-                  <Button onClick={copyAffiliateLink} className="flex-1 min-w-[200px]">
+                  <Button onClick={copyAffiliateLink} className="flex-1 min-w-[200px]" disabled={partnerFinancialStatus !== 'paid'}>
                     <Copy className="mr-2 h-4 w-4" />
                     Copiar Link
                   </Button>
-                  <Button onClick={shareAffiliateLink} variant="outline" className="flex-1 min-w-[200px]">
+                  <Button onClick={shareAffiliateLink} variant="outline" className="flex-1 min-w-[200px]" disabled={partnerFinancialStatus !== 'paid'}>
                     <Share2 className="mr-2 h-4 w-4" />
                     Compartilhar
                   </Button>
