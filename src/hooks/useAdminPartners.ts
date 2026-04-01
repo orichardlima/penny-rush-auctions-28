@@ -16,6 +16,9 @@ export interface PartnerContractWithUser {
   closed_reason: string | null;
   created_at: string;
   updated_at: string;
+  financial_status: string;
+  financial_status_updated_at: string | null;
+  financial_status_note: string | null;
   user_name?: string;
   user_email?: string;
 }
@@ -431,6 +434,56 @@ export const useAdminPartners = () => {
         variant: "destructive",
         title: "Erro ao atualizar",
         description: error.message || "Não foi possível atualizar o status."
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const updateFinancialStatus = async (contractId: string, financialStatus: string, note?: string) => {
+    setProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('partner_contracts')
+        .update({
+          financial_status: financialStatus,
+          financial_status_updated_at: new Date().toISOString(),
+          financial_status_note: note || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (error) throw error;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      await supabase.from('admin_audit_log').insert({
+        admin_user_id: user?.id,
+        admin_name: profile?.full_name || 'Admin',
+        action_type: 'UPDATE_FINANCIAL_STATUS',
+        target_type: 'partner_contract',
+        target_id: contractId,
+        description: `Status financeiro alterado para ${financialStatus}${note ? ': ' + note : ''}`,
+        new_values: { financial_status: financialStatus, note }
+      });
+
+      toast({
+        title: "Status financeiro atualizado",
+        description: `Contrato marcado como ${financialStatus === 'paid' ? 'Pago' : financialStatus === 'pending_payment' ? 'Pgto Pendente' : 'Inadimplente'}.`
+      });
+
+      await fetchContracts();
+    } catch (error: any) {
+      console.error('Error updating financial status:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar status financeiro",
+        description: error.message || "Não foi possível atualizar."
       });
     } finally {
       setProcessing(false);
@@ -1484,6 +1537,7 @@ export const useAdminPartners = () => {
     loading,
     processing,
     updateContractStatus,
+    updateFinancialStatus,
     updatePlan,
     createPlan,
     deletePlan,

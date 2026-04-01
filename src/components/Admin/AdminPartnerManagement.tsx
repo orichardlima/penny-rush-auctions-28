@@ -84,6 +84,7 @@ const AdminPartnerManagement = () => {
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
+    updateFinancialStatus,
     refreshData 
   } = useAdminPartners();
 
@@ -102,6 +103,13 @@ const AdminPartnerManagement = () => {
   const [contractSearch, setContractSearch] = useState('');
   const [contractStatusFilter, setContractStatusFilter] = useState('all');
   const [contractPlanFilter, setContractPlanFilter] = useState('all');
+  const [financialStatusFilter, setFinancialStatusFilter] = useState('all');
+  
+  // Financial status dialog state
+  const [financialStatusDialogOpen, setFinancialStatusDialogOpen] = useState(false);
+  const [selectedContractForFinancial, setSelectedContractForFinancial] = useState<any>(null);
+  const [newFinancialStatus, setNewFinancialStatus] = useState('paid');
+  const [financialStatusNote, setFinancialStatusNote] = useState('');
   
   // Manual mode state
   const [calculationMode, setCalculationMode] = useState<'automatic' | 'manual' | 'daily'>('automatic');
@@ -258,11 +266,12 @@ const AdminPartnerManagement = () => {
         contract.user_email?.toLowerCase().includes(searchLower);
       const matchesStatus = contractStatusFilter === 'all' || contract.status === contractStatusFilter;
       const matchesPlan = contractPlanFilter === 'all' || contract.plan_name === contractPlanFilter;
-      return matchesSearch && matchesStatus && matchesPlan;
+      const matchesFinancial = financialStatusFilter === 'all' || contract.financial_status === financialStatusFilter;
+      return matchesSearch && matchesStatus && matchesPlan && matchesFinancial;
     });
-  }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter]);
+  }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter, financialStatusFilter]);
 
-  const hasActiveFilters = contractSearch !== '' || contractStatusFilter !== 'all' || contractPlanFilter !== 'all';
+  const hasActiveFilters = contractSearch !== '' || contractStatusFilter !== 'all' || contractPlanFilter !== 'all' || financialStatusFilter !== 'all';
 
   const uniquePlanNames = useMemo(() => {
     return [...new Set(contracts.map(c => c.plan_name))].sort();
@@ -648,6 +657,17 @@ const AdminPartnerManagement = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select value={financialStatusFilter} onValueChange={setFinancialStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder="Financeiro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos (Financeiro)</SelectItem>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="pending_payment">Pgto Pendente</SelectItem>
+                    <SelectItem value="overdue">Inadimplente</SelectItem>
+                  </SelectContent>
+                </Select>
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
@@ -656,6 +676,7 @@ const AdminPartnerManagement = () => {
                       setContractSearch('');
                       setContractStatusFilter('all');
                       setContractPlanFilter('all');
+                      setFinancialStatusFilter('all');
                     }}
                     className="shrink-0"
                   >
@@ -714,10 +735,16 @@ const AdminPartnerManagement = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {getStatusBadge(contract.status)}
                             {(contract as any).is_demo && (
                               <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-[10px] px-1.5">DEMO</Badge>
+                            )}
+                            {contract.financial_status === 'pending_payment' && (
+                              <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px] px-1.5">Pgto Pendente</Badge>
+                            )}
+                            {contract.financial_status === 'overdue' && (
+                              <Badge className="bg-red-500/10 text-red-600 border-red-500/20 text-[10px] px-1.5">Inadimplente</Badge>
                             )}
                           </div>
                         </TableCell>
@@ -731,6 +758,21 @@ const AdminPartnerManagement = () => {
                               title="Ver detalhes do parceiro"
                             >
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            {/* Financial Status Button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedContractForFinancial(contract);
+                                setNewFinancialStatus(contract.financial_status || 'paid');
+                                setFinancialStatusNote(contract.financial_status_note || '');
+                                setFinancialStatusDialogOpen(true);
+                              }}
+                              title="Alterar status financeiro"
+                              className={contract.financial_status !== 'paid' ? 'text-red-600 border-red-300 hover:bg-red-50' : ''}
+                            >
+                              <DollarSign className="h-4 w-4" />
                             </Button>
                             {/* Manual Credit Button - Only for ACTIVE contracts */}
                             {contract.status === 'ACTIVE' && (
@@ -2396,6 +2438,57 @@ const AdminPartnerManagement = () => {
               disabled={processing}
             >
               {processing ? 'Atualizando...' : 'Confirmar Upgrade'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Financial Status Dialog */}
+      <Dialog open={financialStatusDialogOpen} onOpenChange={setFinancialStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Status Financeiro</DialogTitle>
+            <DialogDescription>
+              Parceiro: {selectedContractForFinancial?.user_name} — {selectedContractForFinancial?.plan_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Status Financeiro</Label>
+              <Select value={newFinancialStatus} onValueChange={setNewFinancialStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">✅ Pago</SelectItem>
+                  <SelectItem value="pending_payment">⏳ Pagamento Pendente</SelectItem>
+                  <SelectItem value="overdue">🚫 Inadimplente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação (opcional)</Label>
+              <Textarea
+                value={financialStatusNote}
+                onChange={(e) => setFinancialStatusNote(e.target.value)}
+                placeholder="Ex: Ativado manualmente, aguardando PIX"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinancialStatusDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (selectedContractForFinancial) {
+                  await updateFinancialStatus(selectedContractForFinancial.id, newFinancialStatus, financialStatusNote);
+                  setFinancialStatusDialogOpen(false);
+                }
+              }}
+              disabled={processing}
+            >
+              {processing ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>

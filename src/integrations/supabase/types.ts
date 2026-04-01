@@ -1449,6 +1449,9 @@ export type Database = {
           closed_reason: string | null
           cotas: number
           created_at: string
+          financial_status: string
+          financial_status_note: string | null
+          financial_status_updated_at: string | null
           id: string
           is_demo: boolean
           payment_id: string | null
@@ -1476,6 +1479,9 @@ export type Database = {
           closed_reason?: string | null
           cotas?: number
           created_at?: string
+          financial_status?: string
+          financial_status_note?: string | null
+          financial_status_updated_at?: string | null
           id?: string
           is_demo?: boolean
           payment_id?: string | null
@@ -1503,6 +1509,9 @@ export type Database = {
           closed_reason?: string | null
           cotas?: number
           created_at?: string
+          financial_status?: string
+          financial_status_note?: string | null
+          financial_status_updated_at?: string | null
           id?: string
           is_demo?: boolean
           payment_id?: string | null

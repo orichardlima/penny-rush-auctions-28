@@ -549,6 +549,32 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </AlertDescription>
         </Alert>
       )}
+      {/* Financial Status Banner */}
+      {(contract as any).financial_status && (contract as any).financial_status !== 'paid' && (
+        <Alert className={cn(
+          "border",
+          (contract as any).financial_status === 'pending_payment' 
+            ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-700"
+            : "border-red-400 bg-red-50 dark:bg-red-950 dark:border-red-700"
+        )}>
+          <AlertTriangle className={cn("h-5 w-5", (contract as any).financial_status === 'pending_payment' ? "text-yellow-600" : "text-red-600")} />
+          <AlertDescription className={cn((contract as any).financial_status === 'pending_payment' ? "text-yellow-800 dark:text-yellow-200" : "text-red-800 dark:text-red-200")}>
+            {(contract as any).financial_status === 'pending_payment' ? (
+              <>
+                <strong className="text-base">⏳ Pagamento Pendente</strong>
+                <br />
+                Identificamos uma pendência financeira no seu contrato. Algumas funções estão temporariamente limitadas até a regularização. Entre em contato com o suporte para efetuar o pagamento.
+              </>
+            ) : (
+              <>
+                <strong className="text-base">🚫 Contrato Inadimplente</strong>
+                <br />
+                Seu contrato está em atraso. Repasses semanais, saques e ativação de indicados estão temporariamente bloqueados até a regularização do pagamento. Entre em contato com o suporte.
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
