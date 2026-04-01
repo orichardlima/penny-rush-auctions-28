@@ -223,7 +223,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
             <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
-                  disabled={availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE'}
+                  disabled={availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid'}
                 >
                   <ArrowUpRight className="h-4 w-4 mr-2" />
                   Solicitar Saque
