@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
 import { toZonedTime, format } from 'date-fns-tz';
-import { Clock, Gavel, TrendingUp, Trophy } from 'lucide-react';
+import { Clock, Users, TrendingUp, Trophy } from 'lucide-react';
 import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
 
 interface AuctionCardProps {
@@ -72,6 +72,7 @@ export const AuctionCard = ({
   const displayTimeLeft = contextAuction ?
   displayStatus === 'active' ? contextTimer : 0 :
   initialTimeLeft;
+  const displayParticipants = contextAuction?.participants ?? participants;
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
 
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
@@ -281,8 +282,8 @@ export const AuctionCard = ({
 
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
             <div className="flex items-center text-muted-foreground">
-              <Gavel className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-              <span aria-label={`Total de ${displayTotalBids} lances`}>{displayTotalBids} lances</span>
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
+              <span aria-label={`${displayParticipants} pessoas disputando`}>{displayParticipants} disputando</span>
             </div>
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
               <div className="flex items-center text-muted-foreground">
