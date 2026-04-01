@@ -107,6 +107,20 @@ export default function AffiliateDashboard() {
       } else {
         setAffiliateData(data);
         
+        // Buscar financial_status do contrato de parceiro
+        if (profile?.user_id) {
+          const { data: contract } = await supabase
+            .from('partner_contracts')
+            .select('financial_status')
+            .eq('user_id', profile.user_id)
+            .eq('status', 'ACTIVE')
+            .single();
+          
+          if (contract?.financial_status) {
+            setPartnerFinancialStatus(contract.financial_status);
+          }
+        }
+        
         // Se é CPA, buscar metas
         if (data.commission_type === 'cpa') {
           const { data: goalsData, error: goalsError } = await supabase
