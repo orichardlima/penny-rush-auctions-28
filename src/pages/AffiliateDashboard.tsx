@@ -711,6 +711,7 @@ export default function AffiliateDashboard() {
               commissionBalance={affiliateData.commission_balance}
               pixKey={affiliateData.pix_key ?? undefined}
               bankDetails={affiliateData.bank_details as any}
+              isDefaulting={partnerFinancialStatus !== 'paid'}
             />
           </TabsContent>
 

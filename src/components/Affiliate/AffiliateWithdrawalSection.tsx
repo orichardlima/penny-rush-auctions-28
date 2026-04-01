@@ -134,19 +134,25 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
           <CardContent>
             <Button
               onClick={() => setWithdrawalDialogOpen(true)}
-              disabled={commissionBalance < minWithdrawal || hasPendingWithdrawal}
+              disabled={commissionBalance < minWithdrawal || hasPendingWithdrawal || isDefaulting}
               className="w-full"
             >
               <Wallet className="mr-2 h-4 w-4" />
               Solicitar Saque
             </Button>
-            {hasPendingWithdrawal && (
+            {isDefaulting && (
+              <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Saques bloqueados — regularize seu contrato de parceiro
+              </p>
+            )}
+            {!isDefaulting && hasPendingWithdrawal && (
               <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Saque pendente em análise
               </p>
             )}
-            {!hasPendingWithdrawal && commissionBalance < minWithdrawal && (
+            {!isDefaulting && !hasPendingWithdrawal && commissionBalance < minWithdrawal && (
               <p className="text-xs text-muted-foreground mt-2">
                 Saldo insuficiente para saque
               </p>
