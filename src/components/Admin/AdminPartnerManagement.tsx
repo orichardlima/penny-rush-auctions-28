@@ -81,6 +81,7 @@ const AdminPartnerManagement = () => {
     processTermination,
     rejectWithdrawal,
     markWithdrawalAsPaid,
+    markWithdrawalAsPaidManually,
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
@@ -1681,8 +1682,9 @@ const AdminPartnerManagement = () => {
                   {/* Confirmar */}
                   <Button
                     className="w-full"
+                    variant="outline"
                     onClick={async () => {
-                      await markWithdrawalAsPaid(pixConfirmWithdrawal.id);
+                      await markWithdrawalAsPaidManually(pixConfirmWithdrawal.id);
                       setPixConfirmWithdrawal(null);
                     }}
                     disabled={processing}
@@ -1692,7 +1694,23 @@ const AdminPartnerManagement = () => {
                     ) : (
                       <CheckCircle className="h-4 w-4 mr-2" />
                     )}
-                    {processing ? 'Enviando PIX...' : 'Enviar PIX Automático'}
+                    {processing ? 'Confirmando...' : 'Confirmar Pagamento Manual'}
+                  </Button>
+
+                  <Button
+                    className="w-full"
+                    onClick={async () => {
+                      await markWithdrawalAsPaid(pixConfirmWithdrawal.id);
+                      setPixConfirmWithdrawal(null);
+                    }}
+                    disabled={processing}
+                  >
+                    {processing ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <DollarSign className="h-4 w-4 mr-2" />
+                    )}
+                    {processing ? 'Enviando PIX...' : 'Enviar PIX Automático (VeoPag)'}
                   </Button>
                 </div>
               )}
