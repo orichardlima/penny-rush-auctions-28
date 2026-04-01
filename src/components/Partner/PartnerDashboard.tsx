@@ -108,6 +108,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(undefined);
   const [pendingCotas, setPendingCotas] = useState<number>(1);
 
+  // Estado para regularização de pagamento
+  const [regularizationLoading, setRegularizationLoading] = useState(false);
+  const [regularizationPaymentData, setRegularizationPaymentData] = useState<any>(null);
+  const [regularizationModalOpen, setRegularizationModalOpen] = useState(false);
+
   // Estado para código de indicação manual
   const [manualReferralCode, setManualReferralCode] = useState<string>(() => {
     return getPartnerReferralCodeFromUrlOrStorage() || '';
