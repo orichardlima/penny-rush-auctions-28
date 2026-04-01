@@ -16,11 +16,11 @@ interface AffiliateOnboardingProps {
 
 export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffiliateData, toast }: AffiliateOnboardingProps) {
   const navigate = useNavigate();
-  const [hasLegend, setHasLegend] = useState<boolean | null>(null);
+  const [hasActiveContract, setHasActiveContract] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const checkLegendPlan = async () => {
+    const checkActiveContract = async () => {
       if (!profile?.user_id) {
         setChecking(false);
         return;
@@ -30,16 +30,15 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
         .from('partner_contracts')
         .select('id')
         .eq('user_id', profile.user_id)
-        .eq('plan_name', 'Legend')
         .eq('status', 'ACTIVE')
         .limit(1)
         .maybeSingle();
 
-      setHasLegend(!!data && !error);
+      setHasActiveContract(!!data && !error);
       setChecking(false);
     };
 
-    checkLegendPlan();
+    checkActiveContract();
   }, [profile?.user_id]);
 
   if (checking) {
@@ -58,7 +57,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
   }
 
   // Usuário NÃO tem plano Legend ativo
-  if (!hasLegend) {
+  if (!hasActiveContract) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
         {seoHead}
@@ -72,16 +71,16 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
               Programa de Afiliados
             </h1>
             <p className="text-xl text-muted-foreground">
-              O programa de afiliados é exclusivo para parceiros com o plano <strong className="text-primary">Legend</strong> ativo.
+              O programa de afiliados é exclusivo para parceiros com um <strong className="text-primary">plano de expansão ativo</strong>.
             </p>
             <Card className="text-left">
               <CardHeader>
                 <CardTitle>Como participar?</CardTitle>
-                <CardDescription>Torne-se um parceiro Legend e desbloqueie o programa de afiliados</CardDescription>
+                <CardDescription>Torne-se um parceiro de expansão e desbloqueie o programa de afiliados</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  Com o plano Legend, você tem acesso ao programa de afiliados completo, podendo ganhar comissões sobre compras dos seus indicados e acompanhar tudo pelo painel exclusivo.
+                  Com um plano de parceiro ativo, você tem acesso ao programa de afiliados completo, podendo ganhar comissões sobre compras dos seus indicados e acompanhar tudo pelo painel exclusivo.
                 </p>
                 <Button 
                   size="lg" 
