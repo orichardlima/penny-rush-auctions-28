@@ -36,7 +36,7 @@ const pixKeyTypeLabels: Record<string, string> = {
   random: 'Chave Aleatória',
 };
 
-export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pixKey, bankDetails }: AffiliateWithdrawalSectionProps) {
+export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pixKey, bankDetails, isDefaulting = false }: AffiliateWithdrawalSectionProps) {
   const {
     withdrawals,
     loading,
