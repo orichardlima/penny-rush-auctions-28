@@ -75,6 +75,7 @@ export interface PartnerContract {
   pix_key_type?: string | null;
   bank_details?: Record<string, unknown> | null;
   is_demo: boolean;
+  financial_status: string;
 }
 
 export interface PartnerPayout {
@@ -219,6 +220,7 @@ export const usePartnerContract = () => {
           ? data.bank_details as Record<string, unknown> 
           : null,
         is_demo: data.is_demo ?? false,
+        financial_status: data.financial_status ?? 'paid',
       };
       
       setContract(contractWithSponsor);
