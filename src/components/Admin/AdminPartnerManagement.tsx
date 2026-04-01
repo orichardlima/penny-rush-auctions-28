@@ -759,6 +759,21 @@ const AdminPartnerManagement = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {/* Financial Status Button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedContractForFinancial(contract);
+                                setNewFinancialStatus(contract.financial_status || 'paid');
+                                setFinancialStatusNote(contract.financial_status_note || '');
+                                setFinancialStatusDialogOpen(true);
+                              }}
+                              title="Alterar status financeiro"
+                              className={contract.financial_status !== 'paid' ? 'text-red-600 border-red-300 hover:bg-red-50' : ''}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                            </Button>
                             {/* Manual Credit Button - Only for ACTIVE contracts */}
                             {contract.status === 'ACTIVE' && (
                               <Button 
