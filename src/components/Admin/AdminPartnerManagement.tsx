@@ -266,11 +266,12 @@ const AdminPartnerManagement = () => {
         contract.user_email?.toLowerCase().includes(searchLower);
       const matchesStatus = contractStatusFilter === 'all' || contract.status === contractStatusFilter;
       const matchesPlan = contractPlanFilter === 'all' || contract.plan_name === contractPlanFilter;
-      return matchesSearch && matchesStatus && matchesPlan;
+      const matchesFinancial = financialStatusFilter === 'all' || contract.financial_status === financialStatusFilter;
+      return matchesSearch && matchesStatus && matchesPlan && matchesFinancial;
     });
-  }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter]);
+  }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter, financialStatusFilter]);
 
-  const hasActiveFilters = contractSearch !== '' || contractStatusFilter !== 'all' || contractPlanFilter !== 'all';
+  const hasActiveFilters = contractSearch !== '' || contractStatusFilter !== 'all' || contractPlanFilter !== 'all' || financialStatusFilter !== 'all';
 
   const uniquePlanNames = useMemo(() => {
     return [...new Set(contracts.map(c => c.plan_name))].sort();
