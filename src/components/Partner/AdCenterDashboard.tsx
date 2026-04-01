@@ -31,6 +31,7 @@ const TEMPLATE_INFO: Record<string, { label: string; dimensions: string; icon: R
 
 interface AdCenterDashboardProps {
   partnerContractId: string;
+  isDefaulting?: boolean;
 }
 
 const SOCIAL_NETWORKS = [
