@@ -338,25 +338,27 @@ export default function AffiliateDashboard() {
                     readOnly
                     className="font-mono text-sm bg-background"
                   />
-                  <Button onClick={copyAffiliateLink} variant="outline" size="icon" title="Copiar link">
+                  <Button onClick={copyAffiliateLink} variant="outline" size="icon" title="Copiar link" disabled={partnerFinancialStatus !== 'paid'}>
                     <Copy className="h-4 w-4" />
                   </Button>
-                  <Button onClick={shareAffiliateLink} variant="outline" size="icon" title="Compartilhar">
+                  <Button onClick={shareAffiliateLink} variant="outline" size="icon" title="Compartilhar" disabled={partnerFinancialStatus !== 'paid'}>
                     <Share2 className="h-4 w-4" />
                   </Button>
-                  <QRCodeModal 
-                    affiliateLink={affiliateLink}
-                    affiliateCode={affiliateData.affiliate_code}
-                  />
+                  {partnerFinancialStatus === 'paid' && (
+                    <QRCodeModal 
+                      affiliateLink={affiliateLink}
+                      affiliateCode={affiliateData.affiliate_code}
+                    />
+                  )}
                 </div>
                 
                 {/* Botões de ação principais */}
                 <div className="flex flex-wrap gap-3">
-                  <Button onClick={copyAffiliateLink} className="flex-1 min-w-[200px]">
+                  <Button onClick={copyAffiliateLink} className="flex-1 min-w-[200px]" disabled={partnerFinancialStatus !== 'paid'}>
                     <Copy className="mr-2 h-4 w-4" />
                     Copiar Link
                   </Button>
-                  <Button onClick={shareAffiliateLink} variant="outline" className="flex-1 min-w-[200px]">
+                  <Button onClick={shareAffiliateLink} variant="outline" className="flex-1 min-w-[200px]" disabled={partnerFinancialStatus !== 'paid'}>
                     <Share2 className="mr-2 h-4 w-4" />
                     Compartilhar
                   </Button>
@@ -785,16 +787,18 @@ export default function AffiliateDashboard() {
                     readOnly
                     className="font-mono text-sm"
                   />
-                  <Button onClick={copyAffiliateLink} variant="outline" size="icon">
+                  <Button onClick={copyAffiliateLink} variant="outline" size="icon" disabled={partnerFinancialStatus !== 'paid'}>
                     <Copy className="h-4 w-4" />
                   </Button>
-                  <Button onClick={shareAffiliateLink} variant="outline" size="icon">
+                  <Button onClick={shareAffiliateLink} variant="outline" size="icon" disabled={partnerFinancialStatus !== 'paid'}>
                     <Share2 className="h-4 w-4" />
                   </Button>
-                  <QRCodeModal 
-                    affiliateLink={affiliateLink}
-                    affiliateCode={affiliateData.affiliate_code}
-                  />
+                  {partnerFinancialStatus === 'paid' && (
+                    <QRCodeModal 
+                      affiliateLink={affiliateLink}
+                      affiliateCode={affiliateData.affiliate_code}
+                    />
+                  )}
                 </div>
                 <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                   <p className="text-sm">

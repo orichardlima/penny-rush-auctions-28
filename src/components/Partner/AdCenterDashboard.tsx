@@ -18,7 +18,8 @@ import {
   Share2,
   Image as ImageIcon,
   Smartphone,
-  LayoutGrid
+  LayoutGrid,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -31,6 +32,7 @@ const TEMPLATE_INFO: Record<string, { label: string; dimensions: string; icon: R
 
 interface AdCenterDashboardProps {
   partnerContractId: string;
+  isDefaulting?: boolean;
 }
 
 const SOCIAL_NETWORKS = [
@@ -41,7 +43,7 @@ const SOCIAL_NETWORKS = [
   { id: 'outro', name: 'Outro', icon: Share2, color: 'text-muted-foreground' }
 ];
 
-const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId }) => {
+const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId, isDefaulting = false }) => {
   const {
     todayMaterial,
     weekProgress,
@@ -95,6 +97,16 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
 
   return (
     <div className="space-y-6">
+      {/* Alerta de inadimplência */}
+      {isDefaulting && (
+        <Alert className="bg-destructive/10 border-destructive/30">
+          <Lock className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-sm text-destructive">
+            <strong>Central de Anúncios bloqueada.</strong> Regularize o pagamento do seu contrato para confirmar divulgações e acumular pontos.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Alert explicativo */}
       <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
         <Megaphone className="h-4 w-4 text-amber-600" />
@@ -225,7 +237,7 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
               </div>
 
               {/* Confirmação */}
-              {weekProgress.canConfirmToday ? (
+              {weekProgress.canConfirmToday && !isDefaulting ? (
                 <div className="pt-4 border-t space-y-4">
                   <p className="text-sm font-medium">Onde você divulgou?</p>
                   

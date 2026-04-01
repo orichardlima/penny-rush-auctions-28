@@ -1168,7 +1168,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Anúncios */}
         <TabsContent value="ads">
-          <AdCenterDashboard partnerContractId={contract.id} />
+          <AdCenterDashboard partnerContractId={contract.id} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
         {/* Tab de Saques */}
@@ -1186,7 +1186,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Indicações */}
         <TabsContent value="referrals">
-          <PartnerReferralSection planName={contract.plan_name} />
+          <PartnerReferralSection planName={contract.plan_name} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
         {/* Tab de Rede Binária */}
@@ -1200,7 +1200,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       </Tabs>
 
       {/* Encerramento Antecipado */}
-      {contract.status === 'ACTIVE' && (
+      {contract.status === 'ACTIVE' && contract.financial_status === 'paid' && (
         <Card className="border-orange-500/20">
           <CardHeader>
             <CardTitle className="text-lg">Opções do Contrato</CardTitle>
