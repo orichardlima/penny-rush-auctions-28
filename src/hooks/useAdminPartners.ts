@@ -1159,24 +1159,6 @@ export const useAdminPartners = () => {
 
       if (wError) throw wError;
 
-      // Update total_withdrawn on the contract
-      const contract = contracts.find(c => c.id === withdrawal.partner_contract_id);
-      if (contract) {
-        const { error: cError } = await supabase
-          .from('partner_contracts')
-          .update({
-            total_withdrawn: (contract.total_received > 0 ? contract.total_received : 0) >= 0
-              ? Number(contract.total_received) >= 0 
-                ? undefined 
-                : undefined
-              : undefined,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', withdrawal.partner_contract_id);
-        // We don't need to manually update total_withdrawn here since the 
-        // usePartnerWithdrawals hook calculates available balance from payouts - withdrawals
-      }
-
       // Audit log
       const { data: profile } = await supabase
         .from('profiles')
