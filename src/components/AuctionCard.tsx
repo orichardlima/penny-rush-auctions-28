@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
 import { toZonedTime, format } from 'date-fns-tz';
-import { Clock, Users, TrendingUp, Trophy } from 'lucide-react';
+import { Clock, TrendingUp, Trophy } from 'lucide-react';
 import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
 
 interface AuctionCardProps {
@@ -74,6 +74,32 @@ export const AuctionCard = ({
   initialTimeLeft;
   const displayParticipants = contextAuction?.participants ?? participants;
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
+  const lastBidAt = contextAuction?.last_bid_at ?? null;
+
+  // Debounced activity indicator
+  const activityRef = useRef<string>('🟢 Começando agora');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getRawActivity = () => {
+    if (!lastBidAt) return '🟢 Começando agora';
+    const seconds = (Date.now() - new Date(lastBidAt).getTime()) / 1000;
+    if (seconds < 30) return '🔥 Muito disputado';
+    if (seconds < 90) return '⚡ Disputa aquecendo';
+    return '🟢 Começando agora';
+  };
+
+  const [activityLabel, setActivityLabel] = useState(getRawActivity);
+
+  useEffect(() => {
+    const raw = getRawActivity();
+    if (raw === activityRef.current) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      activityRef.current = raw;
+      setActivityLabel(raw);
+    }, 5000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [lastBidAt, displayStatus]);
 
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
   // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
@@ -282,9 +308,13 @@ export const AuctionCard = ({
 
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
             <div className="flex items-center text-muted-foreground">
-              <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-              <span aria-label={`${displayParticipants} pessoas disputando`}>{displayParticipants} disputando</span>
+              <span aria-label={`${displayParticipants} participantes`}>👥 {displayParticipants} participantes</span>
             </div>
+            {displayStatus === 'active' && (
+              <div className="flex items-center">
+                <span className="font-medium">{activityLabel}</span>
+              </div>
+            )}
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
               <div className="flex items-center text-muted-foreground">
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
