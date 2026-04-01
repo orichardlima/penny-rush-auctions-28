@@ -28,6 +28,7 @@ import {
 
 interface PartnerReferralSectionProps {
   planName?: string;
+  isDefaulting?: boolean;
 }
 
 const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planName }) => {
