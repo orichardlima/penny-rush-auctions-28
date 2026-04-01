@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -6,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract, PartnerPaymentData, PartnerUpgradePaymentData } from '@/hooks/usePartnerContract';
+import { supabase } from '@/integrations/supabase/client';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
@@ -60,6 +62,7 @@ interface PartnerDashboardProps {
 }
 
 const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }) => {
+  const { user, profile } = useAuth();
   const { 
     contract, 
     payouts, 
@@ -106,6 +109,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [pendingReferralCode, setPendingReferralCode] = useState<string | undefined>(undefined);
   const [pendingCotas, setPendingCotas] = useState<number>(1);
+
+  // Estado para regularização de pagamento
+  const [regularizationLoading, setRegularizationLoading] = useState(false);
+  const [regularizationPaymentData, setRegularizationPaymentData] = useState<any>(null);
+  const [regularizationModalOpen, setRegularizationModalOpen] = useState(false);
 
   // Estado para código de indicação manual
   const [manualReferralCode, setManualReferralCode] = useState<string>(() => {
@@ -170,6 +178,41 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const handleUpgradePaymentSuccess = () => {
     setUpgradePaymentModalOpen(false);
     setUpgradePaymentData(null);
+    refreshData();
+  };
+
+  // Regularização de pagamento
+  const handleRegularize = async () => {
+    if (!contract || !user || !profile) return;
+    setRegularizationLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('partner-regularize-payment', {
+        body: {
+          contractId: contract.id,
+          userId: user.id,
+          userEmail: user.email || '',
+          userName: profile.full_name || '',
+          userCpf: profile.cpf || ''
+        }
+      });
+
+      if (error || data?.error) {
+        console.error('Regularization payment error:', data?.error || error);
+        return;
+      }
+
+      setRegularizationPaymentData(data);
+      setRegularizationModalOpen(true);
+    } catch (err) {
+      console.error('Regularization error:', err);
+    } finally {
+      setRegularizationLoading(false);
+    }
+  };
+
+  const handleRegularizationSuccess = () => {
+    setRegularizationModalOpen(false);
+    setRegularizationPaymentData(null);
     refreshData();
   };
 
@@ -563,15 +606,35 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               <>
                 <strong className="text-base">⏳ Pagamento Pendente</strong>
                 <br />
-                Identificamos uma pendência financeira no seu contrato. Algumas funções estão temporariamente limitadas até a regularização. Entre em contato com o suporte para efetuar o pagamento.
+                Identificamos uma pendência financeira no seu contrato. Algumas funções estão temporariamente limitadas até a regularização.
               </>
             ) : (
               <>
                 <strong className="text-base">🚫 Contrato Inadimplente</strong>
                 <br />
-                Seu contrato está em atraso. Repasses semanais, saques e ativação de indicados estão temporariamente bloqueados até a regularização do pagamento. Entre em contato com o suporte.
+                Seu contrato está em atraso. Repasses semanais, saques e ativação de indicados estão temporariamente bloqueados até a regularização do pagamento.
               </>
             )}
+            <div className="mt-3">
+              <Button
+                size="sm"
+                onClick={handleRegularize}
+                disabled={regularizationLoading}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {regularizationLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando PIX...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Pagar agora ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.aporte_value)})
+                  </>
+                )}
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -1250,6 +1313,29 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           onSuccess={handleUpgradePaymentSuccess}
           isUpgrade={true}
           previousPlanName={upgradePaymentData.previousPlanName}
+        />
+      )}
+
+      {/* Modal de Pagamento PIX para Regularização */}
+      {regularizationPaymentData && (
+        <PartnerPixPaymentModal
+          open={regularizationModalOpen}
+          onClose={() => {
+            setRegularizationModalOpen(false);
+            setRegularizationPaymentData(null);
+          }}
+          paymentData={{
+            paymentId: regularizationPaymentData.paymentId,
+            qrCodeBase64: regularizationPaymentData.qrCodeBase64,
+            pixCopyPaste: regularizationPaymentData.pixCopyPaste
+          }}
+          planInfo={{
+            name: `Regularização - ${regularizationPaymentData.planName}`,
+            aporteValue: regularizationPaymentData.amount,
+            bonusBids: 0
+          }}
+          contractId={contract?.id}
+          onSuccess={handleRegularizationSuccess}
         />
       )}
     </div>

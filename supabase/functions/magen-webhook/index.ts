@@ -46,6 +46,10 @@ serve(async (req) => {
     }
 
     // Route by txId prefix (same logic as veopag-webhook)
+    if (txId.startsWith('regularize:')) {
+      return await processRegularizationPayment(supabase, txId)
+    }
+
     if (txId.startsWith('order:')) {
       return await processOrderPayment(supabase, txId)
     }
@@ -423,5 +427,30 @@ async function processUpgradePayment(supabase: any, txId: string, transactionId:
     .eq('id', contract.id)
 
   console.log('✅ Contract upgraded:', contract.plan_name, '→', newPlan.name)
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
+
+// ===== REGULARIZATION PAYMENT =====
+async function processRegularizationPayment(supabase: any, txId: string) {
+  const contractId = txId.replace('regularize:', '')
+  console.log('🔄 Processing REGULARIZATION payment for contract:', contractId)
+
+  const { error } = await supabase
+    .from('partner_contracts')
+    .update({
+      financial_status: 'paid',
+      financial_status_note: 'Pagamento regularizado via PIX (MagenPay)',
+      financial_status_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', contractId)
+    .neq('financial_status', 'paid')
+
+  if (error) {
+    console.error('❌ Regularization update failed:', error)
+  } else {
+    console.log('✅ Contract regularized successfully')
+  }
+
   return new Response('OK', { status: 200, headers: corsHeaders })
 }
