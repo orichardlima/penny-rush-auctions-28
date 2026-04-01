@@ -735,10 +735,16 @@ const AdminPartnerManagement = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {getStatusBadge(contract.status)}
                             {(contract as any).is_demo && (
                               <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-[10px] px-1.5">DEMO</Badge>
+                            )}
+                            {contract.financial_status === 'pending_payment' && (
+                              <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px] px-1.5">Pgto Pendente</Badge>
+                            )}
+                            {contract.financial_status === 'overdue' && (
+                              <Badge className="bg-red-500/10 text-red-600 border-red-500/20 text-[10px] px-1.5">Inadimplente</Badge>
                             )}
                           </div>
                         </TableCell>
