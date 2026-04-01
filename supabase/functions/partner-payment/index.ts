@@ -198,7 +198,7 @@ serve(async (req) => {
       intentId: intentData.id,
       paymentId: depositResult.transactionId,
       qrCodeBase64: depositResult.qrCodeBase64,
-      pixCopyPaste: null,
+      pixCopyPaste: depositResult.pixCopyPaste || null,
       status: depositResult.status,
       planName: planData.display_name,
       aporteValue: aporteValue,

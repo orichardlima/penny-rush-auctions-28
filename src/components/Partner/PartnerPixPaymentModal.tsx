@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, QrCode, Check, Clock, RefreshCw, Wallet, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { QRCodeSVG } from "qrcode.react";
 
 interface PartnerPixPaymentModalProps {
   open: boolean;
@@ -272,18 +273,22 @@ export const PartnerPixPaymentModal = ({
                 💡 O pagamento será detectado automaticamente
               </div>
               
-              {paymentData.qrCodeBase64 && (
+              {(paymentData.pixCopyPaste || paymentData.qrCodeBase64) && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2">
                     <QrCode className="w-5 h-5" />
                     <span className="font-medium">Escaneie o QR Code</span>
                   </div>
                   <div className="flex justify-center">
-                    <img 
-                      src={`data:image/png;base64,${paymentData.qrCodeBase64}`}
-                      alt="QR Code PIX"
-                      className="w-48 h-48 border rounded"
-                    />
+                    {paymentData.pixCopyPaste && !paymentData.qrCodeBase64 ? (
+                      <QRCodeSVG value={paymentData.pixCopyPaste} size={192} />
+                    ) : (
+                      <img 
+                        src={`data:image/png;base64,${paymentData.qrCodeBase64}`}
+                        alt="QR Code PIX"
+                        className="w-48 h-48 border rounded"
+                      />
+                    )}
                   </div>
                 </div>
               )}
