@@ -68,6 +68,26 @@ export const createAffiliateAccount = async (
       };
     }
     
+    // Buscar taxa de comissão configurada pelo admin
+    let defaultCommissionRate = 10;
+    try {
+      const { data: setting } = await supabase
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', 'affiliate_default_commission_rate')
+        .single();
+      
+      if (setting?.setting_value) {
+        const parsed = parseFloat(setting.setting_value);
+        if (!isNaN(parsed) && parsed > 0) {
+          defaultCommissionRate = parsed;
+        }
+      }
+      console.log('Using commission rate from system_settings:', defaultCommissionRate);
+    } catch (e) {
+      console.warn('Could not fetch default commission rate, using fallback:', defaultCommissionRate);
+    }
+    
     // Criar registro de afiliado
     const { data, error } = await supabase
       .from('affiliates')
@@ -75,7 +95,7 @@ export const createAffiliateAccount = async (
         user_id: userId,
         affiliate_code: affiliateCode,
         status: 'pending',
-        commission_rate: 10.00, // Taxa padrão de 10%
+        commission_rate: defaultCommissionRate,
         total_referrals: 0,
         total_conversions: 0,
         commission_balance: 0,
