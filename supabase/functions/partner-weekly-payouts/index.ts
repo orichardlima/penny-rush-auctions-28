@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
       .from('partner_contracts')
       .select('*')
       .eq('status', 'ACTIVE')
+      .eq('financial_status', 'paid')
 
     if (contractsError) {
       console.error('[partner-weekly-payouts] Erro ao buscar contratos:', contractsError)

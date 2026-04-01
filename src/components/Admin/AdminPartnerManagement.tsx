@@ -2442,6 +2442,57 @@ const AdminPartnerManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Financial Status Dialog */}
+      <Dialog open={financialStatusDialogOpen} onOpenChange={setFinancialStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Status Financeiro</DialogTitle>
+            <DialogDescription>
+              Parceiro: {selectedContractForFinancial?.user_name} — {selectedContractForFinancial?.plan_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Status Financeiro</Label>
+              <Select value={newFinancialStatus} onValueChange={setNewFinancialStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">✅ Pago</SelectItem>
+                  <SelectItem value="pending_payment">⏳ Pagamento Pendente</SelectItem>
+                  <SelectItem value="overdue">🚫 Inadimplente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação (opcional)</Label>
+              <Textarea
+                value={financialStatusNote}
+                onChange={(e) => setFinancialStatusNote(e.target.value)}
+                placeholder="Ex: Ativado manualmente, aguardando PIX"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinancialStatusDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (selectedContractForFinancial) {
+                  await updateFinancialStatus(selectedContractForFinancial.id, newFinancialStatus, financialStatusNote);
+                  setFinancialStatusDialogOpen(false);
+                }
+              }}
+              disabled={processing}
+            >
+              {processing ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
