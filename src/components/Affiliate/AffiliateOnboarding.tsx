@@ -76,7 +76,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
             <Card className="text-left">
               <CardHeader>
                 <CardTitle>Como participar?</CardTitle>
-                <CardDescription>Torne-se um parceiro Legend e desbloqueie o programa de afiliados</CardDescription>
+                <CardDescription>Torne-se um parceiro de expansão e desbloqueie o programa de afiliados</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
