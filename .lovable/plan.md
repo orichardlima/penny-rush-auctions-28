@@ -1,28 +1,23 @@
 
 
-# Corrigir Taxa de Comissão de Afiliados
+# Liberar Afiliados para Todos os Parceiros de Expansão
 
-## Problema
+## Resumo
 
-A função `createAffiliateAccount` em `src/utils/affiliateHelpers.ts` usa `commission_rate: 10.00` hardcoded (linha 78), ignorando a configuração `affiliate_default_commission_rate` que o admin definiu como **50** no painel.
+Atualmente, apenas parceiros com plano **Legend** ativo podem ativar o programa de afiliados. A mudança remove essa restrição para que **qualquer parceiro com contrato ACTIVE** possa se tornar afiliado.
 
-Além disso, todos os afiliados existentes já foram criados com `commission_rate = 10`.
+## Alteração
 
-## Alterações
+### `src/components/Affiliate/AffiliateOnboarding.tsx`
 
-### 1. `src/utils/affiliateHelpers.ts`
-
-- Antes de inserir o registro, buscar `affiliate_default_commission_rate` da tabela `system_settings`
-- Usar o valor retornado (fallback para 10 se não existir)
-- Substituir o hardcoded `commission_rate: 10.00` pelo valor dinâmico
-
-### 2. Atualizar afiliados existentes (SQL via insert tool)
-
-- `UPDATE affiliates SET commission_rate = 50 WHERE commission_rate = 10`
-- Corrige retroativamente todos os afiliados criados com taxa errada
+- Remover o filtro `.eq('plan_name', 'Legend')` na query de verificação (linha 33)
+- Manter apenas `.eq('status', 'ACTIVE')` para validar que o usuário tem um contrato ativo
+- Renomear variável `hasLegend` para `hasActiveContract` para clareza
+- Atualizar textos da tela de bloqueio: trocar referência ao plano "Legend" por uma mensagem genérica sobre ter um plano de parceiro ativo
 
 ### Nada mais alterado
 
-- Nenhuma UI, webhook ou fluxo existente modificado
-- Os webhooks já usam `affiliate.commission_rate` do banco, então ao corrigir o valor, as comissões passam a calcular corretamente
+- Nenhum outro componente, hook, tabela ou fluxo existente
+- Bloqueios de inadimplência permanecem intactos
+- Fluxo de criação de conta de afiliado permanece igual
 
