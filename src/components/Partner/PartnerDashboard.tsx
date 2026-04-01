@@ -1200,7 +1200,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
       </Tabs>
 
       {/* Encerramento Antecipado */}
-      {contract.status === 'ACTIVE' && (
+      {contract.status === 'ACTIVE' && contract.financial_status === 'paid' && (
         <Card className="border-orange-500/20">
           <CardHeader>
             <CardTitle className="text-lg">Opções do Contrato</CardTitle>

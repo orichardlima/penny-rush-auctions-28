@@ -236,7 +236,7 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
               </div>
 
               {/* Confirmação */}
-              {weekProgress.canConfirmToday ? (
+              {weekProgress.canConfirmToday && !isDefaulting ? (
                 <div className="pt-4 border-t space-y-4">
                   <p className="text-sm font-medium">Onde você divulgou?</p>
                   

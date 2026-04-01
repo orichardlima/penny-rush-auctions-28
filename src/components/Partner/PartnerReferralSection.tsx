@@ -120,7 +120,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               readOnly 
               className="font-mono text-sm"
             />
-            <Button variant="outline" onClick={copyReferralLink}>
+            <Button variant="outline" onClick={copyReferralLink} disabled={isDefaulting} title={isDefaulting ? 'Bloqueado por pendência financeira' : undefined}>
               <Copy className="h-4 w-4" />
             </Button>
           </div>
