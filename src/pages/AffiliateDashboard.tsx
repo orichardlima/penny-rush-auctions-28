@@ -240,6 +240,25 @@ export default function AffiliateDashboard() {
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Banner de inadimplência */}
+        {partnerFinancialStatus !== 'paid' && (
+          <div className={`mb-6 p-4 rounded-lg border flex items-center gap-3 ${
+            partnerFinancialStatus === 'overdue'
+              ? 'bg-destructive/10 border-destructive/30 text-destructive'
+              : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400'
+          }`}>
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="font-semibold">
+                {partnerFinancialStatus === 'overdue' ? 'Contrato em atraso' : 'Pagamento pendente'}
+              </p>
+              <p className="text-sm opacity-90">
+                Seus saques de comissão estão bloqueados até a regularização do pagamento do seu contrato de parceiro.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header com Nível */}
         <div className="mb-8 flex items-center justify-between">
           <div>
