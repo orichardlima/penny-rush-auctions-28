@@ -1168,7 +1168,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
 
         {/* Tab de Anúncios */}
         <TabsContent value="ads">
-          <AdCenterDashboard partnerContractId={contract.id} />
+          <AdCenterDashboard partnerContractId={contract.id} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
         {/* Tab de Saques */}
