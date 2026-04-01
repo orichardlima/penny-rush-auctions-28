@@ -81,7 +81,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
             Detalhes do Parceiro: {contract?.user_name}
           </DialogTitle>
           <DialogDescription>
-            Plano {contract?.plan_name} · Aporte {formatPrice(contract?.aporte_value)} · Status: {contract?.status}
+            Plano {contract?.plan_name} · Aporte {formatPrice(contract?.aporte_value)} · Ativado em {formatDate(contract?.created_at)} · Status: {contract?.status}
           </DialogDescription>
         </DialogHeader>
 
