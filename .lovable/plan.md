@@ -1,23 +1,22 @@
 
 
-# Liberar Afiliados para Todos os Parceiros de Expansão
+# Fix: Banner de Lançamento aparecendo mesmo desabilitado
 
-## Resumo
+## Causa raiz
 
-Atualmente, apenas parceiros com plano **Legend** ativo podem ativar o programa de afiliados. A mudança remove essa restrição para que **qualquer parceiro com contrato ACTIVE** possa se tornar afiliado.
+A tabela `system_settings` tem RLS que permite leitura apenas para usuários **autenticados**. Usuários anônimos (não logados) recebem resultado vazio da query, o que faz o fallback `launch_banner_enabled: settings.launch_banner_enabled ?? true` retornar `true` — exibindo o banner mesmo estando desabilitado no banco.
 
-## Alteração
+## Correção
 
-### `src/components/Affiliate/AffiliateOnboarding.tsx`
+### `src/hooks/useLaunchBanner.ts`
 
-- Remover o filtro `.eq('plan_name', 'Legend')` na query de verificação (linha 33)
-- Manter apenas `.eq('status', 'ACTIVE')` para validar que o usuário tem um contrato ativo
-- Renomear variável `hasLegend` para `hasActiveContract` para clareza
-- Atualizar textos da tela de bloqueio: trocar referência ao plano "Legend" por uma mensagem genérica sobre ter um plano de parceiro ativo
+- Linha 52: Alterar o fallback de `?? true` para `?? false`
+  - Antes: `launch_banner_enabled: settings.launch_banner_enabled ?? true`
+  - Depois: `launch_banner_enabled: settings.launch_banner_enabled ?? false`
 
-### Nada mais alterado
+Isso garante que, se a query falhar ou retornar vazio (seja por RLS, erro de rede, ou qualquer outro motivo), o banner **não** aparece por padrão. O banner só aparece quando explicitamente habilitado no banco de dados.
 
-- Nenhum outro componente, hook, tabela ou fluxo existente
-- Bloqueios de inadimplência permanecem intactos
-- Fluxo de criação de conta de afiliado permanece igual
+### Nenhuma outra alteração
+
+- Nenhum componente, UI, tabela ou fluxo modificado
 
