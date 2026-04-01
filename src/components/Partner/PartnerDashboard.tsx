@@ -1315,6 +1315,29 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           previousPlanName={upgradePaymentData.previousPlanName}
         />
       )}
+
+      {/* Modal de Pagamento PIX para Regularização */}
+      {regularizationPaymentData && (
+        <PartnerPixPaymentModal
+          open={regularizationModalOpen}
+          onClose={() => {
+            setRegularizationModalOpen(false);
+            setRegularizationPaymentData(null);
+          }}
+          paymentData={{
+            paymentId: regularizationPaymentData.paymentId,
+            qrCodeBase64: regularizationPaymentData.qrCodeBase64,
+            pixCopyPaste: regularizationPaymentData.pixCopyPaste
+          }}
+          planInfo={{
+            name: `Regularização - ${regularizationPaymentData.planName}`,
+            aporteValue: regularizationPaymentData.amount,
+            bonusBids: 0
+          }}
+          contractId={contract?.id}
+          onSuccess={handleRegularizationSuccess}
+        />
+      )}
     </div>
   );
 };
