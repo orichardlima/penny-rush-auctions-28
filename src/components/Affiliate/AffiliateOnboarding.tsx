@@ -80,7 +80,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  Com o plano Legend, você tem acesso ao programa de afiliados completo, podendo ganhar comissões sobre compras dos seus indicados e acompanhar tudo pelo painel exclusivo.
+                  Com um plano de parceiro ativo, você tem acesso ao programa de afiliados completo, podendo ganhar comissões sobre compras dos seus indicados e acompanhar tudo pelo painel exclusivo.
                 </p>
                 <Button 
                   size="lg" 
