@@ -1,23 +1,36 @@
 
 
-# Trocar "Quantidade de Lances" por "Pessoas Disputando" no AuctionCard
+# Ajustar Exibição de Participantes e Indicador de Atividade no AuctionCard
 
 ## Resumo
 
-Substituir a exibição de "703 lances" por "X pessoas disputando" no card de leilão, usando o campo `participants` que já está disponível via props e Context.
+Trocar "X disputando" por "👥 X participantes" e adicionar um indicador textual de atividade baseado na recência do último lance (`last_bid_at`), sem oscilações bruscas.
 
-## Alteração
+## Lógica do Indicador de Atividade
+
+Baseado na diferença entre `Date.now()` e `last_bid_at` (já disponível no Context via `AuctionData.last_bid_at`):
+
+- **Menos de 30s** desde o último lance → "🔥 Muito disputado"
+- **30s a 90s** → "⚡ Disputa aquecendo"
+- **Mais de 90s** ou sem lances → "🟢 Começando agora"
+
+Apenas exibido para leilões com `status === 'active'`. O valor atualiza automaticamente porque o Context já faz re-render quando `last_bid_at` muda via realtime.
+
+Para evitar oscilação brusca, usar um `useRef` que guarda o último nível de atividade e só muda se o novo nível for diferente por mais de 5 segundos (debounce simples via `useEffect` + `setTimeout`).
+
+## Alterações
 
 ### `src/components/AuctionCard.tsx`
 
-- Linha 282-286: Trocar o ícone `Gavel` por `Users` (importar de lucide-react)
-- Trocar `{displayTotalBids} lances` por `{displayParticipants} disputando`
-- Adicionar variável `displayParticipants` usando `contextAuction?.participants ?? participants`
-- Atualizar aria-label correspondente
+1. **Linha 286**: Trocar texto de `{displayParticipants} disputando` para `👥 {displayParticipants} participantes`
+2. **Remover ícone `Users`** da linha (o emoji 👥 substitui)
+3. **Adicionar função `getActivityIndicator()`**: calcula o indicador com base em `contextAuction?.last_bid_at`
+4. **Adicionar `useEffect` + `useRef`** para debounce do indicador (evitar oscilações)
+5. **Renderizar indicador** logo após a linha de participantes, apenas quando `displayStatus === 'active'`
 
-### Nada mais alterado
+### Nenhum outro arquivo alterado
 
-- Props `totalBids` e `participants` já existem no componente
-- O Context já fornece `participants` via `participants_count`
-- Nenhum outro componente, hook ou fluxo modificado
+- O campo `last_bid_at` já existe em `AuctionData` e é atualizado pelo realtime
+- Nenhuma prop nova necessária
+- Nenhum hook, Context, tabela ou fluxo modificado
 
