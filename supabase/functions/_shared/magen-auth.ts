@@ -71,8 +71,45 @@ function buildSignedData(
 
 function signData(signedData: string, privateKeyBytes: Uint8Array): string {
   const msgHash = sha256(new TextEncoder().encode(signedData))
-  const signature = secp.sign(msgHash, privateKeyBytes)
-  const derBytes = signature.toDERRawBytes()
+  const sig = secp.sign(msgHash, privateKeyBytes)
+
+  // Get DER bytes - handle different API versions
+  let derBytes: Uint8Array
+  if (typeof sig.toDERRawBytes === 'function') {
+    derBytes = sig.toDERRawBytes()
+  } else if (typeof sig.toDERHex === 'function') {
+    const hex = sig.toDERHex()
+    derBytes = new Uint8Array(hex.match(/.{1,2}/g)!.map((b: string) => parseInt(b, 16)))
+  } else {
+    // Manual DER encoding from r, s
+    const r = sig.r
+    const s = sig.s
+    function bigintToBytes(n: bigint): Uint8Array {
+      const hex = n.toString(16).padStart(64, '0')
+      return new Uint8Array(hex.match(/.{1,2}/g)!.map((b: string) => parseInt(b, 16)))
+    }
+    function encodeDERInteger(bytes: Uint8Array): Uint8Array {
+      const needsPadding = bytes[0] >= 0x80
+      const len = bytes.length + (needsPadding ? 1 : 0)
+      const result = new Uint8Array(2 + len)
+      result[0] = 0x02
+      result[1] = len
+      if (needsPadding) {
+        result[2] = 0x00
+        result.set(bytes, 3)
+      } else {
+        result.set(bytes, 2)
+      }
+      return result
+    }
+    const rDer = encodeDERInteger(bigintToBytes(r))
+    const sDer = encodeDERInteger(bigintToBytes(s))
+    derBytes = new Uint8Array(2 + rDer.length + sDer.length)
+    derBytes[0] = 0x30
+    derBytes[1] = rDer.length + sDer.length
+    derBytes.set(rDer, 2)
+    derBytes.set(sDer, 2 + rDer.length)
+  }
 
   // Convert to base64
   let binary = ''
