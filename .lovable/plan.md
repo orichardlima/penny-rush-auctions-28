@@ -1,59 +1,39 @@
 
 
-# Conclusão da Implementação: Restrições por Inadimplência
+# Bloquear Painel de Afiliados para Parceiros Inadimplentes
 
-## O que já está implementado
+## Resumo
 
-- Campo `financial_status` no banco (`paid`, `pending_payment`, `overdue`)
-- Admin pode alterar status manualmente com nota e auditoria
-- Filtro por status financeiro no painel admin
-- Badge visual na tabela de contratos e no PartnerDetailModal
-- Banner de alerta no PartnerDashboard
-- Edge Function `partner-weekly-payouts` filtra contratos inadimplentes
+Adicionar verificação de `financial_status` do `partner_contracts` no painel de afiliados. Parceiros inadimplentes verão um banner de alerta e terão saques bloqueados, mas poderão visualizar todos os dados.
 
-## O que falta implementar
+## Alterações
 
-### 1. Bloqueio de saques para inadimplentes
-**Arquivo:** `src/components/Partner/PartnerWithdrawalSection.tsx`
-- Verificar `financial_status` do contrato recebido via props
-- Se `!= 'paid'`: desabilitar botão de saque, exibir mensagem "Saques bloqueados por pendência financeira"
+### 1. `src/pages/AffiliateDashboard.tsx`
 
-### 2. Bloqueio de ativação de indicados (SponsorActivate)
-**Arquivo:** `src/components/Partner/PartnerReferralSection.tsx`
-- Passar `financial_status` do contrato para o componente
-- Se `!= 'paid'`: desabilitar botão "Ativar Indicado" com tooltip explicativo
+- Após carregar `affiliateData`, buscar o `financial_status` do `partner_contracts` do usuário (contrato ACTIVE com plano Legend)
+- Criar estado `partnerFinancialStatus` (default `'paid'`)
+- Adicionar query:
+  ```ts
+  const { data: contract } = await supabase
+    .from('partner_contracts')
+    .select('financial_status')
+    .eq('user_id', profile.user_id)
+    .eq('status', 'ACTIVE')
+    .single();
+  ```
+- Renderizar banner de alerta (amarelo/vermelho) no topo do conteúdo principal quando `financialStatus !== 'paid'`
+- Passar prop `isDefaulting={financialStatus !== 'paid'}` para `AffiliateWithdrawalSection`
 
-**Arquivo:** `src/components/Partner/SponsorActivateDialog.tsx`
-- Adicionar prop `disabled` e mensagem de bloqueio
+### 2. `src/components/Affiliate/AffiliateWithdrawalSection.tsx`
 
-### 3. Bloqueio de upgrade de plano
-**Arquivo:** `src/components/Partner/PartnerDashboard.tsx`
-- Condicionar exibição do `PartnerUpgradeDialog`: só mostrar se `financial_status === 'paid'`
+- Adicionar prop `isDefaulting?: boolean` na interface
+- Quando `isDefaulting === true`:
+  - Desabilitar botão "Solicitar Saque" com mensagem explicativa
+  - Manter visualização do histórico de saques normalmente
 
-### 4. Incluir `financial_status` na interface `PartnerContract`
-**Arquivo:** `src/hooks/usePartnerContract.ts`
-- Adicionar `financial_status` à interface `PartnerContract`
-- Incluir campo na query de busca do contrato
-- Eliminar uso de `(contract as any).financial_status` no Dashboard
+### Não será alterado
 
-### 5. Geração de link/QR de pagamento no banner
-**Arquivo:** `src/components/Partner/PartnerDashboard.tsx`
-- Adicionar botão "Pagar agora" no banner que redireciona para o fluxo de pagamento (invocar `partner-payment` para gerar QR Code PIX)
-- Abrir o `PartnerPixPaymentModal` com os dados de pagamento
-
-## Arquivos modificados
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/hooks/usePartnerContract.ts` | Adicionar `financial_status` à interface e query |
-| `src/components/Partner/PartnerDashboard.tsx` | Remover `as any`, bloquear upgrade, botão "Pagar agora" no banner |
-| `src/components/Partner/PartnerWithdrawalSection.tsx` | Bloquear saques se inadimplente |
-| `src/components/Partner/PartnerReferralSection.tsx` | Bloquear ativação de indicados |
-| `src/components/Partner/SponsorActivateDialog.tsx` | Prop de bloqueio |
-
-## Não será alterado
-
-- Nenhum fluxo de pagamento, webhook ou compra de lances existente
-- Nenhuma tabela ou migration (tudo já existe no banco)
-- Painel admin (já completo)
+- Nenhum outro componente, hook, tabela ou fluxo existente
+- Dados continuam visíveis (links, comissões, indicados, analytics)
+- Apenas ações financeiras (saques) são bloqueadas
 
