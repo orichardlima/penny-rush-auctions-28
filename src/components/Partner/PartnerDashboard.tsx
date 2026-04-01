@@ -550,16 +550,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </Alert>
       )}
       {/* Financial Status Banner */}
-      {(contract as any).financial_status && (contract as any).financial_status !== 'paid' && (
+      {contract.financial_status && contract.financial_status !== 'paid' && (
         <Alert className={cn(
           "border",
-          (contract as any).financial_status === 'pending_payment' 
+          contract.financial_status === 'pending_payment' 
             ? "border-yellow-400 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-700"
             : "border-red-400 bg-red-50 dark:bg-red-950 dark:border-red-700"
         )}>
-          <AlertTriangle className={cn("h-5 w-5", (contract as any).financial_status === 'pending_payment' ? "text-yellow-600" : "text-red-600")} />
-          <AlertDescription className={cn((contract as any).financial_status === 'pending_payment' ? "text-yellow-800 dark:text-yellow-200" : "text-red-800 dark:text-red-200")}>
-            {(contract as any).financial_status === 'pending_payment' ? (
+          <AlertTriangle className={cn("h-5 w-5", contract.financial_status === 'pending_payment' ? "text-yellow-600" : "text-red-600")} />
+          <AlertDescription className={cn(contract.financial_status === 'pending_payment' ? "text-yellow-800 dark:text-yellow-200" : "text-red-800 dark:text-red-200")}>
+            {contract.financial_status === 'pending_payment' ? (
               <>
                 <strong className="text-base">⏳ Pagamento Pendente</strong>
                 <br />
