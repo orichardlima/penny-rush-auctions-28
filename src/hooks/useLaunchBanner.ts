@@ -49,7 +49,7 @@ const fetchBannerSettings = async (): Promise<BannerSettings> => {
   });
 
   return {
-    launch_banner_enabled: settings.launch_banner_enabled ?? true,
+    launch_banner_enabled: settings.launch_banner_enabled ?? false,
     launch_banner_title: settings.launch_banner_title ?? '🎉 LANÇAMENTO OFICIAL!',
     launch_banner_subtitle: settings.launch_banner_subtitle ?? 'A plataforma Show de Lances está no ar!',
     launch_banner_highlight: settings.launch_banner_highlight ?? 'Cada lance custa apenas R$ 1!',
