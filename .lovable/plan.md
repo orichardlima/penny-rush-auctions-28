@@ -1,62 +1,59 @@
 
 
-# Marcar Parceiros Inadimplentes (Admin)
+# Conclusão da Implementação: Restrições por Inadimplência
 
-## Contexto
+## O que já está implementado
 
-Parceiros ativados manualmente pela plataforma sem pagamento confirmado precisam ser identificados. O administrador precisa de um campo para marcar quem de fato não pagou, e o sistema deve restringir benefícios desses parceiros.
+- Campo `financial_status` no banco (`paid`, `pending_payment`, `overdue`)
+- Admin pode alterar status manualmente com nota e auditoria
+- Filtro por status financeiro no painel admin
+- Badge visual na tabela de contratos e no PartnerDetailModal
+- Banner de alerta no PartnerDashboard
+- Edge Function `partner-weekly-payouts` filtra contratos inadimplentes
 
-## Abordagem
+## O que falta implementar
 
-Adicionar um campo `financial_status` na tabela `partner_contracts` com valores: `paid` (padrão), `pending_payment`, `overdue`. O admin pode alterar esse campo manualmente na tabela de contratos. Parceiros marcados como inadimplentes terão restrições visuais e operacionais.
+### 1. Bloqueio de saques para inadimplentes
+**Arquivo:** `src/components/Partner/PartnerWithdrawalSection.tsx`
+- Verificar `financial_status` do contrato recebido via props
+- Se `!= 'paid'`: desabilitar botão de saque, exibir mensagem "Saques bloqueados por pendência financeira"
 
-## Fase 1 — Banco de Dados
+### 2. Bloqueio de ativação de indicados (SponsorActivate)
+**Arquivo:** `src/components/Partner/PartnerReferralSection.tsx`
+- Passar `financial_status` do contrato para o componente
+- Se `!= 'paid'`: desabilitar botão "Ativar Indicado" com tooltip explicativo
 
-**Migration:**
-- Adicionar coluna `financial_status TEXT NOT NULL DEFAULT 'paid'` na tabela `partner_contracts`
-- Adicionar coluna `financial_status_updated_at TIMESTAMPTZ` para rastreamento
-- Adicionar coluna `financial_status_note TEXT` para observações do admin
+**Arquivo:** `src/components/Partner/SponsorActivateDialog.tsx`
+- Adicionar prop `disabled` e mensagem de bloqueio
 
-## Fase 2 — Painel Admin (AdminPartnerManagement.tsx)
+### 3. Bloqueio de upgrade de plano
+**Arquivo:** `src/components/Partner/PartnerDashboard.tsx`
+- Condicionar exibição do `PartnerUpgradeDialog`: só mostrar se `financial_status === 'paid'`
 
-**Na tabela de contratos:**
-- Adicionar indicador visual (badge) na coluna de status: se `financial_status != 'paid'`, mostrar badge "Inadimplente" ou "Pgto Pendente" em vermelho/amarelo
-- Adicionar botão de ação para o admin alterar o `financial_status` de cada contrato (dropdown com opções: `paid`, `pending_payment`, `overdue`)
-- Campo de observação opcional ao alterar o status
+### 4. Incluir `financial_status` na interface `PartnerContract`
+**Arquivo:** `src/hooks/usePartnerContract.ts`
+- Adicionar `financial_status` à interface `PartnerContract`
+- Incluir campo na query de busca do contrato
+- Eliminar uso de `(contract as any).financial_status` no Dashboard
 
-**Nos filtros:**
-- Adicionar filtro por `financial_status` (Todos, Pago, Pendente, Inadimplente)
-
-**No PartnerDetailModal:**
-- Exibir o `financial_status` atual e nota do admin
-
-## Fase 3 — Hook useAdminPartners
-
-- Incluir `financial_status`, `financial_status_updated_at`, `financial_status_note` na query de contratos
-- Adicionar função `updateFinancialStatus(contractId, status, note)` que faz UPDATE no contrato e registra no `admin_audit_log`
-
-## Fase 4 — Restrições no Backend (partner-weekly-payouts)
-
-- Na edge function de repasses semanais, verificar `financial_status`: se for `pending_payment` ou `overdue`, pular o contrato (não gerar repasse)
-
-## Fase 5 — Dashboard do Parceiro (PartnerDashboard)
-
-- Se o contrato do usuário logado tiver `financial_status != 'paid'`, exibir banner de alerta com a mensagem adequada e botão "Pagar agora" (link para pagamento)
-- Bloquear ações de saque e ativação de indicados quando inadimplente
+### 5. Geração de link/QR de pagamento no banner
+**Arquivo:** `src/components/Partner/PartnerDashboard.tsx`
+- Adicionar botão "Pagar agora" no banner que redireciona para o fluxo de pagamento (invocar `partner-payment` para gerar QR Code PIX)
+- Abrir o `PartnerPixPaymentModal` com os dados de pagamento
 
 ## Arquivos modificados
 
 | Arquivo | Alteração |
 |---------|-----------|
-| Migration SQL | Nova coluna `financial_status` + `financial_status_updated_at` + `financial_status_note` |
-| `src/hooks/useAdminPartners.ts` | Incluir campos na query + função `updateFinancialStatus` |
-| `src/components/Admin/AdminPartnerManagement.tsx` | Badge, botão de ação, filtro por financial_status |
-| `src/components/Admin/PartnerDetailModal.tsx` | Exibir financial_status e nota |
-| `supabase/functions/partner-weekly-payouts/index.ts` | Filtrar contratos inadimplentes |
-| `src/components/Partner/PartnerDashboard.tsx` | Banner de alerta para inadimplentes |
+| `src/hooks/usePartnerContract.ts` | Adicionar `financial_status` à interface e query |
+| `src/components/Partner/PartnerDashboard.tsx` | Remover `as any`, bloquear upgrade, botão "Pagar agora" no banner |
+| `src/components/Partner/PartnerWithdrawalSection.tsx` | Bloquear saques se inadimplente |
+| `src/components/Partner/PartnerReferralSection.tsx` | Bloquear ativação de indicados |
+| `src/components/Partner/SponsorActivateDialog.tsx` | Prop de bloqueio |
 
 ## Não será alterado
 
-- Nenhum fluxo existente de pagamento, webhook, ou UI de compra de lances
-- Nenhuma funcionalidade atual será removida ou modificada
+- Nenhum fluxo de pagamento, webhook ou compra de lances existente
+- Nenhuma tabela ou migration (tudo já existe no banco)
+- Painel admin (já completo)
 
