@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, QrCode, Check, Clock, RefreshCw, Wallet, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { QRCodeSVG } from "qrcode.react";
 
 interface PartnerPixPaymentModalProps {
   open: boolean;
