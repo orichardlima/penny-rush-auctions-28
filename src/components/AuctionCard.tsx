@@ -306,24 +306,24 @@ export const AuctionCard = ({
             </span>
           </div>
 
-          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs sm:text-sm">
-            <div className="flex items-center text-muted-foreground">
-              <span aria-label={`${displayParticipants} participantes`}>👥 {displayParticipants} participantes</span>
-            </div>
+          <div className="flex flex-col gap-1 text-xs sm:text-sm">
             {displayStatus === 'active' && (
               <div className="flex items-center">
                 <span className="font-medium">{activityLabel}</span>
               </div>
             )}
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground" aria-label={`${displayParticipants} participantes`}>
+                👥 {displayParticipants >= 100 ? `+${displayParticipants}` : displayParticipants} participantes
+              </span>
+              <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
+            </div>
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
               <div className="flex items-center text-muted-foreground">
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
                 {displayStatus === 'active' ? `Ativo há ${getActiveTime()}` : `Duração: ${getActiveTime()}`}
               </div>
             )}
-            <div className="flex items-center ml-auto">
-              <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
-            </div>
           </div>
 
           {displayStatus === 'finished' && finished_at && (
