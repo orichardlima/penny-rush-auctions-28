@@ -42,7 +42,7 @@ const SOCIAL_NETWORKS = [
   { id: 'outro', name: 'Outro', icon: Share2, color: 'text-muted-foreground' }
 ];
 
-const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId }) => {
+const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId, isDefaulting = false }) => {
   const {
     todayMaterial,
     weekProgress,
