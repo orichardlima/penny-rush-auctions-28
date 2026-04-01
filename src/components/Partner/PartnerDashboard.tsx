@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePartnerContract, PartnerPaymentData, PartnerUpgradePaymentData } from '@/hooks/usePartnerContract';
+import { supabase } from '@/integrations/supabase/client';
 import { usePartnerEarlyTermination } from '@/hooks/usePartnerEarlyTermination';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
