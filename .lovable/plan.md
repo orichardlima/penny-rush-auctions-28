@@ -1,71 +1,53 @@
 
 
-# Botão "Pagar Agora" no Banner de Inadimplência
+# Atualizar MagenPay para usar VPS Proxy (Porta 3000)
 
-## Resumo
+## Contexto
 
-Adicionar botão no banner de inadimplência do PartnerDashboard que gera um pagamento PIX com o valor do aporte do contrato. Ao confirmar pagamento, o `financial_status` é atualizado para `paid` automaticamente via webhook.
+A integração direta com a API MagenPay falha por IP whitelisting. A VPS em `76.13.162.10:3000` já está configurada como proxy, fazendo a assinatura criptográfica internamente. Precisamos atualizar o `magen-auth.ts` para usar esse proxy com o novo formato JSON.
 
-## Arquitetura
+## O que muda
 
-Usa o padrão de prefixo no `external_id` já existente (`regularize:{contractId}`) para roteamento nos webhooks.
+A VPS agora roda na **porta 3000** (antes era 3100) com endpoint `/pagamento` e espera um JSON com estrutura `{ keyId, body: { order_id, amount, currency, payment_method, customer } }`.
 
-## Alterações
+A resposta retorna `qr_code` e `pix_copy_and_paste`.
 
-### 1. Nova Edge Function: `partner-regularize-payment/index.ts`
+## Alteração
 
-- Recebe `contractId`, `userId`, `userEmail`, `userName`, `userCpf`
-- Valida que o contrato existe, pertence ao user, status ACTIVE e `financial_status !== 'paid'`
-- Chama `createDeposit` do payment-router com `externalId: 'regularize:{contractId}'`
-- Retorna QR Code / pixCopyPaste para o frontend
+### `supabase/functions/_shared/magen-auth.ts`
 
-### 2. Webhook VeoPag: `veopag-webhook/index.ts`
+Reescrever completamente para chamar a VPS em vez da API MagenPay direta:
 
-- Adicionar rota `regularize:` no roteamento por prefixo
-- Nova função `processRegularizationPayment`: quando aprovado, faz `UPDATE partner_contracts SET financial_status = 'paid', financial_status_note = 'Pagamento regularizado via PIX' WHERE id = contractId`
+- Remover toda a lógica de assinatura criptográfica (secp256k1, PEM parsing, DER encoding)
+- Usar `VPS_MAGEN_URL` (secret já existente) como base URL, com fallback para `http://76.13.162.10:3000`
+- Usar `VPS_AUTH_TOKEN` (secret já existente) para autenticação com a VPS
+- Key ID fixo: `afd04971-db66-44f2-8111-0f8937cd0e90` (ou via `MAGEN_PUBLIC_KEY_ID`)
+- Endpoint: `POST {VPS_URL}/pagamento`
+- Body:
+  ```json
+  {
+    "keyId": "afd04971-db66-44f2-8111-0f8937cd0e90",
+    "body": {
+      "order_id": "{txId}",
+      "amount": 150.00,
+      "currency": "BRL",
+      "payment_method": "pix",
+      "customer": { "name": "João", "email": "joao@email.com" }
+    }
+  }
+  ```
+- Mapear resposta: `qr_code` → `qrCodeBase64`, `pix_copy_and_paste` → `pixCopyPaste`
+- Manter a mesma interface `createMagenDeposit` para compatibilidade com `payment-router.ts`
 
-### 3. Webhook MagenPay: `magen-webhook/index.ts`
+### Nenhum outro arquivo alterado
 
-- Mesma rota `regularize:` com mesma lógica de atualização
+- `payment-router.ts` permanece igual (já chama `createMagenDeposit`)
+- Webhooks permanecem iguais
+- Frontend permanece igual
 
-### 4. Frontend: `src/components/Partner/PartnerDashboard.tsx`
+## Segurança
 
-- Adicionar estado `regularizationLoading` e `regularizationPaymentData`
-- Função `handleRegularize` que chama `supabase.functions.invoke('partner-regularize-payment', ...)`
-- Botão "Pagar agora" no banner de inadimplência
-- Ao clicar, gera pagamento e abre `PartnerPixPaymentModal` com os dados
-- No `onSuccess`, faz `refreshData()` para atualizar o contrato
-
-### 5. Hook: `src/hooks/usePartnerContract.ts`
-
-- Nenhuma alteração necessaria — o `refreshData` já existe e recarrega o contrato
-
-## Fluxo
-
-```text
-[Banner] → Clica "Pagar agora"
-        → Chama edge function partner-regularize-payment
-        → Retorna QR Code PIX
-        → Abre PartnerPixPaymentModal
-        → Parceiro paga
-        → Webhook recebe confirmação (prefix regularize:)
-        → UPDATE financial_status = 'paid'
-        → Modal detecta via polling no partner_payment_intents
-        → refreshData() → banner desaparece
-```
-
-## Arquivos modificados
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/partner-regularize-payment/index.ts` | Nova edge function |
-| `supabase/functions/veopag-webhook/index.ts` | Rota `regularize:` |
-| `supabase/functions/magen-webhook/index.ts` | Rota `regularize:` |
-| `src/components/Partner/PartnerDashboard.tsx` | Botão + modal no banner |
-
-## Nao sera alterado
-
-- Nenhum fluxo existente de pagamento, webhook ou compra de lances
-- Nenhuma tabela ou migration (usa campos existentes)
-- Nenhum outro componente
+- Autenticação via `VPS_AUTH_TOKEN` no header `Authorization: Bearer {token}`
+- Chave privada permanece exclusivamente na VPS
+- Edge Functions não precisam mais das secrets `MAGEN_PRIVATE_KEY` / `MAGEN_PIX_KEY_ID`
 
