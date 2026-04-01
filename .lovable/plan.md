@@ -1,36 +1,36 @@
 
 
-# Ajustar Exibição de Participantes e Indicador de Atividade no AuctionCard
+# Melhorar Exibição de Participantes e Status no AuctionCard
 
 ## Resumo
 
-Trocar "X disputando" por "👥 X participantes" e adicionar um indicador textual de atividade baseado na recência do último lance (`last_bid_at`), sem oscilações bruscas.
-
-## Lógica do Indicador de Atividade
-
-Baseado na diferença entre `Date.now()` e `last_bid_at` (já disponível no Context via `AuctionData.last_bid_at`):
-
-- **Menos de 30s** desde o último lance → "🔥 Muito disputado"
-- **30s a 90s** → "⚡ Disputa aquecendo"
-- **Mais de 90s** ou sem lances → "🟢 Começando agora"
-
-Apenas exibido para leilões com `status === 'active'`. O valor atualiza automaticamente porque o Context já faz re-render quando `last_bid_at` muda via realtime.
-
-Para evitar oscilação brusca, usar um `useRef` que guarda o último nível de atividade e só muda se o novo nível for diferente por mais de 5 segundos (debounce simples via `useEffect` + `setTimeout`).
+Reorganizar a seção de métricas do card para layout vertical (status → participantes → tempo), formatar participantes com "+" para números ≥ 100, renomear "Muito disputado" para "Disputa intensa", e adicionar mensagem de urgência quando timer < 15s.
 
 ## Alterações
 
 ### `src/components/AuctionCard.tsx`
 
-1. **Linha 286**: Trocar texto de `{displayParticipants} disputando` para `👥 {displayParticipants} participantes`
-2. **Remover ícone `Users`** da linha (o emoji 👥 substitui)
-3. **Adicionar função `getActivityIndicator()`**: calcula o indicador com base em `contextAuction?.last_bid_at`
-4. **Adicionar `useEffect` + `useRef`** para debounce do indicador (evitar oscilações)
-5. **Renderizar indicador** logo após a linha de participantes, apenas quando `displayStatus === 'active'`
+**1. Renomear label de atividade** (função `getRawActivity`, ~linha 92):
+- Trocar `'🔥 Muito disputado'` por `'🔥 Disputa intensa'`
+
+**2. Formatar participantes** (seção de exibição, ~linha 311):
+- Se `displayParticipants >= 100`: exibir `👥 +{displayParticipants} participantes`
+- Se `< 100`: exibir `👥 {displayParticipants} participantes`
+
+**3. Reordenar layout** (~linhas 309-327):
+- Substituir o `div` horizontal com `flex-wrap` por layout vertical (`flex-col`)
+- Linha 1: indicador de atividade (apenas para `active`)
+- Linha 2: participantes
+- Linha 3: tempo ativo (apenas para `active` ou `finished`)
+- Manter desconto `% OFF` na mesma linha dos participantes ou abaixo
+
+**4. Mensagem de urgência** (nova, logo antes do botão de lance):
+- Quando `displayStatus === 'active'` e `displayTimeLeft > 0` e `displayTimeLeft < 15`:
+- Exibir: `⏳ Pode encerrar a qualquer momento`
+- Estilo: texto amarelo/amber, pequeno, com animação sutil de pulse
 
 ### Nenhum outro arquivo alterado
 
-- O campo `last_bid_at` já existe em `AuctionData` e é atualizado pelo realtime
-- Nenhuma prop nova necessária
-- Nenhum hook, Context, tabela ou fluxo modificado
+- Nenhum hook, Context, tabela, Edge Function ou fluxo modificado
+- Apenas reorganização visual e ajuste de textos dentro do AuctionCard
 
