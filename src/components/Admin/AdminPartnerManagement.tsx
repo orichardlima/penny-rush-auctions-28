@@ -81,6 +81,7 @@ const AdminPartnerManagement = () => {
     processTermination,
     rejectWithdrawal,
     markWithdrawalAsPaid,
+    markWithdrawalAsPaidManually,
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
