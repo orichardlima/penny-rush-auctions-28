@@ -1,35 +1,31 @@
 
 
-# Fix: QR Code não aparece no pagamento de Parceiro
+# Adicionar data de ativação no PartnerDetailModal
 
-## Problema
+## O que será feito
 
-Duas falhas no fluxo de pagamento de parceiro:
+Adicionar a data de ativação (campo `created_at` do contrato) na linha de descrição do modal, ao lado do plano, aporte e status.
 
-1. **`pixCopyPaste` hardcoded como `null`** no `partner-payment/index.ts` (linha 201). O valor EMV retornado pela VeoPag é descartado.
-2. **Modal não gera QR Code a partir da string EMV**. O `PartnerPixPaymentModal` tenta renderizar `qrCodeBase64` como imagem base64, mas a VeoPag retorna uma string EMV (começa com `0002`), não uma imagem. O modal de compra de lances (`PixPaymentModal`) funciona porque usa `QRCodeSVG` para gerar o QR a partir da string EMV.
+## Alteração
 
-## Solução
+### `src/components/Admin/PartnerDetailModal.tsx`
 
-### 1. `supabase/functions/partner-payment/index.ts`
+Linha 84 — expandir o `DialogDescription` para incluir a data de ativação:
 
-Linha 201: trocar `pixCopyPaste: null` por `pixCopyPaste: depositResult.pixCopyPaste || null`
+```
+Plano Legend · Aporte R$ 9.999,00 · Status: ACTIVE
+```
 
-### 2. `src/components/Partner/PartnerPixPaymentModal.tsx`
+Passará a exibir:
 
-- Importar `QRCodeSVG` de `qrcode.react`
-- Na renderização do QR Code, usar a mesma lógica do `PixPaymentModal`:
-  - Se `qrCodeBase64` existe → renderizar `<img>` com base64
-  - Se `pixCopyPaste` existe e começa com `0002` (string EMV) → renderizar `<QRCodeSVG value={pixCopyPaste}>`
-  - Mostrar botão "Copiar código PIX" quando `pixCopyPaste` estiver disponível
+```
+Plano Legend · Aporte R$ 9.999,00 · Ativado em 05/03/2026 · Status: ACTIVE
+```
 
-### 3. Deploy
-
-Fazer deploy da edge function `partner-payment` com a correção.
+Usa `formatDate(contract?.created_at)` que já existe no componente.
 
 ## Impacto
 
-- Corrige a geração do QR Code para pagamento de parceiro
-- Não altera nenhum outro fluxo (compra de lances, upgrade, etc.)
-- Nenhuma alteração no banco de dados
+- Apenas visual, uma informação extra na descrição do modal
+- Nenhuma alteração em queries, tabelas ou outros componentes
 
