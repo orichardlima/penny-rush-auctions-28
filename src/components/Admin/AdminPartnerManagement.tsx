@@ -657,6 +657,17 @@ const AdminPartnerManagement = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select value={financialStatusFilter} onValueChange={setFinancialStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[160px]">
+                    <SelectValue placeholder="Financeiro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos (Financeiro)</SelectItem>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="pending_payment">Pgto Pendente</SelectItem>
+                    <SelectItem value="overdue">Inadimplente</SelectItem>
+                  </SelectContent>
+                </Select>
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
@@ -665,6 +676,7 @@ const AdminPartnerManagement = () => {
                       setContractSearch('');
                       setContractStatusFilter('all');
                       setContractPlanFilter('all');
+                      setFinancialStatusFilter('all');
                     }}
                     className="shrink-0"
                   >
