@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
 import { toZonedTime, format } from 'date-fns-tz';
-import { Clock, Users, TrendingUp, Trophy } from 'lucide-react';
+import { Clock, TrendingUp, Trophy } from 'lucide-react';
 import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
 
 interface AuctionCardProps {
