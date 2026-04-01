@@ -83,7 +83,7 @@ export const AuctionCard = ({
   const getRawActivity = () => {
     if (!lastBidAt) return '🟢 Começando agora';
     const seconds = (Date.now() - new Date(lastBidAt).getTime()) / 1000;
-    if (seconds < 30) return '🔥 Muito disputado';
+    if (seconds < 30) return '🔥 Disputa intensa';
     if (seconds < 90) return '⚡ Disputa aquecendo';
     return '🟢 Começando agora';
   };
