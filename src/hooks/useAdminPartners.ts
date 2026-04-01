@@ -1622,6 +1622,7 @@ export const useAdminPartners = () => {
     processTermination,
     rejectWithdrawal,
     markWithdrawalAsPaid,
+    markWithdrawalAsPaidManually,
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
