@@ -84,6 +84,7 @@ const AdminPartnerManagement = () => {
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
+    updateFinancialStatus,
     refreshData 
   } = useAdminPartners();
 
