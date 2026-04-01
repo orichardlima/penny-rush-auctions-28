@@ -180,6 +180,42 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     refreshData();
   };
 
+  // Regularização de pagamento
+  const handleRegularize = async () => {
+    if (!contract || !user || !profile) return;
+    setRegularizationLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('partner-regularize-payment', {
+        body: {
+          contractId: contract.id,
+          userId: user.id,
+          userEmail: user.email || '',
+          userName: profile.full_name || '',
+          userCpf: profile.cpf || ''
+        }
+      });
+
+      if (error || data?.error) {
+        const { toast } = await import('@/hooks/use-toast');
+        toast.call(null, { title: 'Erro', description: data?.error || 'Erro ao gerar pagamento', variant: 'destructive' as const });
+        return;
+      }
+
+      setRegularizationPaymentData(data);
+      setRegularizationModalOpen(true);
+    } catch (err) {
+      console.error('Regularization error:', err);
+    } finally {
+      setRegularizationLoading(false);
+    }
+  };
+
+  const handleRegularizationSuccess = () => {
+    setRegularizationModalOpen(false);
+    setRegularizationPaymentData(null);
+    refreshData();
+  };
+
   // Scroll para o plano pré-selecionado (apenas destaque visual, sem auto-abrir contrato)
   
   const getDayName = (day: number) => {
