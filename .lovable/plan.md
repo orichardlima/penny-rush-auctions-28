@@ -1,39 +1,53 @@
 
 
-# Bloquear Painel de Afiliados para Parceiros Inadimplentes
+# Bloqueio Total para Parceiros Inadimplentes
 
 ## Resumo
 
-Adicionar verificação de `financial_status` do `partner_contracts` no painel de afiliados. Parceiros inadimplentes verão um banner de alerta e terão saques bloqueados, mas poderão visualizar todos os dados.
+Quando `financial_status !== 'paid'`, o parceiro deve ter **todas** as funcionalidades operacionais bloqueadas nos dois painéis (Parceiro e Afiliado), mantendo apenas visualização de dados.
 
-## Alterações
+## O que já está bloqueado
 
-### 1. `src/pages/AffiliateDashboard.tsx`
+- Saques de parceiro e de afiliado
+- Ativação de indicado por saldo
+- Upgrade de plano
+- Repasses semanais (Edge Function)
+- Banner de alerta nos dois dashboards
 
-- Após carregar `affiliateData`, buscar o `financial_status` do `partner_contracts` do usuário (contrato ACTIVE com plano Legend)
-- Criar estado `partnerFinancialStatus` (default `'paid'`)
-- Adicionar query:
-  ```ts
-  const { data: contract } = await supabase
-    .from('partner_contracts')
-    .select('financial_status')
-    .eq('user_id', profile.user_id)
-    .eq('status', 'ACTIVE')
-    .single();
-  ```
-- Renderizar banner de alerta (amarelo/vermelho) no topo do conteúdo principal quando `financialStatus !== 'paid'`
-- Passar prop `isDefaulting={financialStatus !== 'paid'}` para `AffiliateWithdrawalSection`
+## O que FALTA bloquear
 
-### 2. `src/components/Affiliate/AffiliateWithdrawalSection.tsx`
+### Painel do Parceiro (`PartnerDashboard.tsx`)
 
-- Adicionar prop `isDefaulting?: boolean` na interface
-- Quando `isDefaulting === true`:
-  - Desabilitar botão "Solicitar Saque" com mensagem explicativa
-  - Manter visualização do histórico de saques normalmente
+1. **Central de Anúncios** (tab `ads`) — bloquear envio de completions. Exibir alerta de bloqueio na `AdCenterDashboard`
+2. **Encerramento Antecipado** — esconder o `PartnerEarlyTerminationDialog` para inadimplentes
+3. **Link de indicação / Copiar / Compartilhar** — bloquear na `PartnerReferralSection` (desabilitar botão de copiar e compartilhar)
 
-### Não será alterado
+### Painel de Afiliado (`AffiliateDashboard.tsx`)
 
-- Nenhum outro componente, hook, tabela ou fluxo existente
-- Dados continuam visíveis (links, comissões, indicados, analytics)
-- Apenas ações financeiras (saques) são bloqueadas
+4. **Link de indicação** — desabilitar botões de copiar/compartilhar/QR Code
+5. **Ferramentas** — bloquear funcionalidades na tab "Ferramentas"
+
+## Alterações por arquivo
+
+### `src/components/Partner/PartnerDashboard.tsx`
+- Passar `isDefaulting` para `AdCenterDashboard` e `PartnerReferralSection`
+- Esconder `PartnerEarlyTerminationDialog` quando inadimplente (já esconde upgrade)
+
+### `src/components/Partner/AdCenterDashboard.tsx`
+- Aceitar prop `isDefaulting?: boolean`
+- Quando true: exibir alerta no topo e desabilitar botões de envio de completions
+
+### `src/components/Partner/PartnerReferralSection.tsx`
+- Aceitar prop `isDefaulting?: boolean`
+- Quando true: desabilitar botão de copiar link e compartilhar, com mensagem de bloqueio
+
+### `src/pages/AffiliateDashboard.tsx`
+- Quando `partnerFinancialStatus !== 'paid'`: desabilitar botões de copiar/compartilhar link e QR Code
+- Passar `isDefaulting` para componentes de ferramentas
+
+## Não será alterado
+
+- Nenhum dado será ocultado — apenas ações operacionais bloqueadas
+- Nenhuma tabela, migration ou Edge Function alterada
+- Fluxos de pagamento, webhooks e compra de lances permanecem intactos
 
