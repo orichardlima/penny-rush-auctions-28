@@ -71,7 +71,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
               Programa de Afiliados
             </h1>
             <p className="text-xl text-muted-foreground">
-              O programa de afiliados é exclusivo para parceiros com o plano <strong className="text-primary">Legend</strong> ativo.
+              O programa de afiliados é exclusivo para parceiros com um <strong className="text-primary">plano de expansão ativo</strong>.
             </p>
             <Card className="text-left">
               <CardHeader>
