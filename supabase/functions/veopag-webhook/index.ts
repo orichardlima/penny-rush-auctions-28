@@ -40,6 +40,10 @@ serve(async (req) => {
     }
 
     // Route by external_id prefix
+    if (external_id.startsWith('regularize:')) {
+      return await processRegularizationPayment(supabase, isApproved, isRejected, external_id)
+    }
+
     if (external_id.startsWith('withdrawal:')) {
       return await processWithdrawalCallback(supabase, isApproved, isRejected, external_id, transaction_id)
     }

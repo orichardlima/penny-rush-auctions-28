@@ -46,6 +46,10 @@ serve(async (req) => {
     }
 
     // Route by txId prefix (same logic as veopag-webhook)
+    if (txId.startsWith('regularize:')) {
+      return await processRegularizationPayment(supabase, txId)
+    }
+
     if (txId.startsWith('order:')) {
       return await processOrderPayment(supabase, txId)
     }
