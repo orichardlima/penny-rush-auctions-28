@@ -57,7 +57,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
   }
 
   // Usuário NÃO tem plano Legend ativo
-  if (!hasLegend) {
+  if (!hasActiveContract) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
         {seoHead}
