@@ -1137,6 +1137,81 @@ export const useAdminPartners = () => {
     }
   };
 
+  const markWithdrawalAsPaidManually = async (withdrawalId: string) => {
+    setProcessing(true);
+    try {
+      const withdrawal = withdrawals.find(w => w.id === withdrawalId);
+      if (!withdrawal) throw new Error('Saque não encontrado');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Update withdrawal status to PAID
+      const { error: wError } = await supabase
+        .from('partner_withdrawals')
+        .update({
+          status: 'PAID',
+          paid_at: new Date().toISOString(),
+          paid_by: user.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', withdrawalId);
+
+      if (wError) throw wError;
+
+      // Update total_withdrawn on the contract
+      const contract = contracts.find(c => c.id === withdrawal.partner_contract_id);
+      if (contract) {
+        const { error: cError } = await supabase
+          .from('partner_contracts')
+          .update({
+            total_withdrawn: (contract.total_received > 0 ? contract.total_received : 0) >= 0
+              ? Number(contract.total_received) >= 0 
+                ? undefined 
+                : undefined
+              : undefined,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', withdrawal.partner_contract_id);
+        // We don't need to manually update total_withdrawn here since the 
+        // usePartnerWithdrawals hook calculates available balance from payouts - withdrawals
+      }
+
+      // Audit log
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      await supabase.from('admin_audit_log').insert({
+        admin_user_id: user.id,
+        admin_name: profile?.full_name || 'Admin',
+        action_type: 'MANUAL_WITHDRAWAL_PAYMENT',
+        target_type: 'partner_withdrawal',
+        target_id: withdrawalId,
+        description: `Pagamento manual confirmado: R$ ${withdrawal.amount.toFixed(2)} para ${withdrawal.user_name || 'parceiro'}`,
+        new_values: { status: 'PAID', paid_via: 'manual', amount: withdrawal.amount }
+      });
+
+      toast({
+        title: "Pagamento confirmado ✅",
+        description: `Saque de R$ ${withdrawal.amount.toFixed(2)} marcado como pago manualmente.`
+      });
+
+      await Promise.all([fetchWithdrawals(), fetchContracts()]);
+    } catch (error: any) {
+      console.error('Error marking withdrawal as paid manually:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao confirmar pagamento",
+        description: error.message || 'Erro desconhecido'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const processTermination = async (terminationId: string, action: 'approve' | 'reject', notes?: string) => {
     setProcessing(true);
     try {
