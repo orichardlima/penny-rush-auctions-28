@@ -16,6 +16,9 @@ export interface PartnerContractWithUser {
   closed_reason: string | null;
   created_at: string;
   updated_at: string;
+  financial_status: string;
+  financial_status_updated_at: string | null;
+  financial_status_note: string | null;
   user_name?: string;
   user_email?: string;
 }
