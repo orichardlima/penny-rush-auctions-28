@@ -338,16 +338,18 @@ export default function AffiliateDashboard() {
                     readOnly
                     className="font-mono text-sm bg-background"
                   />
-                  <Button onClick={copyAffiliateLink} variant="outline" size="icon" title="Copiar link">
+                  <Button onClick={copyAffiliateLink} variant="outline" size="icon" title="Copiar link" disabled={partnerFinancialStatus !== 'paid'}>
                     <Copy className="h-4 w-4" />
                   </Button>
-                  <Button onClick={shareAffiliateLink} variant="outline" size="icon" title="Compartilhar">
+                  <Button onClick={shareAffiliateLink} variant="outline" size="icon" title="Compartilhar" disabled={partnerFinancialStatus !== 'paid'}>
                     <Share2 className="h-4 w-4" />
                   </Button>
-                  <QRCodeModal 
-                    affiliateLink={affiliateLink}
-                    affiliateCode={affiliateData.affiliate_code}
-                  />
+                  {partnerFinancialStatus === 'paid' && (
+                    <QRCodeModal 
+                      affiliateLink={affiliateLink}
+                      affiliateCode={affiliateData.affiliate_code}
+                    />
+                  )}
                 </div>
                 
                 {/* Botões de ação principais */}
