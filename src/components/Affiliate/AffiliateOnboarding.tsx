@@ -20,7 +20,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const checkLegendPlan = async () => {
+    const checkActiveContract = async () => {
       if (!profile?.user_id) {
         setChecking(false);
         return;
@@ -30,16 +30,15 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
         .from('partner_contracts')
         .select('id')
         .eq('user_id', profile.user_id)
-        .eq('plan_name', 'Legend')
         .eq('status', 'ACTIVE')
         .limit(1)
         .maybeSingle();
 
-      setHasLegend(!!data && !error);
+      setHasActiveContract(!!data && !error);
       setChecking(false);
     };
 
-    checkLegendPlan();
+    checkActiveContract();
   }, [profile?.user_id]);
 
   if (checking) {
