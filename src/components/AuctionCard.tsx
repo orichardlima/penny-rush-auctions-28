@@ -72,6 +72,7 @@ export const AuctionCard = ({
   const displayTimeLeft = contextAuction ?
   displayStatus === 'active' ? contextTimer : 0 :
   initialTimeLeft;
+  const displayParticipants = contextAuction?.participants ?? participants;
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
 
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
