@@ -1,0 +1,1 @@
+UPDATE affiliates SET commission_rate = 50 WHERE commission_rate = 10;
