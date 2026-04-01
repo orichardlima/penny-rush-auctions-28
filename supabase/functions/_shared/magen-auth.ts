@@ -158,7 +158,7 @@ export async function createMagenDeposit(params: {
   const signedData = buildSignedData('POST', path, '', bodyStr, timestamp, nonce)
   const signature = signData(signedData, privateKeyBytes)
 
-  console.log('💳 Enviando para MagenPay diretamente:', params.txId, 'amount:', params.amount)
+  console.log('💳 Enviando para MagenPay diretamente:', params.txId, 'amount:', params.amount, 'url:', `${MAGEN_BASE_URL}${path}`)
 
   const res = await fetch(`${MAGEN_BASE_URL}${path}`, {
     method: 'POST',
