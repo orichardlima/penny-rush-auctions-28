@@ -74,6 +74,32 @@ export const AuctionCard = ({
   initialTimeLeft;
   const displayParticipants = contextAuction?.participants ?? participants;
   const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
+  const lastBidAt = contextAuction?.last_bid_at ?? null;
+
+  // Debounced activity indicator
+  const activityRef = useRef<string>('🟢 Começando agora');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getRawActivity = () => {
+    if (!lastBidAt) return '🟢 Começando agora';
+    const seconds = (Date.now() - new Date(lastBidAt).getTime()) / 1000;
+    if (seconds < 30) return '🔥 Muito disputado';
+    if (seconds < 90) return '⚡ Disputa aquecendo';
+    return '🟢 Começando agora';
+  };
+
+  const [activityLabel, setActivityLabel] = useState(getRawActivity);
+
+  useEffect(() => {
+    const raw = getRawActivity();
+    if (raw === activityRef.current) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      activityRef.current = raw;
+      setActivityLabel(raw);
+    }, 5000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [lastBidAt, displayStatus]);
 
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
   // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
