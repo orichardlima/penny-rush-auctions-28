@@ -6,7 +6,12 @@ import { hmac } from 'https://esm.sh/@noble/hashes@1.4.0/hmac'
 secp.etc.hmacSha256Sync = (k: Uint8Array, ...m: Uint8Array[]) =>
   hmac(sha256, k, secp.etc.concatBytes(...m))
 
-const MAGEN_BASE_URL = Deno.env.get('MAGEN_BASE_URL') || 'https://api.magenpay.io'
+const MAGEN_BASE_URL = (() => {
+  const envUrl = Deno.env.get('MAGEN_BASE_URL') || ''
+  // Ensure we use the actual MagenPay API, not a VPS proxy
+  if (envUrl && envUrl.includes('magenpay.io')) return envUrl
+  return 'https://api.magenpay.io'
+})()
 const MAGEN_PUBLIC_KEY_ID = Deno.env.get('MAGEN_PUBLIC_KEY_ID') || ''
 const MAGEN_PRIVATE_KEY = Deno.env.get('MAGEN_PRIVATE_KEY') || ''
 const MAGEN_PIX_KEY_ID = Deno.env.get('MAGEN_PIX_KEY_ID') || ''
