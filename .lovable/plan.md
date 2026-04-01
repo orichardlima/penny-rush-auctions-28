@@ -1,65 +1,35 @@
 
 
-# Integração Direta MagenPay (sem VPS proxy)
+# Fix: QR Code não aparece no pagamento de Parceiro
 
-## Resumo
+## Problema
 
-Reescrever `magen-auth.ts` para chamar a API da MagenPay diretamente do Supabase Edge Functions, usando `@noble/secp256k1` e `@noble/hashes` via `esm.sh` para gerar as assinaturas ECDSA. Elimina a dependência da VPS como proxy.
+Duas falhas no fluxo de pagamento de parceiro:
 
-## Por que funciona
+1. **`pixCopyPaste` hardcoded como `null`** no `partner-payment/index.ts` (linha 201). O valor EMV retornado pela VeoPag é descartado.
+2. **Modal não gera QR Code a partir da string EMV**. O `PartnerPixPaymentModal` tenta renderizar `qrCodeBase64` como imagem base64, mas a VeoPag retorna uma string EMV (começa com `0002`), não uma imagem. O modal de compra de lances (`PixPaymentModal`) funciona porque usa `QRCodeSVG` para gerar o QR a partir da string EMV.
 
-A biblioteca `@noble/secp256k1` é pure-JS e compatível com Deno/Supabase Edge Functions via `esm.sh`. Não precisa de Node.js nem de IP fixo para a assinatura — o IP fixo é exigido apenas se a MagenPay tiver whitelist de IP, mas a autenticação real é feita via assinatura criptográfica nos headers.
+## Solução
 
-**Importante**: Se a MagenPay realmente exige whitelist de IP (não apenas assinatura), a integração direta falhará com erro de IP não autorizado. Nesse caso, a VPS continua necessária. Mas vale tentar direto primeiro.
+### 1. `supabase/functions/partner-payment/index.ts`
 
-## Arquivo alterado
+Linha 201: trocar `pixCopyPaste: null` por `pixCopyPaste: depositResult.pixCopyPaste || null`
 
-### `supabase/functions/_shared/magen-auth.ts`
+### 2. `src/components/Partner/PartnerPixPaymentModal.tsx`
 
-**Remover**: toda referência à VPS (`VPS_MAGEN_URL`, `VPS_AUTH_TOKEN`, fetch para `76.13.162.10`)
+- Importar `QRCodeSVG` de `qrcode.react`
+- Na renderização do QR Code, usar a mesma lógica do `PixPaymentModal`:
+  - Se `qrCodeBase64` existe → renderizar `<img>` com base64
+  - Se `pixCopyPaste` existe e começa com `0002` (string EMV) → renderizar `<QRCodeSVG value={pixCopyPaste}>`
+  - Mostrar botão "Copiar código PIX" quando `pixCopyPaste` estiver disponível
 
-**Adicionar**:
-1. Imports de `@noble/secp256k1` e `@noble/hashes/sha256` via esm.sh
-2. Função `pemToPrivateKeyBytes(pem)` — extrai bytes da chave privada PEM
-3. Função `generateNonce()` — UUID v4 único por request
-4. Função `buildSignedData(method, path, query, body, timestamp, nonce)` — monta o objeto de assinatura
-5. Função `signData(signedData, privateKey)` — SHA-256 + secp256k1 sign → Base64 DER
+### 3. Deploy
 
-**`createMagenDeposit`** passará a:
-1. Ler `MAGEN_BASE_URL`, `MAGEN_PUBLIC_KEY_ID`, `MAGEN_PRIVATE_KEY`, `MAGEN_PIX_KEY_ID` dos env vars
-2. Montar o body do request
-3. Gerar timestamp (ISO), nonce, signedData
-4. Assinar com secp256k1
-5. Chamar `POST https://api.magenpay.io/qrcode/api/v1/external/instant` com headers `X-Signature`, `X-Timestamp`, `X-Nonce`, `X-Public-Key-ID`
-6. Retornar `transactionId`, `pixCopyPaste`, `qrCodeBase64`, etc.
+Fazer deploy da edge function `partner-payment` com a correção.
 
-## Secrets necessários no Supabase
+## Impacto
 
-| Secret | Descrição |
-|---|---|
-| `MAGEN_BASE_URL` | `https://api.magenpay.io` |
-| `MAGEN_PUBLIC_KEY_ID` | `40347448-c87f-46be-ad59-d2376f84f370` |
-| `MAGEN_PRIVATE_KEY` | Chave privada PEM (já fornecida pelo usuário) |
-| `MAGEN_PIX_KEY_ID` | ID da chave PIX (já fornecido pelo usuário) |
-
-## Detalhes técnicos
-
-```typescript
-// Imports compatíveis com Deno/Supabase Edge Functions
-import * as secp from 'https://esm.sh/@noble/secp256k1@2.1.0'
-import { sha256 } from 'https://esm.sh/@noble/hashes@1.4.0/sha256'
-import { hmac } from 'https://esm.sh/@noble/hashes@1.4.0/hmac'
-
-// Necessário para habilitar sign síncrono
-secp.etc.hmacSha256Sync = (k, ...m) => 
-  hmac(sha256, k, secp.etc.concatBytes(...m))
-```
-
-Headers obrigatórios por request:
-- `X-Signature`: assinatura DER em Base64
-- `X-Timestamp`: ISO string
-- `X-Nonce`: UUID único
-- `X-Public-Key-ID`: ID da chave pública
-
-## Nenhuma alteração na UI, webhook ou payment-router
+- Corrige a geração do QR Code para pagamento de parceiro
+- Não altera nenhum outro fluxo (compra de lances, upgrade, etc.)
+- Nenhuma alteração no banco de dados
 
