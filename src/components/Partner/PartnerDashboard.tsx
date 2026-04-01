@@ -61,6 +61,7 @@ interface PartnerDashboardProps {
 }
 
 const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }) => {
+  const { user, profile } = useAuth();
   const { 
     contract, 
     payouts, 
