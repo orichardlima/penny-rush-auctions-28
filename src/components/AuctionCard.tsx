@@ -352,7 +352,7 @@ export const AuctionCard = ({
         </div>
 
         {/* Fury Vault Display */}
-        <div className="mb-3">
+        <div className="mb-2">
           <FuryVaultDisplay
             auctionId={id}
             auctionStatus={displayStatus}
