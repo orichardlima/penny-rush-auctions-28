@@ -205,7 +205,7 @@ export const AuctionCard = ({
       role="article"
       aria-labelledby={`auction-title-${id}`}>
 
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-muted/10 to-muted/30">
+      <div className="relative aspect-[16/10] bg-gradient-to-br from-muted/10 to-muted/30">
         <img
           src={image}
           alt={`Imagem do produto: ${title}`}
