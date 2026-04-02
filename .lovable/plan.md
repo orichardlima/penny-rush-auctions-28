@@ -1,28 +1,24 @@
 
-
-# Corrigir Erro 404 na URL do MagenPay
+# Corrigir Integração MagenPay — Secret com Porta Errada
 
 ## Problema
 
-O erro `Cannot POST /pagamento/pix/criar` indica que a variável de ambiente `VPS_MAGEN_URL` contém o valor antigo com `/pagamento` no path. A regex atual na linha 2 só remove `/pix...`, então o resultado fica `http://76.13.162.10:3333/pagamento` + `/pix/criar` = URL errada.
-
-## Correção
-
-### `supabase/functions/_shared/magen-auth.ts` (linha 2)
-
-Atualizar a regex para também remover `/pagamento` do path:
-
-```typescript
-// De:
-const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/pix.*$/, '').replace(/\/$/, '')
-
-// Para:
-const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
+Os logs mostram claramente:
+```
+💳 Enviando para VPS MagenPay: http://76.13.162.10:3000/pix/criar
 ```
 
-### Redeploy
+A variável de ambiente `VPS_MAGEN_URL` está salva com a porta **3000** (antiga), sobrescrevendo o default do código que é **3333**. Por isso a requisição retorna 404 — o servidor na porta 3000 não tem o endpoint `/pix/criar`.
 
-Redeployar todas as Edge Functions que importam `magen-auth.ts`:
+## Solução
+
+### 1. Atualizar o secret `VPS_MAGEN_URL`
+
+Atualizar o valor para: `http://76.13.162.10:3333`
+
+### 2. Redeployar as Edge Functions
+
+Após atualizar o secret, redeployar todas as funções que usam `magen-auth.ts`:
 - `veopag-payment`
 - `partner-payment`
 - `order-pix-payment`
@@ -30,5 +26,6 @@ Redeployar todas as Edge Functions que importam `magen-auth.ts`:
 - `partner-regularize-payment`
 - `magen-webhook`
 
-### Nenhum outro arquivo alterado
+### Nenhuma alteração de código necessária
 
+O código em `magen-auth.ts` já está correto. O problema é exclusivamente o valor do secret.
