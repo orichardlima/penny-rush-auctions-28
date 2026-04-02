@@ -269,7 +269,7 @@ export const AuctionCard = ({
       <div className="p-3 sm:p-4">
         <h3
           id={`auction-title-${id}`}
-          className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-foreground">
+          className="font-semibold text-lg sm:text-xl mb-1 sm:mb-2 text-foreground">
 
           {title}
         </h3>
@@ -294,19 +294,19 @@ export const AuctionCard = ({
         <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm sm:text-base">Preço atual:</span>
-            <span className="text-lg sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
+            <span className="text-xl sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
               {formatPrice(displayCurrentPrice)}
             </span>
           </div>
 
-          <div className="flex justify-between items-center text-xs sm:text-sm">
+          <div className="flex justify-between items-center text-sm sm:text-sm">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-sm sm:text-lg font-semibold line-through text-muted-foreground">
+            <span className="text-base sm:text-lg font-semibold line-through text-muted-foreground">
               {formatPrice(originalPrice)}
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm sm:text-sm">
             {displayStatus === 'active' && (
               <span className="font-medium">{activityLabel}</span>
             )}
