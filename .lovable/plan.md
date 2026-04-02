@@ -1,25 +1,19 @@
 
 
-# Aumentar Fontes do AuctionCard no Mobile
+# Aumentar Fontes e Card no Mobile
 
-## Problema
-
-As fontes ficaram pequenas demais no mobile após a compactação do card. Precisa aumentar levemente para melhorar legibilidade sem voltar a ocupar espaço excessivo.
-
-## Alterações
-
-### `src/components/AuctionCard.tsx`
-
-Ajustar os tamanhos de fonte mobile (mantendo desktop igual):
+## Alterações em `src/components/AuctionCard.tsx`
 
 | Elemento | Atual | Novo |
 |---|---|---|
-| Título (h3) | `text-base sm:text-lg` | `text-lg sm:text-xl` |
-| "Preço atual:" label | `text-sm sm:text-base` | `text-sm sm:text-base` (manter) |
-| Preço atual valor | `text-lg sm:text-2xl` | `text-xl sm:text-2xl` |
-| "Valor na loja" linha | `text-xs sm:text-sm` | `text-sm sm:text-sm` |
-| Valor na loja valor | `text-sm sm:text-lg` | `text-base sm:text-lg` |
-| Métricas (status/participantes/OFF) | `text-xs sm:text-sm` | `text-sm sm:text-sm` |
+| Título (h3) | `text-lg sm:text-xl` | `text-xl sm:text-xl` |
+| Descrição | `text-sm` | `text-sm sm:text-base` |
+| "Preço atual:" label | `text-sm sm:text-base` | `text-base sm:text-base` |
+| Preço atual valor | `text-xl sm:text-2xl` | `text-2xl sm:text-2xl` |
+| "Valor na loja" linha | `text-sm sm:text-sm` | `text-sm sm:text-base` |
+| Valor na loja valor | `text-base sm:text-lg` | `text-lg sm:text-lg` |
+| Métricas (status/participantes/OFF) | `text-sm sm:text-sm` | `text-sm sm:text-base` |
+| Padding do corpo | `p-3 sm:p-4` | `p-4 sm:p-5` |
 
-### Nenhum outro arquivo alterado
+Resumo: subir 1 nível de fonte em cada elemento no mobile e aumentar levemente o padding interno do card. Nenhum outro arquivo alterado.
 
