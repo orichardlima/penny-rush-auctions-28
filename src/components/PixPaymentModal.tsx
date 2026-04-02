@@ -41,12 +41,15 @@ export const PixPaymentModal = ({
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'approved' | 'failed'>('pending');
   const { toast } = useToast();
 
-  // Real-time payment detection
+  // Real-time payment detection with dual strategy:
+  // 1. Supabase realtime (works when webhook updates the DB - VeoPag)
+  // 2. Edge Function polling via VPS (works for MagenPay)
   useEffect(() => {
     if (!open || !purchaseId || paymentStatus !== 'pending') return;
 
-    console.log('🔗 Setting up realtime subscription for purchase:', purchaseId);
+    console.log('🔗 Setting up payment detection for purchase:', purchaseId);
 
+    // Strategy 1: Supabase realtime subscription (for VeoPag webhook flow)
     const channel = supabase
       .channel(`payment-status-${purchaseId}`, {
         config: {
@@ -94,14 +97,11 @@ export const PixPaymentModal = ({
       )
       .subscribe((status) => {
         console.log('📡 Realtime subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to payment updates');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Realtime subscription error');
-        }
       });
 
-    // Polling de backup a cada 3 segundos
+    // Strategy 2: Poll via magen-check-status Edge Function (for MagenPay flow)
+    // This also acts as a backup for VeoPag if realtime fails
+    const txId = paymentData.paymentId;
     const pollingInterval = setInterval(async () => {
       if (paymentStatus !== 'pending') {
         clearInterval(pollingInterval);
@@ -109,20 +109,20 @@ export const PixPaymentModal = ({
       }
 
       try {
-        console.log('🔍 Polling payment status...');
-        const { data, error } = await supabase
-          .from('bid_purchases')
-          .select('payment_status')
-          .eq('id', purchaseId)
-          .single();
+        console.log('🔍 Polling payment status via Edge Function...');
+        const { data, error } = await supabase.functions.invoke('magen-check-status', {
+          body: { txId, purchaseId }
+        });
 
         if (error) {
           console.error('Polling error:', error);
           return;
         }
 
-        if (data.payment_status === 'completed') {
-          console.log('✅ Payment completed detected via polling!');
+        console.log('📨 Polling response:', data);
+
+        if (data?.status === 'paid') {
+          console.log('✅ Payment confirmed via polling!');
           setPaymentStatus('approved');
           toast({
             title: "Pagamento aprovado! 🎉",
@@ -138,9 +138,9 @@ export const PixPaymentModal = ({
       } catch (error) {
         console.error('Polling error:', error);
       }
-    }, 3000);
+    }, 5000);
 
-    // Timeout de segurança (5 minutos)
+    // Safety timeout (5 minutes)
     const timeoutId = setTimeout(() => {
       console.log('⏰ Payment timeout reached');
       toast({
@@ -151,12 +151,12 @@ export const PixPaymentModal = ({
     }, 5 * 60 * 1000);
 
     return () => {
-      console.log('🔌 Cleaning up realtime subscription and polling');
+      console.log('🔌 Cleaning up payment detection');
       supabase.removeChannel(channel);
       clearInterval(pollingInterval);
       clearTimeout(timeoutId);
     };
-  }, [open, purchaseId, paymentStatus, onSuccess, onClose, toast]);
+  }, [open, purchaseId, paymentStatus, onSuccess, onClose, toast, paymentData.paymentId]);
 
   const copyToClipboard = () => {
     if (paymentData.pixCopyPaste) {
