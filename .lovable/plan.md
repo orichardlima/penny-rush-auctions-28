@@ -1,61 +1,34 @@
 
 
-# Atualizar Integração MagenPay para Nova API da VPS (Porta 3333)
+# Corrigir Erro 404 na URL do MagenPay
 
-## Resumo
+## Problema
 
-A VPS MagenPay foi atualizada com nova porta (3333), novos endpoints e novo formato de request/response. Precisa atualizar o módulo `magen-auth.ts` para funcionar com a nova API.
+O erro `Cannot POST /pagamento/pix/criar` indica que a variável de ambiente `VPS_MAGEN_URL` contém o valor antigo com `/pagamento` no path. A regex atual na linha 2 só remove `/pix...`, então o resultado fica `http://76.13.162.10:3333/pagamento` + `/pix/criar` = URL errada.
 
-## Mudancas Principais
+## Correção
 
-| Item | Antes | Agora |
-|---|---|---|
-| Porta | 3000 | 3333 |
-| Endpoint criar PIX | `/pagamento` | `/pix/criar` |
-| KeyId padrão | `afd04971-...` (public key) | `e2aaacb3-...` (chave PIX EVP) |
-| Request body | `{ keyId, body: { order_id, amount, currency, ... } }` | `{ amount, amountFormat, keyId, description, payerName, payerTaxId, expirationInSeconds }` |
-| Response | flat `{ txId, pixCopiaECola, ... }` | `{ sucesso, dados: { txId, pixCopiaECola, ... } }` |
+### `supabase/functions/_shared/magen-auth.ts` (linha 2)
 
-## Alterações
+Atualizar a regex para também remover `/pagamento` do path:
 
-### 1. `supabase/functions/_shared/magen-auth.ts`
+```typescript
+// De:
+const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/pix.*$/, '').replace(/\/$/, '')
 
-- Atualizar URL padrão para `http://76.13.162.10:3333`
-- Atualizar `MAGEN_KEY_ID` padrão para `e2aaacb3-6a62-4880-9433-2116cf467b2e`
-- Mudar endpoint de `/pagamento` para `/pix/criar`
-- Reestruturar request body para o novo formato:
-  ```typescript
-  {
-    amount: params.amount,
-    amountFormat: "brl",
-    amountType: "fixed",
-    keyId: MAGEN_KEY_ID,
-    description: params.description || "Pagamento PIX",
-    expirationInSeconds: 3600,
-    payerName: params.payerName,
-    payerTaxId: params.payerTaxId
-  }
-  ```
-- Atualizar parsing da resposta para extrair de `data.dados`:
-  ```typescript
-  const result = await res.json()
-  const dados = result.dados || result
-  return {
-    transactionId: dados.txId || params.txId,
-    status: dados.status || 'pending',
-    pixCopyPaste: dados.pixCopiaECola || '',
-    qrCodeBase64: '',
-    qrCodeUrl: '',
-    amount: params.amount
-  }
-  ```
+// Para:
+const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
+```
 
-### 2. `supabase/functions/magen-webhook/index.ts`
+### Redeploy
 
-- Atualizar para aceitar o formato de webhook da nova VPS (se diferente)
-- O webhook da VPS redireciona para `POST /webhook/pagamento` na própria VPS, e a VPS pode reenviar para o Supabase -- verificar se o formato do payload mudou
+Redeployar todas as Edge Functions que importam `magen-auth.ts`:
+- `veopag-payment`
+- `partner-payment`
+- `order-pix-payment`
+- `partner-upgrade-payment`
+- `partner-regularize-payment`
+- `magen-webhook`
 
-**Nota**: O `payment-router.ts` e demais Edge Functions que consomem `createMagenDeposit` não precisam de alteração, pois a interface de retorno permanece a mesma.
-
-### Nenhum outro arquivo do frontend alterado
+### Nenhum outro arquivo alterado
 
