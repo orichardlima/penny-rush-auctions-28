@@ -294,7 +294,7 @@ export const AuctionCard = ({
         <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm sm:text-base">Preço atual:</span>
-            <span className="text-lg sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
+            <span className="text-xl sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
               {formatPrice(displayCurrentPrice)}
             </span>
           </div>
