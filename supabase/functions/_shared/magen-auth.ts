@@ -1,5 +1,5 @@
 const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || 'http://76.13.162.10:3333'
-const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/pix.*$/, '').replace(/\/$/, '')
+const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
 const VPS_AUTH_TOKEN = Deno.env.get('VPS_AUTH_TOKEN') || ''
 const MAGEN_KEY_ID = Deno.env.get('MAGEN_PUBLIC_KEY_ID') || 'e2aaacb3-6a62-4880-9433-2116cf467b2e'
 
