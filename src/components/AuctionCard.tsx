@@ -314,7 +314,7 @@ export const AuctionCard = ({
             )}
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground" aria-label={`${displayParticipants} participantes`}>
-                👥 {displayParticipants >= 100 ? `+${displayParticipants}` : displayParticipants} participantes
+                👥 {displayParticipants >= 100 ? `+${Math.floor(displayParticipants / 100) * 100}` : displayParticipants} participantes
               </span>
               <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
             </div>
