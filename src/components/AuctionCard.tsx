@@ -299,9 +299,9 @@ export const AuctionCard = ({
             </span>
           </div>
 
-          <div className="flex justify-between items-center text-sm sm:text-sm">
+          <div className="flex justify-between items-center text-sm sm:text-base">
             <span className="text-muted-foreground">Valor na loja:</span>
-            <span className="text-base sm:text-lg font-semibold line-through text-muted-foreground">
+            <span className="text-lg sm:text-lg font-semibold line-through text-muted-foreground">
               {formatPrice(originalPrice)}
             </span>
           </div>
