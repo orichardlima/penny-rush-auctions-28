@@ -314,7 +314,7 @@ export const AuctionCard = ({
             )}
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground" aria-label={`${displayParticipants} participantes`}>
-                👥 {displayParticipants >= 100 ? `+${displayParticipants}` : displayParticipants} participantes
+                👥 {displayParticipants >= 100 ? `+${Math.floor(displayParticipants / 100) * 100}` : displayParticipants} participantes
               </span>
               <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
             </div>
@@ -383,13 +383,6 @@ export const AuctionCard = ({
           </div>
         }
 
-        {displayStatus === 'active' && displayTimeLeft > 0 && displayTimeLeft < 15 && (
-          <div className="text-center mb-2 animate-pulse">
-            <span className="text-amber-500 text-[10px] sm:text-xs font-medium">
-              ⏳ Pode encerrar a qualquer momento
-            </span>
-          </div>
-        )}
 
         {displayStatus === 'active' &&
         <Button
