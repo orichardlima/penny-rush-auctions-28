@@ -269,7 +269,7 @@ export const AuctionCard = ({
       <div className="p-3 sm:p-4">
         <h3
           id={`auction-title-${id}`}
-          className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-foreground">
+          className="font-semibold text-lg sm:text-xl mb-1 sm:mb-2 text-foreground">
 
           {title}
         </h3>
