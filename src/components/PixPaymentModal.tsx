@@ -174,18 +174,22 @@ export const PixPaymentModal = ({
   const checkPaymentStatus = async () => {
     setChecking(true);
     try {
-      const { data, error } = await supabase
-        .from('bid_purchases')
-        .select('payment_status')
-        .eq('id', purchaseId)
-        .single();
+      const txId = paymentData.paymentId;
+      const { data, error } = await supabase.functions.invoke('magen-check-status', {
+        body: { txId, purchaseId }
+      });
 
       if (error) {
         console.error('Error checking payment:', error);
+        toast({
+          title: "Erro ao verificar",
+          description: "Tente novamente em alguns segundos.",
+          variant: "destructive"
+        });
         return;
       }
 
-      if (data.payment_status === 'completed') {
+      if (data?.status === 'paid') {
         setPaymentStatus('approved');
         toast({
           title: "Pagamento aprovado! 🎉",
@@ -196,12 +200,11 @@ export const PixPaymentModal = ({
           onSuccess();
           onClose();
         }, 2000);
-      } else if (data.payment_status === 'failed') {
-        setPaymentStatus('failed');
+      } else {
         toast({
-          title: "Pagamento rejeitado",
-          description: "Tente novamente ou use outro método.",
-          variant: "destructive"
+          title: "Pagamento ainda não confirmado",
+          description: "Aguarde alguns instantes após o pagamento.",
+          variant: "default"
         });
       }
     } catch (error) {
