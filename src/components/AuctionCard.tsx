@@ -383,13 +383,6 @@ export const AuctionCard = ({
           </div>
         }
 
-        {displayStatus === 'active' && displayTimeLeft > 0 && displayTimeLeft < 15 && (
-          <div className="text-center mb-2 animate-pulse">
-            <span className="text-amber-500 text-[10px] sm:text-xs font-medium">
-              ⏳ Pode encerrar a qualquer momento
-            </span>
-          </div>
-        )}
 
         {displayStatus === 'active' &&
         <Button
