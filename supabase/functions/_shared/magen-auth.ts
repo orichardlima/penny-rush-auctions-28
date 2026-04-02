@@ -1,8 +1,7 @@
-const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || 'http://76.13.162.10:3000'
-// Strip trailing path segments to get just the base URL (host:port)
-const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/pagamento.*$/, '').replace(/\/$/, '')
+const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || 'http://76.13.162.10:3333'
+const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/pix.*$/, '').replace(/\/$/, '')
 const VPS_AUTH_TOKEN = Deno.env.get('VPS_AUTH_TOKEN') || ''
-const MAGEN_KEY_ID = Deno.env.get('MAGEN_PUBLIC_KEY_ID') || 'afd04971-db66-44f2-8111-0f8937cd0e90'
+const MAGEN_KEY_ID = Deno.env.get('MAGEN_PUBLIC_KEY_ID') || 'e2aaacb3-6a62-4880-9433-2116cf467b2e'
 
 export async function createMagenDeposit(params: {
   amount: number
@@ -13,21 +12,18 @@ export async function createMagenDeposit(params: {
   keyId?: string
 }) {
   const requestBody = {
+    amount: params.amount,
+    amountFormat: 'brl',
+    amountType: 'fixed',
     keyId: params.keyId || MAGEN_KEY_ID,
-    body: {
-      order_id: params.txId,
-      amount: params.amount,
-      currency: 'BRL',
-      payment_method: 'pix',
-      customer: {
-        name: params.payerName || 'Usuario',
-        email: ''
-      }
-    }
+    description: params.description || 'Pagamento PIX',
+    expirationInSeconds: 3600,
+    payerName: params.payerName || 'Usuario',
+    payerTaxId: params.payerTaxId || '',
   }
 
-  const url = `${VPS_BASE_URL}/pagamento`
-  console.log('💳 Enviando para VPS MagenPay:', url, 'order_id:', params.txId, 'amount:', params.amount)
+  const url = `${VPS_BASE_URL}/pix/criar`
+  console.log('💳 Enviando para VPS MagenPay:', url, 'amount:', params.amount, 'txId:', params.txId)
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -48,15 +44,18 @@ export async function createMagenDeposit(params: {
     throw new Error(`Erro ao gerar pagamento PIX via MagenPay VPS: ${res.status}`)
   }
 
-  const data = await res.json()
-  console.log('✅ VPS MagenPay retornou:', JSON.stringify(data))
+  const result = await res.json()
+  console.log('✅ VPS MagenPay retornou:', JSON.stringify(result))
+
+  // Nova API retorna { sucesso, dados: { txId, pixCopiaECola, ... } }
+  const dados = result.dados || result
 
   return {
-    transactionId: data.transactionId || data.txId || params.txId,
-    status: data.status || 'pending',
-    pixCopyPaste: data.pix_copy_and_paste || data.pixCopyPaste || data.pixCopiaECola || '',
-    qrCodeBase64: data.qr_code || data.qrCodeBase64 || data.qrcode || '',
-    qrCodeUrl: data.qrCodeUrl || '',
+    transactionId: dados.txId || params.txId,
+    status: dados.status || 'pending',
+    pixCopyPaste: dados.pixCopiaECola || dados.pix_copy_and_paste || dados.pixCopyPaste || '',
+    qrCodeBase64: dados.qr_code || dados.qrCodeBase64 || dados.qrcode || '',
+    qrCodeUrl: dados.qrCodeUrl || '',
     amount: params.amount,
   }
 }
