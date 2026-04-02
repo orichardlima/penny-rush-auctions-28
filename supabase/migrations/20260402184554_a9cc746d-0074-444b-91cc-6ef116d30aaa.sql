@@ -1,0 +1,1 @@
+UPDATE auctions SET participants_count = 200 WHERE id = 'e713be9e-2865-4e6a-912b-cdddca266989';
