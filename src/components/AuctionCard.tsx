@@ -291,10 +291,10 @@ export const AuctionCard = ({
           </div>
         }
         
-        <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
+        <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground text-sm sm:text-base">Preço atual:</span>
-            <span className="text-xl sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
+            <span className="text-lg sm:text-2xl font-bold text-primary" aria-label={`Preço atual: ${formatPrice(displayCurrentPrice)}`}>
               {formatPrice(displayCurrentPrice)}
             </span>
           </div>
@@ -306,23 +306,23 @@ export const AuctionCard = ({
             </span>
           </div>
 
-          <div className="flex flex-col gap-1 text-xs sm:text-sm">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm">
             {displayStatus === 'active' && (
-              <div className="flex items-center">
-                <span className="font-medium">{activityLabel}</span>
-              </div>
+              <span className="font-medium">{activityLabel}</span>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground" aria-label={`${displayParticipants} participantes`}>
-                👥 {displayParticipants >= 100 ? `+${Math.floor(displayParticipants / 100) * 100}` : displayParticipants} participantes
-              </span>
-              <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
-            </div>
+            {displayStatus === 'active' && <span className="text-muted-foreground">·</span>}
+            <span className="text-muted-foreground" aria-label={`${displayParticipants} participantes`}>
+              👥 {displayParticipants >= 100 ? `+${Math.floor(displayParticipants / 100) * 100}` : displayParticipants} participantes
+            </span>
+            <span className="text-muted-foreground">·</span>
+            <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
-              <div className="flex items-center text-muted-foreground">
-                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" aria-hidden="true" />
-                {displayStatus === 'active' ? `Ativo há ${getActiveTime()}` : `Duração: ${getActiveTime()}`}
-              </div>
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">
+                  {displayStatus === 'active' ? `⏱ Ativo há ${getActiveTime()}` : `⏱ Duração: ${getActiveTime()}`}
+                </span>
+              </>
             )}
           </div>
 
