@@ -306,7 +306,7 @@ export const AuctionCard = ({
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm sm:text-sm">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm sm:text-base">
             {displayStatus === 'active' && (
               <span className="font-medium">{activityLabel}</span>
             )}
