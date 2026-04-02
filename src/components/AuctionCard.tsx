@@ -275,7 +275,7 @@ export const AuctionCard = ({
         </h3>
         
         {description && (
-          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+          <p className="text-sm sm:text-base text-muted-foreground mb-2 line-clamp-2">
             {description}
           </p>
         )}
