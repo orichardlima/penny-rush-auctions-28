@@ -11,6 +11,7 @@ interface PartnerPlanCardProps {
   loading?: boolean;
   featured?: boolean;
   highlighted?: boolean;
+  binaryPoints?: number;
 }
 
 export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({ 
