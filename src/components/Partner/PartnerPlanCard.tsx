@@ -41,6 +41,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   const totalWeeklyCap = plan.weekly_cap * cotas;
   const totalTotalCap = plan.total_cap * cotas;
   const totalBonusBids = (plan.bonus_bids || 0) * cotas;
+  const totalBinaryPoints = binaryPoints * cotas;
+  const referralPercentage = plan.referral_bonus_percentage || 0;
 
   return (
     <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${
