@@ -19,7 +19,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   onSelect, 
   loading = false,
   featured = false,
-  highlighted = false 
+  highlighted = false,
+  binaryPoints = 0
 }) => {
   const [cotas, setCotas] = useState(1);
   const maxCotas = plan.max_cotas || 1;
