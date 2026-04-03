@@ -44,6 +44,9 @@ interface Commission {
       full_name: string;
     };
   };
+  referred_profile?: {
+    full_name: string;
+  };
 }
 
 interface Withdrawal {
@@ -120,10 +123,17 @@ export const useAdminAffiliates = () => {
       // Buscar affiliates e profiles separadamente
       if (data && data.length > 0) {
         const affiliateIds = [...new Set(data.map(c => c.affiliate_id))];
+        const referredUserIds = [...new Set(data.map(c => c.referred_user_id).filter(Boolean))];
+        
         const { data: affiliatesData } = await supabase
           .from('affiliates')
           .select('id, user_id, affiliate_code')
           .in('id', affiliateIds);
+
+        // Buscar nomes dos indicados
+        const { data: referredProfilesData } = referredUserIds.length > 0
+          ? await supabase.from('profiles').select('user_id, full_name').in('user_id', referredUserIds)
+          : { data: [] };
         
         if (affiliatesData && affiliatesData.length > 0) {
           const userIds = affiliatesData.map(a => a.user_id);
@@ -132,10 +142,10 @@ export const useAdminAffiliates = () => {
             .select('user_id, full_name')
             .in('user_id', userIds);
           
-          // Mapear dados
           const commissionsWithData = data.map(commission => {
             const affiliate = affiliatesData.find(a => a.id === commission.affiliate_id);
             const profile = profilesData?.find(p => p.user_id === affiliate?.user_id);
+            const referredProfile = referredProfilesData?.find(p => p.user_id === commission.referred_user_id);
             
             return {
               ...commission,
@@ -143,6 +153,7 @@ export const useAdminAffiliates = () => {
                 affiliate_code: affiliate.affiliate_code,
                 profiles: profile,
               } : undefined,
+              referred_profile: referredProfile ? { full_name: referredProfile.full_name } : undefined,
             };
           });
           
