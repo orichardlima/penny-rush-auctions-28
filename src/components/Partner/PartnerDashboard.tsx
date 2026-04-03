@@ -90,6 +90,22 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   // Current week revenue for animated bars
   const currentWeekRevenue = useCurrentWeekRevenue(contract);
   const { weekProgress } = useAdCenter(contract?.id);
+
+  // Buscar pontos binários por plano
+  const [planBinaryPoints, setPlanBinaryPoints] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const fetchBinaryPoints = async () => {
+      const { data } = await supabase
+        .from('partner_level_points')
+        .select('plan_name, points');
+      if (data) {
+        const map: Record<string, number> = {};
+        data.forEach((row: any) => { map[row.plan_name] = row.points; });
+        setPlanBinaryPoints(map);
+      }
+    };
+    fetchBinaryPoints();
+  }, []);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
