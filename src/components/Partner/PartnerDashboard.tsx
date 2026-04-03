@@ -496,6 +496,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <PartnerPlanCard
               key={plan.id}
               plan={plan}
+              binaryPoints={planBinaryPoints[plan.name] || 0}
               onSelect={(planId, cotas) => {
                 const referralCode = getEffectiveReferralCode();
                 console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode, 'cotas:', cotas);
