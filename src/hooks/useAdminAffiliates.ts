@@ -44,6 +44,9 @@ interface Commission {
       full_name: string;
     };
   };
+  referred_profile?: {
+    full_name: string;
+  };
 }
 
 interface Withdrawal {
