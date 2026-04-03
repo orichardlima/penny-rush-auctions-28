@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, TrendingUp, Wallet, Target, DollarSign, BarChart3, Zap, Minus, Plus } from 'lucide-react';
+import { Check, TrendingUp, Wallet, Target, DollarSign, BarChart3, Zap, Minus, Plus, GitBranch, Users } from 'lucide-react';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
 
 interface PartnerPlanCardProps {
@@ -11,6 +11,7 @@ interface PartnerPlanCardProps {
   loading?: boolean;
   featured?: boolean;
   highlighted?: boolean;
+  binaryPoints?: number;
 }
 
 export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({ 
@@ -18,7 +19,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   onSelect, 
   loading = false,
   featured = false,
-  highlighted = false 
+  highlighted = false,
+  binaryPoints = 0
 }) => {
   const [cotas, setCotas] = useState(1);
   const maxCotas = plan.max_cotas || 1;
@@ -39,6 +41,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
   const totalWeeklyCap = plan.weekly_cap * cotas;
   const totalTotalCap = plan.total_cap * cotas;
   const totalBonusBids = (plan.bonus_bids || 0) * cotas;
+  const totalBinaryPoints = binaryPoints * cotas;
+  const referralPercentage = plan.referral_bonus_percentage || 0;
 
   return (
     <Card className={`relative overflow-hidden transition-all hover:shadow-lg ${
@@ -123,6 +127,33 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
               <p className="text-xs text-muted-foreground">até {formatPrice(totalWeeklyCap)}/semana</p>
             </div>
           </div>
+
+          {totalBinaryPoints > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-purple-500/10 rounded-full">
+                <GitBranch className="h-4 w-4 text-purple-600" />
+              </div>
+              <div>
+                <span className="font-medium">Pontuação Binária</span>
+                <p className="text-xs text-primary font-semibold">{totalBinaryPoints.toLocaleString('pt-BR')} pontos na rede</p>
+                {cotas > 1 && (
+                  <p className="text-xs text-muted-foreground">({binaryPoints} pts por cota)</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {referralPercentage > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-orange-500/10 rounded-full">
+                <Users className="h-4 w-4 text-orange-600" />
+              </div>
+              <div>
+                <span className="font-medium">Bônus por Indicação</span>
+                <p className="text-xs text-primary font-semibold">{referralPercentage}% por indicação direta</p>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 text-sm">
             <div className="p-1.5 bg-primary/10 rounded-full">
