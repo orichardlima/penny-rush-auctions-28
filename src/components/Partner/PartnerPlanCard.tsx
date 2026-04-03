@@ -128,6 +128,33 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
             </div>
           </div>
 
+          {totalBinaryPoints > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-purple-500/10 rounded-full">
+                <GitBranch className="h-4 w-4 text-purple-600" />
+              </div>
+              <div>
+                <span className="font-medium">Pontuação Binária</span>
+                <p className="text-xs text-primary font-semibold">{totalBinaryPoints.toLocaleString('pt-BR')} pontos na rede</p>
+                {cotas > 1 && (
+                  <p className="text-xs text-muted-foreground">({binaryPoints} pts por cota)</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {referralPercentage > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-orange-500/10 rounded-full">
+                <Users className="h-4 w-4 text-orange-600" />
+              </div>
+              <div>
+                <span className="font-medium">Bônus por Indicação</span>
+                <p className="text-xs text-primary font-semibold">{referralPercentage}% por indicação direta</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3 text-sm">
             <div className="p-1.5 bg-primary/10 rounded-full">
               <TrendingUp className="h-4 w-4 text-primary" />
