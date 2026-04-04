@@ -5,7 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, Gift, GitBranch, Coins, ArrowDownCircle, Wallet } from 'lucide-react';
+import { DollarSign, Gift, GitBranch, Coins, ArrowDownCircle, Wallet, TrendingUp, Calendar, Info } from 'lucide-react';
+import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
+import DailyRevenueBars from '@/components/Partner/DailyRevenueBars';
 
 interface PartnerDetailModalProps {
   contract: any;
