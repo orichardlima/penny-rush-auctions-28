@@ -23,6 +23,16 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const [manualCredits, setManualCredits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
 
+  // Hook for current week revenue (must be called unconditionally)
+  const weekContract = contract ? {
+    id: contract.id,
+    aporte_value: contract.aporte_value,
+    weekly_cap: contract.weekly_cap,
+    user_id: contract.user_id,
+    created_at: contract.created_at,
+  } : null;
+  const weekRevenue = useCurrentWeekRevenue(weekContract);
+
   useEffect(() => {
     if (!open || !contract?.id) return;
 
