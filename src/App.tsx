@@ -161,6 +161,7 @@ const queryClient = new QueryClient({
 const AppContent = () => {
   useReferralTracking();
   usePartnerReferralTracking();
+  useRealTimeProtection();
   
   return (
     <Routes>

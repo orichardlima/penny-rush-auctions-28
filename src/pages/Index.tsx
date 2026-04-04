@@ -45,8 +45,6 @@ const Index = () => {
   // Hook para verificar e ativar leilões automaticamente
   useAuctionTimer(forceSync);
 
-  // Sistema de proteção em tempo real (apenas para admins)
-  useRealTimeProtection();
 
   const handleBid = async (auctionId: string) => {
     // Verificar se já está processando um lance para este leilão
