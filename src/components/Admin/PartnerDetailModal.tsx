@@ -177,6 +177,55 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
               </Card>
             </div>
 
+            {/* Current Week Revenue */}
+            {contract?.status === 'ACTIVE' && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-sm font-semibold">Rendimento da Semana Atual</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-3 text-right">
+                    <div>
+                      <span className="text-lg font-bold text-primary">{formatPrice(weekRevenue.totalPartnerShare)}</span>
+                      <span className="text-xs text-muted-foreground ml-1.5">
+                        ({weekRevenue.percentageOfAporte.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% do aporte)
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-3">
+                  {weekRevenue.loading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                    </div>
+                  ) : (
+                    <>
+                      <DailyRevenueBars
+                        days={weekRevenue.days}
+                        closingHour={weekRevenue.closingHour}
+                        isAnimating={weekRevenue.isAnimating}
+                        formatPrice={formatPrice}
+                      />
+                      <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {weekRevenue.eligibleDaysCount} dias elegíveis
+                        </span>
+                        {weekRevenue.hasProRata && (
+                          <span className="flex items-center gap-1 text-amber-600">
+                            <Info className="h-3 w-3" />
+                            Pro Rata aplicado
+                          </span>
+                        )}
+                        <span>Fecha às {weekRevenue.closingHour}h</span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Tabs with history */}
             <Tabs defaultValue="payouts" className="w-full">
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
