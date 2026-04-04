@@ -263,8 +263,12 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     };
   };
 
+  const isFetchingRef = useRef(false);
+
   // Buscar todos os leilões
   const fetchAuctions = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       const { data: settingsData } = await supabase
         .from('system_settings')
@@ -324,6 +328,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     } catch (error) {
       console.error('❌ [REALTIME-CONTEXT] Erro:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
   }, []);

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, TrendingUp, Trophy } from 'lucide-react';
 import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
@@ -55,8 +56,7 @@ export const AuctionCard = ({
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
-  // Usar timer do Context centralizado
-  const { getAuctionTimer, auctions } = useAuctionRealtime();
+  const { getAuctionTimer, auctions, forceSync } = useAuctionRealtime();
 
   // Buscar dados atualizados do Context se disponível
   const contextAuction = auctions.find((a) => a.id === id);
@@ -104,6 +104,42 @@ export const AuctionCard = ({
   // Verificando = timer chegou a 0 mas leilão ainda não foi finalizado pelo backend
   // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
   const isVerifying = displayStatus === 'active' && (displayTimeLeft === 0 || isSyncing);
+
+  // Finalização ativa: ao entrar em "Verificando", dispara edge function para forçar encerramento
+  useEffect(() => {
+    if (!isVerifying) return;
+
+    let cancelled = false;
+    let count = 0;
+    const maxCalls = 5;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerFinalization = async () => {
+      if (cancelled || count >= maxCalls) return;
+      count++;
+      console.log(`🔫 [${id}] Disparando finalização forçada (tentativa ${count}/${maxCalls})`);
+      try {
+        await supabase.functions.invoke('sync-timers-and-protection', {
+          body: { trigger: 'verifying_card', auction_id: id }
+        });
+      } catch (err) {
+        console.error(`❌ [${id}] Erro ao invocar finalização:`, err);
+      }
+      if (!cancelled) {
+        await forceSync();
+      }
+      if (!cancelled && count < maxCalls) {
+        timeoutId = setTimeout(triggerFinalization, 2000);
+      }
+    };
+
+    timeoutId = setTimeout(triggerFinalization, 1000);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isVerifying, id, forceSync]);
 
   // Função para formatar preços em reais
   const formatPrice = (priceInReais: number) => {
