@@ -475,6 +475,7 @@ export type Database = {
           current_price: number | null
           description: string | null
           ends_at: string | null
+          finish_reason: string | null
           finished_at: string | null
           id: string
           image_url: string | null
@@ -503,6 +504,7 @@ export type Database = {
           current_price?: number | null
           description?: string | null
           ends_at?: string | null
+          finish_reason?: string | null
           finished_at?: string | null
           id?: string
           image_url?: string | null
@@ -531,6 +533,7 @@ export type Database = {
           current_price?: number | null
           description?: string | null
           ends_at?: string | null
+          finish_reason?: string | null
           finished_at?: string | null
           id?: string
           image_url?: string | null
