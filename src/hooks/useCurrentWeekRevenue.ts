@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DailyRevenue {
@@ -57,7 +57,8 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
   const [upgrades, setUpgrades] = useState<PartnerUpgrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [closingHour, setClosingHour] = useState(18); // Default to 18:00
+  const [closingHour, setClosingHour] = useState(18);
+  const isFirstLoad = useRef(true);
 
   // Get current week bounds (Monday to Sunday)
   const weekBounds = useMemo(() => {
@@ -84,8 +85,10 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         return;
       }
 
-      setLoading(true);
-      setIsAnimating(false);
+      if (isFirstLoad.current) {
+        setLoading(true);
+        setIsAnimating(false);
+      }
 
       try {
         const mondayStr = weekBounds.monday.toISOString().split('T')[0];
@@ -129,16 +132,22 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
           setClosingHour(parseInt(closingHourResult.data.setting_value) || 18);
         }
 
-        // Trigger animation after data loads
-        setTimeout(() => {
-          setIsAnimating(true);
-        }, 100);
+        if (isFirstLoad.current) {
+          setTimeout(() => {
+            setIsAnimating(true);
+          }, 100);
+          isFirstLoad.current = false;
+        }
       } catch (error) {
-        console.error('Error fetching current week revenue:', error);
+        if (isFirstLoad.current) {
+          console.error('Error fetching current week revenue:', error);
+        }
       } finally {
         setLoading(false);
       }
     };
+
+    isFirstLoad.current = true;
 
     fetchData();
 
