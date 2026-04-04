@@ -85,8 +85,10 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         return;
       }
 
-      setLoading(true);
-      setIsAnimating(false);
+      if (isFirstLoad.current) {
+        setLoading(true);
+        setIsAnimating(false);
+      }
 
       try {
         const mondayStr = weekBounds.monday.toISOString().split('T')[0];
