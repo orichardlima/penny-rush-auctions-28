@@ -57,7 +57,8 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
   const [upgrades, setUpgrades] = useState<PartnerUpgrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [closingHour, setClosingHour] = useState(18); // Default to 18:00
+  const [closingHour, setClosingHour] = useState(18);
+  const isFirstLoad = useRef(true);
 
   // Get current week bounds (Monday to Sunday)
   const weekBounds = useMemo(() => {
