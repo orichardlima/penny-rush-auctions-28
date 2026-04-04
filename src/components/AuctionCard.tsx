@@ -56,8 +56,7 @@ export const AuctionCard = ({
 }: AuctionCardProps) => {
   const [isBidding, setIsBidding] = useState(false);
 
-  // Usar timer do Context centralizado
-  const { getAuctionTimer, auctions } = useAuctionRealtime();
+  const { getAuctionTimer, auctions, forceSync } = useAuctionRealtime();
 
   // Buscar dados atualizados do Context se disponível
   const contextAuction = auctions.find((a) => a.id === id);

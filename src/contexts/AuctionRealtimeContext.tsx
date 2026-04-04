@@ -328,6 +328,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     } catch (error) {
       console.error('❌ [REALTIME-CONTEXT] Erro:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
   }, []);
