@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { formatPrice } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -139,7 +140,7 @@ const AdminDashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{totalUsers}</div>
+              <div className="text-2xl font-bold text-green-600">{totalUsers.toLocaleString('pt-BR')}</div>
             </CardContent>
           </Card>
           <Card className="border-l-4 border-l-blue-500">
@@ -149,7 +150,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">{activeAuctions}</div>
-              <p className="text-xs text-muted-foreground">Total de leilões: {auctions.length}</p>
+              <p className="text-xs text-muted-foreground">Total de leilões: {auctions.length.toLocaleString('pt-BR')}</p>
             </CardContent>
           </Card>
           <Card className="border-l-4 border-l-purple-500">
@@ -158,7 +159,7 @@ const AdminDashboard = () => {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{totalBids}</div>
+              <div className="text-2xl font-bold text-purple-600">{totalBids.toLocaleString('pt-BR')}</div>
               <p className="text-xs text-muted-foreground">Atividade total do sistema</p>
             </CardContent>
           </Card>
@@ -169,7 +170,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                R$ {sharedSummary?.total_revenue?.toFixed(2) || estimatedRevenue.toFixed(2)}
+                {formatPrice(sharedSummary?.total_revenue || estimatedRevenue)}
               </div>
               <p className="text-xs text-muted-foreground">Baseado nos dados atuais</p>
             </CardContent>
