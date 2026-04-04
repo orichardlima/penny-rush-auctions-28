@@ -1,0 +1,1 @@
+UPDATE affiliates SET affiliate_code = 'RAMONMIRANDA' WHERE id = '0817fe6b-e05f-4ac5-9bdc-d59d5df4a86c';
