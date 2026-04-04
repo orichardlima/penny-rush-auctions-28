@@ -1,25 +1,29 @@
 
 
-# Adicionar Rendimento da Semana Atual no PartnerDetailModal
+# Corrigir Flickering do Rendimento Semanal no PartnerDetailModal
 
-## Objetivo
+## Diagnóstico
 
-Adicionar uma seção de "Rendimento da Semana Atual" no modal de detalhes do parceiro no painel admin, reutilizando o hook `useCurrentWeekRevenue` e o componente `DailyRevenueBars` que já existem.
+O hook `useCurrentWeekRevenue` faz polling a cada 15 segundos (linha 146-148). A cada poll, ele executa `setLoading(true)` e `setIsAnimating(false)` (linhas 87-88), o que causa o componente alternar entre o spinner de loading e as barras — gerando o efeito de piscar.
 
-## Alterações
+Além disso, os console logs mostram "Failed to fetch" repetidos, indicando que quando o modal é aberto para múltiplos parceiros ou a conexão oscila, o hook fica em loop de erro recriando o estado.
 
-### `src/components/Admin/PartnerDetailModal.tsx`
+## Solução
 
-1. Importar `useCurrentWeekRevenue` e `DailyRevenueBars`
-2. Chamar o hook passando o contrato do parceiro selecionado (adaptar o objeto para a interface esperada: `{ id, aporte_value, weekly_cap, user_id, created_at }`)
-3. Adicionar uma seção entre os summary cards e as tabs contendo:
-   - Titulo "Rendimento da Semana Atual" com ícone `TrendingUp`
-   - Total acumulado da semana em destaque (`totalPartnerShare`)
-   - Porcentagem do aporte (`percentageOfAporte`)
-   - Info de dias elegíveis e Pro Rata se aplicável
-   - Componente `DailyRevenueBars` com as barras animadas dos 7 dias
+### `src/hooks/useCurrentWeekRevenue.ts`
+
+1. **Separar loading inicial de refresh**: Usar uma flag `isInitialLoad` via `useRef`. Só setar `setLoading(true)` na primeira chamada. Nos polls subsequentes, manter os dados existentes visíveis enquanto busca novos.
+
+2. **Não resetar `isAnimating` no polling**: Remover `setIsAnimating(false)` das chamadas de refresh (apenas setar na carga inicial).
+
+3. **Tratar erro silenciosamente no polling**: Se já temos dados carregados e o fetch falha, manter os dados antigos sem logar erro repetidamente.
+
+Alterações concretas:
+- Adicionar `const isFirstLoad = useRef(true)` 
+- Na `fetchData`: só `setLoading(true)` e `setIsAnimating(false)` se `isFirstLoad.current === true`
+- Após carregar com sucesso, setar `isFirstLoad.current = false`
+- No `catch`: só logar erro se `isFirstLoad.current`
+- Resetar `isFirstLoad` quando `contract` mudar
 
 ### Nenhum outro arquivo alterado
-
-O hook e o componente de barras já existem e são reutilizáveis sem modificação.
 
