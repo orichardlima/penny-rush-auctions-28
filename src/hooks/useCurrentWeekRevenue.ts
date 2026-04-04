@@ -132,12 +132,16 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
           setClosingHour(parseInt(closingHourResult.data.setting_value) || 18);
         }
 
-        // Trigger animation after data loads
-        setTimeout(() => {
-          setIsAnimating(true);
-        }, 100);
+        if (isFirstLoad.current) {
+          setTimeout(() => {
+            setIsAnimating(true);
+          }, 100);
+          isFirstLoad.current = false;
+        }
       } catch (error) {
-        console.error('Error fetching current week revenue:', error);
+        if (isFirstLoad.current) {
+          console.error('Error fetching current week revenue:', error);
+        }
       } finally {
         setLoading(false);
       }
