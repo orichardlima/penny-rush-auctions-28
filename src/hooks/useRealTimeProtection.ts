@@ -4,43 +4,32 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const useRealTimeProtection = () => {
   const intervalRef = useRef<NodeJS.Timeout>();
-  const { profile } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Apenas executar para administradores
-    if (!profile?.is_admin) {
-      console.log('🛡️ [PROTECTION-SYSTEM] Ignorado (não é admin)');
-      return;
-    }
+    if (!user?.id) return;
 
     const callProtectionSystem = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('sync-timers-and-protection', {
+        const { error } = await supabase.functions.invoke('sync-timers-and-protection', {
           body: { trigger: 'frontend', timestamp: new Date().toISOString() }
         });
 
         if (error) {
-          console.error('⚠️ [REAL-TIME-PROTECTION] Erro:', error);
-        } else if (data?.execution_time_ms > 2000) {
-          console.warn(`🐌 [REAL-TIME-PROTECTION] Execução lenta: ${data.execution_time_ms}ms`);
+          console.error('⚠️ [PROTECTION] Erro:', error.message);
         }
       } catch (error) {
-        console.error('💥 [REAL-TIME-PROTECTION] Erro crítico:', error);
+        // Silenciar erros de rede transitórios
       }
     };
 
-    // Chamadas a cada 10 segundos (apenas para admins)
-    intervalRef.current = setInterval(callProtectionSystem, 5000);
-    console.log('🛡️ [PROTECTION-SYSTEM] Sistema iniciado para ADMIN (5s)');
-
-    // Chamada inicial
+    intervalRef.current = setInterval(callProtectionSystem, 10000);
     callProtectionSystem();
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-        console.log('🛑 [PROTECTION-SYSTEM] Sistema parado');
       }
     };
-  }, [profile?.is_admin]);
+  }, [user?.id]);
 };

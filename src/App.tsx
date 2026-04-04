@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AuctionRealtimeProvider } from "@/contexts/AuctionRealtimeContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
 import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
+import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
 import { CookieConsent } from "@/components/CookieConsent";
 import { logChunkError, markReloadAttempted, wasReloadRecent } from "@/utils/chunkErrorTelemetry";
 import Index from "./pages/Index";
@@ -160,6 +161,7 @@ const queryClient = new QueryClient({
 const AppContent = () => {
   useReferralTracking();
   usePartnerReferralTracking();
+  useRealTimeProtection();
   
   return (
     <Routes>
