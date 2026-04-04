@@ -170,7 +170,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                R$ {sharedSummary?.total_revenue?.toFixed(2) || estimatedRevenue.toFixed(2)}
+                {formatPrice(sharedSummary?.total_revenue || estimatedRevenue)}
               </div>
               <p className="text-xs text-muted-foreground">Baseado nos dados atuais</p>
             </CardContent>
