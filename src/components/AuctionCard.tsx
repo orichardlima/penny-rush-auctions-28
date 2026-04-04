@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuctionRealtime } from '@/contexts/AuctionRealtimeContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toZonedTime, format } from 'date-fns-tz';
 import { Clock, TrendingUp, Trophy } from 'lucide-react';
 import { FuryVaultDisplay } from '@/components/FuryVaultDisplay';
