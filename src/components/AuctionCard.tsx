@@ -105,6 +105,42 @@ export const AuctionCard = ({
   // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
   const isVerifying = displayStatus === 'active' && (displayTimeLeft === 0 || isSyncing);
 
+  // Finalização ativa: ao entrar em "Verificando", dispara edge function para forçar encerramento
+  useEffect(() => {
+    if (!isVerifying) return;
+
+    let cancelled = false;
+    let count = 0;
+    const maxCalls = 5;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerFinalization = async () => {
+      if (cancelled || count >= maxCalls) return;
+      count++;
+      console.log(`🔫 [${id}] Disparando finalização forçada (tentativa ${count}/${maxCalls})`);
+      try {
+        await supabase.functions.invoke('sync-timers-and-protection', {
+          body: { trigger: 'verifying_card', auction_id: id }
+        });
+      } catch (err) {
+        console.error(`❌ [${id}] Erro ao invocar finalização:`, err);
+      }
+      if (!cancelled) {
+        await forceSync();
+      }
+      if (!cancelled && count < maxCalls) {
+        timeoutId = setTimeout(triggerFinalization, 2000);
+      }
+    };
+
+    timeoutId = setTimeout(triggerFinalization, 1000);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isVerifying, id, forceSync]);
+
   // Função para formatar preços em reais
   const formatPrice = (priceInReais: number) => {
     const safePriceInReais = priceInReais || 0;
