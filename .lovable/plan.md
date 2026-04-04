@@ -1,28 +1,24 @@
 
 
-# Exibir Nome do Indicado na Tabela de Comissões
+# Formatar Números no Padrão Brasileiro nos Cards do Admin Dashboard
 
 ## Problema
 
-Na aba "Comissões" do painel de afiliados admin, a coluna "Indicado" mostra apenas `Usuário #xxxx` (trecho do UUID) em vez do nome real do usuário indicado.
+Os 4 cards de resumo do painel admin exibem números sem formatação brasileira:
+- `1387` → deveria ser `1.387`
+- `1018842` → deveria ser `1.018.842`
+- `R$ 24873.25` → deveria ser `R$ 24.873,25`
 
 ## Solução
 
-### 1. `src/hooks/useAdminAffiliates.ts` — Buscar nomes dos indicados
+### `src/components/AdminDashboard.tsx`
 
-Na função `fetchCommissions`, após buscar os affiliates e seus profiles, também buscar os profiles dos `referred_user_id`:
+Aplicar `toLocaleString('pt-BR')` nos valores numéricos das 4 linhas:
 
-- Coletar todos os `referred_user_id` únicos das comissões
-- Fazer query em `profiles` com `.in('user_id', referredUserIds)` para obter os nomes
-- Adicionar campo `referred_profile: { full_name }` ao objeto da comissão mapeada
-
-### 2. `src/hooks/useAdminAffiliates.ts` — Atualizar interface `Commission`
-
-Adicionar campo opcional `referred_profile?: { full_name: string }` à interface.
-
-### 3. `src/components/AdminAffiliateManagement.tsx` — Exibir nome real
-
-Linha 728: trocar `Usuário #{commission.referred_user_id.substring(0, 8)}` por `commission.referred_profile?.full_name || 'Usuário desconhecido'`.
+- **Linha 142** — Usuários Totais: `{totalUsers}` → `{totalUsers.toLocaleString('pt-BR')}`
+- **Linha 152** — Total de leilões: `{auctions.length}` → `{auctions.length.toLocaleString('pt-BR')}`
+- **Linha 161** — Total de Lances: `{totalBids}` → `{totalBids.toLocaleString('pt-BR')}`
+- **Linha 172** — Receita Estimada: usar `formatPrice()` (já importado em `lib/utils.ts`) em vez de `R$ ${value.toFixed(2)}`
 
 ### Nenhum outro arquivo alterado
 
