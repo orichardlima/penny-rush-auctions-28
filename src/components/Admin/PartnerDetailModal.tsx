@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,13 +24,15 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
 
   // Hook for current week revenue (must be called unconditionally)
-  const weekContract = contract ? {
-    id: contract.id,
-    aporte_value: contract.aporte_value,
-    weekly_cap: contract.weekly_cap,
-    user_id: contract.user_id,
-    created_at: contract.created_at,
-  } : null;
+  const weekContract = useMemo(() => (
+    contract ? {
+      id: contract.id,
+      aporte_value: contract.aporte_value,
+      weekly_cap: contract.weekly_cap,
+      user_id: contract.user_id,
+      created_at: contract.created_at,
+    } : null
+  ), [contract?.id, contract?.aporte_value, contract?.weekly_cap, contract?.user_id, contract?.created_at]);
   const weekRevenue = useCurrentWeekRevenue(weekContract);
 
   useEffect(() => {
