@@ -1,24 +1,25 @@
 
 
-# Formatar Números no Padrão Brasileiro nos Cards do Admin Dashboard
+# Adicionar Rendimento da Semana Atual no PartnerDetailModal
 
-## Problema
+## Objetivo
 
-Os 4 cards de resumo do painel admin exibem números sem formatação brasileira:
-- `1387` → deveria ser `1.387`
-- `1018842` → deveria ser `1.018.842`
-- `R$ 24873.25` → deveria ser `R$ 24.873,25`
+Adicionar uma seção de "Rendimento da Semana Atual" no modal de detalhes do parceiro no painel admin, reutilizando o hook `useCurrentWeekRevenue` e o componente `DailyRevenueBars` que já existem.
 
-## Solução
+## Alterações
 
-### `src/components/AdminDashboard.tsx`
+### `src/components/Admin/PartnerDetailModal.tsx`
 
-Aplicar `toLocaleString('pt-BR')` nos valores numéricos das 4 linhas:
-
-- **Linha 142** — Usuários Totais: `{totalUsers}` → `{totalUsers.toLocaleString('pt-BR')}`
-- **Linha 152** — Total de leilões: `{auctions.length}` → `{auctions.length.toLocaleString('pt-BR')}`
-- **Linha 161** — Total de Lances: `{totalBids}` → `{totalBids.toLocaleString('pt-BR')}`
-- **Linha 172** — Receita Estimada: usar `formatPrice()` (já importado em `lib/utils.ts`) em vez de `R$ ${value.toFixed(2)}`
+1. Importar `useCurrentWeekRevenue` e `DailyRevenueBars`
+2. Chamar o hook passando o contrato do parceiro selecionado (adaptar o objeto para a interface esperada: `{ id, aporte_value, weekly_cap, user_id, created_at }`)
+3. Adicionar uma seção entre os summary cards e as tabs contendo:
+   - Titulo "Rendimento da Semana Atual" com ícone `TrendingUp`
+   - Total acumulado da semana em destaque (`totalPartnerShare`)
+   - Porcentagem do aporte (`percentageOfAporte`)
+   - Info de dias elegíveis e Pro Rata se aplicável
+   - Componente `DailyRevenueBars` com as barras animadas dos 7 dias
 
 ### Nenhum outro arquivo alterado
+
+O hook e o componente de barras já existem e são reutilizáveis sem modificação.
 
