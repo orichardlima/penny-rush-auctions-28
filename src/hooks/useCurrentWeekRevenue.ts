@@ -59,6 +59,19 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
   const [isAnimating, setIsAnimating] = useState(false);
   const [closingHour, setClosingHour] = useState(18);
   const isFirstLoad = useRef(true);
+  const contractId = contract?.id;
+  const contractCreatedAt = contract?.created_at;
+  const contractAporteValue = contract?.aporte_value;
+  const contractWeeklyCap = contract?.weekly_cap;
+  const contractUserId = contract?.user_id;
+  const contractIdentity = useMemo(
+    () => (
+      contractId
+        ? [contractId, contractCreatedAt ?? '', contractAporteValue ?? '', contractWeeklyCap ?? '', contractUserId ?? ''].join(':')
+        : null
+    ),
+    [contractId, contractCreatedAt, contractAporteValue, contractWeeklyCap, contractUserId]
+  );
 
   // Get current week bounds (Monday to Sunday)
   const weekBounds = useMemo(() => {
@@ -77,14 +90,20 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     return { monday, sunday };
   }, []);
 
+  useEffect(() => {
+    isFirstLoad.current = true;
+  }, [contractIdentity]);
+
   // Fetch data
   useEffect(() => {
-    const fetchData = async () => {
-      if (!contract) {
-        setLoading(false);
-        return;
-      }
+    if (!contractId) {
+      setLoading(false);
+      return;
+    }
 
+    let isCancelled = false;
+
+    const fetchData = async () => {
       if (isFirstLoad.current) {
         setLoading(true);
         setIsAnimating(false);
@@ -104,7 +123,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
           supabase
             .from('partner_upgrades')
             .select('previous_aporte_value, previous_weekly_cap, new_aporte_value, new_weekly_cap, created_at')
-            .eq('partner_contract_id', contract.id)
+            .eq('partner_contract_id', contractId)
             .order('created_at', { ascending: true }),
           supabase
             .from('system_settings')
@@ -114,6 +133,8 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         ]);
 
         if (configsResult.error) throw configsResult.error;
+
+        if (isCancelled) return;
 
         const configsMap: Record<string, DailyConfig> = {};
         configsResult.data?.forEach(config => {
@@ -139,30 +160,31 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
           isFirstLoad.current = false;
         }
       } catch (error) {
-        if (isFirstLoad.current) {
+        if (!isCancelled && isFirstLoad.current) {
           console.error('Error fetching current week revenue:', error);
         }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    isFirstLoad.current = true;
-
-    fetchData();
+    void fetchData();
 
     // Polling periódico para atualizar dados a cada 15 segundos
     const pollingInterval = setInterval(() => {
-      fetchData();
+      void fetchData();
     }, 15 * 1000);
 
     // Polling already covers updates (daily_revenue_config changes rarely)
     // No Realtime channel needed here
 
     return () => {
+      isCancelled = true;
       clearInterval(pollingInterval);
     };
-  }, [contract, weekBounds]);
+  }, [contractId, contractIdentity, weekBounds]);
 
   // Helper function to get aporte/weekly_cap values at a specific date
   const getValuesAtDate = (date: Date): { aporte: number; weeklyCap: number } => {
