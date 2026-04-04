@@ -143,9 +143,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
           console.error('Error fetching current week revenue:', error);
         }
       } finally {
-        if (isFirstLoad.current) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
