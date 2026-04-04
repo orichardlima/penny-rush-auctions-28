@@ -13,7 +13,7 @@ import { LaunchBanner } from "@/components/LaunchBanner";
 import { PixPaymentModal } from "@/components/PixPaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuctionTimer } from "@/hooks/useAuctionTimer";
-import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
+
 import { useAuctionRealtime } from "@/contexts/AuctionRealtimeContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
