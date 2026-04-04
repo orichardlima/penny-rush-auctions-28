@@ -159,7 +159,7 @@ const AdminDashboard = () => {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{totalBids}</div>
+              <div className="text-2xl font-bold text-purple-600">{totalBids.toLocaleString('pt-BR')}</div>
               <p className="text-xs text-muted-foreground">Atividade total do sistema</p>
             </CardContent>
           </Card>
