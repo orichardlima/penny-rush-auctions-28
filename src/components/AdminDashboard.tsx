@@ -150,7 +150,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">{activeAuctions}</div>
-              <p className="text-xs text-muted-foreground">Total de leilões: {auctions.length}</p>
+              <p className="text-xs text-muted-foreground">Total de leilões: {auctions.length.toLocaleString('pt-BR')}</p>
             </CardContent>
           </Card>
           <Card className="border-l-4 border-l-purple-500">
