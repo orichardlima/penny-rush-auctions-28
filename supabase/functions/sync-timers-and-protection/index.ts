@@ -5,19 +5,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Função para gerar delay aleatório em ms
 function getRandomDelay(minMs: number, maxMs: number): number {
   return Math.floor(Math.random() * (maxMs - minMs + 1) + minMs);
 }
 
-// Função sleep
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Helper: buscar bot aleatório com nome formatado
 async function getRandomBot(supabase: any) {
-  // Buscar bots que NÃO venceram nas últimas 48h
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
   const { data: recentWinnerIds } = await supabase
     .from('auctions')
@@ -35,10 +31,7 @@ async function getRandomBot(supabase: any) {
 
   if (!bots || bots.length === 0) return null;
 
-  // Filtrar bots que não venceram recentemente
   const availableBots = bots.filter((b: any) => !excludeIds.includes(b.user_id));
-  
-  // Fallback: se todos venceram, usar qualquer bot
   const pool = availableBots.length > 0 ? availableBots : bots;
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -50,7 +43,6 @@ function formatBotWinnerName(bot: any): string {
   return bot.full_name || 'Bot';
 }
 
-// Helper: gerar display name para last_bidders (formato "Primeiro Segundo")
 function getBotDisplayName(bot: any): string {
   const fullName = bot.full_name || 'Bot';
   const parts = fullName.trim().split(' ');
@@ -59,7 +51,11 @@ function getBotDisplayName(bot: any): string {
 }
 
 // Helper: finalizar leilão SEMPRE com bot como vencedor
-async function finalizeWithBot(supabase: any, auctionId: string, auctionTitle: string, reason: string) {
+// Inclui finish_reason e filtro idempotente (status=active AND finished_at IS NULL)
+async function finalizeWithBot(
+  supabase: any, auctionId: string, auctionTitle: string, 
+  reason: string, finishReason: string
+): Promise<boolean> {
   const bot = await getRandomBot(supabase);
   if (!bot) {
     console.error(`❌ [FINALIZE] Nenhum bot disponível para "${auctionTitle}"`);
@@ -69,7 +65,6 @@ async function finalizeWithBot(supabase: any, auctionId: string, auctionTitle: s
   const winnerName = formatBotWinnerName(bot);
   const botDisplay = getBotDisplayName(bot);
 
-  // Buscar last_bidders atual e prepend o bot vencedor
   const { data: auctionData } = await supabase
     .from('auctions')
     .select('last_bidders')
@@ -79,36 +74,43 @@ async function finalizeWithBot(supabase: any, auctionId: string, auctionTitle: s
   let currentBidders: string[] = auctionData?.last_bidders || [];
   currentBidders = [botDisplay, ...currentBidders].slice(0, 3);
 
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from('auctions')
     .update({
       status: 'finished',
       finished_at: new Date().toISOString(),
       winner_id: bot.user_id,
       winner_name: winnerName,
-      last_bidders: currentBidders
+      last_bidders: currentBidders,
+      finish_reason: finishReason
     })
-    .eq('id', auctionId);
+    .eq('id', auctionId)
+    .eq('status', 'active')
+    .is('finished_at', null)
+    .select('id');
 
   if (error) {
     console.error(`❌ [FINALIZE] Erro ao finalizar "${auctionTitle}":`, error.message);
     return false;
   }
 
-  console.log(`🏁 [FINALIZED] "${auctionTitle}" - ${reason} (bot: ${winnerName})`);
+  // Se nenhuma linha foi atualizada, outra camada já finalizou
+  if (!data || data.length === 0) {
+    console.log(`⚡ [FINALIZE] "${auctionTitle}" já foi finalizado por outra camada`);
+    return false;
+  }
+
+  console.log(`🏁 [FINALIZED] "${auctionTitle}" - ${reason} | finish_reason=${finishReason} (bot: ${winnerName})`);
   return true;
 }
 
-// Helper: distribute fury vault for a finalized auction
 async function distributeFuryVault(supabase: any, auctionId: string, auctionTitle: string) {
   try {
     const { data, error } = await supabase.rpc('fury_vault_distribute', { p_auction_id: auctionId });
     if (error) {
       console.error(`❌ [FURY-VAULT] Erro ao distribuir cofre do leilão "${auctionTitle}":`, error.message);
     } else if (data?.status === 'distributed') {
-      console.log(`🏆 [FURY-VAULT] Cofre distribuído para "${auctionTitle}": top=R$${data.top_bidder_amount}, sorteio=R$${data.raffle_winner_amount}, qualificados=${data.qualified_count}`);
-    } else {
-      console.log(`📦 [FURY-VAULT] Cofre "${auctionTitle}": ${data?.status}`);
+      console.log(`🏆 [FURY-VAULT] Cofre distribuído para "${auctionTitle}"`);
     }
   } catch (e) {
     console.error(`💥 [FURY-VAULT] Exceção ao distribuir cofre:`, e);
@@ -116,7 +118,6 @@ async function distributeFuryVault(supabase: any, auctionId: string, auctionTitl
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -127,204 +128,196 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-  const currentTimeBr = new Date().toISOString();
-  console.log(`🔄 [PROTECTION-CHECK] Verificação de proteção - ${currentTimeBr}`);
-  const startTime = Date.now();
+    const currentTimeBr = new Date().toISOString();
+    console.log(`🔄 [PROTECTION-CHECK] ${currentTimeBr}`);
+    const startTime = Date.now();
 
-  // **FASE 1: Ativar leilões em espera cujo horário chegou**
-  const { data: waitingAuctions, error: waitingError } = await supabase
-    .from('auctions')
-    .select('id, title, starts_at')
-    .eq('status', 'waiting')
-    .lte('starts_at', currentTimeBr);
+    // **FASE 1: Ativar leilões em espera cujo horário chegou**
+    const { data: waitingAuctions } = await supabase
+      .from('auctions')
+      .select('id, title, starts_at')
+      .eq('status', 'waiting')
+      .lte('starts_at', currentTimeBr);
 
-  let activatedCount = 0;
-  if (waitingAuctions && waitingAuctions.length > 0) {
-    for (const auction of waitingAuctions) {
-      const { error: activateError } = await supabase
-        .from('auctions')
-        .update({ 
-          status: 'active',
-          time_left: 15,
-          last_bid_at: currentTimeBr,
-          updated_at: currentTimeBr
-        })
-        .eq('id', auction.id);
+    let activatedCount = 0;
+    if (waitingAuctions && waitingAuctions.length > 0) {
+      for (const auction of waitingAuctions) {
+        const { error: activateError } = await supabase
+          .from('auctions')
+          .update({ 
+            status: 'active',
+            time_left: 15,
+            last_bid_at: currentTimeBr,
+            updated_at: currentTimeBr
+          })
+          .eq('id', auction.id);
 
-      if (!activateError) {
-        console.log(`✅ [ACTIVATION] Leilão "${auction.title}" ativado`);
-        activatedCount++;
+        if (!activateError) {
+          console.log(`✅ [ACTIVATION] Leilão "${auction.title}" ativado`);
+          activatedCount++;
+        }
       }
     }
-  }
 
-  // **FASE 2: Verificar leilões ativos para proteção ou finalização**
-  const { data: activeAuctions, error: activeError } = await supabase
-    .from('auctions')
-    .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price')
-    .eq('status', 'active');
+    // **FASE 2: Verificar leilões ativos para proteção ou finalização**
+    const { data: activeAuctions, error: activeError } = await supabase
+      .from('auctions')
+      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price')
+      .eq('status', 'active');
 
-  if (activeError) {
-    console.error('❌ Erro ao buscar leilões ativos:', activeError);
-    return new Response(JSON.stringify({ error: activeError.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    if (activeError) {
+      console.error('❌ Erro ao buscar leilões ativos:', activeError);
+      return new Response(JSON.stringify({ error: activeError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  let finalizedCount = 0;
-  let botBidsAdded = 0;
+    let finalizedCount = 0;
+    let botBidsAdded = 0;
+    let safetyNetFinalized = 0;
 
-  if (activeAuctions && activeAuctions.length > 0) {
-    // Embaralhar ordem para variar qual leilão é processado primeiro
-    const shuffledAuctions = [...activeAuctions].sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < shuffledAuctions.length; i++) {
-      const auction = shuffledAuctions[i];
+    if (activeAuctions && activeAuctions.length > 0) {
+      const shuffledAuctions = [...activeAuctions].sort(() => Math.random() - 0.5);
       
-      // Delay aleatório entre leilões para dessincronizar
-      if (i > 0) {
-        const delay = getRandomDelay(1000, 4000);
-        console.log(`⏳ [DELAY] Aguardando ${delay}ms antes de processar "${auction.title}"`);
-        await sleep(delay);
-      }
+      for (let i = 0; i < shuffledAuctions.length; i++) {
+        const auction = shuffledAuctions[i];
+        
+        if (i > 0) {
+          const delay = getRandomDelay(1000, 4000);
+          await sleep(delay);
+        }
 
-      // Calcular tempo desde último lance
-      const lastBidTime = new Date(auction.last_bid_at).getTime();
-      const currentTime = Date.now();
-      const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
+        const lastBidTime = new Date(auction.last_bid_at).getTime();
+        const currentTime = Date.now();
+        const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
 
-      console.log(`⏰ [CHECK] Leilão "${auction.title}": ${secondsSinceLastBid}s inativo`);
+        // 1. Verificar horário limite
+        if (auction.ends_at) {
+          const endsAt = new Date(auction.ends_at).getTime();
+          if (currentTime >= endsAt) {
+            const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'horário limite', 'time_limit');
+            if (finalized) {
+              await distributeFuryVault(supabase, auction.id, auction.title);
+              finalizedCount++;
+            }
+            continue;
+          }
+        }
 
-      // Verificar se horário limite foi atingido
-      if (auction.ends_at) {
-        const endsAt = new Date(auction.ends_at).getTime();
-        if (currentTime >= endsAt) {
-          console.log(`⏰ [HORÁRIO-LIMITE] Leilão "${auction.title}" - horário limite atingido, finalizando com BOT`);
-          
-          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'horário limite');
+        // 2. Verificar preço máximo
+        if (auction.max_price && Number(auction.current_price) >= Number(auction.max_price)) {
+          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'preço máximo', 'max_price');
           if (finalized) {
             await distributeFuryVault(supabase, auction.id, auction.title);
             finalizedCount++;
           }
           continue;
         }
-      }
 
-      // Verificar se preço máximo foi atingido
-      if (auction.max_price && Number(auction.current_price) >= Number(auction.max_price)) {
-        console.log(`💰 [PREÇO-MÁXIMO] Leilão "${auction.title}" - preço máximo R$${auction.max_price} atingido, finalizando com BOT`);
-        
-        const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'preço máximo');
-        if (finalized) {
-          await distributeFuryVault(supabase, auction.id, auction.title);
-          finalizedCount++;
-        }
-        continue;
-      }
-
-      // Verificar se meta foi atingida - finalizar independente de inatividade
-      if (Number(auction.company_revenue) >= Number(auction.revenue_target)) {
-        console.log(`🎯 [META-OK] Leilão "${auction.title}" - meta atingida, finalizando com BOT`);
-        
-        const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'meta atingida');
-        if (finalized) {
-          await distributeFuryVault(supabase, auction.id, auction.title);
-          finalizedCount++;
-        }
-        continue;
-      }
-
-      // LANCE PROBABILÍSTICO: threshold e probabilidade variáveis por leilão
-      {
-      const bidProbability = secondsSinceLastBid >= 13 ? 1.0
-          : secondsSinceLastBid >= 10 ? 0.25
-          : 0;
-        
-        if (bidProbability === 0 || Math.random() > bidProbability) {
-          if (secondsSinceLastBid >= 10) {
-            console.log(`🎲 [NATURAL] "${auction.title}" - ${secondsSinceLastBid}s inativo, aguardando próximo ciclo`);
+        // 3. Verificar meta de receita
+        if (Number(auction.company_revenue) >= Number(auction.revenue_target)) {
+          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'meta atingida', 'revenue_target');
+          if (finalized) {
+            await distributeFuryVault(supabase, auction.id, auction.title);
+            finalizedCount++;
           }
           continue;
         }
-        const currentPrice = Number(auction.current_price);
-        const marketValue = Number(auction.market_value);
 
-        // CONTROLE ANTI-SPAM: Verificar se já foi adicionado bot nos últimos 3s
-        const { data: recentBot } = await supabase
-          .from('bids')
-          .select('id')
-          .eq('auction_id', auction.id)
-          .eq('cost_paid', 0)
-          .gte('created_at', new Date(Date.now() - 3000).toISOString())
-          .limit(1);
-
-        if (recentBot && recentBot.length > 0) {
-          console.log(`🚫 [ANTI-SPAM] Leilão "${auction.title}" - bot já adicionado recentemente`);
+        // 4. SAFETY NET: Inatividade > 30s — finalizar com bot
+        if (secondsSinceLastBid > 30) {
+          console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando com BOT`);
+          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'inatividade', 'inactivity_forced');
+          if (finalized) {
+            await distributeFuryVault(supabase, auction.id, auction.title);
+            finalizedCount++;
+            safetyNetFinalized++;
+          }
           continue;
         }
 
-        // ADICIONAR UM BOT PARA MANTER ATIVO
-        const { data: randomBot } = await supabase.rpc('get_random_bot');
-        
-        if (randomBot) {
-          const newPrice = currentPrice + Number(auction.bid_increment);
+        // 5. LANCE PROBABILÍSTICO para manter leilão ativo
+        {
+          const bidProbability = secondsSinceLastBid >= 13 ? 1.0
+            : secondsSinceLastBid >= 10 ? 0.25
+            : 0;
           
-          const { error: bidError } = await supabase
-            .from('bids')
-            .insert({
-              auction_id: auction.id,
-              user_id: randomBot,
-              bid_amount: newPrice,
-              cost_paid: 0
-            });
+          if (bidProbability === 0 || Math.random() > bidProbability) {
+            continue;
+          }
 
-          if (!bidError) {
-            botBidsAdded++;
+          const currentPrice = Number(auction.current_price);
+          const marketValue = Number(auction.market_value);
+
+          // CONTROLE ANTI-SPAM
+          const { data: recentBot } = await supabase
+            .from('bids')
+            .select('id')
+            .eq('auction_id', auction.id)
+            .eq('cost_paid', 0)
+            .gte('created_at', new Date(Date.now() - 3000).toISOString())
+            .limit(1);
+
+          if (recentBot && recentBot.length > 0) {
+            continue;
+          }
+
+          const { data: randomBot } = await supabase.rpc('get_random_bot');
+          
+          if (randomBot) {
+            const newPrice = currentPrice + Number(auction.bid_increment);
             
-            // SE HÁ PREJUÍZO - finalizar imediatamente com BOT
-            if (currentPrice > marketValue) {
-              console.log(`💰 [PREJUÍZO] Finalizando "${auction.title}" com BOT - R$${currentPrice} > R$${marketValue}`);
+            const { error: bidError } = await supabase
+              .from('bids')
+              .insert({
+                auction_id: auction.id,
+                user_id: randomBot,
+                bid_amount: newPrice,
+                cost_paid: 0
+              });
+
+            if (!bidError) {
+              botBidsAdded++;
               
-              const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'prejuízo evitado');
-              if (finalized) {
-                await distributeFuryVault(supabase, auction.id, auction.title);
-                finalizedCount++;
+              // SE HÁ PREJUÍZO - finalizar imediatamente com BOT
+              if (currentPrice > marketValue) {
+                const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'prejuízo evitado', 'loss_protection');
+                if (finalized) {
+                  await distributeFuryVault(supabase, auction.id, auction.title);
+                  finalizedCount++;
+                }
               }
-            } else {
-              console.log(`🤖 [REAQUECER] Bot reaqueceu "${auction.title}" - R$${newPrice.toFixed(2)} - continuando`);
             }
-          } else {
-            console.error(`❌ [ERRO] Falha ao adicionar bot: ${bidError.message}`);
           }
         }
       }
     }
-  }
 
-  const executionTime = Date.now() - startTime;
-  const summary = {
-    timestamp: currentTimeBr,
-    activated: activatedCount,
-    finalized: finalizedCount,
-    bot_bids_added: botBidsAdded,
-    auctions_checked: activeAuctions?.length || 0,
-    execution_time_ms: executionTime,
-    type: 'protection_system_bot_only',
-    success: true
-  };
+    const executionTime = Date.now() - startTime;
+    const summary = {
+      timestamp: currentTimeBr,
+      activated: activatedCount,
+      finalized: finalizedCount,
+      safety_net_finalized: safetyNetFinalized,
+      bot_bids_added: botBidsAdded,
+      auctions_checked: activeAuctions?.length || 0,
+      execution_time_ms: executionTime,
+      type: 'protection_system_bot_only',
+      success: true
+    };
 
-  console.log(`✅ [PROTECTION-COMPLETE] Ativados: ${activatedCount} | Finalizados: ${finalizedCount} | Bots: ${botBidsAdded} | Verificados: ${activeAuctions?.length || 0} | Tempo: ${executionTime}ms`);
+    console.log(`✅ [COMPLETE] Ativados:${activatedCount} | Finalizados:${finalizedCount} (safety:${safetyNetFinalized}) | Bots:${botBidsAdded} | ${executionTime}ms`);
 
-  return new Response(JSON.stringify(summary), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+    return new Response(JSON.stringify(summary), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('💥 [BACKUP-ERROR] Erro crítico no backup:', error);
+    console.error('💥 [ERROR] Erro crítico:', error);
     return new Response(JSON.stringify({ 
-      error: 'Backup error', 
+      error: 'Internal error', 
       details: error.message,
       timestamp: new Date().toISOString()
     }), {
