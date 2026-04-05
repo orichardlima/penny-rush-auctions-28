@@ -239,8 +239,8 @@ Deno.serve(async (req) => {
 
         // 5. LANCE PROBABILÍSTICO para manter leilão ativo
         {
-          const bidProbability = secondsSinceLastBid >= 13 ? 1.0
-            : secondsSinceLastBid >= 10 ? 0.25
+          const bidProbability = secondsSinceLastBid >= 8 ? 1.0
+            : secondsSinceLastBid >= 6 ? 0.5
             : 0;
           
           if (bidProbability === 0 || Math.random() > bidProbability) {
