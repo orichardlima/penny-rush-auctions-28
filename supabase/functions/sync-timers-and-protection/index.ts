@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         }
 
         // 4. SAFETY NET: Inatividade > 30s — finalizar com bot
-        if (secondsSinceLastBid > 30) {
+        if (secondsSinceLastBid >= 12) {
           console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando com BOT`);
           const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'inatividade', 'inactivity_forced');
           if (finalized) {
