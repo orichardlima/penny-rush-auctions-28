@@ -270,16 +270,23 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
   const isFetchingRef = useRef(false);
   const hasLoadedRef = useRef(false);
+  const fetchIdRef = useRef(0);
 
   // Buscar todos os leilões
   const fetchAuctions = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
+
+    const currentFetchId = ++fetchIdRef.current;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     try {
       const { data: settingsData } = await supabase
         .from('system_settings')
         .select('setting_value')
         .eq('setting_key', 'finished_auctions_display_hours')
+        .abortSignal(controller.signal)
         .single();
 
       const displayHours = parseInt(settingsData?.setting_value || '48');
@@ -293,7 +300,9 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         query = query.in('status', ['active', 'waiting']);
       }
       
-      const { data, error } = await query.order('starts_at', { ascending: false, nullsFirst: false });
+      const { data, error } = await query
+        .order('starts_at', { ascending: false, nullsFirst: false })
+        .abortSignal(controller.signal);
 
       if (error) {
         console.error('❌ [REALTIME-CONTEXT] Erro ao buscar leilões:', error);
@@ -312,7 +321,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, full_name, city, state')
-          .in('user_id', winnerIds);
+          .in('user_id', winnerIds)
+          .abortSignal(controller.signal);
 
         profiles?.forEach(profile => {
           if (profile.full_name) {
@@ -325,6 +335,12 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
             winnerProfilesMap.set(profile.user_id, formatted);
           }
         });
+      }
+
+      // Guard: descartar se fetchId expirou (outra chamada já assumiu)
+      if (fetchIdRef.current !== currentFetchId) {
+        console.log('🚫 [REALTIME-CONTEXT] Resposta descartada (fetchId expirado)');
+        return;
       }
 
       // Processar em paralelo - usar last_bidders do banco, fallback para fetchRecentBidders apenas se vazio
@@ -360,10 +376,17 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         console.log(`🧹 [REALTIME-CONTEXT] ${cleanAuctions.length - visibleAuctions.length} leilões finalizados sem lances ocultados`);
       }
     } catch (error) {
-      console.error('❌ [REALTIME-CONTEXT] Erro:', error);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 12s');
+      } else {
+        console.error('❌ [REALTIME-CONTEXT] Erro:', error);
+      }
     } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
+      clearTimeout(timeoutId);
+      if (fetchIdRef.current === currentFetchId) {
+        isFetchingRef.current = false;
+        setLoading(false);
+      }
     }
   }, []);
 
