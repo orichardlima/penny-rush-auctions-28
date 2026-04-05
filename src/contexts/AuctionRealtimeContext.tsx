@@ -286,8 +286,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         .from('system_settings')
         .select('setting_value')
         .eq('setting_key', 'finished_auctions_display_hours')
-        .single()
-        .abortSignal(controller.signal);
+        .abortSignal(controller.signal)
+        .single();
 
       const displayHours = parseInt(settingsData?.setting_value || '48');
       
