@@ -482,10 +482,13 @@ export type Database = {
           is_hidden: boolean | null
           last_bid_at: string | null
           last_bidders: Json | null
+          last_bot_band: string | null
           market_value: number | null
           max_price: number | null
           participants_count: number | null
           revenue_target: number | null
+          scheduled_bot_band: string | null
+          scheduled_bot_bid_at: string | null
           starting_price: number | null
           starts_at: string | null
           status: string | null
@@ -511,10 +514,13 @@ export type Database = {
           is_hidden?: boolean | null
           last_bid_at?: string | null
           last_bidders?: Json | null
+          last_bot_band?: string | null
           market_value?: number | null
           max_price?: number | null
           participants_count?: number | null
           revenue_target?: number | null
+          scheduled_bot_band?: string | null
+          scheduled_bot_bid_at?: string | null
           starting_price?: number | null
           starts_at?: string | null
           status?: string | null
@@ -540,10 +546,13 @@ export type Database = {
           is_hidden?: boolean | null
           last_bid_at?: string | null
           last_bidders?: Json | null
+          last_bot_band?: string | null
           market_value?: number | null
           max_price?: number | null
           participants_count?: number | null
           revenue_target?: number | null
+          scheduled_bot_band?: string | null
+          scheduled_bot_bid_at?: string | null
           starting_price?: number | null
           starts_at?: string | null
           status?: string | null
@@ -2401,6 +2410,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _bot_finalize_auction: {
+        Args: {
+          p_auction_id: string
+          p_current_time: string
+          p_finish_reason: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       bot_protection_loop: { Args: never; Returns: undefined }
       check_affiliate_code_availability: {
         Args: { code_to_check: string }
