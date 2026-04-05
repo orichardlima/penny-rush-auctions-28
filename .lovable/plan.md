@@ -1,108 +1,103 @@
 
 
-# Fix: AbortController + fetchIdRef no fetchAuctions
+# Contenção: Remover Sleep/Shuffle + Polling 30s + Timeout 20s
 
 ## Resumo
 
-1 edição em `src/contexts/AuctionRealtimeContext.tsx`. Adicionar AbortController real com timeout de 12s e fetchIdRef para invalidar respostas antigas.
+3 edições cirúrgicas em 3 arquivos + re-deploy da edge function. Zero mudança funcional ou de UI.
 
-## Mudanças no `fetchAuctions` (linhas 271-368)
+## 1. Edge Function `supabase/functions/sync-timers-and-protection/index.ts`
 
-### 1. Adicionar ref
+### Remover funções `getRandomDelay` e `sleep` (linhas 8-14)
 
-```typescript
-const fetchIdRef = useRef(0);
-```
+Deletar completamente essas duas funções — não são mais usadas em nenhum outro lugar do arquivo.
 
-### 2. Reescrever fetchAuctions
-
-- Incrementar `fetchIdRef` no início
-- Criar `AbortController` + `setTimeout(() => controller.abort(), 12000)`
-- Passar `.abortSignal(controller.signal)` nas 3 queries:
-  1. `system_settings` (linha 279)
-  2. `auctions` query principal (linha 296)
-  3. `profiles` batch de ganhadores (linha 312)
-- Guard `fetchIdRef.current !== currentFetchId` antes de `setAuctions` e `setLoading`
-- Catch separado para `AbortError` (warn, não error)
-- No finally: `clearTimeout`, liberar `isFetchingRef` e `setLoading(false)` apenas se `fetchIdRef.current === currentFetchId`
-
-### Código final do fetchAuctions
+### Remover shuffle e sleep no loop (linhas 206-214)
 
 ```typescript
-const fetchIdRef = useRef(0);
+// DE:
+const shuffledAuctions = [...activeAuctions].sort(() => Math.random() - 0.5);
 
-const fetchAuctions = useCallback(async () => {
-  if (isFetchingRef.current) return;
-  isFetchingRef.current = true;
+for (let i = 0; i < shuffledAuctions.length; i++) {
+  const auction = shuffledAuctions[i];
 
-  const currentFetchId = ++fetchIdRef.current;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-  try {
-    const { data: settingsData } = await supabase
-      .from('system_settings')
-      .select('setting_value')
-      .eq('setting_key', 'finished_auctions_display_hours')
-      .single()
-      .abortSignal(controller.signal);
-
-    // ... displayHours calc (inalterado)
-
-    const { data, error } = await query
-      .order('starts_at', { ascending: false, nullsFirst: false })
-      .abortSignal(controller.signal);  // nota: encadear no final da query
-
-    // ... error check (inalterado)
-
-    // Batch profiles
-    if (winnerIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, city, state')
-        .in('user_id', winnerIds)
-        .abortSignal(controller.signal);
-      // ...
-    }
-
-    // Guard: descartar se fetchId expirou
-    if (fetchIdRef.current !== currentFetchId) {
-      console.log('🚫 [REALTIME-CONTEXT] Resposta descartada (fetchId expirado)');
-      return;
-    }
-
-    // ... Promise.all, sort, filter (inalterado)
-
-    setAuctions(visibleAuctions);
-    hasLoadedRef.current = visibleAuctions.length > 0;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 12s');
-    } else {
-      console.error('❌ [REALTIME-CONTEXT] Erro:', error);
-    }
-  } finally {
-    clearTimeout(timeoutId);
-    if (fetchIdRef.current === currentFetchId) {
-      isFetchingRef.current = false;
-      setLoading(false);
-    }
+  if (i > 0) {
+    const delay = getRandomDelay(500, 1500);
+    await sleep(delay);
   }
-}, []);
+
+// PARA:
+for (let i = 0; i < activeAuctions.length; i++) {
+  const auction = activeAuctions[i];
 ```
 
-## Cuidados solicitados pelo usuário
+## 2. Frontend Polling `src/hooks/useRealTimeProtection.ts` (linha 26)
 
-1. **setLoading(false) protegido por fetchId** — sim, no finally, tanto `isFetchingRef` quanto `setLoading` ficam dentro do guard `fetchIdRef.current === currentFetchId`
-2. **Todas as queries com abortSignal** — as 3 queries (settings, auctions, profiles) recebem `.abortSignal(controller.signal)`
+```typescript
+// DE:
+intervalRef.current = setInterval(callProtectionSystem, 7000);
+// PARA:
+intervalRef.current = setInterval(callProtectionSystem, 30000);
+```
 
-## Nota sobre `.abortSignal()` encadeado na query com `.or()`
+## 3. Frontend Timeout `src/contexts/AuctionRealtimeContext.tsx`
 
-A query de auctions usa `query = supabase.from(...).select(*)` e depois `query = query.or(...)`. O `.abortSignal()` será adicionado no final, junto com `.order()`, antes do `await`.
+### Linha 282 — timeout 12s para 20s
 
-## Arquivo alterado
+```typescript
+// DE:
+const timeoutId = setTimeout(() => controller.abort(), 12000);
+// PARA:
+const timeoutId = setTimeout(() => controller.abort(), 20000);
+```
+
+### Linhas 307-310 — detectar AbortError no retorno da query
+
+```typescript
+// DE:
+if (error) {
+  console.error('❌ [REALTIME-CONTEXT] Erro ao buscar leilões:', error);
+  return;
+}
+// PARA:
+if (error) {
+  if (error.code === '20' || error.message?.includes('AbortError')) {
+    console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout');
+  } else {
+    console.error('❌ [REALTIME-CONTEXT] Erro ao buscar leilões:', error);
+  }
+  return;
+}
+```
+
+### Linhas 379-380 — catch block com detecção ampliada
+
+```typescript
+// DE:
+if (error instanceof DOMException && error.name === 'AbortError') {
+  console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 12s');
+// PARA:
+if ((error instanceof DOMException && error.name === 'AbortError') || 
+    (error && typeof error === 'object' && (error.code === '20' || error.message?.includes('AbortError')))) {
+  console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 20s');
+```
+
+## 4. Re-deploy
+
+Deploy da edge function `sync-timers-and-protection` após a edição.
+
+## Impacto esperado
+
+- Edge function executa em < 2s (sem sleep de N x 1s)
+- ~75% menos chamadas por cliente (30s vs 7s)
+- Banco libera conexões, auth e home voltam a funcionar
+- AbortErrors não poluem logs
+
+## Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/contexts/AuctionRealtimeContext.tsx` | AbortController 12s + fetchIdRef + proteção em setLoading |
+| `supabase/functions/sync-timers-and-protection/index.ts` | Remover `getRandomDelay`, `sleep`, shuffle e delay entre leilões |
+| `src/hooks/useRealTimeProtection.ts` | Polling 7000 → 30000 |
+| `src/contexts/AuctionRealtimeContext.tsx` | Timeout 12s → 20s + AbortError detection fix |
 
