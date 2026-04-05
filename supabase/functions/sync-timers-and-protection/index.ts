@@ -175,7 +175,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // **FASE 2: Verificar leilões ativos para proteção ou finalização**
+    let finalizedCount = 0;
+    let botBidsExecuted = 0;
+    let botBidsScheduled = 0;
+    let staleDiscarded = 0;
+    let safetyNetFinalized = 0;
+
+    // **FASE 2: Executar agendamentos vencidos via SQL atômico (FOR UPDATE SKIP LOCKED)**
+    const { data: execResult, error: execError } = await supabase.rpc('execute_overdue_bot_bids');
+    if (execResult) {
+      botBidsExecuted = execResult.executed || 0;
+      staleDiscarded = execResult.stale || 0;
+      if (botBidsExecuted > 0) {
+        console.log(`🤖 [BOT-EXEC-RPC] ${botBidsExecuted} lance(s) executado(s) via SQL atômico`);
+      }
+    }
+    if (execError) {
+      console.error('❌ [BOT-EXEC-RPC] Erro:', execError.message);
+    }
+
+    // **FASE 3: Verificar leilões ativos para finalização e agendamento**
     const { data: activeAuctions, error: activeError } = await supabase
       .from('auctions')
       .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price, scheduled_bot_bid_at, scheduled_bot_band, last_bot_band')
@@ -189,16 +208,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    let finalizedCount = 0;
-    let botBidsExecuted = 0;
-    let botBidsScheduled = 0;
-    let staleDiscarded = 0;
-    let safetyNetFinalized = 0;
-
     if (activeAuctions && activeAuctions.length > 0) {
-      for (let i = 0; i < activeAuctions.length; i++) {
-        const auction = activeAuctions[i];
-
+      for (const auction of activeAuctions) {
         const lastBidTime = new Date(auction.last_bid_at).getTime();
         const currentTime = Date.now();
         const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
@@ -236,7 +247,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 4. SAFETY NET: Inatividade >= 45s — finalizar com bot
+        // 4. SAFETY NET: Inatividade >= 45s
         if (secondsSinceLastBid >= 45) {
           console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando com BOT`);
           const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'inatividade', 'inactivity_forced');
@@ -248,91 +259,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 5. FASE A: Executar agendamento vencido
+        // 5. Se já tem agendamento pendente (não vencido), skip
         if (auction.scheduled_bot_bid_at) {
-          const scheduledTime = new Date(auction.scheduled_bot_bid_at).getTime();
-          
-          if (currentTime >= scheduledTime) {
-            // Validar ciclo: agendamento pertence ao ciclo atual?
-            if (scheduledTime >= lastBidTime) {
-              // Ciclo válido: executar lance
-              const currentPrice = Number(auction.current_price);
-
-              // Anti-spam: verificar bot recente
-              const { data: recentBot } = await supabase
-                .from('bids')
-                .select('id')
-                .eq('auction_id', auction.id)
-                .eq('cost_paid', 0)
-                .gte('created_at', new Date(Date.now() - 3000).toISOString())
-                .limit(1);
-
-              if (recentBot && recentBot.length > 0) {
-                continue;
-              }
-
-              const { data: randomBot } = await supabase.rpc('get_random_bot');
-              
-              if (randomBot) {
-                const newPrice = currentPrice + Number(auction.bid_increment);
-                
-                const { error: bidError } = await supabase
-                  .from('bids')
-                  .insert({
-                    auction_id: auction.id,
-                    user_id: randomBot,
-                    bid_amount: newPrice,
-                    cost_paid: 0
-                  });
-
-                if (!bidError) {
-                  // Atualizar last_bot_band e limpar schedule
-                  await supabase
-                    .from('auctions')
-                    .update({
-                      last_bot_band: auction.scheduled_bot_band,
-                      scheduled_bot_bid_at: null,
-                      scheduled_bot_band: null
-                    })
-                    .eq('id', auction.id);
-
-                  botBidsExecuted++;
-                  console.log(`🤖 [BOT-EXEC] "${auction.title}" | band=${auction.scheduled_bot_band} | scheduled=${auction.scheduled_bot_bid_at} | executed=${new Date().toISOString()} | R$${newPrice}`);
-                  
-                  // SE HÁ PREJUÍZO - finalizar imediatamente
-                  if (currentPrice > Number(auction.market_value)) {
-                    const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'prejuízo evitado', 'loss_protection');
-                    if (finalized) {
-                      await distributeFuryVault(supabase, auction.id, auction.title);
-                      finalizedCount++;
-                    }
-                  }
-                }
-              }
-            } else {
-              // Agendamento obsoleto: limpar
-              await supabase
-                .from('auctions')
-                .update({
-                  scheduled_bot_bid_at: null,
-                  scheduled_bot_band: null
-                })
-                .eq('id', auction.id);
-              
-              staleDiscarded++;
-              console.log(`🗑️ [BOT-STALE] "${auction.title}" | agendamento obsoleto descartado`);
-            }
-          }
-          // Se ainda não é hora do agendamento, skip (não agendar outro)
           continue;
         }
 
-        // 6. FASE B: Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
+        // 6. Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
         if (secondsSinceLastBid >= 5) {
           const { band, delaySec } = selectBotBand(auction.last_bot_band);
           const targetTime = new Date(lastBidTime + delaySec * 1000).toISOString();
 
-          // UPDATE atômico: só agenda se ninguém agendou antes
           const { data: scheduleResult } = await supabase
             .from('auctions')
             .update({

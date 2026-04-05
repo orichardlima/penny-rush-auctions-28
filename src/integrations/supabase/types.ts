@@ -2434,6 +2434,7 @@ export type Database = {
         Args: { p_contract_id: string }
         Returns: undefined
       }
+      execute_overdue_bot_bids: { Args: never; Returns: Json }
       fix_partner_referral: {
         Args: { p_referral_code: string; p_referred_contract_id: string }
         Returns: Json
