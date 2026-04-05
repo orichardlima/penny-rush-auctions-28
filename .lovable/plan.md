@@ -1,85 +1,51 @@
 
 
-# Finalização Imediata ao Entrar em "Verificando Lances Válidos"
+# Ajuste Agressivo de Thresholds — Edge Function + SQL
 
-## Problema
+## Resumo
 
-Quando o timer chega a 0, o card exibe "Verificando lances válidos" e fica aguardando o backend (edge function a cada 10s ou cron SQL) finalizar. Pode levar até 30s.
+3 edições pontuais na edge function + 1 migration SQL. Nenhum arquivo frontend alterado.
 
-## Solução
+## 1. Edge Function `sync-timers-and-protection/index.ts` — 3 edições
 
-Quando `isVerifying` fica `true` no `AuctionCard`, chamar diretamente a edge function `sync-timers-and-protection` para forçar a finalização imediata, e depois fazer `forceSync` para atualizar o estado local.
+**Linha 187**: delay entre leilões
+- De: `getRandomDelay(1000, 4000)`
+- Para: `getRandomDelay(500, 1500)`
 
-## Alterações
+**Linha 229**: finalização por inatividade (prioridade sobre lance probabilístico)
+- De: `secondsSinceLastBid > 30`
+- Para: `secondsSinceLastBid >= 12`
 
-### 1. `src/components/AuctionCard.tsx`
+**Linhas 242-244**: lance probabilístico
+- De: `>= 13 ? 1.0 : >= 10 ? 0.25 : 0`
+- Para: `>= 8 ? 1.0 : >= 6 ? 0.5 : 0`
 
-Adicionar um `useEffect` que, ao detectar `isVerifying === true`:
+## 2. Nova migration SQL — `bot_protection_loop` com 2 edições
 
-1. Aguarda 1 segundo (para dar chance ao realtime de atualizar)
-2. Chama `supabase.functions.invoke('sync-timers-and-protection')` para forçar o backend a processar o leilão
-3. Após resposta, chama `forceSync()` para atualizar o contexto local
-4. Se ainda estiver verificando, repete até **5 tentativas** com intervalo de 2s
-5. Cleanup completo ao sair do estado ou desmontar
+**Linha 178**: safety net inatividade
+- De: `> 60`
+- Para: `>= 20`
 
-```typescript
-useEffect(() => {
-  if (!isVerifying) return;
+**Linhas 217-223**: lance probabilístico
+- De: `>= 13 → 1.0, >= 10 → 0.25`
+- Para: `>= 8 → 1.0, >= 6 → 0.5`
 
-  let cancelled = false;
-  let count = 0;
-  const maxCalls = 5;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+## 3. Deploy da edge function
 
-  const triggerFinalization = async () => {
-    if (cancelled || count >= maxCalls) return;
-    count++;
-    try {
-      await supabase.functions.invoke('sync-timers-and-protection', {
-        body: { trigger: 'verifying_card', auction_id: id }
-      });
-    } catch {}
-    if (!cancelled) {
-      await forceSync();
-    }
-    if (!cancelled && count < maxCalls) {
-      timeoutId = setTimeout(triggerFinalization, 2000);
-    }
-  };
+## Regras de prioridade (confirmadas pela ordem do código)
 
-  timeoutId = setTimeout(triggerFinalization, 1000);
-
-  return () => {
-    cancelled = true;
-    if (timeoutId) clearTimeout(timeoutId);
-  };
-}, [isVerifying]);
-```
-
-Isso garante que ao entrar em "Verificando", o frontend ativamente pede ao backend para finalizar o leilão (que sempre será com bot), eliminando a espera passiva.
-
-### 2. `src/contexts/AuctionRealtimeContext.tsx`
-
-Adicionar guard de reentrância no `fetchAuctions` (já planejado anteriormente):
-
-- `isFetchingRef = useRef(false)` 
-- Early return se já em execução
-- `try/finally` para garantir reset do flag
-
-Isso protege contra múltiplos cards chamando `forceSync` simultaneamente.
-
-## Resultado
-
-- Ao entrar em "Verificando", o card dispara a finalização em ~1s
-- O backend garante atomicidade (`WHERE status='active' AND finished_at IS NULL`)
-- Máximo de 5 chamadas espaçadas por 2s (10s total) — sem spam
-- Guard de reentrância impede queries paralelas no contexto
-- Se outra camada já finalizou, o update simplesmente não afeta nenhuma linha
+| Inatividade | Ação |
+|-------------|------|
+| 0-5s | Nenhuma |
+| 6-7s | Lance bot (50%) |
+| 8-11s | Lance bot (100%) |
+| >= 12s | Finalizar (edge function) |
+| >= 20s | Finalizar (SQL fallback) |
 
 ## Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/AuctionCard.tsx` | useEffect com chamada ativa à edge function ao detectar verificação |
-| `src/contexts/AuctionRealtimeContext.tsx` | Guard de reentrância no `fetchAuctions` |
+| `supabase/functions/sync-timers-and-protection/index.ts` | 3 thresholds + delay |
+| Nova migration SQL | `bot_protection_loop` com thresholds 6s/8s/20s |
 
