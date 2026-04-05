@@ -50,8 +50,30 @@ function getBotDisplayName(bot: any): string {
   return parts[0];
 }
 
+// Sorteia faixa de timing com anti-repetição
+function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number } {
+  const pickBand = (): { band: string; delaySec: number } => {
+    const rand = Math.random();
+    if (rand < 0.20) {
+      return { band: 'early', delaySec: 2 + Math.floor(Math.random() * 4) }; // 2-5s
+    } else if (rand < 0.60) {
+      return { band: 'middle', delaySec: 6 + Math.floor(Math.random() * 4) }; // 6-9s
+    } else if (rand < 0.90) {
+      return { band: 'late', delaySec: 10 + Math.floor(Math.random() * 3) }; // 10-12s
+    } else {
+      return { band: 'sniper', delaySec: 13 + Math.floor(Math.random() * 2) }; // 13-14s
+    }
+  };
+
+  let result = pickBand();
+  // Anti-repetição: re-sortear 1x se igual ao último
+  if (result.band === lastBotBand) {
+    result = pickBand();
+  }
+  return result;
+}
+
 // Helper: finalizar leilão SEMPRE com bot como vencedor
-// Inclui finish_reason e filtro idempotente (status=active AND finished_at IS NULL)
 async function finalizeWithBot(
   supabase: any, auctionId: string, auctionTitle: string, 
   reason: string, finishReason: string
@@ -82,7 +104,9 @@ async function finalizeWithBot(
       winner_id: bot.user_id,
       winner_name: winnerName,
       last_bidders: currentBidders,
-      finish_reason: finishReason
+      finish_reason: finishReason,
+      scheduled_bot_bid_at: null,
+      scheduled_bot_band: null
     })
     .eq('id', auctionId)
     .eq('status', 'active')
@@ -94,7 +118,6 @@ async function finalizeWithBot(
     return false;
   }
 
-  // Se nenhuma linha foi atualizada, outra camada já finalizou
   if (!data || data.length === 0) {
     console.log(`⚡ [FINALIZE] "${auctionTitle}" já foi finalizado por outra camada`);
     return false;
@@ -162,7 +185,7 @@ Deno.serve(async (req) => {
     // **FASE 2: Verificar leilões ativos para proteção ou finalização**
     const { data: activeAuctions, error: activeError } = await supabase
       .from('auctions')
-      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price')
+      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price, scheduled_bot_bid_at, scheduled_bot_band, last_bot_band')
       .eq('status', 'active');
 
     if (activeError) {
@@ -174,7 +197,9 @@ Deno.serve(async (req) => {
     }
 
     let finalizedCount = 0;
-    let botBidsAdded = 0;
+    let botBidsExecuted = 0;
+    let botBidsScheduled = 0;
+    let staleDiscarded = 0;
     let safetyNetFinalized = 0;
 
     if (activeAuctions && activeAuctions.length > 0) {
@@ -225,8 +250,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 4. SAFETY NET: Inatividade > 30s — finalizar com bot
-        if (secondsSinceLastBid >= 12) {
+        // 4. SAFETY NET: Inatividade >= 30s — finalizar com bot
+        if (secondsSinceLastBid >= 30) {
           console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando com BOT`);
           const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'inatividade', 'inactivity_forced');
           if (finalized) {
@@ -237,58 +262,104 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 5. LANCE PROBABILÍSTICO para manter leilão ativo
-        {
-          const bidProbability = secondsSinceLastBid >= 8 ? 1.0
-            : secondsSinceLastBid >= 6 ? 0.5
-            : 0;
+        // 5. FASE A: Executar agendamento vencido
+        if (auction.scheduled_bot_bid_at) {
+          const scheduledTime = new Date(auction.scheduled_bot_bid_at).getTime();
           
-          if (bidProbability === 0 || Math.random() > bidProbability) {
-            continue;
-          }
+          if (currentTime >= scheduledTime) {
+            // Validar ciclo: agendamento pertence ao ciclo atual?
+            if (scheduledTime >= lastBidTime) {
+              // Ciclo válido: executar lance
+              const currentPrice = Number(auction.current_price);
 
-          const currentPrice = Number(auction.current_price);
-          const marketValue = Number(auction.market_value);
+              // Anti-spam: verificar bot recente
+              const { data: recentBot } = await supabase
+                .from('bids')
+                .select('id')
+                .eq('auction_id', auction.id)
+                .eq('cost_paid', 0)
+                .gte('created_at', new Date(Date.now() - 3000).toISOString())
+                .limit(1);
 
-          // CONTROLE ANTI-SPAM
-          const { data: recentBot } = await supabase
-            .from('bids')
-            .select('id')
-            .eq('auction_id', auction.id)
-            .eq('cost_paid', 0)
-            .gte('created_at', new Date(Date.now() - 3000).toISOString())
-            .limit(1);
+              if (recentBot && recentBot.length > 0) {
+                continue;
+              }
 
-          if (recentBot && recentBot.length > 0) {
-            continue;
-          }
-
-          const { data: randomBot } = await supabase.rpc('get_random_bot');
-          
-          if (randomBot) {
-            const newPrice = currentPrice + Number(auction.bid_increment);
-            
-            const { error: bidError } = await supabase
-              .from('bids')
-              .insert({
-                auction_id: auction.id,
-                user_id: randomBot,
-                bid_amount: newPrice,
-                cost_paid: 0
-              });
-
-            if (!bidError) {
-              botBidsAdded++;
+              const { data: randomBot } = await supabase.rpc('get_random_bot');
               
-              // SE HÁ PREJUÍZO - finalizar imediatamente com BOT
-              if (currentPrice > marketValue) {
-                const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'prejuízo evitado', 'loss_protection');
-                if (finalized) {
-                  await distributeFuryVault(supabase, auction.id, auction.title);
-                  finalizedCount++;
+              if (randomBot) {
+                const newPrice = currentPrice + Number(auction.bid_increment);
+                
+                const { error: bidError } = await supabase
+                  .from('bids')
+                  .insert({
+                    auction_id: auction.id,
+                    user_id: randomBot,
+                    bid_amount: newPrice,
+                    cost_paid: 0
+                  });
+
+                if (!bidError) {
+                  // Atualizar last_bot_band e limpar schedule
+                  await supabase
+                    .from('auctions')
+                    .update({
+                      last_bot_band: auction.scheduled_bot_band,
+                      scheduled_bot_bid_at: null,
+                      scheduled_bot_band: null
+                    })
+                    .eq('id', auction.id);
+
+                  botBidsExecuted++;
+                  console.log(`🤖 [BOT-EXEC] "${auction.title}" | band=${auction.scheduled_bot_band} | scheduled=${auction.scheduled_bot_bid_at} | executed=${new Date().toISOString()} | R$${newPrice}`);
+                  
+                  // SE HÁ PREJUÍZO - finalizar imediatamente
+                  if (currentPrice > Number(auction.market_value)) {
+                    const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'prejuízo evitado', 'loss_protection');
+                    if (finalized) {
+                      await distributeFuryVault(supabase, auction.id, auction.title);
+                      finalizedCount++;
+                    }
+                  }
                 }
               }
+            } else {
+              // Agendamento obsoleto: limpar
+              await supabase
+                .from('auctions')
+                .update({
+                  scheduled_bot_bid_at: null,
+                  scheduled_bot_band: null
+                })
+                .eq('id', auction.id);
+              
+              staleDiscarded++;
+              console.log(`🗑️ [BOT-STALE] "${auction.title}" | agendamento obsoleto descartado`);
             }
+          }
+          // Se ainda não é hora do agendamento, skip (não agendar outro)
+          continue;
+        }
+
+        // 6. FASE B: Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
+        if (secondsSinceLastBid >= 5) {
+          const { band, delaySec } = selectBotBand(auction.last_bot_band);
+          const targetTime = new Date(lastBidTime + delaySec * 1000).toISOString();
+
+          // UPDATE atômico: só agenda se ninguém agendou antes
+          const { data: scheduleResult } = await supabase
+            .from('auctions')
+            .update({
+              scheduled_bot_bid_at: targetTime,
+              scheduled_bot_band: band
+            })
+            .eq('id', auction.id)
+            .is('scheduled_bot_bid_at', null)
+            .select('id');
+
+          if (scheduleResult && scheduleResult.length > 0) {
+            botBidsScheduled++;
+            console.log(`🤖 [BOT-SCHEDULE] "${auction.title}" | band=${band} | delay=${delaySec}s | target=${targetTime}`);
           }
         }
       }
@@ -300,14 +371,16 @@ Deno.serve(async (req) => {
       activated: activatedCount,
       finalized: finalizedCount,
       safety_net_finalized: safetyNetFinalized,
-      bot_bids_added: botBidsAdded,
+      bot_bids_executed: botBidsExecuted,
+      bot_bids_scheduled: botBidsScheduled,
+      stale_discarded: staleDiscarded,
       auctions_checked: activeAuctions?.length || 0,
       execution_time_ms: executionTime,
-      type: 'protection_system_bot_only',
+      type: 'protection_system_scheduled',
       success: true
     };
 
-    console.log(`✅ [COMPLETE] Ativados:${activatedCount} | Finalizados:${finalizedCount} (safety:${safetyNetFinalized}) | Bots:${botBidsAdded} | ${executionTime}ms`);
+    console.log(`✅ [COMPLETE] Ativados:${activatedCount} | Finalizados:${finalizedCount} (safety:${safetyNetFinalized}) | Executados:${botBidsExecuted} | Agendados:${botBidsScheduled} | Stale:${staleDiscarded} | ${executionTime}ms`);
 
     return new Response(JSON.stringify(summary), {
       status: 200,
