@@ -300,11 +300,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       }
 
       // Batch: buscar todos os perfis de ganhadores de uma vez
-      const winnerIds = [...new Set(
+      const winnerIds = Array.from(new Set(
         (data || [])
           .filter(a => a.status === 'finished' && a.winner_id)
           .map(a => a.winner_id as string)
-      )];
+      ));
 
       const winnerProfilesMap = new Map<string, string>();
       if (winnerIds.length > 0) {
