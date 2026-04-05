@@ -95,7 +95,14 @@ self.addEventListener('fetch', event => {
 
   // 3. API / Supabase → Network only (nunca cachear)
   if (request.url.includes('/api/') || request.url.includes('supabase.co')) {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request).catch(err => {
+        return new Response(JSON.stringify({ message: err.message }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
     return;
   }
 
