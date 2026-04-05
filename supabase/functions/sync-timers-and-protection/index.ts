@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
         const auction = shuffledAuctions[i];
         
         if (i > 0) {
-          const delay = getRandomDelay(1000, 4000);
+          const delay = getRandomDelay(500, 1500);
           await sleep(delay);
         }
 
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         }
 
         // 4. SAFETY NET: Inatividade > 30s — finalizar com bot
-        if (secondsSinceLastBid > 30) {
+        if (secondsSinceLastBid >= 12) {
           console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando com BOT`);
           const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'inatividade', 'inactivity_forced');
           if (finalized) {
@@ -239,8 +239,8 @@ Deno.serve(async (req) => {
 
         // 5. LANCE PROBABILÍSTICO para manter leilão ativo
         {
-          const bidProbability = secondsSinceLastBid >= 13 ? 1.0
-            : secondsSinceLastBid >= 10 ? 0.25
+          const bidProbability = secondsSinceLastBid >= 8 ? 1.0
+            : secondsSinceLastBid >= 6 ? 0.5
             : 0;
           
           if (bidProbability === 0 || Math.random() > bidProbability) {
