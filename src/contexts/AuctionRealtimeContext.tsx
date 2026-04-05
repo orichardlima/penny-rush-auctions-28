@@ -353,6 +353,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       });
 
       setAuctions(visibleAuctions);
+      hasLoadedRef.current = visibleAuctions.length > 0;
 
       console.log(`✅ [REALTIME-CONTEXT] ${visibleAuctions.length} leilões carregados`);
       if (cleanAuctions.length !== visibleAuctions.length) {
@@ -470,7 +471,20 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
   // Setup do canal Realtime único
   useEffect(() => {
-    fetchAuctions();
+    fetchAuctions().then(() => {
+      // Retry agressivo se o primeiro load falhou
+      const retryIfEmpty = (attempt: number) => {
+        if (attempt > 3) return;
+        const delay = 2000 * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+        setTimeout(() => {
+          if (!hasLoadedRef.current && !isFetchingRef.current) {
+            console.log(`🔁 [REALTIME-CONTEXT] Retry inicial #${attempt} (${delay}ms)`);
+            fetchAuctions().then(() => retryIfEmpty(attempt + 1));
+          }
+        }, delay);
+      };
+      retryIfEmpty(1);
+    });
 
     const channel = supabase
       .channel('global-auctions-channel')
