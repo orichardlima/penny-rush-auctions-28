@@ -1,0 +1,1 @@
+ALTER TABLE public.auctions DISABLE TRIGGER trg_notify_bot_bid_scheduled;
