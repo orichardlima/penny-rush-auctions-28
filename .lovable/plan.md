@@ -1,39 +1,76 @@
 
 
-# Otimizar Carregamento dos Leilões — Batch de Queries
+# Fix: Leilões Não Carregam — Resiliência no Carregamento Inicial
 
 ## Problema
 
-A `fetchAuctions` faz **1 query individual por leilão finalizado** para buscar o perfil do ganhador (`fetchWinnerProfile`). Com 17 leilões finalizados visíveis, são 17+ round trips ao Supabase antes de renderizar. Isso causa o skeleton prolongado que aparece na screenshot.
+Quando a primeira chamada de `fetchAuctions` falha por erro de rede (comum durante rebuilds ou instabilidade transitória), os leilões ficam permanentemente vazios mostrando "Nenhum leilão disponível" até o próximo poll de emergência (5s) ou resync (60s) ter sucesso.
 
-Adicionalmente, leilões sem `last_bidders` disparam `fetchRecentBidders` (2 queries cada: bids + profiles).
+Adicionalmente, o Service Worker transforma erros de rede em erros diferentes ("FetchEvent.respondWith received an error"), o que pode dificultar o retry correto.
 
-## Solução
+## Solução — 2 edições
 
-Fazer batch de todas as queries de perfil em uma única chamada, antes de transformar os leilões.
+### 1. Service Worker `public/sw.js` — Tratar erro em requests Supabase
 
-### Mudança no `AuctionRealtimeContext.tsx` — `fetchAuctions`
+Adicionar try/catch no handler de requests Supabase (linha 97-99) para evitar que o SW converta o erro:
 
-1. Após buscar os leilões do banco, coletar todos os `winner_id` distintos dos leilões finalizados
-2. Fazer **1 única query** para buscar todos os perfis de ganhadores de uma vez: `supabase.from('profiles').select('user_id, full_name, city, state').in('user_id', winnerIds)`
-3. Criar um `Map<string, string>` com os nomes formatados
-4. Passar esse map para `transformAuctionData` em vez de chamar `fetchWinnerProfile` individualmente
+```javascript
+// DE:
+if (request.url.includes('/api/') || request.url.includes('supabase.co')) {
+    event.respondWith(fetch(request));
+    return;
+}
 
-### Detalhes
+// PARA:
+if (request.url.includes('/api/') || request.url.includes('supabase.co')) {
+    event.respondWith(
+      fetch(request).catch(err => {
+        return new Response(JSON.stringify({ message: err.message }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+}
+```
 
-- `transformAuctionData` recebe um parâmetro opcional `winnerProfilesMap` e usa-o em vez de chamar `fetchWinnerProfile`
-- Para updates em tempo real (canal Realtime), o comportamento atual de buscar perfil individual permanece (é apenas 1 query por evento)
-- `fetchRecentBidders` como fallback permanece igual (já é raro com `last_bidders` populado)
+### 2. `AuctionRealtimeContext.tsx` — Retry agressivo no load inicial
 
-## Impacto esperado
+Após o primeiro `fetchAuctions` falhar (auctions ainda vazio), agendar retries rápidos (2s, 4s, 8s) até carregar:
 
-- De ~18 queries (1 settings + 1 auctions + 17 winner profiles) para **3 queries** (1 settings + 1 auctions + 1 batch profiles)
-- Redução de tempo de carregamento de vários segundos para < 1s
-- Zero mudança visual ou funcional
+No `useEffect` do setup do canal Realtime (linha 472), após `fetchAuctions()`, adicionar:
 
-## Arquivo alterado
+```typescript
+fetchAuctions().then(() => {
+  // Se falhou no primeiro load, retry agressivo
+  const retryIfEmpty = (attempt: number) => {
+    if (attempt > 3) return;
+    setTimeout(() => {
+      if (auctions.length === 0 && !isFetchingRef.current) {
+        console.log(`🔁 [REALTIME-CONTEXT] Retry inicial #${attempt}`);
+        fetchAuctions().then(() => retryIfEmpty(attempt + 1));
+      }
+    }, 2000 * Math.pow(2, attempt - 1)); // 2s, 4s, 8s
+  };
+  retryIfEmpty(1);
+});
+```
+
+Nota: o `auctions.length` checado dentro do setTimeout lerá o valor atualizado via closure sobre o ref, não sobre o state (preciso ajustar para usar um ref).
+
+Alternativa mais simples: usar um `hasLoadedRef` que só se torna true quando `setAuctions` é chamado com dados, e o retry checa esse ref.
+
+## Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/contexts/AuctionRealtimeContext.tsx` | Batch winner profiles em `fetchAuctions`; `transformAuctionData` aceita map opcional |
+| `public/sw.js` | Error handling para requests Supabase |
+| `src/contexts/AuctionRealtimeContext.tsx` | Retry agressivo no load inicial |
+
+## Impacto
+
+- Elimina o "FetchEvent.respondWith" error do Service Worker
+- Carregamento inicial se recupera automaticamente em 2-8s após falha transitória
+- Zero mudança visual ou funcional quando tudo está funcionando
 
