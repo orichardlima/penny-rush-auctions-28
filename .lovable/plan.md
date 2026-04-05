@@ -1,60 +1,39 @@
 
 
-# Ajuste de Thresholds e Polling — 3 Edições Pontuais
+# Otimizar Carregamento dos Leilões — Batch de Queries
 
-## Resumo
+## Problema
 
-3 edições cirúrgicas em 3 arquivos. Sem nova arquitetura, sem nova complexidade.
+A `fetchAuctions` faz **1 query individual por leilão finalizado** para buscar o perfil do ganhador (`fetchWinnerProfile`). Com 17 leilões finalizados visíveis, são 17+ round trips ao Supabase antes de renderizar. Isso causa o skeleton prolongado que aparece na screenshot.
 
-## 1. Edge Function `supabase/functions/sync-timers-and-protection/index.ts`
+Adicionalmente, leilões sem `last_bidders` disparam `fetchRecentBidders` (2 queries cada: bids + profiles).
 
-**Linha 253-254**: mudar threshold de finalização por inatividade
+## Solução
 
-```
-// DE:
-// 4. SAFETY NET: Inatividade >= 30s — finalizar com bot
-if (secondsSinceLastBid >= 30) {
+Fazer batch de todas as queries de perfil em uma única chamada, antes de transformar os leilões.
 
-// PARA:
-// 4. SAFETY NET: Inatividade >= 45s — finalizar com bot
-if (secondsSinceLastBid >= 45) {
-```
+### Mudança no `AuctionRealtimeContext.tsx` — `fetchAuctions`
 
-## 2. Nova migration SQL
+1. Após buscar os leilões do banco, coletar todos os `winner_id` distintos dos leilões finalizados
+2. Fazer **1 única query** para buscar todos os perfis de ganhadores de uma vez: `supabase.from('profiles').select('user_id, full_name, city, state').in('user_id', winnerIds)`
+3. Criar um `Map<string, string>` com os nomes formatados
+4. Passar esse map para `transformAuctionData` em vez de chamar `fetchWinnerProfile` individualmente
 
-Recriar apenas o bloco de safety net do `bot_protection_loop`, alterando a linha 174 da migration anterior:
+### Detalhes
 
-```sql
--- DE:
-IF v_seconds_since_last_bid >= 40 THEN
+- `transformAuctionData` recebe um parâmetro opcional `winnerProfilesMap` e usa-o em vez de chamar `fetchWinnerProfile`
+- Para updates em tempo real (canal Realtime), o comportamento atual de buscar perfil individual permanece (é apenas 1 query por evento)
+- `fetchRecentBidders` como fallback permanece igual (já é raro com `last_bidders` populado)
 
--- PARA:
-IF v_seconds_since_last_bid >= 60 THEN
-```
+## Impacto esperado
 
-O comentário associado muda de `>= 40s` para `>= 60s`. Restante da função permanece idêntico.
+- De ~18 queries (1 settings + 1 auctions + 17 winner profiles) para **3 queries** (1 settings + 1 auctions + 1 batch profiles)
+- Redução de tempo de carregamento de vários segundos para < 1s
+- Zero mudança visual ou funcional
 
-## 3. Frontend `src/hooks/useRealTimeProtection.ts`
-
-**Linha 26**: reduzir polling
-
-```typescript
-// DE:
-intervalRef.current = setInterval(callProtectionSystem, 10000);
-
-// PARA:
-intervalRef.current = setInterval(callProtectionSystem, 7000);
-```
-
-## Deploy
-
-Deploy da edge function `sync-timers-and-protection` após a edição.
-
-## Arquivos alterados
+## Arquivo alterado
 
 | Arquivo | Mudança |
 |---------|---------|
-| `supabase/functions/sync-timers-and-protection/index.ts` | `>= 30` → `>= 45` |
-| Nova migration SQL | `bot_protection_loop` safety net `>= 40` → `>= 60` |
-| `src/hooks/useRealTimeProtection.ts` | `10000` → `7000` |
+| `src/contexts/AuctionRealtimeContext.tsx` | Batch winner profiles em `fetchAuctions`; `transformAuctionData` aceita map opcional |
 
