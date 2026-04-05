@@ -279,7 +279,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
     const currentFetchId = ++fetchIdRef.current;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
       const { data: settingsData } = await supabase
@@ -305,7 +305,11 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         .abortSignal(controller.signal);
 
       if (error) {
-        console.error('❌ [REALTIME-CONTEXT] Erro ao buscar leilões:', error);
+        if (error.code === '20' || error.message?.includes('AbortError')) {
+          console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout');
+        } else {
+          console.error('❌ [REALTIME-CONTEXT] Erro ao buscar leilões:', error);
+        }
         return;
       }
 
@@ -376,8 +380,9 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         console.log(`🧹 [REALTIME-CONTEXT] ${cleanAuctions.length - visibleAuctions.length} leilões finalizados sem lances ocultados`);
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 12s');
+      if ((error instanceof DOMException && error.name === 'AbortError') || 
+          (error && typeof error === 'object' && ((error as any).code === '20' || (error as any).message?.includes('AbortError')))) {
+        console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 20s');
       } else {
         console.error('❌ [REALTIME-CONTEXT] Erro:', error);
       }

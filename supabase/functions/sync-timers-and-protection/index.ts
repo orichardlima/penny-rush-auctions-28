@@ -5,13 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function getRandomDelay(minMs: number, maxMs: number): number {
-  return Math.floor(Math.random() * (maxMs - minMs + 1) + minMs);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 async function getRandomBot(supabase: any) {
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
@@ -203,15 +196,8 @@ Deno.serve(async (req) => {
     let safetyNetFinalized = 0;
 
     if (activeAuctions && activeAuctions.length > 0) {
-      const shuffledAuctions = [...activeAuctions].sort(() => Math.random() - 0.5);
-      
-      for (let i = 0; i < shuffledAuctions.length; i++) {
-        const auction = shuffledAuctions[i];
-        
-        if (i > 0) {
-          const delay = getRandomDelay(500, 1500);
-          await sleep(delay);
-        }
+      for (let i = 0; i < activeAuctions.length; i++) {
+        const auction = activeAuctions[i];
 
         const lastBidTime = new Date(auction.last_bid_at).getTime();
         const currentTime = Date.now();
