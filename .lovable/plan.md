@@ -1,62 +1,65 @@
 
 
-# Fix: notify_bot_bid_scheduled com fallback seguro para anon key
+# Contenção urgente: Quebrar o feedback loop do pg_net trigger
 
-## Problema
+## Diagnóstico
 
-A função `notify_bot_bid_scheduled()` tem a anon key hardcoded diretamente no SQL. Queremos melhorar a prática sem risco de a trigger parar de funcionar.
+O banco está em cascata de statement timeouts por causa de um **feedback loop**:
 
-## Solução
+```text
+Edge Function (agenda bot) 
+  → UPDATE scheduled_bot_bid_at
+    → trg_notify_bot_bid_scheduled (pg_net) 
+      → chama Edge Function novamente
+        → execute_overdue_bot_bids (FOR UPDATE SKIP LOCKED) 
+          → timeout sob concorrência
+            → múltiplas invocações simultâneas saturando o banco
+```
 
-Nova migration que recria `notify_bot_bid_scheduled()` com:
+Nos logs: a edge function está sendo chamada **várias vezes por segundo** (não a cada 15s como o polling deveria causar). Cada chamada dispara o RPC `execute_overdue_bot_bids` que está dando timeout.
 
-1. **Tentativa dinâmica**: buscar via `current_setting('supabase.anon_key', true)` (o segundo parâmetro `true` retorna NULL se não existir, sem erro)
-2. **Fallback explícito**: se NULL, usar a anon key conhecida (é publishable, não é segredo)
-3. **RAISE NOTICE** quando o fallback for usado, para visibilidade nos logs do Postgres
-4. **URL hardcoded**: mantida nesta etapa (é pública e específica do projeto)
+## Ação imediata (menor risco possível)
 
-## SQL da migration
+### 1. Desabilitar o trigger pg_net
+
+Nova migration SQL:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.notify_bot_bid_scheduled()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_anon_key text;
-  v_url text := 'https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/sync-timers-and-protection';
-BEGIN
-  IF NEW.scheduled_bot_bid_at IS NOT NULL 
-     AND OLD.scheduled_bot_bid_at IS DISTINCT FROM NEW.scheduled_bot_bid_at THEN
-    
-    -- Tenta buscar dinamicamente (retorna NULL se não existir)
-    v_anon_key := current_setting('supabase.anon_key', true);
-    
-    -- Fallback: anon key é publishable/pública, seguro manter aqui
-    IF v_anon_key IS NULL OR v_anon_key = '' THEN
-      RAISE NOTICE 'notify_bot_bid_scheduled: current_setting não disponível, usando fallback';
-      v_anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsY2RpZGtreGlnb2ZkaHhuenpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTY0NzMsImV4cCI6MjA2OTAzMjQ3M30.fzDV-B0p7U5FnbpjpvRH6KI0ldyRPzPXMcuSw3fnv5k';
-    END IF;
-    
-    PERFORM net.http_post(
-      url := v_url,
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || v_anon_key
-      ),
-      body := jsonb_build_object('trigger', 'pg_net_bot_scheduled', 'auction_id', NEW.id)
-    );
-  END IF;
-  RETURN NEW;
-END;
-$$;
+ALTER TABLE public.auctions DISABLE TRIGGER trg_notify_bot_bid_scheduled;
 ```
+
+Isso quebra o feedback loop imediatamente. O polling de 15s e o pg_cron de 1min continuam funcionando como camadas de execução.
+
+### 2. Nenhuma outra mudança
+
+- Não alterar a edge function
+- Não alterar o polling
+- Não alterar o `execute_overdue_bot_bids`
+- Manter tudo mais como está
+
+## Por que isso é seguro
+
+- O trigger pg_net foi adicionado hoje como otimização. Removê-lo volta ao modelo que já funcionava (polling 15s + cron 1min)
+- A edge function continua sendo chamada normalmente pelo frontend a cada 15s
+- O pg_cron continua executando `execute_overdue_bot_bids` a cada 1 minuto
+- Zero mudança de código frontend ou edge function
+
+## Monitoramento pós-deploy
+
+1. Statement timeouts devem parar imediatamente
+2. Erros 406 no profiles devem desaparecer
+3. Edge function deve voltar a execuções rápidas (100-300ms)
+4. Auth e home devem voltar ao normal
+
+## Próxima etapa (após estabilizar)
+
+Avaliar se o trigger pg_net pode ser reintroduzido com proteções:
+- Debounce (não disparar se já disparou nos últimos N segundos)
+- Ou substituir por uma abordagem que não crie feedback loop
 
 ## Arquivo alterado
 
 | Arquivo | Mudança |
 |---------|---------|
-| Nova migration SQL | Recria `notify_bot_bid_scheduled()` com current_setting + fallback + RAISE NOTICE |
+| Nova migration SQL | `DISABLE TRIGGER trg_notify_bot_bid_scheduled` |
 
