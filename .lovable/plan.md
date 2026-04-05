@@ -1,76 +1,108 @@
 
 
-# Fix: Leilões Não Carregam — Resiliência no Carregamento Inicial
+# Fix: AbortController + fetchIdRef no fetchAuctions
 
-## Problema
+## Resumo
 
-Quando a primeira chamada de `fetchAuctions` falha por erro de rede (comum durante rebuilds ou instabilidade transitória), os leilões ficam permanentemente vazios mostrando "Nenhum leilão disponível" até o próximo poll de emergência (5s) ou resync (60s) ter sucesso.
+1 edição em `src/contexts/AuctionRealtimeContext.tsx`. Adicionar AbortController real com timeout de 12s e fetchIdRef para invalidar respostas antigas.
 
-Adicionalmente, o Service Worker transforma erros de rede em erros diferentes ("FetchEvent.respondWith received an error"), o que pode dificultar o retry correto.
+## Mudanças no `fetchAuctions` (linhas 271-368)
 
-## Solução — 2 edições
-
-### 1. Service Worker `public/sw.js` — Tratar erro em requests Supabase
-
-Adicionar try/catch no handler de requests Supabase (linha 97-99) para evitar que o SW converta o erro:
-
-```javascript
-// DE:
-if (request.url.includes('/api/') || request.url.includes('supabase.co')) {
-    event.respondWith(fetch(request));
-    return;
-}
-
-// PARA:
-if (request.url.includes('/api/') || request.url.includes('supabase.co')) {
-    event.respondWith(
-      fetch(request).catch(err => {
-        return new Response(JSON.stringify({ message: err.message }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
-    return;
-}
-```
-
-### 2. `AuctionRealtimeContext.tsx` — Retry agressivo no load inicial
-
-Após o primeiro `fetchAuctions` falhar (auctions ainda vazio), agendar retries rápidos (2s, 4s, 8s) até carregar:
-
-No `useEffect` do setup do canal Realtime (linha 472), após `fetchAuctions()`, adicionar:
+### 1. Adicionar ref
 
 ```typescript
-fetchAuctions().then(() => {
-  // Se falhou no primeiro load, retry agressivo
-  const retryIfEmpty = (attempt: number) => {
-    if (attempt > 3) return;
-    setTimeout(() => {
-      if (auctions.length === 0 && !isFetchingRef.current) {
-        console.log(`🔁 [REALTIME-CONTEXT] Retry inicial #${attempt}`);
-        fetchAuctions().then(() => retryIfEmpty(attempt + 1));
-      }
-    }, 2000 * Math.pow(2, attempt - 1)); // 2s, 4s, 8s
-  };
-  retryIfEmpty(1);
-});
+const fetchIdRef = useRef(0);
 ```
 
-Nota: o `auctions.length` checado dentro do setTimeout lerá o valor atualizado via closure sobre o ref, não sobre o state (preciso ajustar para usar um ref).
+### 2. Reescrever fetchAuctions
 
-Alternativa mais simples: usar um `hasLoadedRef` que só se torna true quando `setAuctions` é chamado com dados, e o retry checa esse ref.
+- Incrementar `fetchIdRef` no início
+- Criar `AbortController` + `setTimeout(() => controller.abort(), 12000)`
+- Passar `.abortSignal(controller.signal)` nas 3 queries:
+  1. `system_settings` (linha 279)
+  2. `auctions` query principal (linha 296)
+  3. `profiles` batch de ganhadores (linha 312)
+- Guard `fetchIdRef.current !== currentFetchId` antes de `setAuctions` e `setLoading`
+- Catch separado para `AbortError` (warn, não error)
+- No finally: `clearTimeout`, liberar `isFetchingRef` e `setLoading(false)` apenas se `fetchIdRef.current === currentFetchId`
 
-## Arquivos alterados
+### Código final do fetchAuctions
+
+```typescript
+const fetchIdRef = useRef(0);
+
+const fetchAuctions = useCallback(async () => {
+  if (isFetchingRef.current) return;
+  isFetchingRef.current = true;
+
+  const currentFetchId = ++fetchIdRef.current;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const { data: settingsData } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'finished_auctions_display_hours')
+      .single()
+      .abortSignal(controller.signal);
+
+    // ... displayHours calc (inalterado)
+
+    const { data, error } = await query
+      .order('starts_at', { ascending: false, nullsFirst: false })
+      .abortSignal(controller.signal);  // nota: encadear no final da query
+
+    // ... error check (inalterado)
+
+    // Batch profiles
+    if (winnerIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, city, state')
+        .in('user_id', winnerIds)
+        .abortSignal(controller.signal);
+      // ...
+    }
+
+    // Guard: descartar se fetchId expirou
+    if (fetchIdRef.current !== currentFetchId) {
+      console.log('🚫 [REALTIME-CONTEXT] Resposta descartada (fetchId expirado)');
+      return;
+    }
+
+    // ... Promise.all, sort, filter (inalterado)
+
+    setAuctions(visibleAuctions);
+    hasLoadedRef.current = visibleAuctions.length > 0;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.warn('⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout de 12s');
+    } else {
+      console.error('❌ [REALTIME-CONTEXT] Erro:', error);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+    if (fetchIdRef.current === currentFetchId) {
+      isFetchingRef.current = false;
+      setLoading(false);
+    }
+  }
+}, []);
+```
+
+## Cuidados solicitados pelo usuário
+
+1. **setLoading(false) protegido por fetchId** — sim, no finally, tanto `isFetchingRef` quanto `setLoading` ficam dentro do guard `fetchIdRef.current === currentFetchId`
+2. **Todas as queries com abortSignal** — as 3 queries (settings, auctions, profiles) recebem `.abortSignal(controller.signal)`
+
+## Nota sobre `.abortSignal()` encadeado na query com `.or()`
+
+A query de auctions usa `query = supabase.from(...).select(*)` e depois `query = query.or(...)`. O `.abortSignal()` será adicionado no final, junto com `.order()`, antes do `await`.
+
+## Arquivo alterado
 
 | Arquivo | Mudança |
 |---------|---------|
-| `public/sw.js` | Error handling para requests Supabase |
-| `src/contexts/AuctionRealtimeContext.tsx` | Retry agressivo no load inicial |
-
-## Impacto
-
-- Elimina o "FetchEvent.respondWith" error do Service Worker
-- Carregamento inicial se recupera automaticamente em 2-8s após falha transitória
-- Zero mudança visual ou funcional quando tudo está funcionando
+| `src/contexts/AuctionRealtimeContext.tsx` | AbortController 12s + fetchIdRef + proteção em setLoading |
 
