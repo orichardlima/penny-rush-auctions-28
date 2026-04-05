@@ -197,8 +197,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     }
   };
 
-  // Transformar dados do leilão
-  const transformAuctionData = async (auction: any): Promise<AuctionData> => {
+  // Transformar dados do leilão (aceita map opcional para batch de perfis)
+  const transformAuctionData = async (auction: any, winnerProfilesMap?: Map<string, string>): Promise<AuctionData> => {
     const brazilTimezone = 'America/Sao_Paulo';
     const now = new Date();
     const nowInBrazil = toZonedTime(now, brazilTimezone);
@@ -222,9 +222,14 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
     let winnerNameWithRegion = auction.winner_name;
     if (auctionStatus === 'finished' && auction.winner_id) {
-      const fullWinnerName = await fetchWinnerProfile(auction.winner_id);
-      if (fullWinnerName) {
-        winnerNameWithRegion = fullWinnerName;
+      // Usar map de batch se disponível, senão buscar individualmente
+      if (winnerProfilesMap && winnerProfilesMap.has(auction.winner_id)) {
+        winnerNameWithRegion = winnerProfilesMap.get(auction.winner_id)!;
+      } else {
+        const fullWinnerName = await fetchWinnerProfile(auction.winner_id);
+        if (fullWinnerName) {
+          winnerNameWithRegion = fullWinnerName;
+        }
       }
     }
 
@@ -294,6 +299,33 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
         return;
       }
 
+      // Batch: buscar todos os perfis de ganhadores de uma vez
+      const winnerIds = Array.from(new Set(
+        (data || [])
+          .filter(a => a.status === 'finished' && a.winner_id)
+          .map(a => a.winner_id as string)
+      ));
+
+      const winnerProfilesMap = new Map<string, string>();
+      if (winnerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, city, state')
+          .in('user_id', winnerIds);
+
+        profiles?.forEach(profile => {
+          if (profile.full_name) {
+            const region = profile.city && profile.state
+              ? `${profile.city}, ${profile.state}`
+              : '';
+            const formatted = region
+              ? `${formatUserNameForDisplay(profile.full_name)} - ${region}`
+              : formatUserNameForDisplay(profile.full_name);
+            winnerProfilesMap.set(profile.user_id, formatted);
+          }
+        });
+      }
+
       // Processar em paralelo - usar last_bidders do banco, fallback para fetchRecentBidders apenas se vazio
       const auctionsWithBidders = await Promise.all(
         (data || []).map(async (auction, index) => {
@@ -304,7 +336,7 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
             // Fallback para leilões antigos sem last_bidders populado
             recentBidders = await fetchRecentBidders(auction.id);
           }
-          const transformed = await transformAuctionData({ ...auction, recentBidders });
+          const transformed = await transformAuctionData({ ...auction, recentBidders }, winnerProfilesMap);
           return { ...transformed, _originalIndex: index };
         })
       );
