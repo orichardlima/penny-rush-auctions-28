@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
         const auction = shuffledAuctions[i];
         
         if (i > 0) {
-          const delay = getRandomDelay(1000, 4000);
+          const delay = getRandomDelay(500, 1500);
           await sleep(delay);
         }
 
