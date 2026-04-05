@@ -175,6 +175,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    let finalizedCount = 0;
+    let botBidsExecuted = 0;
+    let botBidsScheduled = 0;
+    let staleDiscarded = 0;
+    let safetyNetFinalized = 0;
+
     // **FASE 2: Executar agendamentos vencidos via SQL atômico (FOR UPDATE SKIP LOCKED)**
     const { data: execResult, error: execError } = await supabase.rpc('execute_overdue_bot_bids');
     if (execResult) {
