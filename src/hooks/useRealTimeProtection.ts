@@ -23,7 +23,7 @@ export const useRealTimeProtection = () => {
       }
     };
 
-    intervalRef.current = setInterval(callProtectionSystem, 30000);
+    intervalRef.current = setInterval(callProtectionSystem, 15000);
     callProtectionSystem();
 
     return () => {
