@@ -197,8 +197,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     }
   };
 
-  // Transformar dados do leilão
-  const transformAuctionData = async (auction: any): Promise<AuctionData> => {
+  // Transformar dados do leilão (aceita map opcional para batch de perfis)
+  const transformAuctionData = async (auction: any, winnerProfilesMap?: Map<string, string>): Promise<AuctionData> => {
     const brazilTimezone = 'America/Sao_Paulo';
     const now = new Date();
     const nowInBrazil = toZonedTime(now, brazilTimezone);
@@ -222,9 +222,14 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
     let winnerNameWithRegion = auction.winner_name;
     if (auctionStatus === 'finished' && auction.winner_id) {
-      const fullWinnerName = await fetchWinnerProfile(auction.winner_id);
-      if (fullWinnerName) {
-        winnerNameWithRegion = fullWinnerName;
+      // Usar map de batch se disponível, senão buscar individualmente
+      if (winnerProfilesMap && winnerProfilesMap.has(auction.winner_id)) {
+        winnerNameWithRegion = winnerProfilesMap.get(auction.winner_id)!;
+      } else {
+        const fullWinnerName = await fetchWinnerProfile(auction.winner_id);
+        if (fullWinnerName) {
+          winnerNameWithRegion = fullWinnerName;
+        }
       }
     }
 
