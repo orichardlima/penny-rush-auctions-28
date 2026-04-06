@@ -1,82 +1,65 @@
 
 
-# Executor backend sub-minuto: avaliação de opções
+# Fix: "Erro ao carregar dados do usuário" no painel admin
 
-## Problema
+## Diagnóstico
 
-O pg_cron do Postgres suporta no mínimo 1 execução por minuto. Não existe sintaxe de segundos. O trigger pg_net foi desabilitado por causar feedback loop. O frontend faz polling a cada 15s mas nem sempre cobre os agendamentos de 2-14s.
+A função SQL `get_user_analytics` executa **8 subqueries correlacionadas** na tabela `bids` (1.043.487 registros), e **não existe nenhum índice em `bids.user_id`**. Cada subquery faz um sequential scan completo, resultando em statement timeout.
 
-**Camadas atuais de execução e suas limitações:**
+## Solução
 
-```text
-Camada                  Frequência   Limitação
-─────────────────────── ──────────── ─────────────────────────────
-Frontend polling        15s          Depende de cliente conectado
-pg_cron bot-loop        60s          Granularidade mínima do cron
-pg_cron execute_overdue 60s          Idem
-pg_net trigger          desabilitado Causou feedback loop
+**1 migration** com duas partes:
+
+### Parte 1: Criar índices na tabela `bids`
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bids_user_id 
+  ON public.bids (user_id);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bids_auction_id 
+  ON public.bids (auction_id);
 ```
 
-## Opções viáveis
+Esses índices transformam as 8 subqueries de sequential scans (~1M rows cada) em index scans (~poucos rows cada), reduzindo o tempo de execução de timeout para <100ms.
 
-### Opção A: Serviço externo de cron (recomendada)
+### Parte 2: Reescrever `get_user_analytics` com CTE única
 
-Usar um serviço como cron-job.org, EasyCron, ou UptimeRobot para chamar a edge function `sync-timers-and-protection` a cada 10 segundos via HTTP POST.
+Substituir as 8 subqueries independentes por uma única CTE agregada:
 
-**Vantagens:**
-- Zero mudança de código ou banco
-- Frequência exata de 10s
-- Cada chamada é leve (<300ms)
-- Não depende de cliente conectado
-- Sem risco de feedback loop
-
-**Desvantagens:**
-- Dependência de serviço externo
-- Precisa configurar fora do Supabase
-
-**Implementação:** Configurar o serviço para fazer POST a cada 10s em:
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_analytics(user_uuid uuid)
+RETURNS TABLE(...) AS $$
+BEGIN
+  RETURN QUERY
+  WITH bid_stats AS (
+    SELECT 
+      COALESCE(SUM(cost_paid), 0) as total_spent,
+      COUNT(*)::integer as total_bids,
+      COUNT(DISTINCT auction_id)::integer as auctions_participated,
+      COALESCE(AVG(cost_paid), 0) as avg_bid_cost,
+      MIN(created_at) as first_activity,
+      MAX(created_at) as last_activity
+    FROM public.bids WHERE user_id = user_uuid
+  ),
+  ...
+  SELECT p.*, bid_stats.*, ...
+  FROM profiles p, bid_stats, ...
+  WHERE p.user_id = user_uuid;
+END;
+$$;
 ```
-https://tlcdidkkxigofdhxnzzo.supabase.co/functions/v1/sync-timers-and-protection
-Headers: Authorization: Bearer <anon_key>, Content-Type: application/json
-Body: {"trigger": "external_cron"}
-```
 
-### Opção B: pg_cron + pg_net disparando múltiplas chamadas por minuto
+Isso reduz de 8 scans para 1 scan (com índice: 1 index lookup).
 
-Criar uma função SQL que pg_cron chama a cada minuto. Essa função dispara 6 chamadas pg_net para a edge function. Problema: todas disparam simultaneamente (pg_net é assíncrono e imediato), então não cobre os 10s de intervalo.
+## Impacto
 
-**Veredicto:** Não resolve o problema. Descartada.
+- A tela de detalhes do usuário no admin voltará a carregar normalmente
+- Nenhuma mudança no frontend
+- Sem impacto em outras funcionalidades
 
-### Opção C: Re-habilitar pg_net trigger com proteção anti-loop
+## Arquivo
 
-Recriar o trigger para:
-- Só disparar quando `scheduled_bot_bid_at` muda de NULL para NOT NULL
-- Adicionar debounce: não disparar se já disparou nos últimos 5s para o mesmo leilão
-
-**Problema:** O trigger dispara quando o schedule é CRIADO (futuro), não quando vence. Chamar a edge function imediatamente não encontra nada para executar. A edge function teria que esperar internamente, voltando ao modelo rejeitado.
-
-**Veredicto:** Não resolve sem espera bloqueante. Descartada.
-
-### Opção D: Edge function auto-encadeada
-
-A edge function, após executar, usa `fetch()` para chamar a si mesma com um `setTimeout` de 10s. Limitar a 5 iterações (50s de cobertura).
-
-**Problema:** Edge function fica ativa por até 50s. Consome recursos. É essencialmente um loop disfarçado.
-
-**Veredicto:** Viável mas vai contra o princípio de execuções rápidas. Risco moderado.
-
-## Recomendação
-
-**Opção A (serviço externo)** é a única que resolve o problema de forma limpa dentro das restrições:
-- Sem loops
-- Sem pg_sleep
-- Sem feedback loops
-- Execuções rápidas (<300ms cada)
-- Cobertura real de 10s
-
-**Próximo passo:** Escolher um serviço (cron-job.org é gratuito para 1 job a cada 10s) e configurar. Nenhuma mudança de código necessária, apenas configuração externa.
-
-## Pergunta
-
-Qual opção deseja seguir? Se opção A, posso fornecer as instruções exatas de configuração do serviço externo.
+| Tipo | Descrição |
+|------|-----------|
+| Nova migration SQL | Cria índices + reescreve `get_user_analytics` com CTE |
 
