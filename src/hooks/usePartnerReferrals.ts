@@ -175,6 +175,7 @@ export const usePartnerReferrals = () => {
     available: bonuses.filter(b => b.status === 'AVAILABLE').length,
     paid: bonuses.filter(b => b.status === 'PAID').length,
     suspended: bonuses.filter(b => b.status === 'SUSPENDED').length,
+    cancelled: bonuses.filter(b => b.status === 'CANCELLED').length,
     totalValue: bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
     availableValue: bonuses.filter(b => b.status === 'AVAILABLE').reduce((sum, b) => sum + b.bonus_value, 0),
     // Estatísticas por nível
