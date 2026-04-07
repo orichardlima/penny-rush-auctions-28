@@ -173,6 +173,7 @@ export const usePartnerReferrals = () => {
     pending: bonuses.filter(b => b.status === 'PENDING').length,
     available: bonuses.filter(b => b.status === 'AVAILABLE').length,
     paid: bonuses.filter(b => b.status === 'PAID').length,
+    suspended: bonuses.filter(b => b.status === 'SUSPENDED').length,
     totalValue: bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
     availableValue: bonuses.filter(b => b.status === 'AVAILABLE').reduce((sum, b) => sum + b.bonus_value, 0),
     // Estatísticas por nível
@@ -203,6 +204,7 @@ export const usePartnerReferrals = () => {
       case 'AVAILABLE': return 'Disponível';
       case 'PAID': return 'Pago';
       case 'CANCELLED': return 'Cancelado';
+      case 'SUSPENDED': return 'Suspenso (Inadimplente)';
       default: return status;
     }
   };
@@ -213,6 +215,7 @@ export const usePartnerReferrals = () => {
       case 'AVAILABLE': return 'bg-green-500/10 text-green-600 border-green-500/20';
       case 'PAID': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'CANCELLED': return 'bg-red-500/10 text-red-600 border-red-500/20';
+      case 'SUSPENDED': return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
       default: return '';
     }
   };
