@@ -1619,6 +1619,33 @@ export const useAdminPartners = () => {
 
       if (error) throw error;
 
+      // Credit extra bonus bids (difference between new and old plan)
+      const oldPlan = plans.find(p => p.name === oldPlanName);
+      const oldCotas = (contract as any).cotas || 1;
+      const oldBids = ((oldPlan?.bonus_bids ?? 0) as number) * oldCotas;
+      const newBids = (newPlan.bonus_bids ?? 0) as number; // cotas reset to 1
+      const extraBids = newBids - oldBids;
+
+      if (extraBids > 0) {
+        // Increment bids_balance on profile
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('bids_balance')
+          .eq('user_id', contract.user_id)
+          .maybeSingle();
+
+        await supabase
+          .from('profiles')
+          .update({ bids_balance: (currentProfile?.bids_balance || 0) + extraBids })
+          .eq('user_id', contract.user_id);
+
+        // Update bonus_bids_received on contract
+        await supabase
+          .from('partner_contracts')
+          .update({ bonus_bids_received: (contract.bonus_bids_received || 0) + extraBids })
+          .eq('id', contractId);
+      }
+
       // Record upgrade in partner_upgrades
       await supabase.from('partner_upgrades').insert({
         partner_contract_id: contractId,
@@ -1700,8 +1727,8 @@ export const useAdminPartners = () => {
           target_type: 'partner_contract',
           target_id: contractId,
           description: `Upgrade de plano: ${oldPlanName} → ${newPlan.name} (admin, sem PIX)`,
-          old_values: { plan_name: oldPlanName, aporte_value: oldAporte, weekly_cap: oldWeeklyCap, total_cap: oldTotalCap },
-          new_values: { plan_name: newPlan.name, aporte_value: newAporte, weekly_cap: newWeeklyCap, total_cap: newTotalCap }
+          old_values: { plan_name: oldPlanName, aporte_value: oldAporte, weekly_cap: oldWeeklyCap, total_cap: oldTotalCap, bonus_bids: oldBids },
+          new_values: { plan_name: newPlan.name, aporte_value: newAporte, weekly_cap: newWeeklyCap, total_cap: newTotalCap, bonus_bids: newBids, extra_bids_credited: extraBids > 0 ? extraBids : 0 }
         });
       }
 
