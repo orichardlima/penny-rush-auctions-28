@@ -12,7 +12,7 @@ export interface PartnerReferralBonus {
   bonus_percentage: number;
   bonus_value: number;
   referral_level: number;
-  status: 'PENDING' | 'AVAILABLE' | 'PAID' | 'CANCELLED';
+  status: 'PENDING' | 'AVAILABLE' | 'PAID' | 'CANCELLED' | 'SUSPENDED';
   available_at: string | null;
   paid_at: string | null;
   created_at: string;
