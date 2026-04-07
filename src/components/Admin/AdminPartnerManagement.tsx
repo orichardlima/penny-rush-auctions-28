@@ -85,6 +85,7 @@ const AdminPartnerManagement = () => {
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
+    upgradeContractPlan,
     updateFinancialStatus,
     refreshData 
   } = useAdminPartners();
@@ -154,6 +155,11 @@ const AdminPartnerManagement = () => {
   const [isUpgradeCotasOpen, setIsUpgradeCotasOpen] = useState(false);
   const [selectedContractForUpgrade, setSelectedContractForUpgrade] = useState<any>(null);
   const [newCotasValue, setNewCotasValue] = useState(2);
+
+  // Upgrade Plan State
+  const [isUpgradePlanOpen, setIsUpgradePlanOpen] = useState(false);
+  const [selectedContractForPlanUpgrade, setSelectedContractForPlanUpgrade] = useState<any>(null);
+  const [selectedNewPlanId, setSelectedNewPlanId] = useState('');
 
   const copyToClipboard = (text: string, label: string = 'Texto') => {
     navigator.clipboard.writeText(text).then(() => {
@@ -813,6 +819,28 @@ const AdminPartnerManagement = () => {
                                     className="text-blue-600 border-blue-300 hover:bg-blue-50"
                                   >
                                     <TrendingUp className="h-4 w-4" />
+                                  </Button>
+                                );
+                              }
+                              return null;
+                            })()}
+                            {/* Upgrade Plan Button - Only for ACTIVE contracts */}
+                            {contract.status === 'ACTIVE' && (() => {
+                              const superiorPlans = plans.filter(p => p.is_active && p.aporte_value > contract.aporte_value);
+                              if (superiorPlans.length > 0) {
+                                return (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedContractForPlanUpgrade(contract);
+                                      setSelectedNewPlanId('');
+                                      setIsUpgradePlanOpen(true);
+                                    }}
+                                    title="Upgrade de plano"
+                                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                                  >
+                                    <Rocket className="h-4 w-4" />
                                   </Button>
                                 );
                               }
@@ -2507,6 +2535,92 @@ const AdminPartnerManagement = () => {
               disabled={processing}
             >
               {processing ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Plan Dialog */}
+      <Dialog open={isUpgradePlanOpen} onOpenChange={setIsUpgradePlanOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upgrade de Plano</DialogTitle>
+            <DialogDescription>
+              Trocar o plano do contrato para um plano superior (sem cobrança PIX)
+            </DialogDescription>
+          </DialogHeader>
+          {selectedContractForPlanUpgrade && (() => {
+            const superiorPlans = plans.filter(p => p.is_active && p.aporte_value > selectedContractForPlanUpgrade.aporte_value);
+            const selectedPlan = plans.find(p => p.id === selectedNewPlanId);
+
+            return (
+              <div className="space-y-4 py-4">
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium">{selectedContractForPlanUpgrade.user_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Plano atual: {selectedContractForPlanUpgrade.plan_name} — Aporte: {formatPrice(selectedContractForPlanUpgrade.aporte_value)}
+                  </p>
+                  {(selectedContractForPlanUpgrade as any).cotas > 1 && (
+                    <p className="text-xs text-yellow-600 mt-1">⚠️ Cotas serão resetadas para 1 no novo plano</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Novo Plano</Label>
+                  <Select value={selectedNewPlanId} onValueChange={setSelectedNewPlanId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o novo plano..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {superiorPlans.map(plan => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.display_name} — {formatPrice(plan.aporte_value)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedPlan && (
+                  <div className="p-3 rounded-lg border space-y-1">
+                    <p className="text-sm font-medium mb-2">Novos valores:</p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Aporte</span>
+                      <span className="font-medium">{formatPrice(selectedPlan.aporte_value)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Teto semanal</span>
+                      <span className="font-medium">{formatPrice(selectedPlan.weekly_cap)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Teto total</span>
+                      <span className="font-medium">{formatPrice(selectedPlan.total_cap)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm pt-1 border-t mt-1">
+                      <span className="text-muted-foreground">Total recebido (preservado)</span>
+                      <span className="font-medium">{formatPrice(selectedContractForPlanUpgrade.total_received)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Cotas</span>
+                      <span className="font-medium">1</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpgradePlanOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (selectedContractForPlanUpgrade && selectedNewPlanId) {
+                  await upgradeContractPlan(selectedContractForPlanUpgrade.id, selectedNewPlanId);
+                  setIsUpgradePlanOpen(false);
+                }
+              }}
+              disabled={processing || !selectedNewPlanId}
+            >
+              {processing ? 'Atualizando...' : 'Confirmar Upgrade de Plano'}
             </Button>
           </DialogFooter>
         </DialogContent>
