@@ -138,7 +138,7 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
   const response = {
     paymentId: depositResult.transactionId,
     qrCodeBase64: depositResult.qrCodeBase64,
-    pixCopyPaste: null,
+    pixCopyPaste: depositResult.pixCopyPaste,
     status: depositResult.status,
     contractId: contract.id,
     previousPlanName: contract.plan_name,
@@ -195,7 +195,7 @@ async function processPlanUpgrade(supabase: any, contract: any, newPlanId: strin
   const response = {
     paymentId: depositResult.transactionId,
     qrCodeBase64: depositResult.qrCodeBase64,
-    pixCopyPaste: null,
+    pixCopyPaste: depositResult.pixCopyPaste,
     status: depositResult.status,
     contractId: contract.id,
     previousPlanName: contract.plan_name,
