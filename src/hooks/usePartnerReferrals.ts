@@ -14,6 +14,7 @@ export interface PartnerReferralBonus {
   referral_level: number;
   status: 'PENDING' | 'AVAILABLE' | 'PAID' | 'CANCELLED' | 'SUSPENDED';
   available_at: string | null;
+  suspended_expires_at: string | null;
   paid_at: string | null;
   created_at: string;
   referred_user_name?: string;
