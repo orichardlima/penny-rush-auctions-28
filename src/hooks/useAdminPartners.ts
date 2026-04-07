@@ -1696,22 +1696,29 @@ export const useAdminPartners = () => {
 
       // Generate upgrade referral bonuses (difference-based)
       const aporteDiff = newAporte - oldAporte;
-      if (aporteDiff > 0 && contract.referred_by_user_id) {
-        // Build referral chain: level 1 = direct sponsor
+
+      // Fetch referred_by_user_id from DB (not in PartnerContractWithUser type)
+      const { data: contractRef } = await supabase
+        .from('partner_contracts')
+        .select('referred_by_user_id')
+        .eq('id', contractId)
+        .maybeSingle();
+
+      if (aporteDiff > 0 && contractRef?.referred_by_user_id) {
         const referralChain: { contractId: string; userId: string; level: number }[] = [];
 
         // Level 1: direct sponsor
         const { data: level1Contract } = await supabase
           .from('partner_contracts')
           .select('id, user_id, plan_name, financial_status')
-          .eq('user_id', contract.referred_by_user_id)
+          .eq('user_id', contractRef.referred_by_user_id)
           .eq('status', 'ACTIVE')
           .maybeSingle();
 
         if (level1Contract) {
           referralChain.push({ contractId: level1Contract.id, userId: level1Contract.user_id, level: 1 });
 
-          // Level 2: sponsor of level 1
+          // Level 2
           const { data: l1Ref } = await supabase
             .from('partner_contracts')
             .select('referred_by_user_id')
@@ -1729,7 +1736,7 @@ export const useAdminPartners = () => {
             if (level2Contract) {
               referralChain.push({ contractId: level2Contract.id, userId: level2Contract.user_id, level: 2 });
 
-              // Level 3: sponsor of level 2
+              // Level 3
               const { data: l2Ref } = await supabase
                 .from('partner_contracts')
                 .select('referred_by_user_id')
@@ -1755,88 +1762,52 @@ export const useAdminPartners = () => {
         // Fetch referral level config for levels 2 and 3
         const { data: levelConfigs } = await supabase
           .from('referral_level_config')
-          .select('level, bonus_percentage')
+          .select('level, percentage')
           .in('level', [2, 3]);
 
-        const levelConfigMap = new Map(levelConfigs?.map(c => [c.level, c.bonus_percentage]) || []);
+        const levelConfigMap = new Map(levelConfigs?.map(c => [c.level, c.percentage]) || []);
 
         // Insert upgrade bonuses for each upline
         for (const upline of referralChain) {
+          const { data: uplineContract } = await supabase
+            .from('partner_contracts')
+            .select('plan_name, financial_status')
+            .eq('id', upline.contractId)
+            .maybeSingle();
+
+          if (!uplineContract) continue;
+
           let bonusPercentage = 0;
 
           if (upline.level === 1) {
-            // Level 1: use the upline's plan referral_bonus_percentage
-            const uplinePlan = plans.find(p => {
-              // Need to get upline's plan name
-              return false;
-            });
-            // Fetch upline contract to get plan_name
-            const { data: uplineContract } = await supabase
-              .from('partner_contracts')
-              .select('plan_name, financial_status')
-              .eq('id', upline.contractId)
-              .maybeSingle();
-
-            if (uplineContract) {
-              const uplinePlanData = plans.find(p => p.name === uplineContract.plan_name);
-              bonusPercentage = (uplinePlanData?.referral_bonus_percentage ?? 0) as number;
-
-              const isPaid = uplineContract.financial_status === 'paid';
-              const now = new Date();
-              const availableAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-              const suspendedExpiresAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
-
-              if (bonusPercentage > 0) {
-                const bonusValue = aporteDiff * (bonusPercentage / 100);
-                await supabase.from('partner_referral_bonuses').insert({
-                  referrer_contract_id: upline.contractId,
-                  referred_contract_id: contractId,
-                  referred_user_id: contract.user_id,
-                  referral_level: 1,
-                  aporte_value: aporteDiff,
-                  bonus_percentage: bonusPercentage,
-                  bonus_value: bonusValue,
-                  is_fast_start_bonus: false,
-                  source_event: 'upgrade',
-                  status: isPaid ? 'PENDING' : 'SUSPENDED',
-                  available_at: isPaid ? availableAt : null,
-                  suspended_expires_at: isPaid ? null : suspendedExpiresAt,
-                });
-              }
-            }
+            const uplinePlanData = plans.find(p => p.name === uplineContract.plan_name);
+            bonusPercentage = (uplinePlanData?.referral_bonus_percentage ?? 0) as number;
           } else {
-            // Level 2 or 3: use referral_level_config percentage
             bonusPercentage = levelConfigMap.get(upline.level) || 0;
-
-            if (bonusPercentage > 0) {
-              const { data: uplineContract } = await supabase
-                .from('partner_contracts')
-                .select('financial_status')
-                .eq('id', upline.contractId)
-                .maybeSingle();
-
-              const isPaid = uplineContract?.financial_status === 'paid';
-              const now = new Date();
-              const availableAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-              const suspendedExpiresAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
-
-              const bonusValue = aporteDiff * (bonusPercentage / 100);
-              await supabase.from('partner_referral_bonuses').insert({
-                referrer_contract_id: upline.contractId,
-                referred_contract_id: contractId,
-                referred_user_id: contract.user_id,
-                referral_level: upline.level,
-                aporte_value: aporteDiff,
-                bonus_percentage: bonusPercentage,
-                bonus_value: bonusValue,
-                is_fast_start_bonus: false,
-                source_event: 'upgrade',
-                status: isPaid ? 'PENDING' : 'SUSPENDED',
-                available_at: isPaid ? availableAt : null,
-                suspended_expires_at: isPaid ? null : suspendedExpiresAt,
-              });
-            }
           }
+
+          if (bonusPercentage <= 0) continue;
+
+          const isPaid = uplineContract.financial_status === 'paid';
+          const now = new Date();
+          const availableAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          const suspendedExpiresAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+          const bonusValue = aporteDiff * (bonusPercentage / 100);
+          await supabase.from('partner_referral_bonuses').insert({
+            referrer_contract_id: upline.contractId,
+            referred_contract_id: contractId,
+            referred_user_id: contract.user_id,
+            referral_level: upline.level,
+            aporte_value: aporteDiff,
+            bonus_percentage: bonusPercentage,
+            bonus_value: bonusValue,
+            is_fast_start_bonus: false,
+            source_event: 'upgrade',
+            status: isPaid ? 'PENDING' : 'SUSPENDED',
+            available_at: isPaid ? availableAt : null,
+            suspended_expires_at: isPaid ? null : suspendedExpiresAt,
+          });
         }
       }
 
