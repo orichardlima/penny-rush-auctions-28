@@ -1727,8 +1727,8 @@ export const useAdminPartners = () => {
           target_type: 'partner_contract',
           target_id: contractId,
           description: `Upgrade de plano: ${oldPlanName} → ${newPlan.name} (admin, sem PIX)`,
-          old_values: { plan_name: oldPlanName, aporte_value: oldAporte, weekly_cap: oldWeeklyCap, total_cap: oldTotalCap },
-          new_values: { plan_name: newPlan.name, aporte_value: newAporte, weekly_cap: newWeeklyCap, total_cap: newTotalCap }
+          old_values: { plan_name: oldPlanName, aporte_value: oldAporte, weekly_cap: oldWeeklyCap, total_cap: oldTotalCap, bonus_bids: oldBids },
+          new_values: { plan_name: newPlan.name, aporte_value: newAporte, weekly_cap: newWeeklyCap, total_cap: newTotalCap, bonus_bids: newBids, extra_bids_credited: extraBids > 0 ? extraBids : 0 }
         });
       }
 
