@@ -1915,6 +1915,7 @@ export type Database = {
           referred_user_id: string
           referrer_contract_id: string
           status: string
+          suspended_expires_at: string | null
         }
         Insert: {
           aporte_value: number
@@ -1930,6 +1931,7 @@ export type Database = {
           referred_user_id: string
           referrer_contract_id: string
           status?: string
+          suspended_expires_at?: string | null
         }
         Update: {
           aporte_value?: number
@@ -1945,6 +1947,7 @@ export type Database = {
           referred_user_id?: string
           referrer_contract_id?: string
           status?: string
+          suspended_expires_at?: string | null
         }
         Relationships: [
           {
@@ -2435,6 +2438,7 @@ export type Database = {
         Returns: undefined
       }
       execute_overdue_bot_bids: { Args: never; Returns: Json }
+      expire_suspended_bonuses: { Args: never; Returns: undefined }
       fix_partner_referral: {
         Args: { p_referral_code: string; p_referred_contract_id: string }
         Returns: Json
