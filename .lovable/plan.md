@@ -1,68 +1,60 @@
 
 
-# Gerar bônus de indicação para upgrades administrativos de plano
+# Correção retroativa dos bônus do upgrade do Tiago
 
-## Problema atual
+## Situação
 
-Quando o admin faz upgrade de plano, o código atualiza os bônus existentes com o novo `aporte_value` e `bonus_value`. Mas se esses bônus já foram pagos ou estão disponíveis, o upline não recebe a diferença — ele simplesmente já recebeu pelo valor antigo.
+O upgrade Legend → Diamond (R$9.999 → R$25.000) feito às 13:36 UTC usou o código antigo que **sobrescreveu** os bônus de ativação. Os valores monetários totais estão corretos, mas os registros precisam ser separados para integridade dos dados.
 
-## Solução
+## Problema de inadimplência
 
-Substituir a lógica de "recalcular bônus existentes" por "criar novos bônus com a diferença do aporte". Assim o upline recebe um bônus adicional proporcional à diferença.
+Paulo Mota está `overdue`. Pela regra atual, o bônus de upgrade dele deveria ser `SUSPENDED` com prazo de 3 dias. Porém o bônus já está `AVAILABLE` porque o código antigo simplesmente atualizou o registro existente.
 
-## Alteração
+## Opções
 
-**1 arquivo**: `src/hooks/useAdminPartners.ts` — função `upgradeContractPlan`
+**Opção A — Apenas corrigir os registros (sem alterar status)**
+Restaurar os valores originais da ativação e criar registros de upgrade separados, mantendo tudo como `AVAILABLE` (já que o sistema já liberou).
 
-Substituir o bloco de recálculo de bônus (linhas ~1697-1712) por:
+**Opção B — Corrigir registros e aplicar regra de inadimplência ao Paulo**
+Restaurar ativação, criar registro de upgrade do Paulo como `SUSPENDED` com expiração de 3 dias, e reduzir o bônus de ativação dele ao valor original (R$1.199,88). Isso significa que ele **perderia R$1.800,12** se não regularizar em 3 dias.
 
-1. Calcular `aporteDiff = newAporte - oldAporte`
-2. Buscar a cadeia de referral do contrato (nível 1: `referred_by_user_id`, nível 2 e 3: subindo pela cadeia)
-3. Para cada upline encontrado:
-   - Buscar a porcentagem de bônus (nível 1: do plano do upline via `referral_bonus_percentage`; nível 2/3: via `referral_level_config`)
-   - Verificar `financial_status` do upline para definir status (`PENDING` vs `SUSPENDED`)
-   - Inserir novo registro em `partner_referral_bonuses` com `aporte_value = aporteDiff`, `bonus_value = aporteDiff * percentage / 100`
-   - Usar `is_fast_start_bonus = false` e gerar novo `id` (não depende do unique constraint)
-4. Atualizar `total_referral_points` dos uplines com a diferença de pontos proporcional
+## Plano (Opção A — mais segura)
 
-### Contorno do unique constraint
+**Método**: Usar a ferramenta de insert/update para corrigir os dados diretamente (não é alteração de schema).
 
-O unique constraint é `(referred_contract_id, referral_level, is_fast_start_bonus)`. Como já existe um bônus para o contrato + nível, será necessário:
-- **Opção escolhida**: Criar uma migration para alterar o unique constraint, adicionando um campo que permita múltiplos bônus por contrato/nível (ex: adicionar coluna `source_event` como parte do constraint), OU
-- Usar a abordagem de UPDATE no valor (somar a diferença ao bonus_value existente) para bônus que ainda estão PENDING
+### Passo 1 — Restaurar bônus de ativação aos valores originais
 
-**Abordagem recomendada**: Somar a diferença ao `bonus_value` dos bônus existentes que estão em `PENDING` ou `SUSPENDED`. Para bônus já `AVAILABLE` ou `PAID`, não alterar (já foram processados). Nesse caso, criar um novo bônus requer alterar o constraint.
+Para cada um dos 3 registros existentes (níveis 1, 2, 3):
+- `aporte_value`: 9999 (valor original Legend)
+- `bonus_value`: recalcular com o percentual original (9999 * %)
 
-**Abordagem mais simples e segura**: Alterar o unique constraint para incluir um campo `source_event` (TEXT, default `'activation'`), permitindo bônus separados para `'activation'` e `'upgrade'`.
+| ID do bônus | Nível | bonus_value corrigido |
+|-------------|-------|-----------------------|
+| fe6a608a... | 1 (12%) | 1199.88 |
+| 72deac19... | 2 (2%) | 199.98 |
+| 93639569... | 3 (0.5%) | 49.995 |
 
-## Arquivos
+### Passo 2 — Inserir novos registros de upgrade
 
-| Tipo | Descrição |
-|------|-----------|
-| Migration SQL | Adicionar coluna `source_event` (TEXT DEFAULT 'activation') + alterar unique constraint para `(referred_contract_id, referral_level, is_fast_start_bonus, source_event)` |
-| Frontend | `src/hooks/useAdminPartners.ts` — reescrever bloco de recálculo para inserir novos bônus com `source_event = 'upgrade'` |
+Criar 3 novos registros com `source_event = 'upgrade'` e `aporte_value = 15001`:
 
-## Lógica detalhada no frontend
+| Upline | Nível | % | bonus_value | status |
+|--------|-------|---|-------------|--------|
+| Paulo Mota | 1 | 12% | 1800.12 | AVAILABLE |
+| Luiz Claudio | 2 | 2% | 300.02 | AVAILABLE |
+| Mariano | 3 | 0.5% | 75.005 | AVAILABLE |
 
-```text
-aporteDiff = newAporte - oldAporte  (ex: 20000 - 9999 = 10001)
+### Passo 3 — Verificar outros upgrades afetados
 
-Para cada upline (nível 1, 2, 3):
-  bonusValue = aporteDiff * percentage / 100
-  
-  INSERT partner_referral_bonuses:
-    aporte_value: aporteDiff
-    bonus_value: bonusValue
-    source_event: 'upgrade'
-    status: PENDING (se upline paid) ou SUSPENDED (se inadimplente)
-    available_at: NOW() + 7 days (se PENDING)
-    suspended_expires_at: NOW() + 3 days (se SUSPENDED)
-```
+Buscar no audit_log outros `UPGRADE_PLAN` que ocorreram antes da implementação do `source_event` para identificar se há mais casos a corrigir.
+
+## Arquivos alterados
+
+Nenhum arquivo de código alterado — apenas operações de dados (UPDATE + INSERT) via ferramenta de insert.
 
 ## Impacto
 
-- Uplines recebem bônus proporcional à diferença do aporte no upgrade
-- Bônus original da ativação permanece intacto
-- Respeita regras de inadimplência (SUSPENDED com expiração de 3 dias)
-- Pontos binários já são propagados (lógica existente, mantida)
+- Valores monetários totais permanecem iguais (nenhum upline ganha mais ou menos)
+- Registros ficam separados corretamente (ativação vs upgrade)
+- Rastreabilidade completa para auditoria
 
