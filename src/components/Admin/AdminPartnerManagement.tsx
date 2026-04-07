@@ -846,6 +846,7 @@ const AdminPartnerManagement = () => {
                               }
                               return null;
                             })()}
+                            {contract.status === 'ACTIVE' && (
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button variant="outline" size="sm">
