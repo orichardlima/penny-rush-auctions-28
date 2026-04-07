@@ -1914,6 +1914,7 @@ export type Database = {
           referred_contract_id: string
           referred_user_id: string
           referrer_contract_id: string
+          source_event: string
           status: string
           suspended_expires_at: string | null
         }
@@ -1930,6 +1931,7 @@ export type Database = {
           referred_contract_id: string
           referred_user_id: string
           referrer_contract_id: string
+          source_event?: string
           status?: string
           suspended_expires_at?: string | null
         }
@@ -1946,6 +1948,7 @@ export type Database = {
           referred_contract_id?: string
           referred_user_id?: string
           referrer_contract_id?: string
+          source_event?: string
           status?: string
           suspended_expires_at?: string | null
         }
