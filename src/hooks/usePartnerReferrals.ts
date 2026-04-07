@@ -200,13 +200,24 @@ export const usePartnerReferrals = () => {
     return `${window.location.origin}/parceiro?ref=${referralCode}`;
   }, [referralCode]);
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string, suspendedExpiresAt?: string | null) => {
     switch (status) {
       case 'PENDING': return 'Em validação';
       case 'AVAILABLE': return 'Disponível';
       case 'PAID': return 'Pago';
       case 'CANCELLED': return 'Cancelado';
-      case 'SUSPENDED': return 'Suspenso (Inadimplente)';
+      case 'SUSPENDED': {
+        if (suspendedExpiresAt) {
+          const expiresDate = new Date(suspendedExpiresAt);
+          const now = new Date();
+          const diffMs = expiresDate.getTime() - now.getTime();
+          const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+          if (diffHours <= 24) return `Suspenso (expira em ${diffHours}h)`;
+          const diffDays = Math.ceil(diffHours / 24);
+          return `Suspenso (expira em ${diffDays}d)`;
+        }
+        return 'Suspenso (Inadimplente)';
+      }
       default: return status;
     }
   };
