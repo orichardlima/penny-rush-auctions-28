@@ -1583,6 +1583,146 @@ export const useAdminPartners = () => {
     }
   };
 
+  const upgradeContractPlan = async (contractId: string, newPlanId: string) => {
+    setProcessing(true);
+    try {
+      const contract = contracts.find(c => c.id === contractId);
+      if (!contract) throw new Error('Contrato não encontrado');
+      if (contract.status !== 'ACTIVE') throw new Error('Apenas contratos ativos podem ter upgrade de plano');
+
+      const newPlan = plans.find(p => p.id === newPlanId);
+      if (!newPlan) throw new Error('Plano não encontrado');
+      if (newPlan.aporte_value <= contract.aporte_value) throw new Error('O novo plano deve ter aporte maior que o atual');
+
+      const oldPlanName = contract.plan_name;
+      const oldAporte = contract.aporte_value;
+      const oldWeeklyCap = contract.weekly_cap;
+      const oldTotalCap = contract.total_cap;
+
+      // New values with cotas = 1
+      const newAporte = newPlan.aporte_value;
+      const newWeeklyCap = newPlan.weekly_cap;
+      const newTotalCap = newPlan.total_cap;
+
+      // Update the contract
+      const { error } = await supabase
+        .from('partner_contracts')
+        .update({
+          plan_name: newPlan.name,
+          aporte_value: newAporte,
+          weekly_cap: newWeeklyCap,
+          total_cap: newTotalCap,
+          cotas: 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contractId);
+
+      if (error) throw error;
+
+      // Record upgrade in partner_upgrades
+      await supabase.from('partner_upgrades').insert({
+        partner_contract_id: contractId,
+        previous_plan_name: oldPlanName,
+        new_plan_name: newPlan.name,
+        previous_aporte_value: oldAporte,
+        new_aporte_value: newAporte,
+        previous_weekly_cap: oldWeeklyCap,
+        new_weekly_cap: newWeeklyCap,
+        previous_total_cap: oldTotalCap,
+        new_total_cap: newTotalCap,
+        difference_paid: 0,
+        total_received_at_upgrade: contract.total_received,
+        notes: 'Upgrade administrativo (sem pagamento PIX)'
+      });
+
+      // Propagate extra binary points (difference between new and old plan)
+      const { data: oldLevelPoints } = await supabase
+        .from('partner_level_points')
+        .select('points')
+        .eq('plan_name', oldPlanName)
+        .maybeSingle();
+
+      const { data: newLevelPoints } = await supabase
+        .from('partner_level_points')
+        .select('points')
+        .eq('plan_name', newPlan.name)
+        .maybeSingle();
+
+      const oldPoints = (oldLevelPoints?.points || 0) * ((contract as any).cotas || 1);
+      const newPoints = newLevelPoints?.points || 0;
+      const extraPoints = newPoints - oldPoints;
+
+      if (extraPoints > 0) {
+        const { data: binaryPos } = await supabase
+          .from('partner_binary_positions')
+          .select('sponsor_contract_id')
+          .eq('partner_contract_id', contractId)
+          .maybeSingle();
+
+        await supabase.rpc('propagate_binary_points', {
+          p_source_contract_id: contractId,
+          p_points: extraPoints,
+          p_reason: 'plan_upgrade',
+          p_sponsor_contract_id: binaryPos?.sponsor_contract_id ?? null
+        });
+      }
+
+      // Recalculate referral bonuses
+      const { data: existingBonuses } = await supabase
+        .from('partner_referral_bonuses')
+        .select('id, bonus_percentage')
+        .eq('referred_contract_id', contractId)
+        .eq('is_fast_start_bonus', false);
+
+      if (existingBonuses?.length) {
+        for (const bonus of existingBonuses) {
+          const newBonusValue = newAporte * (bonus.bonus_percentage / 100);
+          await supabase
+            .from('partner_referral_bonuses')
+            .update({ aporte_value: newAporte, bonus_value: newBonusValue })
+            .eq('id', bonus.id);
+        }
+      }
+
+      // Audit log
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        await supabase.from('admin_audit_log').insert({
+          admin_user_id: user.id,
+          admin_name: profile?.full_name || 'Admin',
+          action_type: 'UPGRADE_PLAN',
+          target_type: 'partner_contract',
+          target_id: contractId,
+          description: `Upgrade de plano: ${oldPlanName} → ${newPlan.name} (admin, sem PIX)`,
+          old_values: { plan_name: oldPlanName, aporte_value: oldAporte, weekly_cap: oldWeeklyCap, total_cap: oldTotalCap },
+          new_values: { plan_name: newPlan.name, aporte_value: newAporte, weekly_cap: newWeeklyCap, total_cap: newTotalCap }
+        });
+      }
+
+      toast({
+        title: "Upgrade de plano realizado!",
+        description: `Contrato atualizado de ${oldPlanName} para ${newPlan.name}. Novo aporte: R$ ${newAporte.toFixed(2)}.`
+      });
+
+      await fetchContracts();
+    } catch (error: any) {
+      console.error('Error upgrading plan:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer upgrade de plano",
+        description: error.message || "Não foi possível atualizar o plano."
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return {
     contracts,
     plans,
