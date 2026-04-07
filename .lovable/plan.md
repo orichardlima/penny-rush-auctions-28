@@ -1,61 +1,68 @@
 
 
-# Expiração automática de bônus suspensos por inadimplência
+# Gerar bônus de indicação para upgrades administrativos de plano
 
-## Conceito
+## Problema atual
 
-Quando um parceiro inadimplente gera um bônus de indicação, ele é criado com status `SUSPENDED`. O parceiro tem um prazo de **3 dias** para regularizar. Se não regularizar dentro do prazo, o bônus é automaticamente convertido para `CANCELLED` (perdido definitivamente). Se regularizar a tempo, o bônus volta para `PENDING` com carência normal de 7 dias.
+Quando o admin faz upgrade de plano, o código atualiza os bônus existentes com o novo `aporte_value` e `bonus_value`. Mas se esses bônus já foram pagos ou estão disponíveis, o upline não recebe a diferença — ele simplesmente já recebeu pelo valor antigo.
 
-## Fluxo
+## Solução
 
-```text
-Parceiro inadimplente indica alguém
-  └─> Bônus criado com status SUSPENDED + expires_at = NOW() + 3 dias
-        ├─> Regularizou antes de 3 dias? → SUSPENDED → PENDING (carência 7d)
-        └─> Não regularizou em 3 dias?   → SUSPENDED → CANCELLED (perdido)
-```
+Substituir a lógica de "recalcular bônus existentes" por "criar novos bônus com a diferença do aporte". Assim o upline recebe um bônus adicional proporcional à diferença.
 
-## Alterações
+## Alteração
 
-### 1. Migration SQL
+**1 arquivo**: `src/hooks/useAdminPartners.ts` — função `upgradeContractPlan`
 
-**a) Adicionar coluna `suspended_expires_at`** na tabela `partner_referral_bonuses` — timestamp que indica quando o bônus suspenso expira e é cancelado.
+Substituir o bloco de recálculo de bônus (linhas ~1697-1712) por:
 
-**b) Alterar `ensure_partner_referral_bonuses`** — ao criar bônus com status `SUSPENDED`, preencher `suspended_expires_at = NOW() + INTERVAL '3 days'`.
+1. Calcular `aporteDiff = newAporte - oldAporte`
+2. Buscar a cadeia de referral do contrato (nível 1: `referred_by_user_id`, nível 2 e 3: subindo pela cadeia)
+3. Para cada upline encontrado:
+   - Buscar a porcentagem de bônus (nível 1: do plano do upline via `referral_bonus_percentage`; nível 2/3: via `referral_level_config`)
+   - Verificar `financial_status` do upline para definir status (`PENDING` vs `SUSPENDED`)
+   - Inserir novo registro em `partner_referral_bonuses` com `aporte_value = aporteDiff`, `bonus_value = aporteDiff * percentage / 100`
+   - Usar `is_fast_start_bonus = false` e gerar novo `id` (não depende do unique constraint)
+4. Atualizar `total_referral_points` dos uplines com a diferença de pontos proporcional
 
-**c) Alterar trigger `unsuspend_bonuses_on_payment`** — ao regularizar, só converter bônus `SUSPENDED` que ainda NÃO expiraram (`suspended_expires_at > NOW()`). Limpar o campo `suspended_expires_at` ao converter.
+### Contorno do unique constraint
 
-**d) Criar função `expire_suspended_bonuses()`** — executada por cron (a cada hora), cancela bônus `SUSPENDED` cujo `suspended_expires_at <= NOW()`:
-```sql
-UPDATE partner_referral_bonuses
-SET status = 'CANCELLED'
-WHERE status = 'SUSPENDED' AND suspended_expires_at <= NOW();
-```
+O unique constraint é `(referred_contract_id, referral_level, is_fast_start_bonus)`. Como já existe um bônus para o contrato + nível, será necessário:
+- **Opção escolhida**: Criar uma migration para alterar o unique constraint, adicionando um campo que permita múltiplos bônus por contrato/nível (ex: adicionar coluna `source_event` como parte do constraint), OU
+- Usar a abordagem de UPDATE no valor (somar a diferença ao bonus_value existente) para bônus que ainda estão PENDING
 
-**e) Agendar cron job** — `pg_cron` executando `expire_suspended_bonuses()` a cada hora.
+**Abordagem recomendada**: Somar a diferença ao `bonus_value` dos bônus existentes que estão em `PENDING` ou `SUSPENDED`. Para bônus já `AVAILABLE` ou `PAID`, não alterar (já foram processados). Nesse caso, criar um novo bônus requer alterar o constraint.
 
-### 2. Frontend — `src/hooks/usePartnerReferrals.ts`
+**Abordagem mais simples e segura**: Alterar o unique constraint para incluir um campo `source_event` (TEXT, default `'activation'`), permitindo bônus separados para `'activation'` e `'upgrade'`.
 
-- Adicionar campo `suspended_expires_at` ao tipo `PartnerReferralBonus`
-- Atualizar `getStatusLabel` para SUSPENDED: mostrar "Suspenso (expira em X dias)" quando houver `suspended_expires_at`
-- Adicionar contagem de `cancelled` nas stats
-
-### 3. Prazo configurável (opcional futuro)
-
-O prazo de 3 dias fica hardcoded na function SQL por simplicidade. Se no futuro quiser tornar configurável, pode ser adicionado a uma tabela de configuração.
-
-## Resumo de arquivos
+## Arquivos
 
 | Tipo | Descrição |
 |------|-----------|
-| Migration SQL | Nova coluna + alteração de functions + cron job |
-| Frontend | `src/hooks/usePartnerReferrals.ts` — exibir prazo de expiração |
+| Migration SQL | Adicionar coluna `source_event` (TEXT DEFAULT 'activation') + alterar unique constraint para `(referred_contract_id, referral_level, is_fast_start_bonus, source_event)` |
+| Frontend | `src/hooks/useAdminPartners.ts` — reescrever bloco de recálculo para inserir novos bônus com `source_event = 'upgrade'` |
+
+## Lógica detalhada no frontend
+
+```text
+aporteDiff = newAporte - oldAporte  (ex: 20000 - 9999 = 10001)
+
+Para cada upline (nível 1, 2, 3):
+  bonusValue = aporteDiff * percentage / 100
+  
+  INSERT partner_referral_bonuses:
+    aporte_value: aporteDiff
+    bonus_value: bonusValue
+    source_event: 'upgrade'
+    status: PENDING (se upline paid) ou SUSPENDED (se inadimplente)
+    available_at: NOW() + 7 days (se PENDING)
+    suspended_expires_at: NOW() + 3 days (se SUSPENDED)
+```
 
 ## Impacto
 
-- Bônus de inadimplentes expiram automaticamente em 3 dias
-- Incentiva regularização rápida
-- Bônus perdidos não podem ser recuperados (CANCELLED é definitivo)
-- Pontos binários continuam propagando (estrutura da rede)
-- Nenhuma mudança na UI além do label atualizado
+- Uplines recebem bônus proporcional à diferença do aporte no upgrade
+- Bônus original da ativação permanece intacto
+- Respeita regras de inadimplência (SUSPENDED com expiração de 3 dias)
+- Pontos binários já são propagados (lógica existente, mantida)
 
