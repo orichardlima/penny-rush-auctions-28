@@ -1,37 +1,74 @@
 
+# Bloqueio de bônus para parceiros inadimplentes
 
-# Creditar diferença de lances no upgrade administrativo de plano
+## Resumo
 
-## Situação atual
+Quando um parceiro tem `financial_status != 'paid'`, os bônus de indicação gerados para ele devem ter status `SUSPENDED` em vez de `PENDING`. Pontos binários continuam propagando (não faz sentido bloquear pois a árvore binária é estrutural), mas o bônus financeiro fica retido. Quando o parceiro regulariza (`financial_status` volta a `'paid'`), os bônus `SUSPENDED` são automaticamente convertidos para `PENDING` com `available_at` recalculado.
 
-A função `upgradeContractPlan` em `src/hooks/useAdminPartners.ts` atualiza tetos e propaga pontos, mas ignora o campo `bonus_bids` do plano. O parceiro não recebe os lances extras ao fazer upgrade via admin.
+## Alterações
 
-## Alteração
+### 1. Migration SQL — 3 partes
 
-**1 arquivo**: `src/hooks/useAdminPartners.ts` — dentro de `upgradeContractPlan`, após o update do contrato (linha ~1620):
+**a) Alterar `ensure_partner_referral_bonuses`**: Antes de inserir cada bônus (níveis 1, 2, 3), verificar o `financial_status` do contrato receptor (`v_level1_contract`, `v_level2_contract`, `v_level3_contract`). Se `!= 'paid'`, inserir com status `'SUSPENDED'` e `available_at = NULL` em vez de `'PENDING'` com 7 dias.
 
-1. Buscar `bonus_bids` do plano antigo e do novo plano (já disponíveis em `newPlan.bonus_bids` e no plano atual via `plans.find`)
-2. Calcular diferença: `newPlan.bonus_bids - (oldPlan.bonus_bids * oldCotas)` (considerando cotas anteriores)
-3. Se diferença > 0:
-   - Incrementar `bids_balance` no `profiles` do parceiro (`+= diferença`)
-   - Atualizar `bonus_bids_received` no contrato (`+= diferença`)
-4. Incluir lances no audit log (old/new values)
+**b) Alterar `release_pending_referral_bonuses`**: Adicionar condição para ignorar bônus `SUSPENDED` (já ignora naturalmente pois filtra `status = 'PENDING'`). Nenhuma mudança necessária aqui.
 
-## Lógica
+**c) Criar trigger/function para liberação automática**: Um trigger `AFTER UPDATE OF financial_status` na tabela `partner_contracts` que, quando `financial_status` muda para `'paid'`, converte todos os bônus `SUSPENDED` do contrato para `PENDING` com `available_at = NOW() + INTERVAL '7 days'`.
 
+### 2. Frontend — exibir status SUSPENDED
+
+**`src/hooks/usePartnerReferrals.ts`**:
+- Adicionar `'SUSPENDED'` ao type `PartnerReferralBonus.status`
+- Adicionar label "Suspenso (Inadimplente)" em `getStatusLabel`
+- Adicionar cor vermelha/laranja em `getStatusColor`
+- Adicionar contagem `suspended` nas stats
+
+### 3. Componente de exibição
+
+**`src/components/Partner/PartnerReferralSection.tsx`** (ou equivalente): Nenhuma mudança estrutural — o status `SUSPENDED` será exibido automaticamente via os helpers atualizados.
+
+## Lógica SQL detalhada
+
+Na função `ensure_partner_referral_bonuses`, para cada nível, o status será determinado assim:
+
+```sql
+-- Determinar status baseado no financial_status do receptor
+v_bonus_status := CASE 
+  WHEN v_level1_contract.financial_status = 'paid' THEN 'PENDING'
+  ELSE 'SUSPENDED'
+END;
+v_bonus_available_at := CASE
+  WHEN v_level1_contract.financial_status = 'paid' THEN NOW() + INTERVAL '7 days'
+  ELSE NULL
+END;
 ```
-oldBids = (oldPlan.bonus_bids || 0) * contract.cotas
-newBids = newPlan.bonus_bids || 0  // cotas resetam para 1
-extraBids = newBids - oldBids
 
-if (extraBids > 0):
-  profiles.bids_balance += extraBids
-  partner_contracts.bonus_bids_received += extraBids
+Trigger de liberação automática:
+
+```sql
+CREATE FUNCTION unsuspend_bonuses_on_payment()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.financial_status = 'paid' AND OLD.financial_status != 'paid' THEN
+    UPDATE partner_referral_bonuses
+    SET status = 'PENDING', available_at = NOW() + INTERVAL '7 days'
+    WHERE referrer_contract_id = NEW.id AND status = 'SUSPENDED';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 ## Impacto
 
-- Apenas a função de upgrade admin é alterada
-- Nenhuma mudança de banco necessária
-- Nenhuma mudança na UI
+- Bônus de inadimplentes ficam congelados até regularização
+- Pontos binários continuam propagando (estrutura da rede não é afetada)
+- Liberação é automática ao pagar — sem intervenção manual
+- 1 migration + 1 arquivo frontend editado
 
+## Arquivos
+
+| Tipo | Arquivo |
+|------|---------|
+| Migration SQL | Reescreve `ensure_partner_referral_bonuses` + cria trigger `unsuspend_bonuses_on_payment` |
+| Frontend | `src/hooks/usePartnerReferrals.ts` — adicionar SUSPENDED ao type e helpers |
