@@ -824,7 +824,28 @@ const AdminPartnerManagement = () => {
                               }
                               return null;
                             })()}
-                            {contract.status === 'ACTIVE' && (
+                            {/* Upgrade Plan Button - Only for ACTIVE contracts */}
+                            {contract.status === 'ACTIVE' && (() => {
+                              const superiorPlans = plans.filter(p => p.is_active && p.aporte_value > contract.aporte_value);
+                              if (superiorPlans.length > 0) {
+                                return (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedContractForPlanUpgrade(contract);
+                                      setSelectedNewPlanId('');
+                                      setIsUpgradePlanOpen(true);
+                                    }}
+                                    title="Upgrade de plano"
+                                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                                  >
+                                    <Rocket className="h-4 w-4" />
+                                  </Button>
+                                );
+                              }
+                              return null;
+                            })()}
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button variant="outline" size="sm">
