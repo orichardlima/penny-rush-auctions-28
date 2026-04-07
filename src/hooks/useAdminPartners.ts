@@ -1748,6 +1748,7 @@ export const useAdminPartners = () => {
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
+    upgradeContractPlan,
     refreshData: async () => {
       await Promise.all([fetchContracts(), fetchPlans(), fetchPayouts(), fetchSnapshots(), fetchTerminations(), fetchWithdrawals()]);
     }

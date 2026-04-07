@@ -85,6 +85,7 @@ const AdminPartnerManagement = () => {
     correctBonusBids,
     addManualCredit,
     upgradeContractCotas,
+    upgradeContractPlan,
     updateFinancialStatus,
     refreshData 
   } = useAdminPartners();
@@ -154,6 +155,11 @@ const AdminPartnerManagement = () => {
   const [isUpgradeCotasOpen, setIsUpgradeCotasOpen] = useState(false);
   const [selectedContractForUpgrade, setSelectedContractForUpgrade] = useState<any>(null);
   const [newCotasValue, setNewCotasValue] = useState(2);
+
+  // Upgrade Plan State
+  const [isUpgradePlanOpen, setIsUpgradePlanOpen] = useState(false);
+  const [selectedContractForPlanUpgrade, setSelectedContractForPlanUpgrade] = useState<any>(null);
+  const [selectedNewPlanId, setSelectedNewPlanId] = useState('');
 
   const copyToClipboard = (text: string, label: string = 'Texto') => {
     navigator.clipboard.writeText(text).then(() => {
