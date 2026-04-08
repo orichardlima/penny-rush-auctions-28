@@ -441,19 +441,25 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
       
+      const totalAporte = plan.aporte_value * adminCotas;
+      const totalWeeklyCap = plan.weekly_cap * adminCotas;
+      const totalCap = plan.total_cap * adminCotas;
+      const totalBonusBids = (!isDemoContract && plan.bonus_bids) ? plan.bonus_bids * adminCotas : 0;
+
       const { data: newContract, error: contractError } = await supabase
         .from('partner_contracts')
         .insert({
           user_id: user.user_id,
           plan_name: plan.name,
-          aporte_value: plan.aporte_value,
-          weekly_cap: plan.weekly_cap,
-          total_cap: plan.total_cap,
+          aporte_value: totalAporte,
+          weekly_cap: totalWeeklyCap,
+          total_cap: totalCap,
+          cotas: adminCotas,
           status: 'ACTIVE',
           referred_by_user_id: referredByUserId,
           referral_code: newReferralCode,
           is_demo: isDemoContract,
-          bonus_bids_received: (!isDemoContract && plan.bonus_bids) ? plan.bonus_bids : 0
+          bonus_bids_received: totalBonusBids
         })
         .select()
         .single();
