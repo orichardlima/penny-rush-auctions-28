@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard, Wallet } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -75,6 +76,15 @@ export const SystemSettings: React.FC = () => {
   const [autoReplenishDurationMin, setAutoReplenishDurationMin] = useState<string>('1');
   const [autoReplenishDurationMax, setAutoReplenishDurationMax] = useState<string>('5');
   const [savingAutoReplenish, setSavingAutoReplenish] = useState(false);
+
+  // Withdrawal Settings State
+  const [withdrawalAllowedDays, setWithdrawalAllowedDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [withdrawalStartHour, setWithdrawalStartHour] = useState<string>('8');
+  const [withdrawalEndHour, setWithdrawalEndHour] = useState<string>('18');
+  const [withdrawalFeePercentage, setWithdrawalFeePercentage] = useState<string>('0');
+  const [partnerMinWithdrawal, setPartnerMinWithdrawal] = useState<string>('50');
+  const [affiliateMinWithdrawal, setAffiliateMinWithdrawal] = useState<string>('50');
+  const [savingWithdrawal, setSavingWithdrawal] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
   const [isInitialized, setIsInitialized] = useState(false);
@@ -143,6 +153,17 @@ export const SystemSettings: React.FC = () => {
       setAutoReplenishInterval(getSettingValue('auto_replenish_interval_minutes', 30).toString());
       setAutoReplenishDurationMin(getSettingValue('auto_replenish_duration_min_hours', 1).toString());
       setAutoReplenishDurationMax(getSettingValue('auto_replenish_duration_max_hours', 5).toString());
+
+      // Withdrawal Settings
+      const allowedDaysStr = getSettingValue('withdrawal_allowed_days', '1,2,3,4,5');
+      if (typeof allowedDaysStr === 'string') {
+        setWithdrawalAllowedDays(allowedDaysStr.split(',').map(Number).filter(n => !isNaN(n)));
+      }
+      setWithdrawalStartHour(getSettingValue('withdrawal_start_hour', 8).toString());
+      setWithdrawalEndHour(getSettingValue('withdrawal_end_hour', 18).toString());
+      setWithdrawalFeePercentage(getSettingValue('withdrawal_fee_percentage', 0).toString());
+      setPartnerMinWithdrawal(getSettingValue('partner_min_withdrawal', 50).toString());
+      setAffiliateMinWithdrawal(getSettingValue('affiliate_min_withdrawal', 50).toString());
       
       setIsInitialized(true);
     }
