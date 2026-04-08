@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award, Plus, Minus } from 'lucide-react';
 import { UserBidHistoryModal } from '@/components/Admin/UserBidHistoryModal';
 import { UserPurchaseHistoryModal } from '@/components/Admin/UserPurchaseHistoryModal';
 import { AdminEditProfileDialog } from '@/components/Admin/AdminEditProfileDialog';
@@ -49,6 +49,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [sponsorValidationStatus, setSponsorValidationStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle');
   const [noSponsorConfirmed, setNoSponsorConfirmed] = useState(false);
   const [isDemoContract, setIsDemoContract] = useState(false);
+  const [adminCotas, setAdminCotas] = useState(1);
 
   const logAdminAction = async (actionType: string, oldValues: any = null, newValues: any = null, description: string) => {
     try {
@@ -298,6 +299,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     setSponsorValidationStatus('idle');
     setNoSponsorConfirmed(false);
     setIsDemoContract(false);
+    setAdminCotas(1);
     try {
       // Buscar planos ativos
       const { data: plansData } = await supabase
@@ -439,19 +441,25 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       
       const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
       
+      const totalAporte = plan.aporte_value * adminCotas;
+      const totalWeeklyCap = plan.weekly_cap * adminCotas;
+      const totalCap = plan.total_cap * adminCotas;
+      const totalBonusBids = (!isDemoContract && plan.bonus_bids) ? plan.bonus_bids * adminCotas : 0;
+
       const { data: newContract, error: contractError } = await supabase
         .from('partner_contracts')
         .insert({
           user_id: user.user_id,
           plan_name: plan.name,
-          aporte_value: plan.aporte_value,
-          weekly_cap: plan.weekly_cap,
-          total_cap: plan.total_cap,
+          aporte_value: totalAporte,
+          weekly_cap: totalWeeklyCap,
+          total_cap: totalCap,
+          cotas: adminCotas,
           status: 'ACTIVE',
           referred_by_user_id: referredByUserId,
           referral_code: newReferralCode,
           is_demo: isDemoContract,
-          bonus_bids_received: (!isDemoContract && plan.bonus_bids) ? plan.bonus_bids : 0
+          bonus_bids_received: totalBonusBids
         })
         .select()
         .single();
@@ -470,18 +478,19 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         null,
         { 
           plan_name: plan.name, 
-          aporte_value: plan.aporte_value,
+          aporte_value: totalAporte,
+          cotas: adminCotas,
           referral_code: newReferralCode,
           sponsor: referredByUserId || 'none',
           sponsor_decision: sponsorDecision,
           is_demo: isDemoContract
         },
-        `Plano ${plan.display_name} atribuído pelo administrador${isDemoContract ? ' (DEMO)' : ''}. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
+        `Plano ${plan.display_name} (${adminCotas} cota${adminCotas > 1 ? 's' : ''}) atribuído pelo administrador${isDemoContract ? ' (DEMO)' : ''}. Valor: R$ ${totalAporte.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Sponsor: ${sponsorDecision}`
       );
       
       toast({
         title: "Plano ativado!",
-        description: `${plan.display_name} foi ativado para ${user.full_name || user.email}`
+        description: `${plan.display_name} (${adminCotas} cota${adminCotas > 1 ? 's' : ''}) foi ativado para ${user.full_name || user.email}`
       });
       
       setIsPlanDialogOpen(false);
@@ -490,6 +499,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       setSponsorValidationStatus('idle');
       setNoSponsorConfirmed(false);
       setIsDemoContract(false);
+      setAdminCotas(1);
       onUserUpdated();
     } catch (error: any) {
       console.error('Error assigning plan:', error);
@@ -808,7 +818,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
               
               <div>
                 <Label>Selecione o Plano</Label>
-                <RadioGroup value={selectedPlanId || ''} onValueChange={setSelectedPlanId} className="mt-2 space-y-2">
+                <RadioGroup value={selectedPlanId || ''} onValueChange={(val) => { setSelectedPlanId(val); setAdminCotas(1); }} className="mt-2 space-y-2">
                   {plans.map(plan => (
                     <div key={plan.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
                       <RadioGroupItem value={plan.id} id={plan.id} />
@@ -827,6 +837,51 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
                   ))}
                 </RadioGroup>
               </div>
+
+              {/* Seletor de Cotas */}
+              {selectedPlanId && (() => {
+                const selectedPlan = plans.find(p => p.id === selectedPlanId);
+                if (!selectedPlan || (selectedPlan.max_cotas || 1) <= 1) return null;
+                const maxCotas = selectedPlan.max_cotas;
+                return (
+                  <div className="space-y-3">
+                    <Label>Quantidade de Cotas</Label>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdminCotas(Math.max(1, adminCotas - 1))}
+                        disabled={adminCotas <= 1}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="text-lg font-bold w-8 text-center">{adminCotas}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdminCotas(Math.min(maxCotas, adminCotas + 1))}
+                        disabled={adminCotas >= maxCotas}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">de {maxCotas}</span>
+                    </div>
+                    {adminCotas > 1 && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800 text-sm space-y-1">
+                        <p className="font-medium text-blue-800 dark:text-blue-200">Resumo ({adminCotas} cotas):</p>
+                        <p className="text-blue-700 dark:text-blue-300">Aporte total: R$ {(selectedPlan.aporte_value * adminCotas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-blue-700 dark:text-blue-300">Teto semanal: R$ {(selectedPlan.weekly_cap * adminCotas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-blue-700 dark:text-blue-300">Teto total: R$ {(selectedPlan.total_cap * adminCotas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        {selectedPlan.bonus_bids > 0 && (
+                          <p className="text-blue-700 dark:text-blue-300">Lances bônus: {selectedPlan.bonus_bids * adminCotas}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               
               <div>
                 <Label htmlFor="referral-code">Código de Indicação</Label>
