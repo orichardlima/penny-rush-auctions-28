@@ -1509,6 +1509,139 @@ export const SystemSettings: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Configurações de Saques */}
+      <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-5 w-5 text-orange-500" />
+            <CardTitle className="text-orange-600">Configurações de Saques</CardTitle>
+          </div>
+          <CardDescription>
+            Defina os dias, horários, taxas e valores mínimos para saques de parceiros e afiliados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Dias permitidos */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Dias permitidos para saque</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((day, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`day-${index}`}
+                    checked={withdrawalAllowedDays.includes(index)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setWithdrawalAllowedDays(prev => [...prev, index]);
+                      } else {
+                        setWithdrawalAllowedDays(prev => prev.filter(d => d !== index));
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`day-${index}`} className="text-sm cursor-pointer">{day}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Janela de horário */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Janela de horário (Brasília)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Hora de início</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={withdrawalStartHour}
+                  onChange={(e) => setWithdrawalStartHour(e.target.value)}
+                  placeholder="8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Hora de fim</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={withdrawalEndHour}
+                  onChange={(e) => setWithdrawalEndHour(e.target.value)}
+                  placeholder="18"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Saques serão aceitos das {withdrawalStartHour}h às {withdrawalEndHour}h (horário de Brasília)
+            </p>
+          </div>
+
+          <Separator />
+
+          {/* Taxa de saque */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Taxa de saque (%)</Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={withdrawalFeePercentage}
+              onChange={(e) => setWithdrawalFeePercentage(e.target.value)}
+              placeholder="0"
+              className="max-w-[200px]"
+            />
+            {parseFloat(withdrawalFeePercentage) > 0 && (
+              <div className="p-3 rounded-lg bg-orange-500/10 text-sm text-orange-700 border border-orange-500/20">
+                <strong>Exemplo:</strong> Saque de R$ 100,00 → Taxa de {withdrawalFeePercentage}%: R$ {(100 * parseFloat(withdrawalFeePercentage) / 100).toFixed(2)} → Líquido: R$ {(100 - 100 * parseFloat(withdrawalFeePercentage) / 100).toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Valores mínimos */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Valores mínimos de saque (R$)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Parceiros</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={partnerMinWithdrawal}
+                  onChange={(e) => setPartnerMinWithdrawal(e.target.value)}
+                  placeholder="50"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Afiliados</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={affiliateMinWithdrawal}
+                  onChange={(e) => setAffiliateMinWithdrawal(e.target.value)}
+                  placeholder="50"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSaveWithdrawalSettings}
+            disabled={savingWithdrawal}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {savingWithdrawal ? 'Salvando...' : 'Salvar Configurações de Saque'}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Zona de Perigo */}
       <Card className="border-destructive/20">
         <CardHeader>
