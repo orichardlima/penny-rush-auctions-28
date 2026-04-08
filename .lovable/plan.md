@@ -1,60 +1,36 @@
 
 
-# Correção retroativa dos bônus do upgrade do Tiago
+# Adicionar seletor de cotas na ativação administrativa de planos
 
-## Situação
+## Situação atual
 
-O upgrade Legend → Diamond (R$9.999 → R$25.000) feito às 13:36 UTC usou o código antigo que **sobrescreveu** os bônus de ativação. Os valores monetários totais estão corretos, mas os registros precisam ser separados para integridade dos dados.
+O dialog de ativação de plano no painel admin (`AdminUserManagement.tsx`) sempre cria contratos com 1 cota. Não existe campo para o admin escolher a quantidade. Porém, planos como Legend e Diamond permitem até 3 cotas (`max_cotas = 3`).
 
-## Problema de inadimplência
+## Solução
 
-Paulo Mota está `overdue`. Pela regra atual, o bônus de upgrade dele deveria ser `SUSPENDED` com prazo de 3 dias. Porém o bônus já está `AVAILABLE` porque o código antigo simplesmente atualizou o registro existente.
+Adicionar um seletor de cotas no dialog de ativação, idêntico ao que já existe no `SponsorActivateDialog.tsx` e no fluxo de pagamento. Quando o admin seleciona um plano com `max_cotas > 1`, aparece o controle de +/- para escolher quantas cotas. Os valores de aporte, tetos e lances bônus são multiplicados proporcionalmente.
 
-## Opções
+## Alterações
 
-**Opção A — Apenas corrigir os registros (sem alterar status)**
-Restaurar os valores originais da ativação e criar registros de upgrade separados, mantendo tudo como `AVAILABLE` (já que o sistema já liberou).
+**Arquivo: `src/components/AdminUserManagement.tsx`**
 
-**Opção B — Corrigir registros e aplicar regra de inadimplência ao Paulo**
-Restaurar ativação, criar registro de upgrade do Paulo como `SUSPENDED` com expiração de 3 dias, e reduzir o bônus de ativação dele ao valor original (R$1.199,88). Isso significa que ele **perderia R$1.800,12** se não regularizar em 3 dias.
+1. Adicionar estado `adminCotas` (default 1), resetado quando muda o plano selecionado
+2. Quando o plano selecionado tem `max_cotas > 1`, exibir seletor de cotas (botões -/+) abaixo do seletor de plano
+3. Exibir resumo com valores multiplicados (aporte total, lances bônus, tetos)
+4. No `assignPlanToUser`, multiplicar `aporte_value`, `weekly_cap`, `total_cap` e `bonus_bids` pelo número de cotas, e incluir `cotas` no INSERT do contrato
+5. Registrar cotas no audit log
 
-## Plano (Opção A — mais segura)
+## Exemplo visual
 
-**Método**: Usar a ferramenta de insert/update para corrigir os dados diretamente (não é alteração de schema).
-
-### Passo 1 — Restaurar bônus de ativação aos valores originais
-
-Para cada um dos 3 registros existentes (níveis 1, 2, 3):
-- `aporte_value`: 9999 (valor original Legend)
-- `bonus_value`: recalcular com o percentual original (9999 * %)
-
-| ID do bônus | Nível | bonus_value corrigido |
-|-------------|-------|-----------------------|
-| fe6a608a... | 1 (12%) | 1199.88 |
-| 72deac19... | 2 (2%) | 199.98 |
-| 93639569... | 3 (0.5%) | 49.995 |
-
-### Passo 2 — Inserir novos registros de upgrade
-
-Criar 3 novos registros com `source_event = 'upgrade'` e `aporte_value = 15001`:
-
-| Upline | Nível | % | bonus_value | status |
-|--------|-------|---|-------------|--------|
-| Paulo Mota | 1 | 12% | 1800.12 | AVAILABLE |
-| Luiz Claudio | 2 | 2% | 300.02 | AVAILABLE |
-| Mariano | 3 | 0.5% | 75.005 | AVAILABLE |
-
-### Passo 3 — Verificar outros upgrades afetados
-
-Buscar no audit_log outros `UPGRADE_PLAN` que ocorreram antes da implementação do `source_event` para identificar se há mais casos a corrigir.
-
-## Arquivos alterados
-
-Nenhum arquivo de código alterado — apenas operações de dados (UPDATE + INSERT) via ferramenta de insert.
+Ao selecionar Diamond (R$ 25.000) com 2 cotas:
+- Aporte total: R$ 50.000
+- Teto semanal: multiplicado por 2
+- Teto total: multiplicado por 2
+- Lances bônus: 6.000
 
 ## Impacto
 
-- Valores monetários totais permanecem iguais (nenhum upline ganha mais ou menos)
-- Registros ficam separados corretamente (ativação vs upgrade)
-- Rastreabilidade completa para auditoria
+- Apenas o dialog de ativação administrativa é alterado
+- Nenhuma mudança em banco de dados (coluna `cotas` já existe em `partner_contracts`)
+- Triggers existentes (`ensure_partner_referral_bonuses`, `propagate_binary_points`) já recebem os valores multiplicados corretamente
 
