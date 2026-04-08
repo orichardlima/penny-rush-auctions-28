@@ -478,18 +478,19 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
         null,
         { 
           plan_name: plan.name, 
-          aporte_value: plan.aporte_value,
+          aporte_value: totalAporte,
+          cotas: adminCotas,
           referral_code: newReferralCode,
           sponsor: referredByUserId || 'none',
           sponsor_decision: sponsorDecision,
           is_demo: isDemoContract
         },
-        `Plano ${plan.display_name} atribuído pelo administrador${isDemoContract ? ' (DEMO)' : ''}. Valor: R$ ${plan.aporte_value}. Sponsor: ${sponsorDecision}`
+        `Plano ${plan.display_name} (${adminCotas} cota${adminCotas > 1 ? 's' : ''}) atribuído pelo administrador${isDemoContract ? ' (DEMO)' : ''}. Valor: R$ ${totalAporte.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Sponsor: ${sponsorDecision}`
       );
       
       toast({
         title: "Plano ativado!",
-        description: `${plan.display_name} foi ativado para ${user.full_name || user.email}`
+        description: `${plan.display_name} (${adminCotas} cota${adminCotas > 1 ? 's' : ''}) foi ativado para ${user.full_name || user.email}`
       });
       
       setIsPlanDialogOpen(false);
@@ -498,6 +499,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
       setSponsorValidationStatus('idle');
       setNoSponsorConfirmed(false);
       setIsDemoContract(false);
+      setAdminCotas(1);
       onUserUpdated();
     } catch (error: any) {
       console.error('Error assigning plan:', error);
