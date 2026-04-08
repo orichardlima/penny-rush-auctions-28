@@ -49,6 +49,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   const [sponsorValidationStatus, setSponsorValidationStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle');
   const [noSponsorConfirmed, setNoSponsorConfirmed] = useState(false);
   const [isDemoContract, setIsDemoContract] = useState(false);
+  const [adminCotas, setAdminCotas] = useState(1);
 
   const logAdminAction = async (actionType: string, oldValues: any = null, newValues: any = null, description: string) => {
     try {
