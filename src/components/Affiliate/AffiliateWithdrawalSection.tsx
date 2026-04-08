@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, Wallet, Banknote, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DollarSign, Wallet, Banknote, Clock, CheckCircle, XCircle, AlertCircle, Ban } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { useAffiliateWithdrawals, AffiliatePixDetails } from '@/hooks/useAffiliateWithdrawals';
+import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -47,6 +49,8 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
     hasPendingWithdrawal
   } = useAffiliateWithdrawals(affiliateId);
 
+  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
   const [amount, setAmount] = useState('');
@@ -57,6 +61,12 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
   });
 
   const hasPixConfigured = !!pixKey;
+  const windowStatus = isWithdrawalWindowOpen();
+  const parsedAmount = parseFloat(amount) || 0;
+  const feeInfo = calculateFee(parsedAmount);
+
+  const effectiveMin = Math.max(minWithdrawal, wSettings.affiliateMinWithdrawal);
+  const isButtonDisabled = commissionBalance < effectiveMin || hasPendingWithdrawal || isDefaulting || !windowStatus.open;
 
   const handleRequestWithdrawal = async () => {
     const value = parseFloat(amount);
@@ -68,10 +78,15 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
       return;
     }
 
+    const fee = calculateFee(value);
     const result = await requestWithdrawal(value, {
       pix_key: pixKey!,
       pix_key_type: (bankDetails?.pix_key_type as AffiliatePixDetails['pix_key_type']) || 'cpf',
       holder_name: bankDetails?.holder_name
+    }, {
+      feePercentage: fee.feePercentage,
+      feeAmount: fee.feeAmount,
+      netAmount: fee.netAmount
     });
 
     if (result.success) {
@@ -90,6 +105,16 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
 
   return (
     <div className="space-y-6">
+      {/* Window status alert */}
+      {!windowStatus.open && (
+        <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
+          <Ban className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-sm text-amber-700">
+            <strong>Fora do horário de saque.</strong> {windowStatus.reason}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Cards de resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
@@ -99,7 +124,10 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">{formatPrice(commissionBalance)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Mínimo para saque: {formatPrice(minWithdrawal)}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Mínimo para saque: {formatPrice(effectiveMin)}
+              {wSettings.feePercentage > 0 && ` • Taxa: ${wSettings.feePercentage}%`}
+            </p>
           </CardContent>
         </Card>
 
@@ -134,25 +162,31 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
           <CardContent>
             <Button
               onClick={() => setWithdrawalDialogOpen(true)}
-              disabled={commissionBalance < minWithdrawal || hasPendingWithdrawal || isDefaulting}
+              disabled={isButtonDisabled}
               className="w-full"
             >
               <Wallet className="mr-2 h-4 w-4" />
               Solicitar Saque
             </Button>
-            {isDefaulting && (
+            {!windowStatus.open && (
+              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Fora do horário
+              </p>
+            )}
+            {windowStatus.open && isDefaulting && (
               <p className="text-xs text-destructive mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Saques bloqueados — regularize seu contrato de parceiro
               </p>
             )}
-            {!isDefaulting && hasPendingWithdrawal && (
+            {windowStatus.open && !isDefaulting && hasPendingWithdrawal && (
               <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Saque pendente em análise
               </p>
             )}
-            {!isDefaulting && !hasPendingWithdrawal && commissionBalance < minWithdrawal && (
+            {windowStatus.open && !isDefaulting && !hasPendingWithdrawal && commissionBalance < effectiveMin && (
               <p className="text-xs text-muted-foreground mt-2">
                 Saldo insuficiente para saque
               </p>
@@ -221,21 +255,31 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
           <div className="space-y-4 py-4">
             <div className="p-3 rounded-lg bg-muted/50 text-sm">
               <p>Saldo disponível: <strong className="text-primary">{formatPrice(commissionBalance)}</strong></p>
-              <p className="text-muted-foreground">Valor mínimo: {formatPrice(minWithdrawal)}</p>
+              <p className="text-muted-foreground">Valor mínimo: {formatPrice(effectiveMin)}</p>
             </div>
 
             <div className="space-y-2">
               <Label>Valor do saque (R$)</Label>
               <Input
                 type="number"
-                placeholder={`Mínimo ${minWithdrawal.toFixed(2)}`}
+                placeholder={`Mínimo ${effectiveMin.toFixed(2)}`}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                min={minWithdrawal}
+                min={effectiveMin}
                 max={commissionBalance}
                 step="0.01"
               />
             </div>
+
+            {/* Fee preview */}
+            {parsedAmount > 0 && wSettings.feePercentage > 0 && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-sm border border-amber-200 dark:border-amber-800 space-y-1">
+                <p className="font-medium text-amber-700 dark:text-amber-400">Detalhamento da taxa:</p>
+                <p>Valor solicitado: {formatPrice(parsedAmount)}</p>
+                <p>Taxa ({wSettings.feePercentage}%): -{formatPrice(feeInfo.feeAmount)}</p>
+                <p className="font-bold">Você recebe: {formatPrice(feeInfo.netAmount)}</p>
+              </div>
+            )}
 
             {hasPixConfigured && (
               <div className="p-3 rounded-lg bg-muted/50 text-sm">
@@ -249,7 +293,7 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
             <Button variant="outline" onClick={() => setWithdrawalDialogOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleRequestWithdrawal}
-              disabled={submitting || !amount || parseFloat(amount) < minWithdrawal || parseFloat(amount) > commissionBalance}
+              disabled={submitting || !amount || parseFloat(amount) < effectiveMin || parseFloat(amount) > commissionBalance}
             >
               {submitting ? 'Enviando...' : 'Confirmar Saque'}
             </Button>
