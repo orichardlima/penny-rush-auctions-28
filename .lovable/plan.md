@@ -1,36 +1,22 @@
 
 
-# Adicionar seletor de cotas na ativação administrativa de planos
+# Fix: ON CONFLICT constraint mismatch in referral bonus trigger
 
-## Situação atual
+## Problem
 
-O dialog de ativação de plano no painel admin (`AdminUserManagement.tsx`) sempre cria contratos com 1 cota. Não existe campo para o admin escolher a quantidade. Porém, planos como Legend e Diamond permitem até 3 cotas (`max_cotas = 3`).
+The `ensure_partner_referral_bonuses` function uses `ON CONFLICT (referred_contract_id, referral_level, is_fast_start_bonus)` but the unique constraint was updated to include `source_event` as a 4th column: `(referred_contract_id, referral_level, is_fast_start_bonus, source_event)`.
 
-## Solução
+PostgreSQL requires the ON CONFLICT columns to exactly match a unique index. Since they don't match, the INSERT fails.
 
-Adicionar um seletor de cotas no dialog de ativação, idêntico ao que já existe no `SponsorActivateDialog.tsx` e no fluxo de pagamento. Quando o admin seleciona um plano com `max_cotas > 1`, aparece o controle de +/- para escolher quantas cotas. Os valores de aporte, tetos e lances bônus são multiplicados proporcionalmente.
+## Fix
 
-## Alterações
+**1 migration file** that replaces the `ensure_partner_referral_bonuses` function, updating all 3 ON CONFLICT clauses (levels 1, 2, 3) to include `source_event`:
 
-**Arquivo: `src/components/AdminUserManagement.tsx`**
+```sql
+ON CONFLICT (referred_contract_id, referral_level, is_fast_start_bonus, source_event) DO NOTHING;
+```
 
-1. Adicionar estado `adminCotas` (default 1), resetado quando muda o plano selecionado
-2. Quando o plano selecionado tem `max_cotas > 1`, exibir seletor de cotas (botões -/+) abaixo do seletor de plano
-3. Exibir resumo com valores multiplicados (aporte total, lances bônus, tetos)
-4. No `assignPlanToUser`, multiplicar `aporte_value`, `weekly_cap`, `total_cap` e `bonus_bids` pelo número de cotas, e incluir `cotas` no INSERT do contrato
-5. Registrar cotas no audit log
+The INSERT statements also need to explicitly set `source_event = 'activation'` (the default) so the conflict match works correctly.
 
-## Exemplo visual
-
-Ao selecionar Diamond (R$ 25.000) com 2 cotas:
-- Aporte total: R$ 50.000
-- Teto semanal: multiplicado por 2
-- Teto total: multiplicado por 2
-- Lances bônus: 6.000
-
-## Impacto
-
-- Apenas o dialog de ativação administrativa é alterado
-- Nenhuma mudança em banco de dados (coluna `cotas` já existe em `partner_contracts`)
-- Triggers existentes (`ensure_partner_referral_bonuses`, `propagate_binary_points`) já recebem os valores multiplicados corretamente
+No frontend changes needed.
 
