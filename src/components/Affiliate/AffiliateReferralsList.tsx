@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, UserPlus, ShoppingCart, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Eye, UserPlus, ShoppingCart, ChevronLeft, ChevronRight, Users, Copy, MessageCircle, Mail, Phone, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReferralItem {
   id: string;
@@ -17,6 +18,8 @@ interface ReferralItem {
   converted: boolean;
   user_name: string | null;
   commission_amount: number | null;
+  email: string | null;
+  phone: string | null;
 }
 
 interface AffiliateReferralsListProps {
@@ -31,7 +34,9 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
   const [filter, setFilter] = useState<FilterType>('all');
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const perPage = 10;
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchReferrals();
@@ -40,19 +45,12 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
   const fetchReferrals = async () => {
     setLoading(true);
     try {
-      // Build query based on filter
       let query = supabase
         .from('affiliate_referrals')
-        .select(`
-          id,
-          created_at,
-          referred_user_id,
-          converted
-        `, { count: 'exact' })
+        .select(`id, created_at, referred_user_id, converted`, { count: 'exact' })
         .eq('affiliate_id', affiliateId)
         .order('created_at', { ascending: false });
 
-      // Apply filters
       if (filter === 'clicks') {
         query = query.is('referred_user_id', null);
       } else if (filter === 'signups') {
@@ -61,29 +59,34 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
         query = query.eq('converted', true);
       }
 
-      // Pagination
       const from = (page - 1) * perPage;
       const to = from + perPage - 1;
       query = query.range(from, to);
 
       const { data: referralsData, error, count } = await query;
-
       if (error) throw error;
 
       setTotalCount(count || 0);
 
-      // Fetch user names via secure RPC (batch)
       const userIds = (referralsData || [])
         .filter(r => r.referred_user_id)
         .map(r => r.referred_user_id!);
-      
-      let profilesMap: Record<string, string> = {};
+
+      // Fetch contacts via secure RPC
+      let contactsMap: Record<string, { full_name: string; email: string | null; phone: string | null }> = {};
       if (userIds.length > 0) {
-        const { data: profileData } = await supabase
-          .rpc('get_public_profiles', { user_ids: userIds });
-        if (profileData) {
-          for (const p of profileData) {
-            profilesMap[p.user_id] = p.full_name || 'Usuário';
+        const { data: contactData } = await supabase
+          .rpc('get_affiliate_referral_contacts', {
+            _affiliate_id: affiliateId,
+            _user_ids: userIds
+          });
+        if (contactData) {
+          for (const c of contactData) {
+            contactsMap[c.user_id] = {
+              full_name: c.full_name || 'Usuário',
+              email: c.email || null,
+              phone: c.phone || null
+            };
           }
         }
       }
@@ -92,7 +95,7 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
       const convertedUserIds = (referralsData || [])
         .filter(r => r.converted && r.referred_user_id)
         .map(r => r.referred_user_id!);
-      
+
       let commissionsMap: Record<string, number> = {};
       if (convertedUserIds.length > 0) {
         const { data: commissionData } = await supabase
@@ -107,11 +110,16 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
         }
       }
 
-      const referralsWithDetails: ReferralItem[] = (referralsData || []).map((ref) => ({
-        ...ref,
-        user_name: ref.referred_user_id ? (profilesMap[ref.referred_user_id] || 'Usuário') : null,
-        commission_amount: ref.referred_user_id ? (commissionsMap[ref.referred_user_id] || null) : null,
-      }));
+      const referralsWithDetails: ReferralItem[] = (referralsData || []).map((ref) => {
+        const contact = ref.referred_user_id ? contactsMap[ref.referred_user_id] : null;
+        return {
+          ...ref,
+          user_name: contact?.full_name || (ref.referred_user_id ? 'Usuário' : null),
+          email: contact?.email || null,
+          phone: contact?.phone || null,
+          commission_amount: ref.referred_user_id ? (commissionsMap[ref.referred_user_id] || null) : null,
+        };
+      });
 
       setReferrals(referralsWithDetails);
     } catch (error) {
@@ -119,6 +127,26 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} copiado!`, description: text });
+  };
+
+  const openWhatsApp = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, '');
+    const number = cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+    window.open(`https://wa.me/${number}`, '_blank');
+  };
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const getStatusBadge = (item: ReferralItem) => {
@@ -147,12 +175,6 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
   };
 
   const totalPages = Math.ceil(totalCount / perPage);
-
-  const stats = {
-    clicks: referrals.filter(r => !r.referred_user_id).length,
-    signups: referrals.filter(r => r.referred_user_id && !r.converted).length,
-    buyers: referrals.filter(r => r.converted).length,
-  };
 
   return (
     <Card>
@@ -199,38 +221,136 @@ export function AffiliateReferralsList({ affiliateId }: AffiliateReferralsListPr
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead className="hidden md:table-cell">Contato</TableHead>
+                    <TableHead className="hidden md:table-cell">Data</TableHead>
                     <TableHead className="text-right">Comissão</TableHead>
+                    <TableHead className="md:hidden w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {referrals.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        {item.user_name || (
-                          <span className="text-muted-foreground italic">Visitante</span>
+                  {referrals.map((item) => {
+                    const isExpanded = expandedRows.has(item.id);
+                    return (
+                      <>
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            {item.user_name || (
+                              <span className="text-muted-foreground italic">Visitante</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(item)}</TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {item.referred_user_id ? (
+                              <div className="flex items-center gap-1">
+                                {item.email && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    title={item.email}
+                                    onClick={() => copyToClipboard(item.email!, 'Email')}
+                                  >
+                                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                                  </Button>
+                                )}
+                                {item.phone && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      title={item.phone}
+                                      onClick={() => copyToClipboard(item.phone!, 'Telefone')}
+                                    >
+                                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      title="WhatsApp"
+                                      onClick={() => openWhatsApp(item.phone!)}
+                                    >
+                                      <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                    </Button>
+                                  </>
+                                )}
+                                {!item.email && !item.phone && (
+                                  <span className="text-xs text-muted-foreground">Sem contato</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-muted-foreground">
+                            {format(new Date(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.commission_amount ? (
+                              <span className="text-emerald-600 font-semibold">
+                                {formatPrice(item.commission_amount)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="md:hidden">
+                            {item.referred_user_id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => toggleRow(item.id)}
+                              >
+                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        {/* Mobile expanded row */}
+                        {isExpanded && item.referred_user_id && (
+                          <TableRow key={`${item.id}-details`} className="md:hidden bg-muted/30">
+                            <TableCell colSpan={5} className="py-2 px-4">
+                              <div className="flex flex-col gap-1.5 text-sm">
+                                <span className="text-muted-foreground text-xs">
+                                  {format(new Date(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                </span>
+                                {item.email && (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="truncate flex-1 text-xs">{item.email}</span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(item.email!, 'Email')}>
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                                {item.phone && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs">{item.phone}</span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(item.phone!, 'Telefone')}>
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openWhatsApp(item.phone!)}>
+                                      <MessageCircle className="h-3 w-3 text-emerald-600" />
+                                    </Button>
+                                  </div>
+                                )}
+                                {!item.email && !item.phone && (
+                                  <span className="text-xs text-muted-foreground">Sem dados de contato</span>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(item)}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.commission_amount ? (
-                          <span className="text-emerald-600 font-semibold">
-                            {formatPrice(item.commission_amount)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                      </>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <p className="text-sm text-muted-foreground">
