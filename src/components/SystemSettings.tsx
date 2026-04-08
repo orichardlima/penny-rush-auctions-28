@@ -311,8 +311,7 @@ export const SystemSettings: React.FC = () => {
       setSavingWithdrawal(false);
     }
   };
-
-
+  const saveAutoReplenish = async () => {
     setSavingAutoReplenish(true);
     try {
       await Promise.all([
@@ -1501,7 +1500,7 @@ export const SystemSettings: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSaveAutoReplenish} disabled={savingAutoReplenish || updating}>
+            <Button onClick={saveAutoReplenish} disabled={savingAutoReplenish || updating}>
               <Save className="h-4 w-4 mr-2" />
               {savingAutoReplenish ? 'Salvando...' : 'Salvar Configurações'}
             </Button>
