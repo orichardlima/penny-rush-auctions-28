@@ -2501,6 +2501,15 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_affiliate_referral_contacts: {
+        Args: { _affiliate_id: string; _user_ids: string[] }
+        Returns: {
+          email: string
+          full_name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       get_auction_financials: {
         Args: { auction_uuid: string }
         Returns: {
