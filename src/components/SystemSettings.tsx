@@ -311,8 +311,7 @@ export const SystemSettings: React.FC = () => {
       setSavingWithdrawal(false);
     }
   };
-
-
+  const saveAutoReplenish = async () => {
     setSavingAutoReplenish(true);
     try {
       await Promise.all([
