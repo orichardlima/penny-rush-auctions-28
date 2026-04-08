@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award } from 'lucide-react';
+import { Shield, ShieldOff, DollarSign, Trash2, Edit, KeyRound, Lock, History, ShoppingCart, Award, Plus, Minus } from 'lucide-react';
 import { UserBidHistoryModal } from '@/components/Admin/UserBidHistoryModal';
 import { UserPurchaseHistoryModal } from '@/components/Admin/UserPurchaseHistoryModal';
 import { AdminEditProfileDialog } from '@/components/Admin/AdminEditProfileDialog';
