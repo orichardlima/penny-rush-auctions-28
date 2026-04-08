@@ -286,7 +286,33 @@ export const SystemSettings: React.FC = () => {
     }
   };
 
-  const handleSaveAutoReplenish = async () => {
+  const handleSaveWithdrawalSettings = async () => {
+    setSavingWithdrawal(true);
+    try {
+      await Promise.all([
+        updateSetting('withdrawal_allowed_days', withdrawalAllowedDays.sort((a, b) => a - b).join(',')),
+        updateSetting('withdrawal_start_hour', withdrawalStartHour),
+        updateSetting('withdrawal_end_hour', withdrawalEndHour),
+        updateSetting('withdrawal_fee_percentage', withdrawalFeePercentage),
+        updateSetting('partner_min_withdrawal', partnerMinWithdrawal),
+        updateSetting('affiliate_min_withdrawal', affiliateMinWithdrawal)
+      ]);
+      toast({
+        title: "Configurações de saque salvas!",
+        description: "As regras de saque foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações de saque.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingWithdrawal(false);
+    }
+  };
+
+
     setSavingAutoReplenish(true);
     try {
       await Promise.all([
