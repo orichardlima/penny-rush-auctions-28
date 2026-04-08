@@ -299,6 +299,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
     setSponsorValidationStatus('idle');
     setNoSponsorConfirmed(false);
     setIsDemoContract(false);
+    setAdminCotas(1);
     try {
       // Buscar planos ativos
       const { data: plansData } = await supabase
