@@ -96,7 +96,7 @@ export const usePartnerWithdrawals = (contractId?: string) => {
     }
   }, [contractId]);
 
-  const requestWithdrawal = async (amount: number, paymentDetails: PaymentDetails) => {
+  const requestWithdrawal = async (amount: number, paymentDetails: PaymentDetails, withdrawalSettings?: { feePercentage: number; feeAmount: number; netAmount: number }) => {
     if (!contractId || !profile?.user_id) {
       toast({
         variant: "destructive",
@@ -130,6 +130,10 @@ export const usePartnerWithdrawals = (contractId?: string) => {
 
     setSubmitting(true);
     try {
+      const feePercentage = withdrawalSettings?.feePercentage ?? 0;
+      const feeAmount = withdrawalSettings?.feeAmount ?? 0;
+      const netAmount = withdrawalSettings?.netAmount ?? amount;
+
       const { error } = await supabase
         .from('partner_withdrawals')
         .insert([{
@@ -138,14 +142,19 @@ export const usePartnerWithdrawals = (contractId?: string) => {
           payment_method: 'pix',
           payment_details: JSON.parse(JSON.stringify(paymentDetails)),
           status: 'APPROVED',
-          approved_at: new Date().toISOString()
+          approved_at: new Date().toISOString(),
+          fee_percentage: feePercentage,
+          fee_amount: feeAmount,
+          net_amount: netAmount
         }]);
 
       if (error) throw error;
 
       toast({
         title: "Saque solicitado!",
-        description: "Sua solicitação foi aprovada e aguarda pagamento."
+        description: feeAmount > 0
+          ? `Solicitação aprovada. Taxa: R$ ${feeAmount.toFixed(2)}. Valor líquido: R$ ${netAmount.toFixed(2)}`
+          : "Sua solicitação foi aprovada e aguarda pagamento."
       });
 
       await fetchWithdrawals();

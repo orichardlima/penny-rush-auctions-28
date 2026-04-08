@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePartnerWithdrawals, PaymentDetails } from '@/hooks/usePartnerWithdrawals';
+import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
 import { PartnerContract } from '@/hooks/usePartnerContract';
 import PartnerPaymentDetailsForm from './PartnerPaymentDetailsForm';
 import { 
@@ -17,7 +18,8 @@ import {
   CheckCircle, 
   XCircle,
   AlertCircle,
-  CreditCard
+  CreditCard,
+  Ban
 } from 'lucide-react';
 
 interface PartnerWithdrawalSectionProps {
@@ -40,6 +42,8 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     hasPendingWithdrawal
   } = usePartnerWithdrawals(contract.id);
 
+  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+
   const [availableBalance, setAvailableBalance] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
@@ -52,6 +56,10 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     };
     loadBalance();
   }, [calculateAvailableBalance, withdrawals]);
+
+  const windowStatus = isWithdrawalWindowOpen();
+  const parsedAmount = parseFloat(withdrawalAmount) || 0;
+  const feeInfo = calculateFee(parsedAmount);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -84,10 +92,13 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   };
 
   const hasPaymentDetails = !!contract.pix_key;
+  const isButtonDisabled = availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid' || !windowStatus.open || availableBalance < wSettings.partnerMinWithdrawal;
 
   const handleRequestWithdrawal = async () => {
     const amount = parseFloat(withdrawalAmount);
     if (isNaN(amount) || amount <= 0) return;
+
+    if (amount < wSettings.partnerMinWithdrawal) return;
 
     if (!hasPaymentDetails) {
       setIsWithdrawDialogOpen(false);
@@ -95,13 +106,18 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
       return;
     }
 
+    const fee = calculateFee(amount);
     const paymentDetails: PaymentDetails = {
       pix_key: contract.pix_key!,
       pix_key_type: (contract.pix_key_type as PaymentDetails['pix_key_type']) || 'cpf',
       holder_name: contract.bank_details?.holder_name
     };
 
-    const result = await requestWithdrawal(amount, paymentDetails);
+    const result = await requestWithdrawal(amount, paymentDetails, {
+      feePercentage: fee.feePercentage,
+      feeAmount: fee.feeAmount,
+      netAmount: fee.netAmount
+    });
     if (result.success) {
       setWithdrawalAmount('');
       setIsWithdrawDialogOpen(false);
@@ -140,6 +156,16 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         </AlertDescription>
       </Alert>
 
+      {/* Regras de saque */}
+      {!windowStatus.open && (
+        <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
+          <Ban className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-sm text-amber-700">
+            <strong>Fora do horário de saque.</strong> {windowStatus.reason}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Fluxo Visual */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-3 px-4 bg-muted/50 rounded-lg border border-dashed">
         <div className="flex items-center gap-1.5">
@@ -170,7 +196,8 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
           <CardContent>
             <div className="text-3xl font-bold text-primary">{formatPrice(availableBalance)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              = Repasses creditados − Saques já realizados
+              Mínimo para saque: {formatPrice(wSettings.partnerMinWithdrawal)}
+              {wSettings.feePercentage > 0 && ` • Taxa: ${wSettings.feePercentage}%`}
             </p>
           </CardContent>
         </Card>
@@ -211,22 +238,24 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
             <div>
               <h4 className="font-medium">Solicitar Saque</h4>
               <p className="text-sm text-muted-foreground">
-                {(contract as any).financial_status && (contract as any).financial_status !== 'paid'
-                  ? '⚠️ Saques bloqueados por pendência financeira. Regularize seu pagamento.'
-                  : hasPendingWithdrawal 
-                    ? 'Você já possui uma solicitação aguardando pagamento'
-                    : availableBalance > 0 
-                      ? 'Solicite a transferência do seu saldo disponível'
-                      : 'Sem saldo disponível para saque'
+                {!windowStatus.open
+                  ? `⏰ ${windowStatus.reason}`
+                  : (contract as any).financial_status && (contract as any).financial_status !== 'paid'
+                    ? '⚠️ Saques bloqueados por pendência financeira. Regularize seu pagamento.'
+                    : hasPendingWithdrawal 
+                      ? 'Você já possui uma solicitação aguardando pagamento'
+                      : availableBalance < wSettings.partnerMinWithdrawal
+                        ? `Saldo mínimo para saque: ${formatPrice(wSettings.partnerMinWithdrawal)}`
+                        : availableBalance > 0 
+                          ? 'Solicite a transferência do seu saldo disponível'
+                          : 'Sem saldo disponível para saque'
                 }
               </p>
             </div>
             
             <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
               <DialogTrigger asChild>
-                <Button 
-                  disabled={availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid'}
-                >
+                <Button disabled={isButtonDisabled}>
                   <ArrowUpRight className="h-4 w-4 mr-2" />
                   Solicitar Saque
                 </Button>
@@ -255,13 +284,23 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                       id="amount"
                       type="number"
                       step="0.01"
-                      min="0.01"
+                      min={wSettings.partnerMinWithdrawal}
                       max={availableBalance}
                       value={withdrawalAmount}
                       onChange={(e) => setWithdrawalAmount(e.target.value)}
-                      placeholder="0,00"
+                      placeholder={`Mínimo ${wSettings.partnerMinWithdrawal.toFixed(2)}`}
                     />
                   </div>
+
+                  {/* Fee preview */}
+                  {parsedAmount > 0 && wSettings.feePercentage > 0 && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-sm border border-amber-200 dark:border-amber-800 space-y-1">
+                      <p className="font-medium text-amber-700 dark:text-amber-400">Detalhamento da taxa:</p>
+                      <p>Valor solicitado: {formatPrice(parsedAmount)}</p>
+                      <p>Taxa ({wSettings.feePercentage}%): -{formatPrice(feeInfo.feeAmount)}</p>
+                      <p className="font-bold">Você recebe: {formatPrice(feeInfo.netAmount)}</p>
+                    </div>
+                  )}
 
                   {hasPaymentDetails && (
                     <div className="p-3 bg-muted rounded-lg text-sm">
@@ -287,7 +326,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   </Button>
                   <Button 
                     onClick={handleRequestWithdrawal}
-                    disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || Math.round(parseFloat(withdrawalAmount) * 100) > Math.round(availableBalance * 100)}
+                    disabled={submitting || !withdrawalAmount || parsedAmount < wSettings.partnerMinWithdrawal || Math.round(parsedAmount * 100) > Math.round(availableBalance * 100)}
                   >
                     {submitting ? 'Enviando...' : hasPaymentDetails ? 'Confirmar Saque' : 'Cadastrar PIX'}
                   </Button>

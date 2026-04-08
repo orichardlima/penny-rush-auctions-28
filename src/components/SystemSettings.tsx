@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard, Wallet } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -75,6 +76,15 @@ export const SystemSettings: React.FC = () => {
   const [autoReplenishDurationMin, setAutoReplenishDurationMin] = useState<string>('1');
   const [autoReplenishDurationMax, setAutoReplenishDurationMax] = useState<string>('5');
   const [savingAutoReplenish, setSavingAutoReplenish] = useState(false);
+
+  // Withdrawal Settings State
+  const [withdrawalAllowedDays, setWithdrawalAllowedDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [withdrawalStartHour, setWithdrawalStartHour] = useState<string>('8');
+  const [withdrawalEndHour, setWithdrawalEndHour] = useState<string>('18');
+  const [withdrawalFeePercentage, setWithdrawalFeePercentage] = useState<string>('0');
+  const [partnerMinWithdrawal, setPartnerMinWithdrawal] = useState<string>('50');
+  const [affiliateMinWithdrawal, setAffiliateMinWithdrawal] = useState<string>('50');
+  const [savingWithdrawal, setSavingWithdrawal] = useState(false);
 
   // Flag to prevent useEffect from resetting local state after user edits
   const [isInitialized, setIsInitialized] = useState(false);
@@ -143,6 +153,17 @@ export const SystemSettings: React.FC = () => {
       setAutoReplenishInterval(getSettingValue('auto_replenish_interval_minutes', 30).toString());
       setAutoReplenishDurationMin(getSettingValue('auto_replenish_duration_min_hours', 1).toString());
       setAutoReplenishDurationMax(getSettingValue('auto_replenish_duration_max_hours', 5).toString());
+
+      // Withdrawal Settings
+      const allowedDaysStr = getSettingValue('withdrawal_allowed_days', '1,2,3,4,5');
+      if (typeof allowedDaysStr === 'string') {
+        setWithdrawalAllowedDays(allowedDaysStr.split(',').map(Number).filter(n => !isNaN(n)));
+      }
+      setWithdrawalStartHour(getSettingValue('withdrawal_start_hour', 8).toString());
+      setWithdrawalEndHour(getSettingValue('withdrawal_end_hour', 18).toString());
+      setWithdrawalFeePercentage(getSettingValue('withdrawal_fee_percentage', 0).toString());
+      setPartnerMinWithdrawal(getSettingValue('partner_min_withdrawal', 50).toString());
+      setAffiliateMinWithdrawal(getSettingValue('affiliate_min_withdrawal', 50).toString());
       
       setIsInitialized(true);
     }
@@ -265,7 +286,33 @@ export const SystemSettings: React.FC = () => {
     }
   };
 
-  const handleSaveAutoReplenish = async () => {
+  const handleSaveWithdrawalSettings = async () => {
+    setSavingWithdrawal(true);
+    try {
+      await Promise.all([
+        updateSetting('withdrawal_allowed_days', withdrawalAllowedDays.sort((a, b) => a - b).join(',')),
+        updateSetting('withdrawal_start_hour', withdrawalStartHour),
+        updateSetting('withdrawal_end_hour', withdrawalEndHour),
+        updateSetting('withdrawal_fee_percentage', withdrawalFeePercentage),
+        updateSetting('partner_min_withdrawal', partnerMinWithdrawal),
+        updateSetting('affiliate_min_withdrawal', affiliateMinWithdrawal)
+      ]);
+      toast({
+        title: "Configurações de saque salvas!",
+        description: "As regras de saque foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações de saque.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingWithdrawal(false);
+    }
+  };
+
+
     setSavingAutoReplenish(true);
     try {
       await Promise.all([
@@ -1459,6 +1506,139 @@ export const SystemSettings: React.FC = () => {
               {savingAutoReplenish ? 'Salvando...' : 'Salvar Configurações'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Configurações de Saques */}
+      <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-5 w-5 text-orange-500" />
+            <CardTitle className="text-orange-600">Configurações de Saques</CardTitle>
+          </div>
+          <CardDescription>
+            Defina os dias, horários, taxas e valores mínimos para saques de parceiros e afiliados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Dias permitidos */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Dias permitidos para saque</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((day, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`day-${index}`}
+                    checked={withdrawalAllowedDays.includes(index)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setWithdrawalAllowedDays(prev => [...prev, index]);
+                      } else {
+                        setWithdrawalAllowedDays(prev => prev.filter(d => d !== index));
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`day-${index}`} className="text-sm cursor-pointer">{day}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Janela de horário */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Janela de horário (Brasília)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Hora de início</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={withdrawalStartHour}
+                  onChange={(e) => setWithdrawalStartHour(e.target.value)}
+                  placeholder="8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Hora de fim</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={withdrawalEndHour}
+                  onChange={(e) => setWithdrawalEndHour(e.target.value)}
+                  placeholder="18"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Saques serão aceitos das {withdrawalStartHour}h às {withdrawalEndHour}h (horário de Brasília)
+            </p>
+          </div>
+
+          <Separator />
+
+          {/* Taxa de saque */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Taxa de saque (%)</Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={withdrawalFeePercentage}
+              onChange={(e) => setWithdrawalFeePercentage(e.target.value)}
+              placeholder="0"
+              className="max-w-[200px]"
+            />
+            {parseFloat(withdrawalFeePercentage) > 0 && (
+              <div className="p-3 rounded-lg bg-orange-500/10 text-sm text-orange-700 border border-orange-500/20">
+                <strong>Exemplo:</strong> Saque de R$ 100,00 → Taxa de {withdrawalFeePercentage}%: R$ {(100 * parseFloat(withdrawalFeePercentage) / 100).toFixed(2)} → Líquido: R$ {(100 - 100 * parseFloat(withdrawalFeePercentage) / 100).toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Valores mínimos */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Valores mínimos de saque (R$)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Parceiros</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={partnerMinWithdrawal}
+                  onChange={(e) => setPartnerMinWithdrawal(e.target.value)}
+                  placeholder="50"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Afiliados</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={affiliateMinWithdrawal}
+                  onChange={(e) => setAffiliateMinWithdrawal(e.target.value)}
+                  placeholder="50"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSaveWithdrawalSettings}
+            disabled={savingWithdrawal}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {savingWithdrawal ? 'Salvando...' : 'Salvar Configurações de Saque'}
+          </Button>
         </CardContent>
       </Card>
 

@@ -71,7 +71,7 @@ export const useAffiliateWithdrawals = (affiliateId?: string) => {
     }
   }, []);
 
-  const requestWithdrawal = async (amount: number, pixDetails: AffiliatePixDetails) => {
+  const requestWithdrawal = async (amount: number, pixDetails: AffiliatePixDetails, withdrawalSettings?: { feePercentage: number; feeAmount: number; netAmount: number }) => {
     if (!affiliateId) {
       toast({ variant: "destructive", title: "Erro", description: "Afiliado não encontrado" });
       return { success: false };
@@ -98,6 +98,10 @@ export const useAffiliateWithdrawals = (affiliateId?: string) => {
 
     setSubmitting(true);
     try {
+      const feePercentage = withdrawalSettings?.feePercentage ?? 0;
+      const feeAmount = withdrawalSettings?.feeAmount ?? 0;
+      const netAmount = withdrawalSettings?.netAmount ?? amount;
+
       const { error } = await supabase
         .from('affiliate_withdrawals')
         .insert([{
@@ -108,14 +112,19 @@ export const useAffiliateWithdrawals = (affiliateId?: string) => {
             pix_key: pixDetails.pix_key,
             pix_key_type: pixDetails.pix_key_type,
             holder_name: pixDetails.holder_name
-          }))
+          })),
+          fee_percentage: feePercentage,
+          fee_amount: feeAmount,
+          net_amount: netAmount
         }]);
 
       if (error) throw error;
 
       toast({
         title: "Saque solicitado!",
-        description: "Sua solicitação foi enviada e aguarda aprovação."
+        description: feeAmount > 0
+          ? `Solicitação enviada. Taxa: R$ ${feeAmount.toFixed(2)}. Valor líquido: R$ ${netAmount.toFixed(2)}`
+          : "Sua solicitação foi enviada e aguarda aprovação."
       });
 
       await fetchWithdrawals();

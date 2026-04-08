@@ -341,7 +341,10 @@ export type Database = {
           affiliate_id: string
           amount: number
           created_at: string
+          fee_amount: number
+          fee_percentage: number
           id: string
+          net_amount: number | null
           payment_details: Json
           payment_method: string
           processed_at: string | null
@@ -353,7 +356,10 @@ export type Database = {
           affiliate_id: string
           amount: number
           created_at?: string
+          fee_amount?: number
+          fee_percentage?: number
           id?: string
+          net_amount?: number | null
           payment_details: Json
           payment_method?: string
           processed_at?: string | null
@@ -365,7 +371,10 @@ export type Database = {
           affiliate_id?: string
           amount?: number
           created_at?: string
+          fee_amount?: number
+          fee_percentage?: number
           id?: string
+          net_amount?: number | null
           payment_details?: Json
           payment_method?: string
           processed_at?: string | null
@@ -2034,7 +2043,10 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          fee_amount: number
+          fee_percentage: number
           id: string
+          net_amount: number | null
           paid_at: string | null
           paid_by: string | null
           partner_contract_id: string
@@ -2050,7 +2062,10 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          fee_amount?: number
+          fee_percentage?: number
           id?: string
+          net_amount?: number | null
           paid_at?: string | null
           paid_by?: string | null
           partner_contract_id: string
@@ -2066,7 +2081,10 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          fee_amount?: number
+          fee_percentage?: number
           id?: string
+          net_amount?: number | null
           paid_at?: string | null
           paid_by?: string | null
           partner_contract_id?: string
