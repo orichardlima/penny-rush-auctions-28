@@ -1,80 +1,54 @@
 
 
-# Configurações de Saques (Parceiros e Afiliados)
+# Fix build error + Sistema de contatos dos indicados para afiliados
 
-## Objetivo
+## Parte 1: Fix do build error (SystemSettings.tsx)
 
-Adicionar no painel administrativo (SystemSettings) uma seção de configurações de saques que controle: dias permitidos, janela de horário, taxa percentual e valor mínimo. Essas regras serão aplicadas tanto para saques de parceiros quanto de afiliados.
+Na linha 315 do `SystemSettings.tsx`, o corpo da função `saveAutoReplenish` perdeu sua declaração durante a edição anterior. Falta a linha:
 
-## Novas configurações em `system_settings`
+```typescript
+const saveAutoReplenish = async () => {
+```
 
-| setting_key | setting_type | default | Descrição |
-|---|---|---|---|
-| `withdrawal_allowed_days` | `string` | `"1,2,3,4,5"` | Dias da semana permitidos (0=Dom, 1=Seg... 6=Sáb) |
-| `withdrawal_start_hour` | `number` | `8` | Hora de início da janela (0-23) |
-| `withdrawal_end_hour` | `number` | `18` | Hora de fim da janela (0-23) |
-| `withdrawal_fee_percentage` | `number` | `0` | Taxa descontada do valor solicitado (%) |
-| `partner_min_withdrawal` | `number` | `50` | Valor mínimo de saque para parceiros (R$) |
-| `affiliate_min_withdrawal` | `number` | `50` | Já existe, será integrado na UI |
+**Correção**: Inserir a declaração da função na linha 315, antes do `setSavingAutoReplenish(true)`.
 
-## Alterações
+---
 
-### 1. Migration: Inserir novas configurações
+## Parte 2: Contatos dos indicados para afiliados
 
-INSERT das 5 novas linhas em `system_settings` (a `affiliate_min_withdrawal` já existe).
+### Conceito
 
-### 2. SystemSettings.tsx: Nova seção "Saques"
+Permitir que o afiliado veja dados de contato (nome, email, telefone) dos seus indicados cadastrados, facilitando remarketing e follow-up. Os dados são exibidos na lista de indicados existente (`AffiliateReferralsList`).
 
-Adicionar uma nova aba/card dentro das configurações do sistema com:
-- Checkboxes para cada dia da semana (Seg a Dom)
-- Campos numéricos para hora início e fim
-- Campo para taxa de saque (%)
-- Campos para valor mínimo (parceiros e afiliados)
-- Botão salvar
+### Segurança
 
-### 3. usePartnerWithdrawals.ts: Validar regras antes de solicitar
+Os dados de contato (email, phone) estão protegidos por RLS na tabela `profiles`. A RPC `get_public_profiles` atual retorna apenas `full_name` e `avatar_url`. Para expor contato **apenas para o afiliado dono da indicação**, será criada uma nova RPC `get_affiliate_referral_contacts` com `SECURITY DEFINER` que:
 
-No `requestWithdrawal`:
-- Buscar as configurações `withdrawal_allowed_days`, `withdrawal_start_hour`, `withdrawal_end_hour`, `withdrawal_fee_percentage`, `partner_min_withdrawal`
-- Validar dia e horário atual (fuso BRT)
-- Validar valor mínimo
-- Se houver taxa, calcular valor líquido e informar ao usuário
-- Armazenar `fee_amount` e `net_amount` no registro do saque
+1. Recebe o `affiliate_id` e lista de `user_ids`
+2. Valida que o `auth.uid()` é dono do `affiliate_id`
+3. Verifica que cada `user_id` está na tabela `affiliate_referrals` daquele afiliado
+4. Retorna `full_name`, `email`, `phone`
 
-### 4. useAffiliateWithdrawals.ts: Mesmas validações
+### Alterações
 
-Aplicar as mesmas regras de dia/horário/taxa/mínimo usando `affiliate_min_withdrawal`.
+1. **Migration**: Criar RPC `get_affiliate_referral_contacts(affiliate_id, user_ids)` que retorna nome, email e telefone apenas dos indicados do afiliado autenticado.
 
-### 5. PartnerWithdrawalSection.tsx: Exibir regras e taxa
+2. **AffiliateReferralsList.tsx**: Adicionar colunas de email e telefone (com ícones de cópia e link WhatsApp). Usar a nova RPC em vez de `get_public_profiles` para buscar dados enriquecidos. Em mobile, os contatos ficarão em um botão expansível para não sobrecarregar a tabela.
 
-- Mostrar aviso quando fora do dia/horário permitido (botão desabilitado)
-- Mostrar preview da taxa: "Valor solicitado: R$ 100 → Taxa 5%: R$ 5 → Você recebe: R$ 95"
-- Mostrar valor mínimo
+3. **types.ts**: Será atualizado automaticamente pela Supabase após a migration.
 
-### 6. AffiliateWithdrawalSection: Mesmas adaptações visuais
+### Dados exibidos por indicado
 
-## Fluxo do usuário
+| Campo | Origem | Visível quando |
+|---|---|---|
+| Nome | `profiles.full_name` | Sempre (já existe) |
+| Email | `profiles.email` | Indicado cadastrado |
+| Telefone | `profiles.phone` | Indicado cadastrado e preencheu |
 
-1. Parceiro clica em "Solicitar Saque"
-2. Sistema verifica: é dia permitido? Está dentro do horário? Valor >= mínimo?
-3. Se houver taxa, mostra: "Será descontada uma taxa de X% (R$ Y). Valor líquido: R$ Z"
-4. Usuário confirma → registro criado com `fee_amount` e `net_amount`
+### Fluxo
 
-## Campos adicionais na tabela `partner_withdrawals`
-
-Migration para adicionar:
-- `fee_percentage` (numeric, default 0)
-- `fee_amount` (numeric, default 0)
-- `net_amount` (numeric, nullable)
-
-Mesmos campos em `affiliate_withdrawals`.
-
-## Arquivos alterados
-
-- `supabase/migrations/` — 1 migration (INSERT settings + ALTER tables)
-- `src/components/SystemSettings.tsx` — nova seção de saques
-- `src/hooks/usePartnerWithdrawals.ts` — validações + taxa
-- `src/hooks/useAffiliateWithdrawals.ts` — mesmas validações
-- `src/components/Partner/PartnerWithdrawalSection.tsx` — UI de regras/taxa
-- `src/components/Affiliate/AffiliateWithdrawalSection.tsx` — UI de regras/taxa
+1. Afiliado abre "Seus Indicados"
+2. Para indicados cadastrados, vê nome + email + telefone
+3. Pode copiar email/telefone com um clique
+4. Botão de WhatsApp abre chat direto (se telefone disponível)
 
