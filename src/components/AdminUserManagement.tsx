@@ -810,7 +810,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
               
               <div>
                 <Label>Selecione o Plano</Label>
-                <RadioGroup value={selectedPlanId || ''} onValueChange={setSelectedPlanId} className="mt-2 space-y-2">
+                <RadioGroup value={selectedPlanId || ''} onValueChange={(val) => { setSelectedPlanId(val); setAdminCotas(1); }} className="mt-2 space-y-2">
                   {plans.map(plan => (
                     <div key={plan.id} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
                       <RadioGroupItem value={plan.id} id={plan.id} />
@@ -829,6 +829,51 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
                   ))}
                 </RadioGroup>
               </div>
+
+              {/* Seletor de Cotas */}
+              {selectedPlanId && (() => {
+                const selectedPlan = plans.find(p => p.id === selectedPlanId);
+                if (!selectedPlan || (selectedPlan.max_cotas || 1) <= 1) return null;
+                const maxCotas = selectedPlan.max_cotas;
+                return (
+                  <div className="space-y-3">
+                    <Label>Quantidade de Cotas</Label>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdminCotas(Math.max(1, adminCotas - 1))}
+                        disabled={adminCotas <= 1}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="text-lg font-bold w-8 text-center">{adminCotas}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdminCotas(Math.min(maxCotas, adminCotas + 1))}
+                        disabled={adminCotas >= maxCotas}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">de {maxCotas}</span>
+                    </div>
+                    {adminCotas > 1 && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800 text-sm space-y-1">
+                        <p className="font-medium text-blue-800 dark:text-blue-200">Resumo ({adminCotas} cotas):</p>
+                        <p className="text-blue-700 dark:text-blue-300">Aporte total: R$ {(selectedPlan.aporte_value * adminCotas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-blue-700 dark:text-blue-300">Teto semanal: R$ {(selectedPlan.weekly_cap * adminCotas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-blue-700 dark:text-blue-300">Teto total: R$ {(selectedPlan.total_cap * adminCotas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        {selectedPlan.bonus_bids > 0 && (
+                          <p className="text-blue-700 dark:text-blue-300">Lances bônus: {selectedPlan.bonus_bids * adminCotas}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               
               <div>
                 <Label htmlFor="referral-code">Código de Indicação</Label>
