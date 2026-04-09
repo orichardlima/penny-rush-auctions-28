@@ -445,6 +445,31 @@ export function AdminAffiliateManagement() {
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={async () => {
+                              setWalletAffiliate(affiliate);
+                              setWalletDestination('affiliate');
+                              setWalletAmount("");
+                              setWalletReason("");
+                              setWalletConsumesCap(true);
+                              setWalletPartnerContract(null);
+                              // Check if user has partner contract
+                              const { data: contracts } = await supabase
+                                .from('partner_contracts')
+                                .select('id, plan_name, available_balance, status')
+                                .eq('user_id', affiliate.user_id)
+                                .eq('status', 'ACTIVE')
+                                .limit(1);
+                              if (contracts && contracts.length > 0) {
+                                setWalletPartnerContract(contracts[0]);
+                              }
+                              setWalletDialogOpen(true);
+                            }}
+                            title="Ajustar Saldo"
+                          >
+                            <Wallet className="h-4 w-4" />
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => handleViewDetails(affiliate.id)}
                           >
                             <Eye className="h-4 w-4" />
