@@ -1279,6 +1279,129 @@ export function AdminAffiliateManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de ajuste de saldo */}
+      <Dialog open={walletDialogOpen} onOpenChange={setWalletDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajustar Saldo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm text-muted-foreground">Afiliado</Label>
+              <p className="font-medium">{walletAffiliate?.profiles?.full_name || 'Sem nome'}</p>
+              <p className="text-xs text-muted-foreground">Saldo afiliado: {formatPrice(walletAffiliate?.commission_balance || 0)}</p>
+              {walletPartnerContract && (
+                <p className="text-xs text-muted-foreground">Saldo parceiro ({walletPartnerContract.plan_name}): {formatPrice(walletPartnerContract.available_balance || 0)}</p>
+              )}
+            </div>
+
+            <div>
+              <Label>Destino</Label>
+              <RadioGroup value={walletDestination} onValueChange={(v: 'affiliate' | 'partner') => setWalletDestination(v)} className="mt-1">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="affiliate" id="dest-affiliate" />
+                  <Label htmlFor="dest-affiliate" className="font-normal">Carteira Afiliado</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="partner" id="dest-partner" disabled={!walletPartnerContract} />
+                  <Label htmlFor="dest-partner" className={`font-normal ${!walletPartnerContract ? 'text-muted-foreground' : ''}`}>
+                    Carteira Parceiro {!walletPartnerContract && '(sem contrato ativo)'}
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div>
+              <Label>Valor (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+                placeholder="Ex: 100.00 ou -50.00"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Use valor negativo para débito</p>
+            </div>
+
+            {walletDestination === 'partner' && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="consumes-cap"
+                  checked={walletConsumesCap}
+                  onCheckedChange={(c) => setWalletConsumesCap(!!c)}
+                />
+                <Label htmlFor="consumes-cap" className="font-normal text-sm">Consome teto do contrato</Label>
+              </div>
+            )}
+
+            <div>
+              <Label>Justificativa *</Label>
+              <Textarea
+                value={walletReason}
+                onChange={(e) => setWalletReason(e.target.value)}
+                placeholder="Motivo do ajuste..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWalletDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={walletLoading || !walletAmount || !walletReason.trim()}
+              onClick={async () => {
+                const amount = parseFloat(walletAmount);
+                if (isNaN(amount) || amount === 0) {
+                  toast.error("Valor inválido");
+                  return;
+                }
+                if (!walletReason.trim()) {
+                  toast.error("Justificativa obrigatória");
+                  return;
+                }
+                setWalletLoading(true);
+                try {
+                  if (walletDestination === 'affiliate') {
+                    await adjustAffiliateBalance(walletAffiliate.id, amount, walletReason.trim());
+                  } else {
+                    // Use partner manual credit system
+                    const { data: { user } } = await supabase.auth.getUser();
+                    const { error } = await supabase
+                      .from('partner_manual_credits')
+                      .insert({
+                        partner_contract_id: walletPartnerContract.id,
+                        amount,
+                        description: walletReason.trim(),
+                        created_by: user?.id,
+                        consumes_cap: walletConsumesCap,
+                      });
+                    if (error) throw error;
+                    // Update balance
+                    const { error: updateError } = await supabase
+                      .from('partner_contracts')
+                      .update({
+                        available_balance: walletPartnerContract.available_balance + amount,
+                        ...(walletConsumesCap && amount > 0 ? { total_received: walletPartnerContract.total_received + amount } : {}),
+                      })
+                      .eq('id', walletPartnerContract.id);
+                    if (updateError) throw updateError;
+                    toast.success(`Saldo do parceiro ajustado!`);
+                  }
+                  setWalletDialogOpen(false);
+                } catch (err: any) {
+                  toast.error(err.message || 'Erro ao ajustar saldo');
+                } finally {
+                  setWalletLoading(false);
+                }
+              }}
+            >
+              {walletLoading ? 'Processando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
