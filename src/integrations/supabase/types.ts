@@ -295,6 +295,41 @@ export type Database = {
           },
         ]
       }
+      affiliate_manual_credits: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          created_at: string
+          created_by: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          created_by: string
+          id?: string
+          reason: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_manual_credits_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_referrals: {
         Row: {
           affiliate_id: string
@@ -2442,6 +2477,15 @@ export type Database = {
           p_title: string
         }
         Returns: undefined
+      }
+      admin_adjust_affiliate_balance: {
+        Args: {
+          _admin_name: string
+          _affiliate_id: string
+          _amount: number
+          _reason: string
+        }
+        Returns: number
       }
       bot_protection_loop: { Args: never; Returns: undefined }
       check_affiliate_code_availability: {
