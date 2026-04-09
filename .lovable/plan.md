@@ -1,54 +1,72 @@
 
 
-# Fix build error + Sistema de contatos dos indicados para afiliados
+# Ajuste manual de saldo unificado (Afiliado + Parceiro)
 
-## Parte 1: Fix do build error (SystemSettings.tsx)
+## Conceito
 
-Na linha 315 do `SystemSettings.tsx`, o corpo da função `saveAutoReplenish` perdeu sua declaração durante a edição anterior. Falta a linha:
+Criar uma interface unificada no painel admin onde, ao ajustar saldo de um usuário, o administrador seleciona o destino: **carteira de afiliado** ou **carteira de parceiro**. Isso centraliza a operação em um único fluxo.
 
-```typescript
-const saveAutoReplenish = async () => {
-```
+## Situação atual
 
-**Correção**: Inserir a declaração da função na linha 315, antes do `setSavingAutoReplenish(true)`.
+- **Parceiro**: Já existe sistema completo (`partner_manual_credits`, função `addManualCredit` no `useAdminPartners.ts`, UI no painel de parceiros). Funciona bem.
+- **Afiliado**: Não existe sistema de crédito manual. O `commission_balance` só muda via comissões automáticas.
 
----
+## Alterações
 
-## Parte 2: Contatos dos indicados para afiliados
+### 1. Migration: Tabela `affiliate_manual_credits` + RPC
 
-### Conceito
+**Tabela `affiliate_manual_credits`**:
+| Coluna | Tipo |
+|---|---|
+| id | uuid PK |
+| affiliate_id | uuid FK |
+| amount | numeric (positivo ou negativo) |
+| reason | text NOT NULL |
+| created_by | uuid |
+| created_at | timestamptz |
 
-Permitir que o afiliado veja dados de contato (nome, email, telefone) dos seus indicados cadastrados, facilitando remarketing e follow-up. Os dados são exibidos na lista de indicados existente (`AffiliateReferralsList`).
+RLS: apenas admins (INSERT, SELECT).
 
-### Segurança
+**RPC `admin_adjust_affiliate_balance`** (SECURITY DEFINER):
+1. Valida que o chamador é admin
+2. Insere registro em `affiliate_manual_credits`
+3. Atualiza `affiliates.commission_balance` (soma) e `total_commission_earned` (se positivo)
+4. Insere entrada no `admin_audit_log`
+5. Retorna novo saldo
 
-Os dados de contato (email, phone) estão protegidos por RLS na tabela `profiles`. A RPC `get_public_profiles` atual retorna apenas `full_name` e `avatar_url`. Para expor contato **apenas para o afiliado dono da indicação**, será criada uma nova RPC `get_affiliate_referral_contacts` com `SECURITY DEFINER` que:
+### 2. `useAdminAffiliates.ts` — nova função `adjustBalance`
 
-1. Recebe o `affiliate_id` e lista de `user_ids`
-2. Valida que o `auth.uid()` é dono do `affiliate_id`
-3. Verifica que cada `user_id` está na tabela `affiliate_referrals` daquele afiliado
-4. Retorna `full_name`, `email`, `phone`
+Chama a RPC `admin_adjust_affiliate_balance` e atualiza estado local.
 
-### Alterações
+### 3. `AdminAffiliateManagement.tsx` — botão + dialog de ajuste
 
-1. **Migration**: Criar RPC `get_affiliate_referral_contacts(affiliate_id, user_ids)` que retorna nome, email e telefone apenas dos indicados do afiliado autenticado.
+Na tabela de afiliados, adicionar ícone de carteira. Ao clicar, abre dialog com:
+- Nome do afiliado e saldo atual
+- **Seletor de destino**: "Carteira Afiliado" ou "Carteira Parceiro"
+  - Se escolher "Parceiro", busca o contrato ativo do mesmo `user_id` e usa o sistema existente (`addManualCredit`)
+  - Se escolher "Afiliado", usa a nova RPC
+  - Se o usuário não tiver conta no destino escolhido, mostra mensagem de erro
+- Campo de valor (aceita negativo para débito)
+- Campo de justificativa obrigatória
+- Para destino "Parceiro": checkbox "Consome teto?" (já existe no sistema de parceiros)
 
-2. **AffiliateReferralsList.tsx**: Adicionar colunas de email e telefone (com ícones de cópia e link WhatsApp). Usar a nova RPC em vez de `get_public_profiles` para buscar dados enriquecidos. Em mobile, os contatos ficarão em um botão expansível para não sobrecarregar a tabela.
+### 4. Também acessível pelo painel de parceiros
 
-3. **types.ts**: Será atualizado automaticamente pela Supabase após a migration.
+No `AdminPartnerManagement`, o dialog de crédito manual existente ganha o mesmo seletor de destino, permitindo redirecionar para a carteira de afiliado se o admin preferir.
 
-### Dados exibidos por indicado
+## Fluxo
 
-| Campo | Origem | Visível quando |
-|---|---|---|
-| Nome | `profiles.full_name` | Sempre (já existe) |
-| Email | `profiles.email` | Indicado cadastrado |
-| Telefone | `profiles.phone` | Indicado cadastrado e preencheu |
+1. Admin acessa gestão de afiliados (ou parceiros)
+2. Clica no ícone de carteira de um usuário
+3. Escolhe destino: "Afiliado" ou "Parceiro"
+4. Sistema valida se o usuário tem conta no destino
+5. Preenche valor + justificativa → confirma
+6. Operação executa atomicamente com auditoria
 
-### Fluxo
+## Arquivos alterados
 
-1. Afiliado abre "Seus Indicados"
-2. Para indicados cadastrados, vê nome + email + telefone
-3. Pode copiar email/telefone com um clique
-4. Botão de WhatsApp abre chat direto (se telefone disponível)
+- `supabase/migrations/` — 1 migration (tabela + RPC)
+- `src/hooks/useAdminAffiliates.ts` — nova função `adjustBalance`
+- `src/components/AdminAffiliateManagement.tsx` — botão + dialog com seletor de destino
+- `src/hooks/useAdminPartners.ts` — expor `addManualCredit` para uso cruzado (já existe, apenas garantir export)
 
