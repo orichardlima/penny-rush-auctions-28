@@ -660,6 +660,42 @@ export const useAdminAffiliates = () => {
     }
   };
 
+  const adjustAffiliateBalance = async (affiliateId: string, amount: number, reason: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', user?.id)
+        .single();
+
+      const { data, error } = await supabase.rpc('admin_adjust_affiliate_balance', {
+        _affiliate_id: affiliateId,
+        _amount: amount,
+        _reason: reason,
+        _admin_name: profile?.full_name || 'Admin',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Sucesso',
+        description: `Saldo ajustado! Novo saldo: R$ ${Number(data).toFixed(2)}`,
+      });
+
+      await fetchAffiliates();
+      return data;
+    } catch (error: any) {
+      console.error('Error adjusting affiliate balance:', error);
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao ajustar saldo',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   return {
     affiliates,
     commissions,
@@ -679,5 +715,6 @@ export const useAdminAffiliates = () => {
     updateAffiliateCommissionType,
     fetchCPAGoals,
     exportToCSV,
+    adjustAffiliateBalance,
   };
 };
