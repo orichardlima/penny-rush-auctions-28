@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Search, CheckCircle, XCircle, Edit, Eye, Copy, Download, 
-  Ban, RefreshCw, Trash2, Filter, Crown, UserPlus, Unlink, Users
+  Ban, RefreshCw, Trash2, Filter, Crown, UserPlus, Unlink, Users, Wallet
 } from "lucide-react";
 import { toast } from "sonner";
 import { AffiliateMetricsCards } from "./Affiliate/AffiliateMetricsCards";
@@ -47,6 +47,7 @@ export function AdminAffiliateManagement() {
     exportToCSV,
     updateAffiliateCommissionType,
     fetchCPAGoals,
+    adjustAffiliateBalance,
   } = useAdminAffiliates();
 
   const { updateSetting, getSettingValue } = useSystemSettings();
@@ -83,6 +84,16 @@ export function AdminAffiliateManagement() {
   const [editOverrideId, setEditOverrideId] = useState<string | null>(null);
   const [editOverrideValue, setEditOverrideValue] = useState("");
   const [commissionAffiliateFilter, setCommissionAffiliateFilter] = useState("all");
+
+  // Wallet adjustment state
+  const [walletDialogOpen, setWalletDialogOpen] = useState(false);
+  const [walletAffiliate, setWalletAffiliate] = useState<any>(null);
+  const [walletDestination, setWalletDestination] = useState<'affiliate' | 'partner'>('affiliate');
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletReason, setWalletReason] = useState("");
+  const [walletConsumesCap, setWalletConsumesCap] = useState(true);
+  const [walletPartnerContract, setWalletPartnerContract] = useState<any>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const metrics = useMemo(() => {
     const activeAffiliates = affiliates.filter(a => a.status === 'active').length;
