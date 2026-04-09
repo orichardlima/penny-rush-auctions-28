@@ -1,10 +1,8 @@
-import { useEffect, useState, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { ReactNode } from 'react';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, DollarSign, TrendingUp, CheckCircle, Lock } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, CheckCircle } from 'lucide-react';
 
 interface AffiliateOnboardingProps {
   profile: { user_id: string; full_name: string | null } | null;
@@ -15,89 +13,6 @@ interface AffiliateOnboardingProps {
 }
 
 export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffiliateData, toast }: AffiliateOnboardingProps) {
-  const navigate = useNavigate();
-  const [hasActiveContract, setHasActiveContract] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const checkActiveContract = async () => {
-      if (!profile?.user_id) {
-        setChecking(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('partner_contracts')
-        .select('id')
-        .eq('user_id', profile.user_id)
-        .eq('status', 'ACTIVE')
-        .limit(1)
-        .maybeSingle();
-
-      setHasActiveContract(!!data && !error);
-      setChecking(false);
-    };
-
-    checkActiveContract();
-  }, [profile?.user_id]);
-
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
-        {seoHead}
-        <Header />
-        <div className="container mx-auto px-4 py-12 flex justify-center">
-          <div className="animate-pulse text-center">
-            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Verificando elegibilidade...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Usuário NÃO tem plano Legend ativo
-  if (!hasActiveContract) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
-        {seoHead}
-        <Header />
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-2xl mx-auto text-center space-y-8">
-            <div className="inline-block p-4 bg-muted rounded-full mb-4">
-              <Lock className="h-16 w-16 text-muted-foreground" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold">
-              Programa de Afiliados
-            </h1>
-            <p className="text-xl text-muted-foreground">
-              O programa de afiliados é exclusivo para parceiros com um <strong className="text-primary">plano de expansão ativo</strong>.
-            </p>
-            <Card className="text-left">
-              <CardHeader>
-                <CardTitle>Como participar?</CardTitle>
-                <CardDescription>Torne-se um parceiro de expansão e desbloqueie o programa de afiliados</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Com um plano de parceiro ativo, você tem acesso ao programa de afiliados completo, podendo ganhar comissões sobre compras dos seus indicados e acompanhar tudo pelo painel exclusivo.
-                </p>
-                <Button 
-                  size="lg" 
-                  className="w-full"
-                  onClick={() => navigate('/minha-parceria')}
-                >
-                  Conhecer os Planos de Parceiro
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Usuário TEM plano Legend -- mostrar onboarding com botão de ativação
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
       {seoHead}
