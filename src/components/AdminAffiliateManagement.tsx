@@ -27,6 +27,8 @@ import { EditCommissionModal } from "./Affiliate/EditCommissionModal";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAdminAffiliateManagers } from "@/hooks/useAffiliateManager";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 
 export function AdminAffiliateManagement() {
   const {
