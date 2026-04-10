@@ -1,25 +1,56 @@
 
 
-# Remover restrição de parceiro para programa de afiliados
+# Corrigir verificação de pagamento MagenPay para parceiros
 
 ## Problema
 
-O componente `AffiliateOnboarding.tsx` verifica se o usuário tem um contrato de parceiro ativo (`partner_contracts` com status `ACTIVE`). Se não tiver, bloqueia o acesso ao programa de afiliados com uma tela de "acesso negado".
+Com o gateway ativo sendo `magenpay`, o fluxo de parceiro quebra porque:
+
+1. O PIX é gerado corretamente via VPS MagenPay (`partner-payment` → `createDeposit`)
+2. O usuário paga
+3. O webhook do MagenPay pode não chegar (VPS não envia callback confiável)
+4. O botão "Já fiz o pagamento" no `PartnerPixPaymentModal` apenas lê `partner_payment_intents.payment_status` do banco — nunca consulta a VPS
+5. A Edge Function `magen-check-status` só sabe processar `bid_purchases`, ignora `partner_payment_intents`
+
+Resultado: o pagamento fica eternamente "pendente" e precisa de ativação manual via admin.
 
 ## Solução
 
-Remover toda a lógica de verificação de contrato ativo. Qualquer usuário autenticado poderá ativar sua conta de afiliado diretamente.
+### 1. Estender `magen-check-status` para processar partner intents
 
-## Alteração
+Aceitar um parâmetro opcional `intentId` (além do `purchaseId` existente). Quando `intentId` for fornecido e o status na VPS for `paid`:
+- Buscar o intent em `partner_payment_intents`
+- Verificar se já não foi processado (idempotência)
+- Criar o contrato (`partner_contracts`) com status `ACTIVE` — mesma lógica que já existe no `magen-webhook` (`processNewContractPayment`)
+- Atualizar o intent para `approved`
+- Creditar bids bônus se aplicável
 
-**Arquivo**: `src/components/Affiliate/AffiliateOnboarding.tsx`
+Manter compatibilidade: se `purchaseId` for enviado, continua funcionando como antes para compras de lances.
 
-- Remover o state `hasActiveContract` e `checking`
-- Remover o `useEffect` que consulta `partner_contracts`
-- Remover o bloco de loading ("Verificando elegibilidade...")
-- Remover o bloco de acesso negado (ícone de cadeado + "plano de expansão ativo")
-- Manter apenas o retorno com o onboarding (benefícios + botão de ativação) — que hoje é mostrado só para quem tem contrato ativo, passará a ser mostrado para todos
-- Remover imports não utilizados (`useEffect`, `useState`, `Lock`, `useNavigate`, `supabase`)
+### 2. Atualizar `PartnerPixPaymentModal` para chamar `magen-check-status`
 
-O resultado é um componente simples que sempre mostra a tela de onboarding com o botão "Ativar Minha Conta de Afiliado Grátis".
+No `checkPaymentStatus` (botão "Já fiz o pagamento"):
+- Antes de apenas ler o banco, invocar `magen-check-status` com `{ txId: paymentData.paymentId, intentId }` para que o backend consulte a VPS e processe a ativação automaticamente
+- Se retornar `status: 'paid'`, seguir com `handleApproved`
+
+No polling automático (a cada 3s):
+- Também chamar `magen-check-status` ao invés de só ler o banco, para que a confirmação seja detectada sem depender de webhook
+
+### 3. Suporte a upgrades e cotas no `magen-check-status`
+
+Aceitar parâmetro `upgradeRef` (ex: `upgrade:contractId:planId` ou `cotas-upgrade:contractId:newCotas`). Quando fornecido e VPS confirmar paid, executar a mesma lógica de upgrade do `magen-webhook`.
+
+---
+
+### Arquivos alterados
+
+| Arquivo | Alteração |
+|---|---|
+| `supabase/functions/magen-check-status/index.ts` | Adicionar lógica para `intentId` e `upgradeRef` |
+| `src/components/Partner/PartnerPixPaymentModal.tsx` | Chamar `magen-check-status` no polling e no botão |
+
+### Segurança
+- A função `magen-check-status` usa `service_role_key` no backend (já existente)
+- Validação de input com checagem de `txId` obrigatório
+- Idempotência mantida (verifica status antes de processar)
 
