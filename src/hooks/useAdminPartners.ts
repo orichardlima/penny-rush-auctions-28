@@ -568,18 +568,55 @@ export const useAdminPartners = () => {
           description: `O plano possui ${contractsUsingPlan.length} contrato(s) vinculado(s) e foi desativado.`
         });
       } else {
-        // Delete permanently if no contracts
-        const { error } = await supabase
-          .from('partner_plans')
+        // Clean up orphaned payment intents before deleting
+        const { error: deleteIntentsError } = await supabase
+          .from('partner_payment_intents')
           .delete()
-          .eq('id', planId);
+          .eq('plan_id', planId)
+          .in('payment_status', ['pending', 'expired']);
 
-        if (error) throw error;
+        if (deleteIntentsError) {
+          console.error('Error cleaning payment intents:', deleteIntentsError);
+        }
 
-        toast({
-          title: "Plano deletado",
-          description: "O plano foi removido permanentemente."
-        });
+        // Check if there are still approved intents referencing this plan
+        const { data: remainingIntents, error: checkError } = await supabase
+          .from('partner_payment_intents')
+          .select('id')
+          .eq('plan_id', planId)
+          .limit(1);
+
+        if (checkError) {
+          console.error('Error checking remaining intents:', checkError);
+        }
+
+        if (remainingIntents && remainingIntents.length > 0) {
+          // Deactivate instead of deleting if approved intents exist
+          const { error } = await supabase
+            .from('partner_plans')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', planId);
+
+          if (error) throw error;
+
+          toast({
+            title: "Plano desativado",
+            description: "O plano possui registros de pagamento vinculados e foi desativado ao invés de deletado."
+          });
+        } else {
+          // Delete permanently if no references remain
+          const { error } = await supabase
+            .from('partner_plans')
+            .delete()
+            .eq('id', planId);
+
+          if (error) throw error;
+
+          toast({
+            title: "Plano deletado",
+            description: "O plano foi removido permanentemente."
+          });
+        }
       }
       
       await fetchPlans();
