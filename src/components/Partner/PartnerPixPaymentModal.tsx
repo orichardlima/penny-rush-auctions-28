@@ -96,48 +96,50 @@ export const PartnerPixPaymentModal = ({
       }
 
       try {
+        // Call magen-check-status to actively check VPS and process payment
+        const checkBody: any = { txId: paymentData.paymentId };
         if (isUpgrade && contractId) {
-          // UPGRADE: check if plan changed
-          const { data, error } = await supabase
-            .from('partner_contracts')
-            .select('plan_name')
-            .eq('id', contractId)
-            .single();
-
-          if (!error && data && previousPlanName && data.plan_name !== previousPlanName) {
-            console.log('✅ Upgrade detected via polling');
-            handleApproved('Seu plano foi atualizado com sucesso.');
-          }
+          // Build upgradeRef based on context
+          checkBody.upgradeRef = `upgrade:${contractId}:unknown`;
         } else if (intentId) {
-          // NEW CONTRACT: check if a contract was created for this user
-          // First check the intent status
-          const { data: intentData } = await supabase
-            .from('partner_payment_intents')
-            .select('payment_status, user_id')
-            .eq('id', intentId)
-            .single();
+          checkBody.intentId = intentId;
+        }
 
-          if (intentData?.payment_status === 'approved') {
-            console.log('✅ Intent approved, checking for contract...');
-            // Verify contract exists
-            const { data: newContract } = await supabase
+        console.log('🔍 Polling magen-check-status:', checkBody);
+        const { data: checkResult, error: checkError } = await supabase.functions.invoke('magen-check-status', {
+          body: checkBody
+        });
+
+        if (!checkError && checkResult?.status === 'paid') {
+          if (isUpgrade) {
+            // Verify upgrade actually happened
+            const { data } = await supabase
               .from('partner_contracts')
-              .select('id, status')
-              .eq('user_id', intentData.user_id)
-              .eq('status', 'ACTIVE')
-              .maybeSingle();
-
-            if (newContract) {
-              console.log('✅ New ACTIVE contract found:', newContract.id);
-              handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
+              .select('plan_name')
+              .eq('id', contractId)
+              .single();
+            if (data && previousPlanName && data.plan_name !== previousPlanName) {
+              console.log('✅ Upgrade detected via magen-check-status');
+              handleApproved('Seu plano foi atualizado com sucesso.');
             }
-          } else if (intentData?.payment_status === 'rejected' || intentData?.payment_status === 'expired') {
-            setPaymentStatus('failed');
-            toast({
-              title: "Pagamento rejeitado",
-              description: "Tente novamente ou use outro método.",
-              variant: "destructive"
-            });
+          } else {
+            console.log('✅ Payment confirmed via magen-check-status');
+            handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
+          }
+        } else {
+          // Fallback: also check DB directly for status changes from webhook
+          if (intentId) {
+            const { data: intentData } = await supabase
+              .from('partner_payment_intents')
+              .select('payment_status')
+              .eq('id', intentId)
+              .single();
+            if (intentData?.payment_status === 'approved') {
+              handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
+            } else if (intentData?.payment_status === 'rejected' || intentData?.payment_status === 'expired') {
+              setPaymentStatus('failed');
+              toast({ title: "Pagamento rejeitado", description: "Tente novamente ou use outro método.", variant: "destructive" });
+            }
           }
         }
       } catch (error) {
