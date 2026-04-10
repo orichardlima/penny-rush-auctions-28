@@ -192,36 +192,39 @@ export const PartnerPixPaymentModal = ({
   const checkPaymentStatus = async () => {
     setChecking(true);
     try {
+      const checkBody: any = { txId: paymentData.paymentId };
       if (isUpgrade && contractId) {
-        const { data } = await supabase
-          .from('partner_contracts')
-          .select('plan_name')
-          .eq('id', contractId)
-          .single();
-
-        if (data && previousPlanName && data.plan_name !== previousPlanName) {
-          handleApproved('Seu plano foi atualizado com sucesso.');
-        } else {
-          toast({ title: "Pagamento ainda pendente", description: "Aguarde a confirmação do seu banco.", variant: "default" });
-        }
+        checkBody.upgradeRef = `upgrade:${contractId}:unknown`;
       } else if (intentId) {
-        const { data: intentData } = await supabase
-          .from('partner_payment_intents')
-          .select('payment_status, user_id')
-          .eq('id', intentId)
-          .single();
+        checkBody.intentId = intentId;
+      }
 
-        if (intentData?.payment_status === 'approved') {
-          handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
-        } else if (intentData?.payment_status === 'rejected' || intentData?.payment_status === 'expired') {
-          setPaymentStatus('failed');
-          toast({ title: "Pagamento rejeitado", description: "Tente novamente.", variant: "destructive" });
+      console.log('🔍 Manual check magen-check-status:', checkBody);
+      const { data: checkResult, error: checkError } = await supabase.functions.invoke('magen-check-status', {
+        body: checkBody
+      });
+
+      if (!checkError && checkResult?.status === 'paid') {
+        if (isUpgrade && contractId) {
+          const { data } = await supabase
+            .from('partner_contracts')
+            .select('plan_name')
+            .eq('id', contractId)
+            .single();
+          if (data && previousPlanName && data.plan_name !== previousPlanName) {
+            handleApproved('Seu plano foi atualizado com sucesso.');
+          } else {
+            handleApproved('Pagamento confirmado!');
+          }
         } else {
-          toast({ title: "Pagamento ainda pendente", description: "Aguarde a confirmação do seu banco.", variant: "default" });
+          handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
         }
+      } else {
+        toast({ title: "Pagamento ainda pendente", description: "Aguarde a confirmação do seu banco.", variant: "default" });
       }
     } catch (error) {
       console.error('Error:', error);
+      toast({ title: "Erro ao verificar", description: "Tente novamente em instantes.", variant: "destructive" });
     } finally {
       setChecking(false);
     }
