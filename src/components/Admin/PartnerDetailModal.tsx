@@ -201,6 +201,9 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
           {sponsorInfo ? (
             <span>
               Indicado por <span className="font-semibold">{sponsorInfo.name}</span>
+              {sponsorInfo.source && (
+                <Badge variant="outline" className="ml-1.5 text-[10px] py-0 px-1.5">{sponsorInfo.source}</Badge>
+              )}
               {sponsorInfo.referralCode && (
                 <span className="text-muted-foreground"> · Código: <span className="font-mono text-xs">{sponsorInfo.referralCode}</span></span>
               )}
