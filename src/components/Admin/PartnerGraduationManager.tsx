@@ -374,6 +374,10 @@ const PartnerGraduationManager = () => {
             <Calculator className="h-4 w-4 mr-2" />
             Simulador
           </TabsTrigger>
+          <TabsTrigger value="ranking" onClick={() => { if (graduatedPartners.length === 0) fetchGraduatedPartners(); }}>
+            <Users className="h-4 w-4 mr-2" />
+            Parceiros Graduados
+          </TabsTrigger>
         </TabsList>
 
         {/* Graduações Tab */}
