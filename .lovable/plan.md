@@ -1,37 +1,44 @@
 
 
-# Corrigir erro ao deletar plano de parceiro
+# Adicionar aba "Ranking de Graduações" no Gerenciamento de Parceiros
 
-## Problema
+## Situação atual
 
-O botão de deletar plano falha com erro de foreign key porque a lógica atual só verifica `partner_contracts` vinculados ao plano. Porém, a tabela `partner_payment_intents` também tem uma FK (`plan_id`) para `partner_plans`. Quando existem intents (mesmo expirados/pendentes) referenciando o plano, o DELETE falha.
+O `PartnerGraduationManager` (aba "Graduações" no painel admin) permite apenas **configurar** os níveis de graduação, pontos por plano e simular cenários. Não existe nenhuma tela onde o admin veja **quais parceiros reais** estão em cada nível de graduação.
+
+Os dados já existem no banco: `partner_binary_positions` tem `left_points` e `right_points`, e a perna menor (`LEAST(left_points, right_points)`) define a graduação do parceiro. Basta cruzar com os níveis configurados em `partner_levels`.
 
 ## Solução
 
-No `deletePlan` em `src/hooks/useAdminPartners.ts`, antes de tentar o DELETE permanente:
+Adicionar uma **nova aba "Parceiros Graduados"** dentro do `PartnerGraduationManager`, ao lado das abas existentes (Graduações, Pontos por Plano, Simulador).
 
-1. Verificar se existem `partner_payment_intents` referenciando o `planId`
-2. Se existirem intents pendentes/expirados sem contrato associado, deletá-los antes de deletar o plano
-3. Se existirem intents aprovados (com contrato criado), apenas desativar o plano em vez de deletar
+### O que a aba mostrará
 
-Isso mantém a mesma lógica defensiva: se há dados vinculados relevantes, desativa; se não há, limpa os intents órfãos e deleta.
+1. **Cards de resumo** por nível de graduação: quantos parceiros estão em cada nível
+2. **Tabela completa** com todos os parceiros ativos, mostrando:
+   - Nome do parceiro
+   - Plano contratado
+   - Pontos esquerda / direita
+   - Perna menor (pontos de graduação)
+   - Nível atual (com badge/ícone)
+   - Próximo nível e pontos faltantes
+   - Progresso visual (barra)
+3. **Filtros**: por nível de graduação e busca por nome
+4. **Ordenação**: por pontos de graduação (maior → menor)
 
-## Arquivo alterado
+### Arquivos alterados
 
 | Arquivo | Alteração |
 |---|---|
-| `src/hooks/useAdminPartners.ts` | Na função `deletePlan`, adicionar limpeza de `partner_payment_intents` pendentes antes do DELETE, e fallback para desativação se houver intents aprovados |
+| `src/components/Admin/PartnerGraduationManager.tsx` | Adicionar aba "Parceiros Graduados" com query ao banco, cards de resumo e tabela ranqueada |
 
-## Detalhes técnicos
-
+### Dados utilizados (query)
 ```text
-deletePlan(planId):
-  1. Checar contracts (já existente)
-  2. Se tem contracts → desativar (já existente)
-  3. Se não tem contracts:
-     a. Deletar payment_intents pendentes/expirados com plan_id = planId
-     b. Checar se restam intents aprovados
-     c. Se restam → desativar plano
-     d. Se não restam → deletar plano permanentemente
+partner_contracts (ACTIVE) 
+  + profiles (full_name)
+  + partner_binary_positions (left_points, right_points)
+  + partner_levels (para mapear pontos → nível)
 ```
+
+Toda a lógica ficará no mesmo componente, reutilizando os `levels` já carregados pelo hook `useAdminPartnerLevels`.
 
