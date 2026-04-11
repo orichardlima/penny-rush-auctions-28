@@ -1,54 +1,38 @@
 
 
-# Preencher automaticamente referred_by_user_id via affiliate_referrals
+# Mostrar dados de contato no UserProfileCard para admins
 
 ## Problema
-Quando um afiliado indica alguém que depois se torna parceiro, o campo `referred_by_user_id` no `partner_contracts` fica NULL porque o sistema só busca patrocinadores em `partner_contracts` (código de referência de parceiro) e em intents/contratos anteriores. A indicação de afiliado (`affiliate_referrals`) nunca é consultada.
+Os dados de contato (telefone, CPF, endereço) só aparecem quando o admin abre o dialog de edição. O admin quer visualizar esses dados diretamente no card.
 
 ## Solução
-Adicionar um fallback final nas duas edge functions que determinam o patrocinador, buscando na tabela `affiliate_referrals` (via `affiliates`) quando nenhum patrocinador é encontrado pelas fontes atuais.
+Adicionar uma seção "Dados de Contato" no `UserProfileCard`, visível apenas para admins, buscando os campos da tabela `profiles`.
 
-## Alterações
+### Alteração em `src/components/UserProfileCard.tsx`
 
-### 1. `supabase/functions/partner-payment/index.ts`
-Após o bloco de fallback existente (linha ~143), adicionar busca em `affiliate_referrals`:
+1. **Nova query** para buscar dados de contato do usuário (habilitada apenas se `isAdmin`):
+   ```ts
+   const { data: contactInfo } = useQuery({
+     queryKey: ['user-contact-info', userId],
+     queryFn: async () => {
+       const { data } = await supabase
+         .from('profiles')
+         .select('cpf, phone, cep, street, number, complement, neighborhood, city, state')
+         .eq('user_id', userId)
+         .single();
+       return data;
+     },
+     enabled: !!isAdmin,
+   });
+   ```
 
-```
-if (!referredByUserId) {
-  const { data: affiliateRef } = await supabase
-    .from('affiliate_referrals')
-    .select('affiliate_id, affiliates!inner(user_id)')
-    .eq('referred_user_id', userId)
-    .eq('converted', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+2. **Nova seção visual** no card (após o saldo, antes das métricas), com ícones de Phone, MapPin, IdCard:
+   - **Telefone**: formatado com `formatPhone()`
+   - **CPF**: formatado com `formatCPF()` 
+   - **Endereço**: rua, número, complemento, bairro, cidade/UF, CEP — em uma linha compacta
+   - Campos vazios exibem "Não informado" em cinza discreto
 
-  if (affiliateRef?.affiliates?.user_id) {
-    referredByUserId = affiliateRef.affiliates.user_id
-  }
-}
-```
+3. **Imports adicionais**: `Phone, MapPin, IdCard` do lucide-react e `formatCPF, formatPhone` de `@/utils/validators`
 
-### 2. `supabase/functions/sponsor-activate-partner/index.ts`
-Mesmo fallback após o bloco existente (linha ~138), usando `referredUser.id` e `adminClient`:
-
-```
-if (!actualReferrerId) {
-  const { data: affiliateRef } = await adminClient
-    .from('affiliate_referrals')
-    .select('affiliate_id, affiliates!inner(user_id)')
-    .eq('referred_user_id', referredUser.id)
-    .eq('converted', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (affiliateRef?.affiliates?.user_id) {
-    actualReferrerId = affiliateRef.affiliates.user_id
-  }
-}
-```
-
-Nenhuma alteração de banco de dados ou UI necessaria. Apenas as duas edge functions são modificadas.
+Nenhuma outra funcionalidade será alterada.
 
