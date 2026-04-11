@@ -317,7 +317,51 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
           </div>
         )}
 
-        {/* Métricas principais */}
+        {/* Dados de Contato - Visível apenas para admins */}
+        {isAdmin && contactInfo && (
+          <div className="p-4 bg-muted/30 border border-border rounded-lg space-y-2">
+            <h5 className="font-medium text-sm flex items-center gap-2 text-muted-foreground mb-3">
+              <IdCard className="h-4 w-4" />
+              Dados de Contato
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <IdCard className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">CPF:</span>
+                <span className="font-medium">
+                  {contactInfo.cpf ? formatCPF(contactInfo.cpf) : <span className="text-muted-foreground italic">Não informado</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Telefone:</span>
+                <span className="font-medium">
+                  {contactInfo.phone ? formatPhone(contactInfo.phone) : <span className="text-muted-foreground italic">Não informado</span>}
+                </span>
+              </div>
+              <div className="flex items-start gap-2 md:col-span-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span className="text-muted-foreground">Endereço:</span>
+                <span className="font-medium">
+                  {contactInfo.street ? (
+                    <>
+                      {contactInfo.street}{contactInfo.number ? `, ${contactInfo.number}` : ''}
+                      {contactInfo.complement ? ` - ${contactInfo.complement}` : ''}
+                      {contactInfo.neighborhood ? `, ${contactInfo.neighborhood}` : ''}
+                      {contactInfo.city ? ` — ${contactInfo.city}` : ''}
+                      {contactInfo.state ? `/${contactInfo.state}` : ''}
+                      {contactInfo.cep ? ` (${contactInfo.cep})` : ''}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground italic">Não informado</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-3 bg-primary/5 rounded-lg">
             <TrendingUp className="h-5 w-5 mx-auto mb-1 text-primary" />
