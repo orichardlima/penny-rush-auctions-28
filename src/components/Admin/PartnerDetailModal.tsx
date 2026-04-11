@@ -54,6 +54,24 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
       setBinaryBonuses(binaryRes.data || []);
       setManualCredits(creditsRes.data || []);
       setWithdrawals(withdrawalsRes.data || []);
+
+      // Fetch sponsor info
+      if (contract.referred_by_user_id) {
+        const { data: sponsorProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', contract.referred_by_user_id)
+          .single();
+        
+        setSponsorInfo({
+          name: sponsorProfile?.full_name || 'Usuário desconhecido',
+          referralCode: contract.referral_code || null,
+          date: contract.created_at,
+        });
+      } else {
+        setSponsorInfo(null);
+      }
+
       setLoading(false);
     };
 
