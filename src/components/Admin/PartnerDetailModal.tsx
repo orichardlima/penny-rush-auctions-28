@@ -22,6 +22,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const [binaryBonuses, setBinaryBonuses] = useState<any[]>([]);
   const [manualCredits, setManualCredits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [sponsorInfo, setSponsorInfo] = useState<{ name: string; referralCode: string | null; date: string } | null>(null);
 
   // Hook for current week revenue (must be called unconditionally)
   const weekContract = useMemo(() => (
