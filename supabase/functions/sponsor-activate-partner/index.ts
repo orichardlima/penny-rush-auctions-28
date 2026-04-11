@@ -137,6 +137,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fallback: buscar indicação via affiliate_referrals
+    if (!actualReferrerId) {
+      const { data: affiliateRef } = await adminClient
+        .from('affiliate_referrals')
+        .select('affiliate_id, affiliates!inner(user_id)')
+        .eq('referred_user_id', referredUser.id)
+        .eq('converted', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (affiliateRef?.affiliates?.user_id) {
+        actualReferrerId = affiliateRef.affiliates.user_id
+        console.log('✅ Referrer encontrado via affiliate_referrals:', actualReferrerId)
+      }
+    }
+
     // 6. Check if referred already has ACTIVE contract
     const { data: existingContract } = await adminClient
       .from('partner_contracts')
