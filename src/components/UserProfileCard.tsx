@@ -42,6 +42,19 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
     },
   });
 
+  const { data: contactInfo } = useQuery({
+    queryKey: ['user-contact-info', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('cpf, phone, cep, street, number, complement, neighborhood, city, state')
+        .eq('user_id', userId)
+        .single();
+      return data;
+    },
+    enabled: !!isAdmin,
+  });
+
   const { data: referralInfo } = useQuery({
     queryKey: ['user-referral-info', userId],
     queryFn: async () => {
