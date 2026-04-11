@@ -112,7 +112,7 @@ const AdminDashboard = () => {
   const totalBids = auctions.reduce((sum, auction) => sum + auction.total_bids, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div className="min-w-0">

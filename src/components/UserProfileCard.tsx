@@ -207,14 +207,14 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Avatar className="h-16 w-16">
             <AvatarFallback className="bg-primary text-primary-foreground text-lg">
               {userName.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <CardTitle className="flex items-center gap-2 justify-between">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5" />
                 {userName}
