@@ -143,6 +143,23 @@ serve(async (req) => {
       }
     }
 
+    // 4c. Fallback: buscar indicação via affiliate_referrals
+    if (!referredByUserId) {
+      const { data: affiliateRef } = await supabase
+        .from('affiliate_referrals')
+        .select('affiliate_id, affiliates!inner(user_id)')
+        .eq('referred_user_id', userId)
+        .eq('converted', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (affiliateRef?.affiliates?.user_id) {
+        referredByUserId = affiliateRef.affiliates.user_id
+        console.log('✅ Referrer encontrado via affiliate_referrals:', referredByUserId)
+      }
+    }
+
     // 5. Criar payment intent
     const { data: intentData, error: intentError } = await supabase
       .from('partner_payment_intents')
