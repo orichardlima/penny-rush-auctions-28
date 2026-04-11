@@ -112,29 +112,29 @@ const AdminDashboard = () => {
   const totalBids = auctions.reduce((sum, auction) => sum + auction.total_bids, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 overflow-x-hidden">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               Painel Administrativo Profissional
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
               Dashboard completo com analytics avançados e controle total
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={refreshData} disabled={financialLoading}>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={refreshData} disabled={financialLoading} className="flex-1 sm:flex-none">
               <RefreshCw className={`h-4 w-4 mr-2 ${financialLoading ? 'animate-spin' : ''}`} />
               Atualizar Dados
             </Button>
-            <Button variant="destructive" onClick={signOut}>Sair</Button>
+            <Button variant="destructive" onClick={signOut} className="flex-1 sm:flex-none">Sair</Button>
           </div>
         </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-l-4 border-l-green-500">
+          <Card className="border-l-4 border-l-green-500 min-w-0 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Usuários Totais</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
