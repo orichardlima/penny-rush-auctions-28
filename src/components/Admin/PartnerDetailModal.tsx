@@ -22,7 +22,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const [binaryBonuses, setBinaryBonuses] = useState<any[]>([]);
   const [manualCredits, setManualCredits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
-  const [sponsorInfo, setSponsorInfo] = useState<{ name: string; referralCode: string | null; date: string } | null>(null);
+  const [sponsorInfo, setSponsorInfo] = useState<{ name: string; referralCode: string | null; date: string; source?: string } | null>(null);
 
   // Hook for current week revenue (must be called unconditionally)
   const weekContract = useMemo(() => (
@@ -55,7 +55,10 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
       setManualCredits(creditsRes.data || []);
       setWithdrawals(withdrawalsRes.data || []);
 
-      // Fetch sponsor info
+      // Fetch sponsor info with fallbacks
+      let foundSponsor = false;
+
+      // 1. Primary: partner_contracts.referred_by_user_id
       if (contract.referred_by_user_id) {
         const { data: sponsorProfile } = await supabase
           .from('profiles')
@@ -67,8 +70,74 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
           name: sponsorProfile?.full_name || 'Usuário desconhecido',
           referralCode: contract.referral_code || null,
           date: contract.created_at,
+          source: 'Parceiro',
         });
-      } else {
+        foundSponsor = true;
+      }
+
+      // 2. Fallback: partner_payment_intents.referred_by_user_id
+      if (!foundSponsor) {
+        const { data: intentData } = await supabase
+          .from('partner_payment_intents')
+          .select('referred_by_user_id, referral_code, created_at')
+          .eq('user_id', contract.user_id)
+          .not('referred_by_user_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (intentData && intentData.length > 0 && intentData[0].referred_by_user_id) {
+          const { data: sponsorProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('user_id', intentData[0].referred_by_user_id)
+            .single();
+
+          setSponsorInfo({
+            name: sponsorProfile?.full_name || 'Usuário desconhecido',
+            referralCode: intentData[0].referral_code || contract.referral_code || null,
+            date: intentData[0].created_at,
+            source: 'Intenção de Pagamento',
+          });
+          foundSponsor = true;
+        }
+      }
+
+      // 3. Fallback: affiliate_referrals (indicação de afiliado)
+      if (!foundSponsor) {
+        const { data: affReferral } = await supabase
+          .from('affiliate_referrals')
+          .select('affiliate_id, created_at')
+          .eq('referred_user_id', contract.user_id)
+          .eq('converted', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (affReferral && affReferral.length > 0) {
+          const { data: affiliate } = await supabase
+            .from('affiliates')
+            .select('user_id, affiliate_code')
+            .eq('id', affReferral[0].affiliate_id)
+            .single();
+
+          if (affiliate) {
+            const { data: affProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('user_id', affiliate.user_id)
+              .single();
+
+            setSponsorInfo({
+              name: affProfile?.full_name || 'Usuário desconhecido',
+              referralCode: affiliate.affiliate_code || null,
+              date: affReferral[0].created_at,
+              source: 'Afiliado',
+            });
+            foundSponsor = true;
+          }
+        }
+      }
+
+      if (!foundSponsor) {
         setSponsorInfo(null);
       }
 
@@ -132,6 +201,9 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
           {sponsorInfo ? (
             <span>
               Indicado por <span className="font-semibold">{sponsorInfo.name}</span>
+              {sponsorInfo.source && (
+                <Badge variant="outline" className="ml-1.5 text-[10px] py-0 px-1.5">{sponsorInfo.source}</Badge>
+              )}
               {sponsorInfo.referralCode && (
                 <span className="text-muted-foreground"> · Código: <span className="font-mono text-xs">{sponsorInfo.referralCode}</span></span>
               )}
