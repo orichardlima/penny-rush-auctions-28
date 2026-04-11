@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAdminPartnerLevels, PartnerLevel, NewPartnerLevel } from '@/hooks/useAdminPartnerLevels';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Trophy, 
   Plus, 
@@ -26,7 +27,9 @@ import {
   Calculator,
   Target,
   Award,
-  Sparkles
+  Sparkles,
+  Users,
+  Search
 } from 'lucide-react';
 
 const AVAILABLE_COLORS = [
