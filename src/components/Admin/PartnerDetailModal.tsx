@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, Gift, GitBranch, Coins, ArrowDownCircle, Wallet, TrendingUp, Calendar, Info } from 'lucide-react';
+import { DollarSign, Gift, GitBranch, Coins, ArrowDownCircle, Wallet, TrendingUp, Calendar, Info, UserCheck, Link2 } from 'lucide-react';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
 import DailyRevenueBars from '@/components/Partner/DailyRevenueBars';
 
@@ -22,6 +22,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const [binaryBonuses, setBinaryBonuses] = useState<any[]>([]);
   const [manualCredits, setManualCredits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [sponsorInfo, setSponsorInfo] = useState<{ name: string; referralCode: string | null; date: string } | null>(null);
 
   // Hook for current week revenue (must be called unconditionally)
   const weekContract = useMemo(() => (
@@ -53,6 +54,24 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
       setBinaryBonuses(binaryRes.data || []);
       setManualCredits(creditsRes.data || []);
       setWithdrawals(withdrawalsRes.data || []);
+
+      // Fetch sponsor info
+      if (contract.referred_by_user_id) {
+        const { data: sponsorProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', contract.referred_by_user_id)
+          .single();
+        
+        setSponsorInfo({
+          name: sponsorProfile?.full_name || 'Usuário desconhecido',
+          referralCode: contract.referral_code || null,
+          date: contract.created_at,
+        });
+      } else {
+        setSponsorInfo(null);
+      }
+
       setLoading(false);
     };
 
@@ -106,6 +125,22 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Sponsor Info */}
+        <div className="flex items-center gap-3 px-1 py-2 text-sm">
+          <UserCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+          {sponsorInfo ? (
+            <span>
+              Indicado por <span className="font-semibold">{sponsorInfo.name}</span>
+              {sponsorInfo.referralCode && (
+                <span className="text-muted-foreground"> · Código: <span className="font-mono text-xs">{sponsorInfo.referralCode}</span></span>
+              )}
+              <span className="text-muted-foreground"> · em {formatDate(sponsorInfo.date)}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Sem indicação</span>
+          )}
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
