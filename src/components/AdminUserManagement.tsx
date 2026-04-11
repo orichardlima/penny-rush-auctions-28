@@ -514,7 +514,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       {/* Bid History */}
       <Button 
         variant="outline" 
