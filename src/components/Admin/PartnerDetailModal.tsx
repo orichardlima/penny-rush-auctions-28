@@ -126,6 +126,22 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
           </DialogDescription>
         </DialogHeader>
 
+        {/* Sponsor Info */}
+        <div className="flex items-center gap-3 px-1 py-2 text-sm">
+          <UserCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+          {sponsorInfo ? (
+            <span>
+              Indicado por <span className="font-semibold">{sponsorInfo.name}</span>
+              {sponsorInfo.referralCode && (
+                <span className="text-muted-foreground"> · Código: <span className="font-mono text-xs">{sponsorInfo.referralCode}</span></span>
+              )}
+              <span className="text-muted-foreground"> · em {formatDate(sponsorInfo.date)}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Sem indicação</span>
+          )}
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
