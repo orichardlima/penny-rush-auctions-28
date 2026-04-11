@@ -1,44 +1,36 @@
 
 
-# Adicionar aba "Ranking de Graduações" no Gerenciamento de Parceiros
+# Corrigir responsividade mobile do painel Admin
 
-## Situação atual
+## Problema
 
-O `PartnerGraduationManager` (aba "Graduações" no painel admin) permite apenas **configurar** os níveis de graduação, pontos por plano e simular cenários. Não existe nenhuma tela onde o admin veja **quais parceiros reais** estão em cada nível de graduação.
-
-Os dados já existem no banco: `partner_binary_positions` tem `left_points` e `right_points`, e a perna menor (`LEAST(left_points, right_points)`) define a graduação do parceiro. Basta cruzar com os níveis configurados em `partner_levels`.
+Na tela mobile, o layout do AdminDashboard transborda horizontalmente porque:
+1. O header usa `flex justify-between` sem `flex-wrap`, e o título é `text-4xl` — não cabe ao lado dos botões em telas pequenas
+2. Os cards de resumo e o conteúdo ficam cortados à esquerda
 
 ## Solução
 
-Adicionar uma **nova aba "Parceiros Graduados"** dentro do `PartnerGraduationManager`, ao lado das abas existentes (Graduações, Pontos por Plano, Simulador).
+Ajustar apenas o layout responsivo no `src/components/AdminDashboard.tsx`:
 
-### O que a aba mostrará
+1. **Header** (linhas 117-133): Adicionar `flex-wrap` e reduzir o título para `text-2xl sm:text-4xl`. Os botões ficam embaixo em mobile.
+2. **Cards de resumo** (linha 136): Já usa `grid-cols-1 md:grid-cols-2 lg:grid-cols-4`, o que parece correto — mas adicionar `overflow-hidden` e garantir `min-w-0` nos cards para evitar overflow de texto.
+3. **Container**: Verificar se não há overflow horizontal — adicionar `overflow-x-hidden` no wrapper principal se necessário.
 
-1. **Cards de resumo** por nível de graduação: quantos parceiros estão em cada nível
-2. **Tabela completa** com todos os parceiros ativos, mostrando:
-   - Nome do parceiro
-   - Plano contratado
-   - Pontos esquerda / direita
-   - Perna menor (pontos de graduação)
-   - Nível atual (com badge/ícone)
-   - Próximo nível e pontos faltantes
-   - Progresso visual (barra)
-3. **Filtros**: por nível de graduação e busca por nome
-4. **Ordenação**: por pontos de graduação (maior → menor)
-
-### Arquivos alterados
+### Arquivo alterado
 
 | Arquivo | Alteração |
 |---|---|
-| `src/components/Admin/PartnerGraduationManager.tsx` | Adicionar aba "Parceiros Graduados" com query ao banco, cards de resumo e tabela ranqueada |
+| `src/components/AdminDashboard.tsx` | Ajustar classes responsivas no header, cards e container |
 
-### Dados utilizados (query)
+### Detalhes das mudanças
+
 ```text
-partner_contracts (ACTIVE) 
-  + profiles (full_name)
-  + partner_binary_positions (left_points, right_points)
-  + partner_levels (para mapear pontos → nível)
+Linha 115: adicionar overflow-x-hidden no wrapper
+Linha 117: flex → flex flex-wrap gap-4
+Linha 119: text-4xl → text-2xl sm:text-4xl
+Linha 126: flex gap-2 → flex gap-2 w-full sm:w-auto
+Linha 136: adicionar min-w-0 nos cards se necessário
 ```
 
-Toda a lógica ficará no mesmo componente, reutilizando os `levels` já carregados pelo hook `useAdminPartnerLevels`.
+Nenhuma funcionalidade ou workflow será alterado — apenas ajustes de CSS responsivo.
 
