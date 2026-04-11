@@ -60,7 +60,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
         const { data: sponsorProfile } = await supabase
           .from('profiles')
           .select('full_name')
-          .eq('id', contract.referred_by_user_id)
+          .eq('user_id', contract.referred_by_user_id)
           .single();
         
         setSponsorInfo({
