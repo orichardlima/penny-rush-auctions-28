@@ -1,36 +1,31 @@
 
 
-# Corrigir responsividade mobile do painel Admin
+# Corrigir responsividade mobile do painel Admin (UserProfileCard e container)
 
 ## Problema
 
-Na tela mobile, o layout do AdminDashboard transborda horizontalmente porque:
-1. O header usa `flex justify-between` sem `flex-wrap`, e o título é `text-4xl` — não cabe ao lado dos botões em telas pequenas
-2. Os cards de resumo e o conteúdo ficam cortados à esquerda
+A correção anterior adicionou `overflow-x-hidden` no container principal do AdminDashboard, o que impede o scroll horizontal que o usuário usava para acessar botões de ação cortados. O problema real está em componentes internos que não se adaptam a telas pequenas:
+
+1. **UserProfileCard**: O header coloca o nome do usuário e os botões de ação (histórico, compras, editar, saldo, deletar) lado a lado em `flex justify-between`. Em mobile, os botões saem da tela e ficam inacessíveis.
+2. **AdminDashboard container**: O `overflow-x-hidden` esconde conteúdo que deveria ser visível.
 
 ## Solução
 
-Ajustar apenas o layout responsivo no `src/components/AdminDashboard.tsx`:
+### 1. `src/components/AdminDashboard.tsx`
+- Remover `overflow-x-hidden` do container principal (linha 115) -- manter apenas `min-h-screen`
 
-1. **Header** (linhas 117-133): Adicionar `flex-wrap` e reduzir o título para `text-2xl sm:text-4xl`. Os botões ficam embaixo em mobile.
-2. **Cards de resumo** (linha 136): Já usa `grid-cols-1 md:grid-cols-2 lg:grid-cols-4`, o que parece correto — mas adicionar `overflow-hidden` e garantir `min-w-0` nos cards para evitar overflow de texto.
-3. **Container**: Verificar se não há overflow horizontal — adicionar `overflow-x-hidden` no wrapper principal se necessário.
+### 2. `src/components/UserProfileCard.tsx`
+- **Header layout** (linha 210): Mudar de `flex items-center space-x-4` para `flex flex-col sm:flex-row items-start sm:items-center gap-4` -- avatar e dados empilham em mobile
+- **CardTitle** (linha 217): Mudar de `flex items-center gap-2 justify-between` para `flex flex-wrap items-center gap-2` -- permite que botões de ação quebrem para baixa linha
+- **AdminUserActions**: Garantir que os botões de ação fiquem em linha scrollável ou wrap em mobile
 
-### Arquivo alterado
+### 3. `src/components/AdminUserManagement.tsx`
+- Verificar o container dos botões de ação e garantir `flex-wrap` para que caibam em telas pequenas
 
 | Arquivo | Alteração |
 |---|---|
-| `src/components/AdminDashboard.tsx` | Ajustar classes responsivas no header, cards e container |
+| `src/components/AdminDashboard.tsx` | Remover `overflow-x-hidden` |
+| `src/components/UserProfileCard.tsx` | Layout responsivo no header: flex-col em mobile, flex-row em desktop; flex-wrap nos botões de ação |
 
-### Detalhes das mudanças
-
-```text
-Linha 115: adicionar overflow-x-hidden no wrapper
-Linha 117: flex → flex flex-wrap gap-4
-Linha 119: text-4xl → text-2xl sm:text-4xl
-Linha 126: flex gap-2 → flex gap-2 w-full sm:w-auto
-Linha 136: adicionar min-w-0 nos cards se necessário
-```
-
-Nenhuma funcionalidade ou workflow será alterado — apenas ajustes de CSS responsivo.
+Nenhuma funcionalidade será alterada -- apenas ajustes de CSS responsivo.
 
