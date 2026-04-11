@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAdminPartnerLevels, PartnerLevel, NewPartnerLevel } from '@/hooks/useAdminPartnerLevels';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Trophy, 
   Plus, 
@@ -26,7 +27,9 @@ import {
   Calculator,
   Target,
   Award,
-  Sparkles
+  Sparkles,
+  Users,
+  Search
 } from 'lucide-react';
 
 const AVAILABLE_COLORS = [
@@ -79,6 +82,89 @@ const PartnerGraduationManager = () => {
   const [simStart, setSimStart] = useState(0);
   const [simPro, setSimPro] = useState(0);
   const [simElite, setSimElite] = useState(0);
+
+  // Ranking state
+  interface GraduatedPartner {
+    contractId: string;
+    userId: string;
+    fullName: string;
+    planName: string;
+    leftPoints: number;
+    rightPoints: number;
+    graduationPoints: number;
+  }
+  const [graduatedPartners, setGraduatedPartners] = useState<GraduatedPartner[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingFilter, setRankingFilter] = useState('all');
+  const [rankingSearch, setRankingSearch] = useState('');
+
+  const fetchGraduatedPartners = useCallback(async () => {
+    setRankingLoading(true);
+    try {
+      const { data: contracts, error: cErr } = await supabase
+        .from('partner_contracts')
+        .select('id, user_id, plan_name')
+        .eq('status', 'ACTIVE');
+      if (cErr) throw cErr;
+      if (!contracts || contracts.length === 0) {
+        setGraduatedPartners([]);
+        return;
+      }
+
+      const contractIds = contracts.map(c => c.id);
+      const userIds = contracts.map(c => c.user_id);
+
+      const [{ data: positions, error: pErr }, { data: profiles, error: prErr }] = await Promise.all([
+        supabase
+          .from('partner_binary_positions')
+          .select('partner_contract_id, left_points, right_points')
+          .in('partner_contract_id', contractIds),
+        supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds)
+      ]);
+      if (pErr) throw pErr;
+      if (prErr) throw prErr;
+
+      const posMap = new Map((positions || []).map(p => [p.partner_contract_id, p]));
+      const profMap = new Map((profiles || []).map(p => [p.user_id, p.full_name]));
+
+      const result: GraduatedPartner[] = contracts.map(c => {
+        const pos = posMap.get(c.id);
+        const lp = pos?.left_points || 0;
+        const rp = pos?.right_points || 0;
+        return {
+          contractId: c.id,
+          userId: c.user_id,
+          fullName: profMap.get(c.user_id) || 'Sem nome',
+          planName: c.plan_name,
+          leftPoints: lp,
+          rightPoints: rp,
+          graduationPoints: Math.min(lp, rp),
+        };
+      });
+
+      result.sort((a, b) => b.graduationPoints - a.graduationPoints);
+      setGraduatedPartners(result);
+    } catch (err) {
+      console.error('Error fetching graduated partners:', err);
+    } finally {
+      setRankingLoading(false);
+    }
+  }, []);
+
+  // Helper to get level for a given graduation points value
+  const getLevelForPoints = useCallback((pts: number) => {
+    const activeLevels = levels.filter(l => l.is_active).sort((a, b) => a.min_points - b.min_points);
+    let current: PartnerLevel | null = null;
+    let next: PartnerLevel | null = null;
+    for (const level of activeLevels) {
+      if (pts >= level.min_points) current = level;
+      else if (!next) next = level;
+    }
+    return { current, next };
+  }, [levels]);
 
   // New level form
   const [newLevel, setNewLevel] = useState<NewPartnerLevel>({
@@ -287,6 +373,10 @@ const PartnerGraduationManager = () => {
           <TabsTrigger value="simulator">
             <Calculator className="h-4 w-4 mr-2" />
             Simulador
+          </TabsTrigger>
+          <TabsTrigger value="ranking" onClick={() => { if (graduatedPartners.length === 0) fetchGraduatedPartners(); }}>
+            <Users className="h-4 w-4 mr-2" />
+            Parceiros Graduados
           </TabsTrigger>
         </TabsList>
 
@@ -963,6 +1053,164 @@ const PartnerGraduationManager = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Parceiros Graduados Tab */}
+        <TabsContent value="ranking" className="space-y-4">
+          {rankingLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <>
+              {/* Summary cards per level */}
+              {(() => {
+                const activeLevels = levels.filter(l => l.is_active).sort((a, b) => a.min_points - b.min_points);
+                const levelCounts: Record<string, number> = {};
+                activeLevels.forEach(l => { levelCounts[l.id] = 0; });
+
+                graduatedPartners.forEach(p => {
+                  const { current } = getLevelForPoints(p.graduationPoints);
+                  if (current) levelCounts[current.id] = (levelCounts[current.id] || 0) + 1;
+                });
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {activeLevels.map(level => (
+                      <Card
+                        key={level.id}
+                        className={`cursor-pointer transition-all ${rankingFilter === level.id ? 'ring-2 ring-primary' : ''}`}
+                        onClick={() => setRankingFilter(rankingFilter === level.id ? 'all' : level.id)}
+                      >
+                        <CardContent className="p-4 text-center">
+                          <div className="text-2xl mb-1">{level.icon}</div>
+                          <div className="text-sm font-medium">{level.display_name}</div>
+                          <div className="text-2xl font-bold">{levelCounts[level.id] || 0}</div>
+                          <div className="text-xs text-muted-foreground">parceiros</div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Search and filters */}
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome..."
+                    value={rankingSearch}
+                    onChange={e => setRankingSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchGraduatedPartners}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Atualizar
+                </Button>
+                {rankingFilter !== 'all' && (
+                  <Button variant="ghost" size="sm" onClick={() => setRankingFilter('all')}>
+                    Limpar filtro
+                  </Button>
+                )}
+              </div>
+
+              {/* Table */}
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Parceiro</TableHead>
+                        <TableHead>Plano</TableHead>
+                        <TableHead className="text-right">Esquerda</TableHead>
+                        <TableHead className="text-right">Direita</TableHead>
+                        <TableHead className="text-right">Perna Menor</TableHead>
+                        <TableHead>Nível Atual</TableHead>
+                        <TableHead>Progresso</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        let filtered = graduatedPartners;
+
+                        if (rankingSearch.trim()) {
+                          const q = rankingSearch.toLowerCase();
+                          filtered = filtered.filter(p => p.fullName.toLowerCase().includes(q));
+                        }
+
+                        if (rankingFilter !== 'all') {
+                          filtered = filtered.filter(p => {
+                            const { current } = getLevelForPoints(p.graduationPoints);
+                            return current?.id === rankingFilter;
+                          });
+                        }
+
+                        if (filtered.length === 0) {
+                          return (
+                            <TableRow>
+                              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                Nenhum parceiro encontrado
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        return filtered.map((partner, idx) => {
+                          const { current, next } = getLevelForPoints(partner.graduationPoints);
+                          const progressPct = next && current
+                            ? Math.min(((partner.graduationPoints - current.min_points) / (next.min_points - current.min_points)) * 100, 100)
+                            : 100;
+                          const pointsToNext = next ? next.min_points - partner.graduationPoints : 0;
+
+                          return (
+                            <TableRow key={partner.contractId}>
+                              <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
+                              <TableCell className="font-medium">{partner.fullName}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{partner.planName}</Badge>
+                              </TableCell>
+                              <TableCell className="text-right">{partner.leftPoints.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">{partner.rightPoints.toLocaleString()}</TableCell>
+                              <TableCell className="text-right font-bold">{partner.graduationPoints.toLocaleString()}</TableCell>
+                              <TableCell>
+                                {current && (
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="text-lg">{current.icon}</span>
+                                    <span className="text-sm font-medium">{current.display_name}</span>
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="min-w-[180px]">
+                                {next ? (
+                                  <div className="space-y-1">
+                                    <Progress value={progressPct} className="h-2" />
+                                    <p className="text-xs text-muted-foreground">
+                                      Faltam {pointsToNext.toLocaleString()} pts → {next.icon} {next.display_name}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                                    Nível máximo
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        });
+                      })()}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Total: {graduatedPartners.length} parceiros ativos • Graduação = perna menor (LEAST entre pontos esquerda e direita)
+              </p>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
