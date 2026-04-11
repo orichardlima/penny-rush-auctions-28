@@ -83,6 +83,89 @@ const PartnerGraduationManager = () => {
   const [simPro, setSimPro] = useState(0);
   const [simElite, setSimElite] = useState(0);
 
+  // Ranking state
+  interface GraduatedPartner {
+    contractId: string;
+    userId: string;
+    fullName: string;
+    planName: string;
+    leftPoints: number;
+    rightPoints: number;
+    graduationPoints: number;
+  }
+  const [graduatedPartners, setGraduatedPartners] = useState<GraduatedPartner[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingFilter, setRankingFilter] = useState('all');
+  const [rankingSearch, setRankingSearch] = useState('');
+
+  const fetchGraduatedPartners = useCallback(async () => {
+    setRankingLoading(true);
+    try {
+      const { data: contracts, error: cErr } = await supabase
+        .from('partner_contracts')
+        .select('id, user_id, plan_name')
+        .eq('status', 'ACTIVE');
+      if (cErr) throw cErr;
+      if (!contracts || contracts.length === 0) {
+        setGraduatedPartners([]);
+        return;
+      }
+
+      const contractIds = contracts.map(c => c.id);
+      const userIds = contracts.map(c => c.user_id);
+
+      const [{ data: positions, error: pErr }, { data: profiles, error: prErr }] = await Promise.all([
+        supabase
+          .from('partner_binary_positions')
+          .select('partner_contract_id, left_points, right_points')
+          .in('partner_contract_id', contractIds),
+        supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds)
+      ]);
+      if (pErr) throw pErr;
+      if (prErr) throw prErr;
+
+      const posMap = new Map((positions || []).map(p => [p.partner_contract_id, p]));
+      const profMap = new Map((profiles || []).map(p => [p.user_id, p.full_name]));
+
+      const result: GraduatedPartner[] = contracts.map(c => {
+        const pos = posMap.get(c.id);
+        const lp = pos?.left_points || 0;
+        const rp = pos?.right_points || 0;
+        return {
+          contractId: c.id,
+          userId: c.user_id,
+          fullName: profMap.get(c.user_id) || 'Sem nome',
+          planName: c.plan_name,
+          leftPoints: lp,
+          rightPoints: rp,
+          graduationPoints: Math.min(lp, rp),
+        };
+      });
+
+      result.sort((a, b) => b.graduationPoints - a.graduationPoints);
+      setGraduatedPartners(result);
+    } catch (err) {
+      console.error('Error fetching graduated partners:', err);
+    } finally {
+      setRankingLoading(false);
+    }
+  }, []);
+
+  // Helper to get level for a given graduation points value
+  const getLevelForPoints = useCallback((pts: number) => {
+    const activeLevels = levels.filter(l => l.is_active).sort((a, b) => a.min_points - b.min_points);
+    let current: PartnerLevel | null = null;
+    let next: PartnerLevel | null = null;
+    for (const level of activeLevels) {
+      if (pts >= level.min_points) current = level;
+      else if (!next) next = level;
+    }
+    return { current, next };
+  }, [levels]);
+
   // New level form
   const [newLevel, setNewLevel] = useState<NewPartnerLevel>({
     name: '',
