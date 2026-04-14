@@ -1,38 +1,23 @@
 
 
-# Mostrar dados de contato no UserProfileCard para admins
+# Fix: Bônus de upgrade Nível 1 faltante + error handling
 
-## Problema
-Os dados de contato (telefone, CPF, endereço) só aparecem quando o admin abre o dialog de edição. O admin quer visualizar esses dados diretamente no card.
+## Resumo
+Inserir o bônus faltante de R$ 2.400,16 para Tiago Mendes e adicionar tratamento de erro nos inserts de bônus de upgrade para evitar falhas silenciosas no futuro.
 
-## Solução
-Adicionar uma seção "Dados de Contato" no `UserProfileCard`, visível apenas para admins, buscando os campos da tabela `profiles`.
+## Etapas
 
-### Alteração em `src/components/UserProfileCard.tsx`
+### 1. Inserir bônus faltante via migration SQL
+Inserir registro na tabela `partner_referral_bonuses` com:
+- referrer_contract_id: be3406be (Tiago Mendes)
+- referred_contract_id: 1ab45a69 (Henrique)
+- aporte_value: 15001, bonus_percentage: 16%, bonus_value: 2400.16
+- source_event: 'upgrade', status: 'PENDING', available_at: now() + 7 dias
 
-1. **Nova query** para buscar dados de contato do usuário (habilitada apenas se `isAdmin`):
-   ```ts
-   const { data: contactInfo } = useQuery({
-     queryKey: ['user-contact-info', userId],
-     queryFn: async () => {
-       const { data } = await supabase
-         .from('profiles')
-         .select('cpf, phone, cep, street, number, complement, neighborhood, city, state')
-         .eq('user_id', userId)
-         .single();
-       return data;
-     },
-     enabled: !!isAdmin,
-   });
-   ```
+### 2. Adicionar error handling em useAdminPartners.ts
+Na função `upgradeContractPlan` e `upgradeContractCotas`, envolver cada insert de bônus com checagem de erro e toast de alerta ao admin em caso de falha.
 
-2. **Nova seção visual** no card (após o saldo, antes das métricas), com ícones de Phone, MapPin, IdCard:
-   - **Telefone**: formatado com `formatPhone()`
-   - **CPF**: formatado com `formatCPF()` 
-   - **Endereço**: rua, número, complemento, bairro, cidade/UF, CEP — em uma linha compacta
-   - Campos vazios exibem "Não informado" em cinza discreto
-
-3. **Imports adicionais**: `Phone, MapPin, IdCard` do lucide-react e `formatCPF, formatPhone` de `@/utils/validators`
-
-Nenhuma outra funcionalidade será alterada.
+## Arquivos alterados
+- Nova migration SQL (insert do bônus)
+- `src/hooks/useAdminPartners.ts` (error handling nos inserts de bônus de upgrade)
 
