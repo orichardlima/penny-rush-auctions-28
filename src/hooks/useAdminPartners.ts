@@ -1831,7 +1831,8 @@ export const useAdminPartners = () => {
           const suspendedExpiresAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
           const bonusValue = aporteDiff * (bonusPercentage / 100);
-          await supabase.from('partner_referral_bonuses').insert({
+          console.log(`[upgradeContractPlan] Inserting upgrade bonus level ${upline.level} for contract ${upline.contractId}, value: ${bonusValue}`);
+          const { error: bonusError } = await supabase.from('partner_referral_bonuses').insert({
             referrer_contract_id: upline.contractId,
             referred_contract_id: contractId,
             referred_user_id: contract.user_id,
@@ -1845,6 +1846,14 @@ export const useAdminPartners = () => {
             available_at: isPaid ? availableAt : null,
             suspended_expires_at: isPaid ? null : suspendedExpiresAt,
           });
+          if (bonusError) {
+            console.error(`[upgradeContractPlan] Error inserting upgrade bonus level ${upline.level}:`, bonusError);
+            toast({
+              variant: "destructive",
+              title: `Falha ao gerar bônus de upgrade nível ${upline.level}`,
+              description: bonusError.message || "Erro ao inserir bônus de indicação de upgrade."
+            });
+          }
         }
       }
 
