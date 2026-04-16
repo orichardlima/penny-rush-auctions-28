@@ -1,23 +1,27 @@
 
+## Plano: Investigar e corrigir comissões pendentes da Juciene
 
-# Fix: Bônus de upgrade Nível 1 faltante + error handling
+### Diagnóstico
+- 2 compras PIX de R$ 15 cada (16/04 13:10) ainda em `payment_status = 'pending'`
+- 2 comissões de R$ 7,50 (50%) criadas para o afiliado warlley silva, mas em status `pending` (não aprovadas)
+- Segunda compra incorretamente marcada como "1ª Compra" em vez de "Recompra"
+- Vínculo afiliado-indicado existe via `direct_signup` (não via link `?ref=`)
 
-## Resumo
-Inserir o bônus faltante de R$ 2.400,16 para Tiago Mendes e adicionar tratamento de erro nos inserts de bônus de upgrade para evitar falhas silenciosas no futuro.
+### Etapas
 
-## Etapas
+**1. Verificar logs do gateway de pagamento (PIX)**
+- Consultar `analytics_query` em `function_edge_logs` para `asaas-webhook`, `mercado-pago-webhook`, `magen-webhook`, `veopag-webhook` filtrando pelos `purchase_id` ou `external_reference` das duas compras.
+- Determinar se o pagamento foi confirmado pelo provedor mas o webhook falhou, ou se o cliente realmente nunca pagou.
 
-### 1. Inserir bônus faltante via migration SQL
-Inserir registro na tabela `partner_referral_bonuses` com:
-- referrer_contract_id: be3406be (Tiago Mendes)
-- referred_contract_id: 1ab45a69 (Henrique)
-- aporte_value: 15001, bonus_percentage: 16%, bonus_value: 2400.16
-- source_event: 'upgrade', status: 'PENDING', available_at: now() + 7 dias
+**2. Apresentar opções ao usuário (admin)**
+Após investigação dos logs, oferecer 3 cenários:
+- **A)** Pagamento confirmado no gateway → executar correção via SQL atualizando `bid_purchases.payment_status = 'paid'` e `affiliate_commissions.status = 'approved'`, creditando lances + comissão.
+- **B)** Cliente não pagou → cancelar a compra e a comissão (status `cancelled`).
+- **C)** Apenas aguardar — manter como está.
 
-### 2. Adicionar error handling em useAdminPartners.ts
-Na função `upgradeContractPlan` e `upgradeContractCotas`, envolver cada insert de bônus com checagem de erro e toast de alerta ao admin em caso de falha.
+**3. Corrigir flag `is_repurchase` (opcional)**
+Se o cenário A for confirmado, marcar a segunda comissão (ID `6b5dcfbd`) como `is_repurchase = true` para refletir a realidade no histórico do afiliado.
 
-## Arquivos alterados
-- Nova migration SQL (insert do bônus)
-- `src/hooks/useAdminPartners.ts` (error handling nos inserts de bônus de upgrade)
-
+### Arquivos / ações esperados
+- Nenhum arquivo de código alterado nesta etapa (apenas investigação de logs)
+- Possível migration SQL pontual para corrigir status, dependendo da resposta do usuário
