@@ -680,6 +680,11 @@ export default function AffiliateDashboard() {
             </Card>
           </TabsContent>
 
+          {/* Tab: Materiais */}
+          <TabsContent value="materials" className="space-y-6">
+            <AffiliateMaterialsLibrary affiliateCode={affiliateData.affiliate_code} />
+          </TabsContent>
+
           {/* Tab: Ferramentas */}
           <TabsContent value="tools" className="space-y-6">
             {/* Link de Afiliado com QR Code */}
