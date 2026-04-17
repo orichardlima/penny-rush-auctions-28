@@ -29,6 +29,7 @@ import { Footer } from '@/components/Footer';
 import { useAffiliateManager } from '@/hooks/useAffiliateManager';
 import { AffiliateOnboarding } from '@/components/Affiliate/AffiliateOnboarding';
 import { AffiliateWithdrawalSection } from '@/components/Affiliate/AffiliateWithdrawalSection';
+import { ManagerInfluencersTab } from '@/components/Affiliate/Manager/ManagerInfluencersTab';
 
 interface AffiliateData {
   id: string;
@@ -523,114 +524,14 @@ export default function AffiliateDashboard() {
           {/* Tab: Meus Influencers (apenas para gerentes) */}
           {isManager && (
             <TabsContent value="influencers" className="space-y-6">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Influencers Ativos</CardTitle>
-                    <Users className="h-5 w-5 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{managerStats.totalInfluencers}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Vendas da Rede</CardTitle>
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{managerStats.totalNetworkSales}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Override Acumulado</CardTitle>
-                    <DollarSign className="h-5 w-5 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-primary">{formatPrice(managerStats.totalOverrideEarned)}</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Influencers Table */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Crown className="h-5 w-5" />
-                      Meus Influencers
-                    </CardTitle>
-                    <CardDescription>
-                      Influencers vinculados à sua conta que divulgam por você
-                    </CardDescription>
-                  </div>
-                  <Button onClick={() => setInviteDialogOpen(true)}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Convidar Influencer
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {influencersLoading ? (
-                    <p className="text-center text-muted-foreground py-8">Carregando...</p>
-                  ) : influencers.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>Nenhum influencer vinculado ainda.</p>
-                      <p className="text-sm mt-1">Use o botão acima para convidar influencers pelo código de afiliado.</p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Conversões</TableHead>
-                          <TableHead>Comissões Geradas</TableHead>
-                          <TableHead>Seu Override</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {influencers.map((inf) => (
-                          <TableRow key={inf.id}>
-                            <TableCell className="font-medium">{inf.full_name}</TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-muted px-2 py-1 rounded">{inf.affiliate_code}</code>
-                            </TableCell>
-                            <TableCell>{inf.total_conversions}</TableCell>
-                            <TableCell>{formatPrice(inf.total_commission_earned)}</TableCell>
-                            <TableCell className="font-semibold text-primary">
-                              {inf.override_rate}%
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={inf.status === 'active' ? 'default' : 'secondary'}>
-                                {inf.status === 'active' ? 'Ativo' : 'Inativo'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => {
-                                  setUnlinkTarget({ id: inf.id, name: inf.full_name });
-                                  setUnlinkDialogOpen(true);
-                                }}
-                                title="Desvincular influencer"
-                              >
-                                <Unlink className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              <ManagerInfluencersTab
+                managerAffiliateId={affiliateData.id}
+                onInvite={() => setInviteDialogOpen(true)}
+                onUnlink={(linkId, name) => {
+                  setUnlinkTarget({ id: linkId, name });
+                  setUnlinkDialogOpen(true);
+                }}
+              />
 
               {/* Dialog: Convidar Influencer */}
               <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
@@ -650,6 +551,9 @@ export default function AffiliateDashboard() {
                         placeholder="Ex: ABC123"
                         className="mt-1 font-mono"
                       />
+                    </div>
+                    <div className="text-xs text-muted-foreground p-3 bg-muted rounded">
+                      💡 Dica: você também pode compartilhar o link <code className="bg-background px-1 rounded">/afiliado?ref={affiliateData.affiliate_code}</code> — qualquer afiliado que se cadastrar por ele será vinculado automaticamente a você.
                     </div>
                   </div>
                   <DialogFooter>

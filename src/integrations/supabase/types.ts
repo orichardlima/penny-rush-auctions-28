@@ -253,6 +253,42 @@ export type Database = {
           },
         ]
       }
+      affiliate_manager_audit: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          influencer_affiliate_id: string
+          manager_affiliate_id: string
+          new_value: Json | null
+          notes: string | null
+          old_value: Json | null
+          performed_by: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          influencer_affiliate_id: string
+          manager_affiliate_id: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_by: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          influencer_affiliate_id?: string
+          manager_affiliate_id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          performed_by?: string
+        }
+        Relationships: []
+      }
       affiliate_managers: {
         Row: {
           created_at: string
@@ -441,9 +477,11 @@ export type Database = {
           created_at: string
           id: string
           pix_key: string | null
+          recruited_at: string | null
           recruited_by_affiliate_id: string | null
           repurchase_commission_rate: number | null
           role: string
+          source_manager_affiliate_id: string | null
           status: string
           total_commission_earned: number
           total_commission_paid: number
@@ -465,9 +503,11 @@ export type Database = {
           created_at?: string
           id?: string
           pix_key?: string | null
+          recruited_at?: string | null
           recruited_by_affiliate_id?: string | null
           repurchase_commission_rate?: number | null
           role?: string
+          source_manager_affiliate_id?: string | null
           status?: string
           total_commission_earned?: number
           total_commission_paid?: number
@@ -489,9 +529,11 @@ export type Database = {
           created_at?: string
           id?: string
           pix_key?: string | null
+          recruited_at?: string | null
           recruited_by_affiliate_id?: string | null
           repurchase_commission_rate?: number | null
           role?: string
+          source_manager_affiliate_id?: string | null
           status?: string
           total_commission_earned?: number
           total_commission_paid?: number
@@ -2658,6 +2700,27 @@ export type Database = {
           hour_of_day: number
           revenue: number
           user_count: number
+        }[]
+      }
+      get_manager_influencer_metrics: {
+        Args: { p_manager_affiliate_id: string }
+        Returns: {
+          affiliate_code: string
+          conversion_rate: number
+          email: string
+          full_name: string
+          influencer_affiliate_id: string
+          influencer_user_id: string
+          link_id: string
+          override_rate: number
+          recruited_at: string
+          status: string
+          total_clicks: number
+          total_commission: number
+          total_override: number
+          total_sales: number
+          total_signups: number
+          unique_buyers: number
         }[]
       }
       get_public_profile: {
