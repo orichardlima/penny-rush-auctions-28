@@ -106,7 +106,7 @@ export const createAffiliateAccount = async (
 ): Promise<{ success: boolean; code?: string; role?: string; error?: string }> => {
   try {
     const eligibility = await checkAffiliateEligibility(userId);
-    if (!eligibility.eligible) {
+    if (eligibility.eligible !== true) {
       if (eligibility.reason === 'already_affiliate') {
         return { success: false, error: 'Você já possui uma conta de afiliado.' };
       }
