@@ -123,6 +123,15 @@ export const createAffiliateAccount = async (
     }
     
     console.log('Affiliate account created successfully:', data);
+
+    // 🆕 Recrutamento automático: se o usuário entrou via link ?ref=CODIGO_DE_UM_MANAGER,
+    // vincula automaticamente o novo afiliado como influencer desse manager.
+    try {
+      await tryAutoLinkToManager(data.id);
+    } catch (linkErr) {
+      console.warn('Auto-link to manager failed (non-blocking):', linkErr);
+    }
+
     return {
       success: true,
       code: affiliateCode
@@ -134,4 +143,87 @@ export const createAffiliateAccount = async (
       error: 'Erro inesperado ao criar conta de afiliado.'
     };
   }
+};
+
+/**
+ * Lê o código de referral salvo (de URL/cookie/localStorage) e, se for um manager ativo,
+ * cria automaticamente um vínculo em affiliate_managers + atualiza source_manager_affiliate_id.
+ * Não interfere no fluxo se não houver código ou se o código for de um afiliado comum.
+ */
+const tryAutoLinkToManager = async (newAffiliateId: string): Promise<void> => {
+  // Importação local para evitar ciclo
+  const { getReferralCode } = await import('@/hooks/useReferralTracking');
+  const refCode = getReferralCode();
+  if (!refCode) return;
+
+  // Buscar afiliado dono do código
+  const { data: refAffiliate } = await supabase
+    .from('affiliates')
+    .select('id, role, status')
+    .eq('affiliate_code', refCode)
+    .maybeSingle();
+
+  if (!refAffiliate) return;
+  if (refAffiliate.id === newAffiliateId) return; // não vincular a si mesmo
+  if (refAffiliate.role !== 'manager') return; // só auto-vincula se for manager
+  if (refAffiliate.status !== 'active') return;
+
+  // Buscar taxa de override padrão
+  let overrideRate = 2;
+  try {
+    const { data: setting } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'affiliate_default_override_rate')
+      .maybeSingle();
+    if (setting?.setting_value) {
+      const parsed = parseFloat(setting.setting_value);
+      if (!isNaN(parsed) && parsed > 0) overrideRate = parsed;
+    }
+  } catch (e) {
+    console.warn('Could not fetch override rate, using default 2%');
+  }
+
+  // Criar vínculo (idempotente: se já existe, ignora)
+  const { error: linkErr } = await (supabase
+    .from('affiliate_managers' as any)
+    .insert({
+      manager_affiliate_id: refAffiliate.id,
+      influencer_affiliate_id: newAffiliateId,
+      override_rate: overrideRate,
+      status: 'active',
+    }) as any);
+
+  if (linkErr && linkErr.code !== '23505') {
+    console.error('Auto-link insert error:', linkErr);
+    return;
+  }
+
+  // Marcar source no afiliado
+  await supabase
+    .from('affiliates')
+    .update({
+      source_manager_affiliate_id: refAffiliate.id,
+      recruited_at: new Date().toISOString(),
+    } as any)
+    .eq('id', newAffiliateId);
+
+  // Audit log
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await (supabase.from('affiliate_manager_audit' as any).insert({
+        manager_affiliate_id: refAffiliate.id,
+        influencer_affiliate_id: newAffiliateId,
+        action_type: 'linked',
+        performed_by: user.id,
+        new_value: { status: 'active', override_rate: overrideRate, source: 'auto_link_via_ref' },
+        notes: `Recrutamento automático via link ?ref=${refCode}`,
+      }) as any);
+    }
+  } catch (auditErr) {
+    console.warn('Audit log failed (non-blocking):', auditErr);
+  }
+
+  console.log('✅ Auto-linked new affiliate to manager:', refAffiliate.id);
 };
