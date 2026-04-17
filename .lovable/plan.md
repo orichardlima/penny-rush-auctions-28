@@ -1,40 +1,20 @@
 
-A página inicial não carrega leilões e o console mostra um padrão muito claro:
+Ótimo, isso confirma 100% o diagnóstico: o problema era de **rede local / ISP bloqueando ou degradando a conexão WebSocket (`wss://`) com o Supabase**. Ao usar VPN, a rota mudou e o serviço voltou ao normal.
 
-```
-🔌 [REALTIME-CONTEXT] Status: CHANNEL_ERROR (constante)
-⚠️ [REALTIME] Conexão perdida, ativando polling de emergência
-🆘 [REALTIME-CONTEXT] Polling de emergência (a cada 5s)
-⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout
-```
+Não há nada para corrigir no código — a infraestrutura e o banco estão saudáveis. Apenas registro o aprendizado e ofereço opções caso queira mitigar isso para outros usuários no futuro.
 
-Combinado com o erro anterior de login (`AuthRetryableFetchError status 503`), o diagnóstico é o mesmo: o **backend Supabase está com instabilidade transitória** (Realtime caindo + REST com timeout). Isso afeta:
-1. Login admin (503 no `/auth/v1/token`)
-2. Carregamento de leilões (`fetchAuctions` abortado por timeout)
-3. Realtime (CHANNEL_ERROR contínuo)
+## Diagnóstico final
+- ✅ Backend Supabase saudável.
+- ✅ Sem ataque, sem alteração indevida no banco.
+- ❌ ISP local estava bloqueando/instabilizando a conexão com `*.supabase.co` (comum com algumas operadoras brasileiras que filtram WebSocket ou fazem throttling em CDNs).
+- ✅ VPN contornou o problema mudando a rota de saída.
 
-Não é bug do código — é indisponibilidade do serviço Supabase. Confirmei nos logs que outros logins recentes funcionaram, então a infra do projeto não foi corrompida.
+## Recomendações (sem alterações de código)
+1. Se acontecer de novo sem VPN: trocar de rede (4G do celular) para confirmar se é a operadora.
+2. Reportar à operadora se persistir.
+3. Avisar usuários finais que enfrentarem o mesmo sintoma a tentarem outra rede.
 
-## Plano
+## Nenhuma ação de código necessária
+Como a regra do projeto é não alterar UI/funcionalidade fora do escopo do problema, e o problema é externo (rede do usuário), **não há arquivos a modificar**.
 
-### 1. Investigação rápida (read-only)
-- Conferir status atual do Supabase (postgres + auth + realtime) via logs analíticos das últimas 30 min para confirmar instabilidade.
-- Verificar se há algum leilão `active`/`waiting` no banco — se a tabela estiver vazia, "Nenhum leilão disponível" é o comportamento correto e não há nada a corrigir.
-- Conferir últimos `bot_webhook_logs` e `function_edge_logs` para ver se algum cron quebrou e finalizou todos os leilões.
-
-### 2. Diagnóstico esperado
-- **Cenário A (mais provável):** instabilidade transitória do Supabase → soluções: aguardar, recarregar, limpar localStorage. Nenhuma alteração de código.
-- **Cenário B:** todos os leilões finalizaram e nenhum novo foi criado → verificar `auto-replenish-auctions` cron e propor reativação manual de leilões pelo admin.
-- **Cenário C:** falha real no `fetchAuctions` (query travando) — improvável dado o padrão de timeout, mas confirmaremos no banco.
-
-### 3. Apresentar relatório ao usuário
-- Mostrar o que foi encontrado (status da infra + estado dos leilões).
-- Recomendar ação imediata (aguardar / recarregar / acionar admin para repor leilões).
-- **Nenhuma alteração de UI, fluxo ou funcionalidade existente** será feita (respeitando a regra do projeto).
-
-### 4. Apenas se cenário B/C for confirmado
-- Investigar logs do cron `auto-replenish-auctions` e propor correção pontual (sem alterar UI).
-
-### Arquivos / ações
-- Apenas consultas SQL e leitura de logs.
-- Nenhuma alteração de código nesta etapa.
+Se quiser, em uma próxima tarefa, posso propor uma melhoria opcional no `RealtimeStatus` / toast para exibir uma mensagem mais clara quando detectar `CHANNEL_ERROR` persistente (algo como "Sua rede pode estar bloqueando WebSocket — tente outra conexão"). Mas isso só se você pedir explicitamente.
