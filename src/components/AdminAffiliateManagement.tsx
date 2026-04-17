@@ -29,6 +29,7 @@ import { useAdminAffiliateManagers } from "@/hooks/useAffiliateManager";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { AffiliateMaterialsManager } from "./Admin/AffiliateMaterialsManager";
 
 export function AdminAffiliateManagement() {
   const {
@@ -893,6 +894,10 @@ export function AdminAffiliateManagement() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="materials" className="space-y-4">
+          <AffiliateMaterialsManager />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
