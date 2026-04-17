@@ -2616,6 +2616,15 @@ export type Database = {
           target_type: string
         }[]
       }
+      get_affiliate_eligibility: {
+        Args: { _user_id: string }
+        Returns: {
+          eligible: boolean
+          manager_affiliate_id: string
+          reason: string
+          role: string
+        }[]
+      }
       get_affiliate_purchase_details: {
         Args: { _affiliate_id: string; _page?: number; _page_size?: number }
         Returns: {
@@ -2906,6 +2915,10 @@ export type Database = {
             Returns: number
           }
       release_pending_referral_bonuses: { Args: never; Returns: number }
+      resolve_manager_by_ref_code: {
+        Args: { _ref_code: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
