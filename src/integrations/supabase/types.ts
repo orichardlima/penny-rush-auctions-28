@@ -366,6 +366,51 @@ export type Database = {
           },
         ]
       }
+      affiliate_materials: {
+        Row: {
+          copy_text: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          material_type: string
+          sort_order: number
+          target_audience: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          copy_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          material_type?: string
+          sort_order?: number
+          target_audience?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          copy_text?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          material_type?: string
+          sort_order?: number
+          target_audience?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       affiliate_referrals: {
         Row: {
           affiliate_id: string
