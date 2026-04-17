@@ -73,10 +73,10 @@ export const InfluencerRanking = ({ metrics }: Props) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <PodiumList title="Top por Vendas" icon={<Trophy className="h-4 w-4 text-yellow-500" />} items={topBySales} />
+      <PodiumList title="Top por Vendas" icon={<Trophy className="h-4 w-4 text-primary" />} items={topBySales} />
       <PodiumList
         title="Top por Conversão"
-        icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+        icon={<TrendingUp className="h-4 w-4 text-primary" />}
         items={topByConversion}
       />
     </div>

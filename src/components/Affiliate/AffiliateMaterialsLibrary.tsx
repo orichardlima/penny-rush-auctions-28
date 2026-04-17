@@ -28,7 +28,9 @@ export const AffiliateMaterialsLibrary = ({ affiliateCode }: { affiliateCode?: s
   const { materials, loading } = useAffiliateMaterials(true);
 
   const copyText = (text: string) => {
-    const final = affiliateCode ? text.replaceAll('{LINK}', `${window.location.origin}/?ref=${affiliateCode}`) : text;
+    const final = affiliateCode
+      ? text.split('{LINK}').join(`${window.location.origin}/?ref=${affiliateCode}`)
+      : text;
     navigator.clipboard.writeText(final);
     toast({ title: 'Copiado!', description: 'Texto pronto para colar.' });
   };
