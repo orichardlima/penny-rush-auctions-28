@@ -11,6 +11,7 @@ import { InfluencerKPICards } from './InfluencerKPICards';
 import { InfluencerDetailModal } from './InfluencerDetailModal';
 import { InfluencerRanking } from './InfluencerRanking';
 import { ManagerRecruitmentLinkCard } from './ManagerRecruitmentLinkCard';
+import { ManagerAuditHistory } from './ManagerAuditHistory';
 import { useManagerInfluencerMetrics, type InfluencerMetric } from '@/hooks/useManagerInfluencerMetrics';
 
 interface Props {
@@ -185,6 +186,8 @@ export const ManagerInfluencersTab = ({ managerAffiliateId, managerAffiliateCode
           )}
         </CardContent>
       </Card>
+
+      <ManagerAuditHistory managerAffiliateId={managerAffiliateId} />
 
       <InfluencerDetailModal influencer={detailInfluencer} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
