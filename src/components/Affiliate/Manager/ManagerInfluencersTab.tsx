@@ -100,7 +100,18 @@ export const ManagerInfluencersTab = ({ managerAffiliateId, managerAffiliateCode
                     <TableRow key={inf.link_id}>
                       <TableCell>
                         <div className="font-medium">{inf.full_name}</div>
-                        <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{inf.affiliate_code}</code>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{inf.affiliate_code}</code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => copyInfluencerLink(inf.affiliate_code)}
+                            title="Copiar link de afiliado"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>{statusBadge(inf.status)}</TableCell>
                       <TableCell className="text-right">{inf.total_clicks.toLocaleString('pt-BR')}</TableCell>
