@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type AffiliateEligibility =
   | { eligible: true; role: 'manager'; managerAffiliateId: null }
   | { eligible: true; role: 'influencer'; managerAffiliateId: string; managerCode: string }
-  | { eligible: false; reason: 'already_affiliate' | 'not_eligible'; };
+  | { eligible: false; reason: 'already_affiliate' | 'not_eligible' };
 
 /**
  * Verifica elegibilidade do usuário para entrar no programa de afiliados.
