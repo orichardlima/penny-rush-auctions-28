@@ -277,7 +277,7 @@ export default function AffiliateDashboard() {
 
         {/* Tabs Principal */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className={`grid w-full ${isManager ? 'grid-cols-6' : 'grid-cols-5'} lg:w-auto lg:inline-grid`}>
+          <TabsList className={`grid w-full ${isManager ? 'grid-cols-7' : 'grid-cols-6'} lg:w-auto lg:inline-grid`}>
             <TabsTrigger value="overview" className="gap-2">
               <DollarSign className="h-4 w-4" />
               Visão Geral
@@ -299,6 +299,10 @@ export default function AffiliateDashboard() {
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="materials" className="gap-2">
+              <ImageIcon className="h-4 w-4" />
+              Materiais
             </TabsTrigger>
             <TabsTrigger value="tools" className="gap-2">
               <Share2 className="h-4 w-4" />
