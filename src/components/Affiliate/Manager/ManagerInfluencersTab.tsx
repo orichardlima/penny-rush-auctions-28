@@ -4,14 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Crown, Users, UserPlus, Eye, Pause, Play, Ban, Unlink, MoreHorizontal } from 'lucide-react';
+import { Crown, Users, UserPlus, Eye, Pause, Play, Ban, Unlink, MoreHorizontal, Copy } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 import { InfluencerKPICards } from './InfluencerKPICards';
 import { InfluencerDetailModal } from './InfluencerDetailModal';
+import { InfluencerRanking } from './InfluencerRanking';
+import { ManagerRecruitmentLinkCard } from './ManagerRecruitmentLinkCard';
 import { useManagerInfluencerMetrics, type InfluencerMetric } from '@/hooks/useManagerInfluencerMetrics';
 
 interface Props {
   managerAffiliateId: string;
+  managerAffiliateCode?: string;
   onInvite: () => void;
   onUnlink: (linkId: string, name: string) => void;
 }
@@ -27,7 +31,7 @@ const statusBadge = (status: InfluencerMetric['status']) => {
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 };
 
-export const ManagerInfluencersTab = ({ managerAffiliateId, onInvite, onUnlink }: Props) => {
+export const ManagerInfluencersTab = ({ managerAffiliateId, managerAffiliateCode, onInvite, onUnlink }: Props) => {
   const { metrics, stats, loading, updateInfluencerStatus } = useManagerInfluencerMetrics(managerAffiliateId);
   const [detailInfluencer, setDetailInfluencer] = useState<InfluencerMetric | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -37,9 +41,17 @@ export const ManagerInfluencersTab = ({ managerAffiliateId, onInvite, onUnlink }
     setDetailOpen(true);
   };
 
+  const copyInfluencerLink = (code: string) => {
+    const url = `${window.location.origin}/?ref=${code}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: 'Link copiado', description: url });
+  };
+
   return (
     <div className="space-y-6">
+      {managerAffiliateCode && <ManagerRecruitmentLinkCard affiliateCode={managerAffiliateCode} />}
       <InfluencerKPICards stats={stats} />
+      <InfluencerRanking metrics={metrics} />
 
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
