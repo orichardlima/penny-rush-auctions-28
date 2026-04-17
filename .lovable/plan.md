@@ -1,27 +1,16 @@
 
-## Plano: Investigar e corrigir comissões pendentes da Juciene
+Plano: cancelar as 2 compras expiradas e suas comissões pendentes da Juciene.
 
-### Diagnóstico
-- 2 compras PIX de R$ 15 cada (16/04 13:10) ainda em `payment_status = 'pending'`
-- 2 comissões de R$ 7,50 (50%) criadas para o afiliado warlley silva, mas em status `pending` (não aprovadas)
-- Segunda compra incorretamente marcada como "1ª Compra" em vez de "Recompra"
-- Vínculo afiliado-indicado existe via `direct_signup` (não via link `?ref=`)
+## Ação
+Executar uma migration SQL pontual que:
 
-### Etapas
+1. Atualiza as 2 compras (`bid_purchases` IDs `3e987807...` e `27c2fae8...`) de `payment_status='pending'` para `payment_status='expired'`.
+2. Atualiza as 2 comissões correspondentes do afiliado warlley silva em `affiliate_commissions` de `status='pending'` para `status='cancelled'`.
 
-**1. Verificar logs do gateway de pagamento (PIX)**
-- Consultar `analytics_query` em `function_edge_logs` para `asaas-webhook`, `mercado-pago-webhook`, `magen-webhook`, `veopag-webhook` filtrando pelos `purchase_id` ou `external_reference` das duas compras.
-- Determinar se o pagamento foi confirmado pelo provedor mas o webhook falhou, ou se o cliente realmente nunca pagou.
+## Resultado esperado
+- Histórico do afiliado limpo, sem comissões "fantasma" em pendente.
+- Compras expiradas marcadas corretamente, sem creditar lances.
+- Nenhuma alteração de saldo necessária (comissões nunca foram aprovadas, então não impactaram `commission_balance`).
 
-**2. Apresentar opções ao usuário (admin)**
-Após investigação dos logs, oferecer 3 cenários:
-- **A)** Pagamento confirmado no gateway → executar correção via SQL atualizando `bid_purchases.payment_status = 'paid'` e `affiliate_commissions.status = 'approved'`, creditando lances + comissão.
-- **B)** Cliente não pagou → cancelar a compra e a comissão (status `cancelled`).
-- **C)** Apenas aguardar — manter como está.
-
-**3. Corrigir flag `is_repurchase` (opcional)**
-Se o cenário A for confirmado, marcar a segunda comissão (ID `6b5dcfbd`) como `is_repurchase = true` para refletir a realidade no histórico do afiliado.
-
-### Arquivos / ações esperados
-- Nenhum arquivo de código alterado nesta etapa (apenas investigação de logs)
-- Possível migration SQL pontual para corrigir status, dependendo da resposta do usuário
+## Arquivos
+- 1 migration SQL (apenas UPDATE de dados, sem mudanças de schema nem código).
