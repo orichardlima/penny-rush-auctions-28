@@ -307,11 +307,12 @@ export function AdminAffiliateManagement() {
       <AffiliateTopRanking topAffiliates={topAffiliates} />
 
       <Tabs defaultValue="affiliates" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
           <TabsTrigger value="managers">Gerentes</TabsTrigger>
           <TabsTrigger value="commissions">Comissões</TabsTrigger>
           <TabsTrigger value="withdrawals">Saques</TabsTrigger>
+          <TabsTrigger value="materials">Materiais</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
