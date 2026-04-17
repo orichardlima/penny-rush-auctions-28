@@ -256,8 +256,8 @@ const UserDashboard = () => {
           </Card>
         </div>
 
-        {/* CTA Afiliados - Só mostra se NÃO for afiliado e dados já carregaram */}
-        {!loading && isAffiliate === false && (
+        {/* CTA Afiliados - Só aparece para Parceiros (que viram Manager) */}
+        {!loading && isAffiliate === false && hasPartnerContract && (
           <Card className="bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 border-primary/20">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -266,15 +266,15 @@ const UserDashboard = () => {
                     <Users className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">💰 Ganhe Comissões Compartilhando!</h3>
+                    <h3 className="text-lg font-bold text-foreground">💰 Ative sua conta de Gerente de Afiliados!</h3>
                     <p className="text-sm text-muted-foreground">
-                      Torne-se um afiliado e ganhe 10% de comissão na primeira compra dos seus indicados
+                      Como Parceiro de Expansão, você pode recrutar Influencers e ganhar comissões + override.
                     </p>
                   </div>
                 </div>
                 <Link to="/afiliado">
                   <Button size="lg" className="whitespace-nowrap">
-                    Seja um Afiliado
+                    Ativar Conta de Manager
                     <TrendingUp className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
