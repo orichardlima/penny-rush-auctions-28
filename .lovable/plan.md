@@ -1,43 +1,40 @@
 
-O usuário relata não conseguir logar como admin e suspeita de alteração no banco ou ataque. Os logs do console mostram claramente o problema:
+A página inicial não carrega leilões e o console mostra um padrão muito claro:
 
 ```
-AuthRetryableFetchError ... status: 503
+🔌 [REALTIME-CONTEXT] Status: CHANNEL_ERROR (constante)
+⚠️ [REALTIME] Conexão perdida, ativando polling de emergência
+🆘 [REALTIME-CONTEXT] Polling de emergência (a cada 5s)
+⏰ [REALTIME-CONTEXT] fetchAuctions abortado por timeout
 ```
 
-O **status 503** indica que o serviço de autenticação do Supabase (GoTrue) está temporariamente indisponível — não é ataque nem alteração no banco. Confirmei com os logs de auth que **outro login do mesmo usuário (`sociedade@gmail.com` — warlley silva) ocorreu com sucesso às 16:04:18Z** (`status: 200`), o que descarta corrupção do profile/conta.
+Combinado com o erro anterior de login (`AuthRetryableFetchError status 503`), o diagnóstico é o mesmo: o **backend Supabase está com instabilidade transitória** (Realtime caindo + REST com timeout). Isso afeta:
+1. Login admin (503 no `/auth/v1/token`)
+2. Carregamento de leilões (`fetchAuctions` abortado por timeout)
+3. Realtime (CHANNEL_ERROR contínuo)
 
-Vou investigar:
-1. Tabela `admin_audit_log` para mudanças recentes em usuários/admins.
-2. Histórico de logins do admin afetado nos últimos dias.
-3. Migrações recentes que alteraram `profiles`, `auth` ou políticas RLS.
-4. Conferir se há sinais de comprometimento (criação de admins novos, alterações em massa).
+Não é bug do código — é indisponibilidade do serviço Supabase. Confirmei nos logs que outros logins recentes funcionaram, então a infra do projeto não foi corrompida.
 
-## Plano de investigação
+## Plano
 
-### 1. Auditoria do banco (read-only)
-- Consultar `admin_audit_log` (últimas 48h) — qualquer ação suspeita de criação de admin, alteração de senha, exclusão de usuário.
-- Verificar `profiles` com `is_admin = true` — listar todos os admins atuais e comparar com a expectativa do usuário.
-- Conferir últimas atualizações em `profiles` (`updated_at` recente) com flags sensíveis (`is_admin`, `is_blocked`).
-- Listar migrações SQL aplicadas nas últimas 72h (pasta `supabase/migrations/`) — identificar se alguma alterou autenticação/RLS.
+### 1. Investigação rápida (read-only)
+- Conferir status atual do Supabase (postgres + auth + realtime) via logs analíticos das últimas 30 min para confirmar instabilidade.
+- Verificar se há algum leilão `active`/`waiting` no banco — se a tabela estiver vazia, "Nenhum leilão disponível" é o comportamento correto e não há nada a corrigir.
+- Conferir últimos `bot_webhook_logs` e `function_edge_logs` para ver se algum cron quebrou e finalizou todos os leilões.
 
-### 2. Logs de autenticação
-- Já confirmado: login bem-sucedido às 16:04:18Z para `sociedade@gmail.com`.
-- Vou checar tentativas falhadas (`/token` com status 4xx/5xx) nas últimas 2h para identificar padrão de ataque (brute-force).
+### 2. Diagnóstico esperado
+- **Cenário A (mais provável):** instabilidade transitória do Supabase → soluções: aguardar, recarregar, limpar localStorage. Nenhuma alteração de código.
+- **Cenário B:** todos os leilões finalizaram e nenhum novo foi criado → verificar `auto-replenish-auctions` cron e propor reativação manual de leilões pelo admin.
+- **Cenário C:** falha real no `fetchAuctions` (query travando) — improvável dado o padrão de timeout, mas confirmaremos no banco.
 
-### 3. Diagnóstico do erro 503 atual
-- O erro `AuthRetryableFetchError status 503` no console indica indisponibilidade temporária do endpoint Supabase Auth (`/auth/v1/user` e `/auth/v1/token`).
-- Causa típica: instabilidade momentânea do GoTrue / rate limit / cold start. **Não é ataque.**
-- Confirmar consultando os logs da plataforma de auth e o status atual.
+### 3. Apresentar relatório ao usuário
+- Mostrar o que foi encontrado (status da infra + estado dos leilões).
+- Recomendar ação imediata (aguardar / recarregar / acionar admin para repor leilões).
+- **Nenhuma alteração de UI, fluxo ou funcionalidade existente** será feita (respeitando a regra do projeto).
 
-### 4. Apresentar diagnóstico final
-Após coletar evidências, retornar um relatório com:
-- ✅ / ❌ Sinais de ataque
-- ✅ / ❌ Alterações suspeitas no banco
-- Causa real do problema de login (provavelmente 503 transitório)
-- Recomendações: tentar novamente, conferir Status do Supabase, e — se persistir — possível troca de senha e revisão de admins.
+### 4. Apenas se cenário B/C for confirmado
+- Investigar logs do cron `auto-replenish-auctions` e propor correção pontual (sem alterar UI).
 
 ### Arquivos / ações
-- Apenas consultas SQL read-only e leitura de logs.
-- **Nenhuma alteração de código ou banco será feita nesta etapa.**
-- Caso identifique comprometimento real, apresentarei novo plano com correções (revogação de admins indevidos, força de logout global, rotação de chaves).
+- Apenas consultas SQL e leitura de logs.
+- Nenhuma alteração de código nesta etapa.
