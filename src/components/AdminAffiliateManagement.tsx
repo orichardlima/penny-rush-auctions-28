@@ -29,6 +29,7 @@ import { useAdminAffiliateManagers } from "@/hooks/useAffiliateManager";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { AffiliateMaterialsManager } from "./Admin/AffiliateMaterialsManager";
 
 export function AdminAffiliateManagement() {
   const {
@@ -307,11 +308,12 @@ export function AdminAffiliateManagement() {
       <AffiliateTopRanking topAffiliates={topAffiliates} />
 
       <Tabs defaultValue="affiliates" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
           <TabsTrigger value="managers">Gerentes</TabsTrigger>
           <TabsTrigger value="commissions">Comissões</TabsTrigger>
           <TabsTrigger value="withdrawals">Saques</TabsTrigger>
+          <TabsTrigger value="materials">Materiais</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
@@ -892,6 +894,10 @@ export function AdminAffiliateManagement() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="materials" className="space-y-4">
+          <AffiliateMaterialsManager />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
