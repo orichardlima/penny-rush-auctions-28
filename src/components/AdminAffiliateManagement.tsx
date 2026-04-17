@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { AffiliateMaterialsManager } from "./Admin/AffiliateMaterialsManager";
+import { AdminAffiliateAuditLog } from "./Admin/AdminAffiliateAuditLog";
 
 export function AdminAffiliateManagement() {
   const {
@@ -308,12 +309,13 @@ export function AdminAffiliateManagement() {
       <AffiliateTopRanking topAffiliates={topAffiliates} />
 
       <Tabs defaultValue="affiliates" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
           <TabsTrigger value="managers">Gerentes</TabsTrigger>
           <TabsTrigger value="commissions">Comissões</TabsTrigger>
           <TabsTrigger value="withdrawals">Saques</TabsTrigger>
           <TabsTrigger value="materials">Materiais</TabsTrigger>
+          <TabsTrigger value="audit">Auditoria</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
@@ -898,6 +900,10 @@ export function AdminAffiliateManagement() {
 
         <TabsContent value="materials" className="space-y-4">
           <AffiliateMaterialsManager />
+        </TabsContent>
+
+        <TabsContent value="audit" className="space-y-4">
+          <AdminAffiliateAuditLog />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
