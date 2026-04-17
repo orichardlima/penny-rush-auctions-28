@@ -187,6 +187,8 @@ export const ManagerInfluencersTab = ({ managerAffiliateId, managerAffiliateCode
         </CardContent>
       </Card>
 
+      <ManagerAuditHistory managerAffiliateId={managerAffiliateId} />
+
       <InfluencerDetailModal influencer={detailInfluencer} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   );
