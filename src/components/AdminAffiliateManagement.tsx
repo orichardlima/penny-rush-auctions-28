@@ -913,22 +913,96 @@ export function AdminAffiliateManagement() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Geral</h3>
+                <h3 className="font-semibold text-lg">Comissões por Tipo de Afiliado</h3>
+                <p className="text-sm text-muted-foreground">
+                  Os afiliados são divididos em dois papéis: <strong>Manager</strong> (Parceiro de Expansão) e
+                  <strong> Influencer</strong> (convidado por um Manager). Configure aqui as taxas aplicadas a cada tipo.
+                </p>
                 <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">
                     <div>
-                      <Label>Taxa de Comissão Padrão (%)</Label>
+                      <Label>Manager — Primeira Compra (%)</Label>
+                      <Input
+                        type="number"
+                        className="mt-1"
+                        value={getSettingValue("affiliate_manager_commission_rate", "50")}
+                        onChange={(e) => updateSetting("affiliate_manager_commission_rate", e.target.value)}
+                        step="0.5"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div>
+                      <Label>Manager — Recompras (%)</Label>
+                      <Input
+                        type="number"
+                        className="mt-1"
+                        value={getSettingValue("affiliate_manager_repurchase_rate", "10")}
+                        onChange={(e) => updateSetting("affiliate_manager_repurchase_rate", e.target.value)}
+                        step="0.5"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">
+                    <div>
+                      <Label>Influencer — Primeira Compra (%)</Label>
+                      <Input
+                        type="number"
+                        className="mt-1"
+                        value={getSettingValue("affiliate_influencer_commission_rate", "10")}
+                        onChange={(e) => updateSetting("affiliate_influencer_commission_rate", e.target.value)}
+                        step="0.5"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div>
+                      <Label>Influencer — Recompras (%)</Label>
+                      <Input
+                        type="number"
+                        className="mt-1"
+                        value={getSettingValue("affiliate_influencer_repurchase_rate", "5")}
+                        onChange={(e) => updateSetting("affiliate_influencer_repurchase_rate", e.target.value)}
+                        step="0.5"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label>Override do Manager sobre Influencers (%)</Label>
                       <p className="text-sm text-muted-foreground">
-                        Taxa aplicada a novos afiliados
+                        Percentual extra que o Manager recebe sobre cada comissão dos seus Influencers.
                       </p>
                     </div>
                     <Input
                       type="number"
                       className="w-24"
+                      value={getSettingValue("affiliate_default_override_rate", "2")}
+                      onChange={(e) => updateSetting("affiliate_default_override_rate", e.target.value)}
+                      step="0.5"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Geral</h3>
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between" style={{ display: 'none' }}>
+                    <div>
+                      <Label>Taxa de Comissão Padrão (legado) (%)</Label>
+                    </div>
+                    <Input
+                      type="number"
+                      className="w-24"
                       value={getSettingValue("affiliate_default_commission_rate", "10")}
-                      onChange={(e) =>
-                        updateSetting("affiliate_default_commission_rate", e.target.value)
-                      }
+                      onChange={(e) => updateSetting("affiliate_default_commission_rate", e.target.value)}
                     />
                   </div>
                   <div className="flex items-center justify-between">
