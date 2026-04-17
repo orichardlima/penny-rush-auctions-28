@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown, UserPlus, Unlink, Wallet } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, BarChart3, Crown, UserPlus, Unlink, Wallet, Image as ImageIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatPrice } from '@/lib/utils';
@@ -30,6 +30,7 @@ import { useAffiliateManager } from '@/hooks/useAffiliateManager';
 import { AffiliateOnboarding } from '@/components/Affiliate/AffiliateOnboarding';
 import { AffiliateWithdrawalSection } from '@/components/Affiliate/AffiliateWithdrawalSection';
 import { ManagerInfluencersTab } from '@/components/Affiliate/Manager/ManagerInfluencersTab';
+import { AffiliateMaterialsLibrary } from '@/components/Affiliate/AffiliateMaterialsLibrary';
 
 interface AffiliateData {
   id: string;
@@ -526,6 +527,7 @@ export default function AffiliateDashboard() {
             <TabsContent value="influencers" className="space-y-6">
               <ManagerInfluencersTab
                 managerAffiliateId={affiliateData.id}
+                managerAffiliateCode={affiliateData.affiliate_code}
                 onInvite={() => setInviteDialogOpen(true)}
                 onUnlink={(linkId, name) => {
                   setUnlinkTarget({ id: linkId, name });
