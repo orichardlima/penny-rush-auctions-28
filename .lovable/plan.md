@@ -1,44 +1,38 @@
 
-Objetivo: corrigir a seção “Últimos lances” para mostrar os nomes reais dos últimos 3 lances, na ordem correta, sem trocar por “Usuário” e sem mexer em outras partes da UI/fluxo.
+O usuário quer apenas que a seção "Últimos lances" volte a mostrar os nomes reais dos 3 últimos lances (ex: Richard, Richard, Sueli) — como sempre funcionou. Hoje aparece "Richard" 3x ou "Usuário".
 
-Diagnóstico confirmado:
-- O problema atual não é só visual.
-- No leilão `93d9f950-c0b2-4422-927c-698b2caa96c0` (PlayStation 5 SLIM), os 3 últimos lances reais no banco são:
-  1. Richard Lima
-  2. Richard Lima
-  3. Sueli Cerqueira
-- Mas `auctions.last_bidders` ficou salvo como `["Richard Lima","Richard Lima","Richard Lima"]`.
-- Além disso, a correção anterior piorou a UI porque o frontend passou a buscar `bids` + `profiles` no cliente; por causa do RLS de `profiles`, ele não consegue resolver nomes de outros usuários/bots e cai no fallback `"Usuário"`.
+Já temos a função `rebuild_auction_last_bidders` criada no banco. Falta:
+1. Rodar o backfill em todos os leilões finalizados (corrige os dados históricos do PS5 e outros).
+2. Remover a lógica do frontend que reordena/injeta o vencedor e cai em "Usuário".
+3. Remover o "prepend" do vencedor em `last_bidders` na finalização (edge functions + hook).
+4. Garantir que novos lances atualizem `last_bidders` corretamente (verificar se já existe trigger; senão, criar um simples que chama `rebuild_auction_last_bidders` após cada bid).
 
-O que vou corrigir:
-1. Remover a lógica que “inventa”/reordena os últimos lances no frontend
-- Em `src/contexts/AuctionRealtimeContext.tsx`:
-  - remover o fallback cliente que consulta `bids` + `profiles`;
-  - remover a lógica que prioriza/injeta o vencedor na lista de `recentBidders`;
-  - usar os 3 nomes exatamente como vierem de `auctions.last_bidders`.
+## Plano
 
-2. Corrigir a origem do dado no momento da finalização
-- Em `supabase/functions/sync-timers-and-protection/index.ts`
-- Em `supabase/functions/auction-protection/index.ts`
-- Em `src/hooks/useFinishAuction.ts`
-- Ajustar para não fazer mais “prepend” do vencedor/bot em `last_bidders` ao finalizar.
-- `last_bidders` deve refletir os últimos 3 lances reais do histórico do leilão, não o vencedor duplicado artificialmente.
+**1. Backfill imediato (corrige o PS5 agora)**
+Rodar no banco:
+```sql
+DO $$ DECLARE r record; BEGIN 
+  FOR r IN SELECT id FROM auctions WHERE status='finished' LOOP
+    PERFORM public.rebuild_auction_last_bidders(r.id);
+  END LOOP;
+END $$;
+```
 
-3. Backfill dos dados já corrompidos
-- Criar migration para reconstruir `auctions.last_bidders` a partir da tabela `bids` + `profiles`, respeitando ordem por `created_at desc` e limite 3.
-- Isso corrige o leilão do print e outros finalizados afetados.
+**2. Trigger automático em `bids`**
+Criar trigger `AFTER INSERT ON bids` que chama `rebuild_auction_last_bidders(NEW.auction_id)`. Assim `last_bidders` sempre reflete os 3 últimos lances reais — sem depender de prepend manual.
 
-Resultado esperado
-- A área “Últimos lances” passará a mostrar exatamente quem deu os últimos 3 lances.
-- Se a mesma pessoa der 2 lances seguidos, o nome aparecerá repetido 2 vezes, porque são 2 lances diferentes.
-- Não aparecerá mais “Usuário” nessa seção.
+**3. Frontend (`AuctionRealtimeContext.tsx`)**
+Remover:
+- fallback que consulta `bids`+`profiles` no cliente (causa "Usuário" por RLS);
+- lógica que injeta/prioriza o vencedor em `recentBidders`.
+Consumir apenas `auctions.last_bidders` direto.
 
-Exemplo esperado para o leilão do print
-- Richard Lima
-- Richard Lima
-- Sueli Cerqueira
+**4. Edge functions e hook**
+Em `auction-protection/index.ts`, `sync-timers-and-protection/index.ts` e `useFinishAuction.ts`: remover o trecho que faz `[botDisplay, ...currentBidders]`. O trigger do passo 2 já cuida disso porque o bid final do bot é inserido em `bids`.
 
-Detalhes técnicos
-- O frontend público deve consumir apenas `auctions.last_bidders`, que já é um campo seguro para exibição.
-- A reconstrução dos nomes precisa acontecer no servidor/banco, não no cliente, para não esbarrar no RLS da tabela `profiles`.
-- Não vou alterar layout, card, fluxo de lance, timer, vencedor, nem outras áreas não relacionadas.
+## Resultado
+- PS5 passa a mostrar: Richard Lima, Richard Lima, Sueli Cerqueira.
+- Novos leilões mantêm a lista correta automaticamente.
+- Some o "Usuário".
+- Nada de UI/fluxo/timer/vencedor é alterado.
