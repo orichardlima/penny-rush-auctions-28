@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Activity, Eye } from 'lucide-react';
 import { AuctionDetailView } from '@/components/AuctionDetailView';
 import { Auction } from './types';
+import { PredefinedWinnerCard } from './PredefinedWinnerCard';
 
 interface AuctionDetailsTabProps {
   auctions: Auction[];
