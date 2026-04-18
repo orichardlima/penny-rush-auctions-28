@@ -5,6 +5,7 @@ import { Activity, Eye } from 'lucide-react';
 import { AuctionDetailView } from '@/components/AuctionDetailView';
 import { Auction } from './types';
 import { PredefinedWinnerCard } from './PredefinedWinnerCard';
+import { OpenWinModeCard } from './OpenWinModeCard';
 
 interface AuctionDetailsTabProps {
   auctions: Auction[];
@@ -87,6 +88,10 @@ const AuctionDetailsTab: React.FC<AuctionDetailsTabProps> = ({ auctions, auction
         <div className="lg:col-span-3 space-y-6">
           {selectedAuctionForDetails && auctions.find((a) => a.id === selectedAuctionForDetails) ? (
             <>
+              <OpenWinModeCard
+                auctionId={selectedAuctionForDetails}
+                auctionTitle={auctions.find((a) => a.id === selectedAuctionForDetails)!.title}
+              />
               <PredefinedWinnerCard
                 auctionId={selectedAuctionForDetails}
                 auctionTitle={auctions.find((a) => a.id === selectedAuctionForDetails)!.title}

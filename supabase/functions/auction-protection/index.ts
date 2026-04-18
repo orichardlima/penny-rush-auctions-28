@@ -64,19 +64,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price, predefined_winner_id } = auction;
+    const {
+      company_revenue,
+      revenue_target,
+      title,
+      current_price,
+      market_value,
+      ends_at,
+      max_price,
+      predefined_winner_id,
+      predefined_winner_ids,
+      open_win_mode,
+      min_bids_to_qualify,
+    } = auction as any;
 
-    // Helper: gerar display name para last_bidders
-    const getBotDisplayName = (bot: any): string => {
-      const fullName = bot.full_name || 'Bot';
-      const parts = fullName.trim().split(' ');
-      if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
-      return parts[0];
+    const predefinedIds: string[] = Array.isArray(predefined_winner_ids) && predefined_winner_ids.length > 0
+      ? predefined_winner_ids
+      : (predefined_winner_id ? [predefined_winner_id] : []);
+
+    // Helper: gerar display name (primeiros dois nomes)
+    const getDisplayName = (fullName: string | null | undefined): string => {
+      const parts = (fullName || 'Vencedor').trim().split(' ');
+      return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : parts[0];
     };
 
-    // Helper: verificar se alvo predefinido está liderando
-    const isPredefinedWinnerLeading = async (): Promise<boolean> => {
-      if (!predefined_winner_id) return false;
+    // Retorna o user_id do líder elegível ou null
+    // Elegível = (a) está em predefinedIds, OU (b) open_win_mode=true + é real + tem >= min_bids
+    const getEligibleRealLeader = async (): Promise<string | null> => {
       const { data: lastBid } = await supabase
         .from('bids')
         .select('user_id')
@@ -84,25 +98,51 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      return lastBid?.user_id === predefined_winner_id;
+
+      if (!lastBid?.user_id) return null;
+      const leaderId = lastBid.user_id;
+
+      // Regra 1: predefinido
+      if (predefinedIds.includes(leaderId)) return leaderId;
+
+      // Regra 2: open_win_mode
+      if (open_win_mode === true) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_bot')
+          .eq('user_id', leaderId)
+          .single();
+
+        if (profile && profile.is_bot === false) {
+          const minBids = Number(min_bids_to_qualify || 0);
+          if (minBids <= 0) return leaderId;
+
+          const { count } = await supabase
+            .from('bids')
+            .select('id', { count: 'exact', head: true })
+            .eq('auction_id', auction_id)
+            .eq('user_id', leaderId);
+
+          if ((count || 0) >= minBids) return leaderId;
+        }
+      }
+
+      return null;
     };
 
-    // Helper: finalizar com vencedor predefinido (jogador real)
-    const finalizeWithPredefinedWinner = async (reason: string, action: string) => {
+    // Finaliza com qualquer usuário real elegível
+    const finalizeWithRealUser = async (userId: string, reason: string, action: string) => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, city, state')
-        .eq('user_id', predefined_winner_id)
+        .eq('user_id', userId)
         .single();
 
       const winnerName = profile?.city && profile?.state
         ? `${profile.full_name} - ${profile.city}, ${profile.state}`
         : (profile?.full_name || 'Vencedor');
 
-      const displayName = (() => {
-        const parts = (profile?.full_name || 'Vencedor').trim().split(' ');
-        return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : parts[0];
-      })();
+      const displayName = getDisplayName(profile?.full_name);
 
       const { data: auctionData } = await supabase
         .from('auctions')
@@ -110,7 +150,7 @@ Deno.serve(async (req) => {
         .eq('id', auction_id)
         .single();
 
-      let currentBidders: string[] = auctionData?.last_bidders || [];
+      let currentBidders: string[] = (auctionData?.last_bidders as any) || [];
       currentBidders = [displayName, ...currentBidders].slice(0, 3);
 
       const { error: updateError } = await supabase
@@ -118,22 +158,23 @@ Deno.serve(async (req) => {
         .update({
           status: 'finished',
           finished_at: new Date().toISOString(),
-          winner_id: predefined_winner_id,
+          winner_id: userId,
           winner_name: winnerName,
-          last_bidders: currentBidders
+          last_bidders: currentBidders,
         })
         .eq('id', auction_id);
 
       if (updateError) throw updateError;
 
-      console.log(`🎯 [PROTECTION] Leilão "${title}" finalizado com alvo predefinido - ${reason} (${winnerName})`);
+      const isPredefined = predefinedIds.includes(userId);
+      console.log(`🎯 [PROTECTION] Leilão "${title}" finalizado com ${isPredefined ? 'alvo predefinido' : 'usuário real elegível'} - ${reason} (${winnerName})`);
       return new Response(
-        JSON.stringify({ message: reason, action, winner: winnerName, predefined: true }),
+        JSON.stringify({ message: reason, action, winner: winnerName, predefined: isPredefined, open_win: !isPredefined }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     };
 
-    // Helper: finalizar com bot como vencedor (REGRA ABSOLUTA)
+    // Helper: finalizar com bot como vencedor
     const finalizeWithBot = async (reason: string, action: string) => {
       const bot = await getRandomBot(supabase);
       if (!bot) {
@@ -145,16 +186,15 @@ Deno.serve(async (req) => {
       }
 
       const winnerName = formatBotWinnerName(bot);
-      const botDisplay = getBotDisplayName(bot);
+      const botDisplay = getDisplayName(bot.full_name);
 
-      // Buscar last_bidders atual e prepend o bot vencedor
       const { data: auctionData } = await supabase
         .from('auctions')
         .select('last_bidders')
         .eq('id', auction_id)
         .single();
 
-      let currentBidders: string[] = auctionData?.last_bidders || [];
+      let currentBidders: string[] = (auctionData?.last_bidders as any) || [];
       currentBidders = [botDisplay, ...currentBidders].slice(0, 3);
 
       const { error: updateError } = await supabase
@@ -164,7 +204,7 @@ Deno.serve(async (req) => {
           finished_at: new Date().toISOString(),
           winner_id: bot.user_id,
           winner_name: winnerName,
-          last_bidders: currentBidders
+          last_bidders: currentBidders,
         })
         .eq('id', auction_id);
 
@@ -180,10 +220,11 @@ Deno.serve(async (req) => {
       );
     };
 
-    // Helper unificado: escolhe finalizar com alvo (se liderando) ou bot
+    // Helper unificado: escolhe finalizar com real elegível (se liderando) ou bot
     const finalize = async (reason: string, action: string) => {
-      if (predefined_winner_id && (await isPredefinedWinnerLeading())) {
-        return await finalizeWithPredefinedWinner(reason, action);
+      const eligibleLeader = await getEligibleRealLeader();
+      if (eligibleLeader) {
+        return await finalizeWithRealUser(eligibleLeader, reason, action);
       }
       return await finalizeWithBot(reason, action);
     };
@@ -211,13 +252,14 @@ Deno.serve(async (req) => {
       return await finalize('proteção contra prejuízo', 'finalized_loss_protection');
     }
 
-    // PREDEFINED WINNER: se alvo está liderando, NÃO injetar bid de bot
-    if (predefined_winner_id && (await isPredefinedWinnerLeading())) {
-      console.log(`🎯 [PROTECTION] "${title}" - alvo predefinido lidera, sem bid de proteção`);
+    // Se há real elegível liderando, NÃO injetar bid de bot
+    const eligibleLeader = await getEligibleRealLeader();
+    if (eligibleLeader) {
+      console.log(`🎯 [PROTECTION] "${title}" - real elegível lidera (${eligibleLeader}), bots pausados`);
       return new Response(
-        JSON.stringify({ 
-          message: 'Alvo predefinido lidera - bots pausados', 
-          action: 'bot_paused_predefined_leading'
+        JSON.stringify({
+          message: 'Real elegível lidera - bots pausados',
+          action: 'bot_paused_real_leading',
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -241,11 +283,11 @@ Deno.serve(async (req) => {
       });
 
     if (bidError) {
-      // Se foi bloqueado pelo trigger (alvo predefinido lidera), tratar como sucesso silencioso
+      // Se foi bloqueado pelo trigger (real elegível lidera), tratar como sucesso silencioso
       if (bidError.message?.includes('BOT_BLOCKED_PREDEFINED_WINNER_LEADING')) {
-        console.log(`🎯 [PROTECTION] Bid bloqueado pelo trigger - alvo predefinido lidera`);
+        console.log(`🎯 [PROTECTION] Bid bloqueado pelo trigger - real elegível lidera`);
         return new Response(
-          JSON.stringify({ message: 'Bot bloqueado - alvo lidera', action: 'bot_blocked_by_trigger' }),
+          JSON.stringify({ message: 'Bot bloqueado - real elegível lidera', action: 'bot_blocked_by_trigger' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
