@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
     // **FASE 3: Verificar leilões ativos para finalização e agendamento**
     const { data: activeAuctions, error: activeError } = await supabase
       .from('auctions')
-      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price, scheduled_bot_bid_at, scheduled_bot_band, last_bot_band')
+      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price, scheduled_bot_bid_at, scheduled_bot_band, last_bot_band, predefined_winner_id')
       .eq('status', 'active');
 
     if (activeError) {
