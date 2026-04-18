@@ -2924,6 +2924,10 @@ export type Database = {
             }
             Returns: number
           }
+      rebuild_auction_last_bidders: {
+        Args: { p_auction_id: string }
+        Returns: Json
+      }
       release_pending_referral_bonuses: { Args: never; Returns: number }
       resolve_manager_by_ref_code: {
         Args: { _ref_code: string }
