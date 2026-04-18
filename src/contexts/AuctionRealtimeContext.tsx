@@ -348,14 +348,21 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       }
 
       // Processar em paralelo - usar last_bidders do banco, fallback para fetchRecentBidders apenas se vazio
+      // ou quando last_bidders colapsou para um único nome distinto (ex: vencedor repetido)
       const auctionsWithBidders = await Promise.all(
         (data || []).map(async (auction, index) => {
+          const rawLastBidders = Array.isArray((auction as any).last_bidders)
+            ? ((auction as any).last_bidders as string[])
+            : [];
+          const distinctCount = new Set(rawLastBidders.map(n => (n || '').trim())).size;
           let recentBidders: string[];
-          if (Array.isArray((auction as any).last_bidders) && (auction as any).last_bidders.length > 0) {
-            recentBidders = (auction as any).last_bidders as string[];
+          if (rawLastBidders.length > 0 && distinctCount > 1) {
+            recentBidders = rawLastBidders;
           } else {
-            // Fallback para leilões antigos sem last_bidders populado
-            recentBidders = await fetchRecentBidders(auction.id);
+            // Fallback: buscar últimos lances reais da tabela bids
+            // (cobre leilões antigos sem last_bidders e casos onde colapsou para 1 nome só)
+            const fetched = await fetchRecentBidders(auction.id);
+            recentBidders = fetched.length > 0 ? fetched : rawLastBidders;
           }
           const transformed = await transformAuctionData({ ...auction, recentBidders }, winnerProfilesMap);
           return { ...transformed, _originalIndex: index };
