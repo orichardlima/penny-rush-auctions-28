@@ -157,9 +157,9 @@ export const PredefinedWinnerCard: React.FC<PredefinedWinnerCardProps> = ({ auct
   const statusBadge = () => {
     switch (leadingStatus) {
       case 'target_leading':
-        return <Badge className="bg-green-600 hover:bg-green-700">🟢 Alvo lidera — bots inativos</Badge>;
+        return <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white">🟢 Alvo lidera — bots inativos</Badge>;
       case 'other_leading':
-        return <Badge className="bg-yellow-600 hover:bg-yellow-700">🟡 Alvo precisa cobrir — bots ativos</Badge>;
+        return <Badge className="bg-amber-600 hover:bg-amber-700 text-white">🟡 Alvo precisa cobrir — bots ativos</Badge>;
       case 'no_bids':
         return <Badge variant="outline">⚪ Aguardando alvo lançar</Badge>;
       default:
