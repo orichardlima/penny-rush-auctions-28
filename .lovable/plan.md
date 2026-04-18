@@ -1,31 +1,40 @@
 
 
-## Análise
+## Causa raiz confirmada
 
-Hoje o sistema permite **apenas 1 vencedor predefinido por leilão**:
-- Coluna `auctions.predefined_winner_id` (UUID único, não array).
-- UI (`PredefinedWinnerCard`) mostra busca + 1 seleção; ao salvar, sobrescreve.
-- Lógica de bot pausa quando *aquele* alvo lidera.
+Existem **2 triggers concorrentes** atualizando `auctions.last_bidders` em cada `INSERT` em `bids`:
 
-## Resposta direta
+1. **`update_auction_on_bid`** (antigo) — faz `prepend` do nome no array atual: `[novo, ...antigo].slice(0,3)`.
+2. **`bids_refresh_last_bidders`** (recente, criado para corrigir colapso de duplicatas) — chama `rebuild_auction_last_bidders` que **reconstroi** o array dos 3 lances mais recentes via `SELECT … ORDER BY created_at DESC LIMIT 3`.
 
-**Não, atualmente não dá.** Só é possível definir 1 alvo por leilão. Para escolher múltiplos, seria necessária uma mudança estrutural.
+### Por que duplica
 
-## Opções, se quiser que eu implemente
+Quando 2 lances entram em janela curta (motor de bots agenda múltiplos quase ao mesmo tempo, como visto nos logs: `executados:3`, `executados:2`):
 
-### Opção A — Múltiplos alvos (qualquer um pode vencer)
-- Trocar `predefined_winner_id UUID` por `predefined_winner_ids UUID[]`.
-- Bots pausam quando **qualquer** dos alvos liderar.
-- Vence o alvo que segurar o último lance até o timer zerar.
-- UI: lista com chips, adicionar/remover múltiplos usuários.
+- Lance A (Nilza) é inserido. Trigger antigo prepend "Nilza" → `[Nilza, X, Y]`. Trigger novo reconstroi → `[Nilza, X, Y]`. OK.
+- Lance B (Edvaldo) é inserido **antes** de A commitar visivelmente para B. Trigger antigo prepend "Edvaldo" sobre `[Nilza, X, Y]` → `[Edvaldo, Nilza, X]`. Trigger novo reconstroi do `bids` que agora tem A e B → `[Edvaldo, Nilza, X]`. OK aparente.
+- Mas o trigger antigo **lê o snapshot antes** e o novo **lê após**. Em concorrência real (race condition Postgres com locks por linha em `auctions`), o segundo update às vezes sobrescreve com versão que tem nome duplicado.
 
-### Opção B — Manter 1 alvo (status quo)
-- Sem mudanças. Continua como está.
+Evidência empírica: **TODOS** os 3 leilões ativos têm o primeiro nome duplicado no `last_bidders`, mesmo quando o `bids` real mostra 4 usuários distintos nos últimos 4 lances. Isso é impossível com apenas o trigger novo agindo sozinho.
 
-### Escopo da Opção A (se aprovada)
-1. **DB**: migration adicionando coluna `predefined_winner_ids UUID[]`, migrando valor antigo, atualizando funções de bot que leem `predefined_winner_id` para considerar o array.
-2. **Frontend**: `PredefinedWinnerCard.tsx` permite múltipla seleção, exibe lista com status de liderança individual.
-3. **Sem alteração** em UI pública, fluxo de pagamento, timer, ou lógica de orders.
+### A correção
 
-Me diga qual opção seguir.
+Remover a parte de `last_bidders` do trigger antigo `update_auction_on_bid`, deixando apenas o trigger novo `bids_refresh_last_bidders` como única fonte de verdade.
+
+## Plano
+
+### Migration única
+Recriar `update_auction_on_bid()` removendo TODA a lógica de cálculo/atualização de `last_bidders` (manter os outros campos: `current_price`, `total_bids`, `company_revenue`, `time_left`, `last_bid_at`, `updated_at`, `scheduled_bot_bid_at`, `scheduled_bot_band`). O trigger `bids_refresh_last_bidders` continua sendo o único responsável por `last_bidders`.
+
+Sem mudanças em UI, fluxo, edge functions, ou demais tabelas. Sem mudanças nos leilões com vencedor pré-definido (regra independente).
+
+### Resultado esperado
+- Próximos lances atualizam `last_bidders` sem duplicar.
+- Duplicatas legítimas (mesmo usuário 2 vezes seguidas) continuam preservadas, pois o `rebuild_auction_last_bidders` lê fielmente do `bids`.
+- Leilões finalizados: comportamento atual mantido.
+
+### Escopo
+- 1 migration SQL (~30 linhas).
+- 0 arquivos de frontend alterados.
+- 0 edge functions alteradas.
 
