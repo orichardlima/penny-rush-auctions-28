@@ -294,11 +294,25 @@ Deno.serve(async (req) => {
         const currentTime = Date.now();
         const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
 
+        // Helper local: escolhe finalização (alvo predefinido se liderando, senão bot)
+        const finalize = async (reason: string, finishReason: string): Promise<boolean> => {
+          if (auction.predefined_winner_id) {
+            const { leading } = await isPredefinedWinnerLeading(supabase, auction.id);
+            if (leading) {
+              return await finalizeWithPredefinedWinner(
+                supabase, auction.id, auction.title,
+                auction.predefined_winner_id, reason, finishReason
+              );
+            }
+          }
+          return await finalizeWithBot(supabase, auction.id, auction.title, reason, finishReason);
+        };
+
         // 1. Verificar horário limite
         if (auction.ends_at) {
           const endsAt = new Date(auction.ends_at).getTime();
           if (currentTime >= endsAt) {
-            const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'horário limite', 'time_limit');
+            const finalized = await finalize('horário limite', 'time_limit');
             if (finalized) {
               await distributeFuryVault(supabase, auction.id, auction.title);
               finalizedCount++;
@@ -309,7 +323,7 @@ Deno.serve(async (req) => {
 
         // 2. Verificar preço máximo
         if (auction.max_price && Number(auction.current_price) >= Number(auction.max_price)) {
-          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'preço máximo', 'max_price');
+          const finalized = await finalize('preço máximo', 'max_price');
           if (finalized) {
             await distributeFuryVault(supabase, auction.id, auction.title);
             finalizedCount++;
@@ -319,7 +333,7 @@ Deno.serve(async (req) => {
 
         // 3. Verificar meta de receita
         if (Number(auction.company_revenue) >= Number(auction.revenue_target)) {
-          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'meta atingida', 'revenue_target');
+          const finalized = await finalize('meta atingida', 'revenue_target');
           if (finalized) {
             await distributeFuryVault(supabase, auction.id, auction.title);
             finalizedCount++;
@@ -329,8 +343,8 @@ Deno.serve(async (req) => {
 
         // 4. SAFETY NET: Inatividade >= 45s
         if (secondsSinceLastBid >= 45) {
-          console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando com BOT`);
-          const finalized = await finalizeWithBot(supabase, auction.id, auction.title, 'inatividade', 'inactivity_forced');
+          console.log(`🚨 [INATIVIDADE] "${auction.title}" - ${secondsSinceLastBid}s sem lance, finalizando`);
+          const finalized = await finalize('inatividade', 'inactivity_forced');
           if (finalized) {
             await distributeFuryVault(supabase, auction.id, auction.title);
             finalizedCount++;
@@ -344,7 +358,16 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 6. Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
+        // 6. PREDEFINED WINNER: pular agendamento se alvo está liderando
+        if (auction.predefined_winner_id) {
+          const { leading } = await isPredefinedWinnerLeading(supabase, auction.id);
+          if (leading) {
+            console.log(`🎯 [PREDEFINED-LEADING] "${auction.title}" - alvo lidera, bots pausados`);
+            continue;
+          }
+        }
+
+        // 7. Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
         if (secondsSinceLastBid >= 5) {
           const { band, delaySec } = selectBotBand(auction.last_bot_band);
           const targetTime = new Date(lastBidTime + delaySec * 1000).toISOString();
