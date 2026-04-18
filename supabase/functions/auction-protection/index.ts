@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price } = auction;
+    const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price, predefined_winner_id } = auction;
 
     // Helper: gerar display name para last_bidders
     const getBotDisplayName = (bot: any): string => {
@@ -72,6 +72,65 @@ Deno.serve(async (req) => {
       const parts = fullName.trim().split(' ');
       if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
       return parts[0];
+    };
+
+    // Helper: verificar se alvo predefinido está liderando
+    const isPredefinedWinnerLeading = async (): Promise<boolean> => {
+      if (!predefined_winner_id) return false;
+      const { data: lastBid } = await supabase
+        .from('bids')
+        .select('user_id')
+        .eq('auction_id', auction_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return lastBid?.user_id === predefined_winner_id;
+    };
+
+    // Helper: finalizar com vencedor predefinido (jogador real)
+    const finalizeWithPredefinedWinner = async (reason: string, action: string) => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, city, state')
+        .eq('user_id', predefined_winner_id)
+        .single();
+
+      const winnerName = profile?.city && profile?.state
+        ? `${profile.full_name} - ${profile.city}, ${profile.state}`
+        : (profile?.full_name || 'Vencedor');
+
+      const displayName = (() => {
+        const parts = (profile?.full_name || 'Vencedor').trim().split(' ');
+        return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : parts[0];
+      })();
+
+      const { data: auctionData } = await supabase
+        .from('auctions')
+        .select('last_bidders')
+        .eq('id', auction_id)
+        .single();
+
+      let currentBidders: string[] = auctionData?.last_bidders || [];
+      currentBidders = [displayName, ...currentBidders].slice(0, 3);
+
+      const { error: updateError } = await supabase
+        .from('auctions')
+        .update({
+          status: 'finished',
+          finished_at: new Date().toISOString(),
+          winner_id: predefined_winner_id,
+          winner_name: winnerName,
+          last_bidders: currentBidders
+        })
+        .eq('id', auction_id);
+
+      if (updateError) throw updateError;
+
+      console.log(`🎯 [PROTECTION] Leilão "${title}" finalizado com alvo predefinido - ${reason} (${winnerName})`);
+      return new Response(
+        JSON.stringify({ message: reason, action, winner: winnerName, predefined: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     };
 
     // Helper: finalizar com bot como vencedor (REGRA ABSOLUTA)
@@ -121,27 +180,47 @@ Deno.serve(async (req) => {
       );
     };
 
+    // Helper unificado: escolhe finalizar com alvo (se liderando) ou bot
+    const finalize = async (reason: string, action: string) => {
+      if (predefined_winner_id && (await isPredefinedWinnerLeading())) {
+        return await finalizeWithPredefinedWinner(reason, action);
+      }
+      return await finalizeWithBot(reason, action);
+    };
+
     // Verificar horário limite
     if (ends_at) {
       const now = new Date();
       if (now >= new Date(ends_at)) {
-        return await finalizeWithBot('horário limite atingido', 'finalized_time_limit');
+        return await finalize('horário limite atingido', 'finalized_time_limit');
       }
     }
 
     // Verificar preço máximo
     if (max_price && current_price >= max_price) {
-      return await finalizeWithBot('preço máximo atingido', 'finalized_max_price');
+      return await finalize('preço máximo atingido', 'finalized_max_price');
     }
 
     // Verificar meta de receita
     if (company_revenue >= revenue_target) {
-      return await finalizeWithBot('meta de receita atingida', 'finalized_revenue_target');
+      return await finalize('meta de receita atingida', 'finalized_revenue_target');
     }
 
     // Verificar preço > valor de mercado
     if (current_price > market_value) {
-      return await finalizeWithBot('proteção contra prejuízo', 'finalized_loss_protection');
+      return await finalize('proteção contra prejuízo', 'finalized_loss_protection');
+    }
+
+    // PREDEFINED WINNER: se alvo está liderando, NÃO injetar bid de bot
+    if (predefined_winner_id && (await isPredefinedWinnerLeading())) {
+      console.log(`🎯 [PROTECTION] "${title}" - alvo predefinido lidera, sem bid de proteção`);
+      return new Response(
+        JSON.stringify({ 
+          message: 'Alvo predefinido lidera - bots pausados', 
+          action: 'bot_paused_predefined_leading'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Meta não atingida - adicionar bid de proteção (bot)
@@ -149,7 +228,7 @@ Deno.serve(async (req) => {
 
     const bot = await getRandomBot(supabase);
     if (!bot) {
-      return await finalizeWithBot('sem bot para proteção', 'finalized_no_bot');
+      return await finalize('sem bot para proteção', 'finalized_no_bot');
     }
 
     const { error: bidError } = await supabase
@@ -162,6 +241,14 @@ Deno.serve(async (req) => {
       });
 
     if (bidError) {
+      // Se foi bloqueado pelo trigger (alvo predefinido lidera), tratar como sucesso silencioso
+      if (bidError.message?.includes('BOT_BLOCKED_PREDEFINED_WINNER_LEADING')) {
+        console.log(`🎯 [PROTECTION] Bid bloqueado pelo trigger - alvo predefinido lidera`);
+        return new Response(
+          JSON.stringify({ message: 'Bot bloqueado - alvo lidera', action: 'bot_blocked_by_trigger' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       console.error(`❌ [PROTECTION] Erro ao inserir bid:`, bidError);
       throw bidError;
     }

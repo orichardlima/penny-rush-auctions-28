@@ -617,6 +617,7 @@ export type Database = {
           market_value: number | null
           max_price: number | null
           participants_count: number | null
+          predefined_winner_id: string | null
           revenue_target: number | null
           scheduled_bot_band: string | null
           scheduled_bot_bid_at: string | null
@@ -649,6 +650,7 @@ export type Database = {
           market_value?: number | null
           max_price?: number | null
           participants_count?: number | null
+          predefined_winner_id?: string | null
           revenue_target?: number | null
           scheduled_bot_band?: string | null
           scheduled_bot_bid_at?: string | null
@@ -681,6 +683,7 @@ export type Database = {
           market_value?: number | null
           max_price?: number | null
           participants_count?: number | null
+          predefined_winner_id?: string | null
           revenue_target?: number | null
           scheduled_bot_band?: string | null
           scheduled_bot_bid_at?: string | null
