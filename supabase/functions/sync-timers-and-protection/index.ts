@@ -66,7 +66,87 @@ function selectBotBand(lastBotBand: string | null): { band: string; delaySec: nu
   return result;
 }
 
-// Helper: finalizar leilão SEMPRE com bot como vencedor
+// Helper: verifica se vencedor predefinido está liderando (último lance é dele)
+async function isPredefinedWinnerLeading(supabase: any, auctionId: string): Promise<{ leading: boolean; predefinedWinnerId: string | null }> {
+  const { data: auction } = await supabase
+    .from('auctions')
+    .select('predefined_winner_id')
+    .eq('id', auctionId)
+    .single();
+
+  const predefinedWinnerId = auction?.predefined_winner_id || null;
+  if (!predefinedWinnerId) return { leading: false, predefinedWinnerId: null };
+
+  const { data: lastBid } = await supabase
+    .from('bids')
+    .select('user_id')
+    .eq('auction_id', auctionId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return { leading: lastBid?.user_id === predefinedWinnerId, predefinedWinnerId };
+}
+
+// Helper: finalizar com vencedor predefinido (jogador real)
+async function finalizeWithPredefinedWinner(
+  supabase: any, auctionId: string, auctionTitle: string,
+  predefinedWinnerId: string, reason: string, finishReason: string
+): Promise<boolean> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, city, state')
+    .eq('user_id', predefinedWinnerId)
+    .single();
+
+  const winnerName = profile?.city && profile?.state
+    ? `${profile.full_name} - ${profile.city}, ${profile.state}`
+    : (profile?.full_name || 'Vencedor');
+
+  const displayName = (() => {
+    const parts = (profile?.full_name || 'Vencedor').trim().split(' ');
+    return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : parts[0];
+  })();
+
+  const { data: auctionData } = await supabase
+    .from('auctions')
+    .select('last_bidders')
+    .eq('id', auctionId)
+    .single();
+
+  let currentBidders: string[] = auctionData?.last_bidders || [];
+  currentBidders = [displayName, ...currentBidders].slice(0, 3);
+
+  const { error, data } = await supabase
+    .from('auctions')
+    .update({
+      status: 'finished',
+      finished_at: new Date().toISOString(),
+      winner_id: predefinedWinnerId,
+      winner_name: winnerName,
+      last_bidders: currentBidders,
+      finish_reason: finishReason,
+      scheduled_bot_bid_at: null,
+      scheduled_bot_band: null
+    })
+    .eq('id', auctionId)
+    .eq('status', 'active')
+    .is('finished_at', null)
+    .select('id');
+
+  if (error) {
+    console.error(`❌ [FINALIZE-PREDEFINED] Erro "${auctionTitle}":`, error.message);
+    return false;
+  }
+  if (!data || data.length === 0) {
+    console.log(`⚡ [FINALIZE-PREDEFINED] "${auctionTitle}" já finalizado por outra camada`);
+    return false;
+  }
+  console.log(`🎯 [FINALIZED-PREDEFINED] "${auctionTitle}" - ${reason} (alvo: ${winnerName})`);
+  return true;
+}
+
+// Helper: finalizar leilão SEMPRE com bot como vencedor (fallback padrão)
 async function finalizeWithBot(
   supabase: any, auctionId: string, auctionTitle: string, 
   reason: string, finishReason: string
