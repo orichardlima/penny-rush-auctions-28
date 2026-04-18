@@ -1,0 +1,1 @@
+SELECT public.rebuild_auction_last_bidders('93d9f950-c0b2-4422-927c-698b2caa96c0'::uuid);
