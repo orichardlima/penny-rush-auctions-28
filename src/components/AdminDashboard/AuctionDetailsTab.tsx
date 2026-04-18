@@ -84,12 +84,18 @@ const AuctionDetailsTab: React.FC<AuctionDetailsTabProps> = ({ auctions, auction
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-6">
           {selectedAuctionForDetails && auctions.find((a) => a.id === selectedAuctionForDetails) ? (
-            <AuctionDetailView
-              auction={auctions.find((a) => a.id === selectedAuctionForDetails)!}
-              financialData={auctionDetails?.find((d) => d.auction_id === selectedAuctionForDetails)}
-            />
+            <>
+              <PredefinedWinnerCard
+                auctionId={selectedAuctionForDetails}
+                auctionTitle={auctions.find((a) => a.id === selectedAuctionForDetails)!.title}
+              />
+              <AuctionDetailView
+                auction={auctions.find((a) => a.id === selectedAuctionForDetails)!}
+                financialData={auctionDetails?.find((d) => d.auction_id === selectedAuctionForDetails)}
+              />
+            </>
           ) : (
             <Card>
               <CardContent className="p-12 text-center">
