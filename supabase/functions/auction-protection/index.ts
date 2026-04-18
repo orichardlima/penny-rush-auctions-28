@@ -180,27 +180,47 @@ Deno.serve(async (req) => {
       );
     };
 
+    // Helper unificado: escolhe finalizar com alvo (se liderando) ou bot
+    const finalize = async (reason: string, action: string) => {
+      if (predefined_winner_id && (await isPredefinedWinnerLeading())) {
+        return await finalizeWithPredefinedWinner(reason, action);
+      }
+      return await finalizeWithBot(reason, action);
+    };
+
     // Verificar horário limite
     if (ends_at) {
       const now = new Date();
       if (now >= new Date(ends_at)) {
-        return await finalizeWithBot('horário limite atingido', 'finalized_time_limit');
+        return await finalize('horário limite atingido', 'finalized_time_limit');
       }
     }
 
     // Verificar preço máximo
     if (max_price && current_price >= max_price) {
-      return await finalizeWithBot('preço máximo atingido', 'finalized_max_price');
+      return await finalize('preço máximo atingido', 'finalized_max_price');
     }
 
     // Verificar meta de receita
     if (company_revenue >= revenue_target) {
-      return await finalizeWithBot('meta de receita atingida', 'finalized_revenue_target');
+      return await finalize('meta de receita atingida', 'finalized_revenue_target');
     }
 
     // Verificar preço > valor de mercado
     if (current_price > market_value) {
-      return await finalizeWithBot('proteção contra prejuízo', 'finalized_loss_protection');
+      return await finalize('proteção contra prejuízo', 'finalized_loss_protection');
+    }
+
+    // PREDEFINED WINNER: se alvo está liderando, NÃO injetar bid de bot
+    if (predefined_winner_id && (await isPredefinedWinnerLeading())) {
+      console.log(`🎯 [PROTECTION] "${title}" - alvo predefinido lidera, sem bid de proteção`);
+      return new Response(
+        JSON.stringify({ 
+          message: 'Alvo predefinido lidera - bots pausados', 
+          action: 'bot_paused_predefined_leading'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Meta não atingida - adicionar bid de proteção (bot)
@@ -208,7 +228,7 @@ Deno.serve(async (req) => {
 
     const bot = await getRandomBot(supabase);
     if (!bot) {
-      return await finalizeWithBot('sem bot para proteção', 'finalized_no_bot');
+      return await finalize('sem bot para proteção', 'finalized_no_bot');
     }
 
     const { error: bidError } = await supabase
@@ -221,6 +241,14 @@ Deno.serve(async (req) => {
       });
 
     if (bidError) {
+      // Se foi bloqueado pelo trigger (alvo predefinido lidera), tratar como sucesso silencioso
+      if (bidError.message?.includes('BOT_BLOCKED_PREDEFINED_WINNER_LEADING')) {
+        console.log(`🎯 [PROTECTION] Bid bloqueado pelo trigger - alvo predefinido lidera`);
+        return new Response(
+          JSON.stringify({ message: 'Bot bloqueado - alvo lidera', action: 'bot_blocked_by_trigger' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       console.error(`❌ [PROTECTION] Erro ao inserir bid:`, bidError);
       throw bidError;
     }
