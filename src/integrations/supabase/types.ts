@@ -2616,6 +2616,13 @@ export type Database = {
           target_type: string
         }[]
       }
+      get_affiliate_commission_rates: {
+        Args: { _affiliate_id: string }
+        Returns: {
+          first_purchase_rate: number
+          repurchase_rate: number
+        }[]
+      }
       get_affiliate_eligibility: {
         Args: { _user_id: string }
         Returns: {
