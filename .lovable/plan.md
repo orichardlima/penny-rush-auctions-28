@@ -1,68 +1,60 @@
 
 
-## Objetivo refinado
+## Como funciona o "Vencedor Predefinido"
 
-O alvo (jogador real escolhido pelo admin) não trava bots permanentemente. A lógica é **dinâmica**, baseada em quem deu o **último lance**:
+### Onde configurar (sim, escolhe o leilão específico)
 
-| Último lance é de... | Bots podem lançar? |
+1. Painel Admin → aba **"Detalhes do Leilão"** (`AuctionDetailsTab`).
+2. Na coluna esquerda há a lista de **todos os leilões** (filtros: Todos / Ativos / Finalizados). Você clica no leilão específico que quer manipular.
+3. Ao selecionar, aparece à direita o card **"Vencedor Predefinido (opcional)"** logo acima dos detalhes do leilão.
+4. Use a busca por nome ou e-mail para encontrar um jogador real (bots e admins não aparecem na lista) e clique nele para salvar.
+5. A escolha é salva imediatamente em `auctions.predefined_winner_id` e registrada no log de auditoria (`admin_audit_log`).
+6. Para cancelar a qualquer momento: botão **"Limpar"** no mesmo card.
+
+Funciona em qualquer leilão individualmente — cada leilão tem seu próprio campo. Você pode ter vários leilões com alvos diferentes ou nenhum alvo definido (comportamento padrão).
+
+### Como o sistema se comporta após você escolher o alvo
+
+A regra é **dinâmica**, baseada em quem deu o **último lance** naquele momento:
+
+| Quem deu o último lance | O que os bots fazem |
 |---|---|
-| Alvo (jogador escolhido) | **Não** — bots ficam inativos, timer corre até zerar e alvo vence |
-| Outro jogador real | **Sim** — bots interferem normalmente para reiniciar timer |
-| Bot | **Sim** — comportamento normal |
+| O alvo que você escolheu | **Ficam parados** — timer corre normalmente até zerar |
+| Outro jogador real | **Voltam a lançar normalmente** para defender o leilão |
+| Um bot | Comportamento normal |
 
-Resultado: o alvo só vence se conseguir manter o último lance até o timer zerar. Se outro real cobrir, bots voltam a operar e podem cobrir esse outro real, dando ao alvo nova chance de relançar.
+### Exemplo prático
 
-## Solução
+Você escolheu o João como vencedor do Leilão #42:
 
-### 1. Banco (migration)
+1. Leilão começa, bots lançam normalmente (João ainda não lançou).
+2. João dá um lance → ele vira "último lance".
+3. **Bots imediatamente param** de lançar nesse leilão (trigger no banco bloqueia + edge functions pulam o agendamento).
+4. Outros jogadores reais **podem cobrir** o João normalmente. Se cobrirem:
+   - João deixa de ser "último lance".
+   - Bots voltam a operar e podem cobrir o outro real.
+   - Isso dá nova chance ao João de relançar.
+5. Se João conseguir manter o último lance até o timer zerar (15s sem cobertura) → **João vence o leilão** (exceção autorizada à regra "todo leilão termina com bot").
+6. Se outro real ficar com o último lance quando o timer zerar → esse outro real vence (não o João).
 
-Adicionar em `auctions`:
-- `predefined_winner_id uuid` — alvo escolhido pelo admin (NULL = comportamento normal).
+### Indicadores visuais no card
 
-**Não precisa mais** da coluna `predefined_winner_locked_at` — a decisão é dinâmica baseada no último lance da tabela `bids`.
+Enquanto o leilão roda, o card mostra status em tempo real (atualiza a cada 5 segundos):
 
-Trigger `BEFORE INSERT ON bids`:
-- Se `auction.predefined_winner_id IS NOT NULL`
-- E o autor do novo lance é **bot** (`profiles.is_bot = true`)
-- E o **último lance** atual da auction foi feito pelo `predefined_winner_id`
-- → `RAISE EXCEPTION` (bloqueia esse bot específico)
+- 🟢 **"Alvo lidera — bots inativos"**: o João está com o último lance, bots travados.
+- 🟡 **"Alvo precisa cobrir — bots ativos"**: outro real cobriu, bots voltaram.
+- ⚪ **"Aguardando alvo lançar"**: João ainda não deu nenhum lance.
 
-Caso contrário, lance segue normalmente.
+### Garantias técnicas
 
-### 2. Edge Functions
+- **Não há vazamento para o usuário**: o João não recebe nenhuma notificação de que foi escolhido. Totalmente invisível no frontend público.
+- **Receita conta normal**: cada lance do João entra em `company_revenue` como qualquer lance real.
+- **Cofre Fúria**: distribuído normalmente na finalização.
+- **Atomicidade**: o bloqueio dos bots é feito por trigger no banco dentro da mesma transação do `place_bid`, então não há corrida nem brecha.
+- **Auditoria**: cada vez que você define ou limpa um vencedor predefinido, fica registrado em `admin_audit_log` com seu nome de admin, data/hora e o leilão afetado.
 
-**`sync-timers-and-protection`** e **`auction-protection`**:
-- Antes de agendar/executar um bid de bot, verificar:
-  - Se `auction.predefined_winner_id IS NOT NULL` E último lance foi do alvo → **pular** agendamento/execução de bot.
-  - Caso contrário → comportamento normal.
-- Ao finalizar o leilão (timer zerado):
-  - Se `predefined_winner_id IS NOT NULL` E último lance foi do alvo → finalizar com **alvo real** como vencedor (exceção autorizada à regra "todo leilão termina com bot").
-  - Caso contrário → seguir regra padrão (bot vence).
+### Importante saber
 
-### 3. UI Admin (`AuctionDetailsTab.tsx`)
-
-Card "Vencedor Predefinido (opcional)":
-- `<Select>` com busca de usuários reais (não-bot, não-admin).
-- Botão "Salvar" → UPDATE em `auctions.predefined_winner_id` + registro em `admin_audit_log` (`action_type='set_predefined_winner'`).
-- Indicador de status dinâmico:
-  - "🟢 Alvo está liderando — bots inativos" (quando último lance é do alvo)
-  - "🟡 Alvo precisa cobrir — bots ativos" (quando outro real lidera)
-  - "⚪ Aguardando alvo lançar" (quando alvo ainda não lançou)
-- Botão "Limpar" para remover alvo a qualquer momento.
-
-## Detalhes técnicos
-
-- Atomicidade: trigger no `bids` consulta o último lance dentro da mesma transação do `place_bid` (que usa `FOR UPDATE`), prevenindo corrida.
-- Performance: a checagem do "último lance" usa `ORDER BY created_at DESC LIMIT 1` na tabela `bids` filtrada por `auction_id` (índice já existente).
-- Receita do alvo entra normalmente em `company_revenue`.
-- Cofre Fúria distribuído normalmente.
-- Memória nova: `mem://features/admin/auction-predefined-winner` documentando a regra dinâmica.
-
-## Decisão importante: meta de receita
-
-Quando há vencedor predefinido e a meta de receita ainda não foi atingida, o `auction-protection` normalmente injetaria bid de bot. Com a nova regra:
-- Se último lance é do alvo → **não injeta** (mesmo se meta não atingida) — admin assume que o alvo deve vencer mesmo que a meta fique abaixo.
-- Se último lance é de outro real → injeta normalmente.
-
-Confirmando essa decisão antes de implementar.
+- Como **outros jogadores reais continuam podendo disputar**, **não é garantia 100%** de que o João vai vencer — só garantia de que **nenhum bot vai atrapalhá-lo**. Se outro real cobrir e ele não relançar a tempo, o outro real vence.
+- A meta de receita do leilão é ignorada quando o alvo está liderando: bots não são injetados nem mesmo para "bater meta". Você assume essa decisão ao escolher o vencedor.
 
