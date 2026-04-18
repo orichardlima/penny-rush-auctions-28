@@ -1,40 +1,57 @@
 
+## Resumo
 
-## Causa raiz confirmada
+Adicionar 2 novos modos opcionais de finalização, **complementares** ao `predefined_winner_ids` atual (não substituem):
 
-Existem **2 triggers concorrentes** atualizando `auctions.last_bidders` em cada `INSERT` em `bids`:
+1. **Modo "Qualquer real ganha"** — toggle on/off. Quando ON, qualquer usuário real liderando pausa bots e ganha.
+2. **Modo "Lances mínimos"** — campo numérico. Real precisa ter ≥ N lances no leilão para se qualificar. `0` = sem mínimo (qualquer real elegível assim que dá 1 lance).
 
-1. **`update_auction_on_bid`** (antigo) — faz `prepend` do nome no array atual: `[novo, ...antigo].slice(0,3)`.
-2. **`bids_refresh_last_bidders`** (recente, criado para corrigir colapso de duplicatas) — chama `rebuild_auction_last_bidders` que **reconstroi** o array dos 3 lances mais recentes via `SELECT … ORDER BY created_at DESC LIMIT 3`.
+Os 3 modos podem ser combinados livremente:
 
-### Por que duplica
+| open_win | min_bids | predefined_ids | Quem pode ganhar |
+|---|---|---|---|
+| OFF | – | vazio | Só bot (atual) |
+| OFF | – | [Richard] | Richard (atual) |
+| ON | 0 | vazio | Qualquer real liderando |
+| ON | 10 | vazio | Real com ≥10 lances liderando |
+| ON | 10 | [Richard] | Richard (sem mínimo) OU qualquer real com ≥10 lances |
 
-Quando 2 lances entram em janela curta (motor de bots agenda múltiplos quase ao mesmo tempo, como visto nos logs: `executados:3`, `executados:2`):
+## Mudanças
 
-- Lance A (Nilza) é inserido. Trigger antigo prepend "Nilza" → `[Nilza, X, Y]`. Trigger novo reconstroi → `[Nilza, X, Y]`. OK.
-- Lance B (Edvaldo) é inserido **antes** de A commitar visivelmente para B. Trigger antigo prepend "Edvaldo" sobre `[Nilza, X, Y]` → `[Edvaldo, Nilza, X]`. Trigger novo reconstroi do `bids` que agora tem A e B → `[Edvaldo, Nilza, X]`. OK aparente.
-- Mas o trigger antigo **lê o snapshot antes** e o novo **lê após**. Em concorrência real (race condition Postgres com locks por linha em `auctions`), o segundo update às vezes sobrescreve com versão que tem nome duplicado.
+### 1. DB — Migration única
+- `ALTER TABLE auctions` adiciona:
+  - `open_win_mode BOOLEAN NOT NULL DEFAULT false`
+  - `min_bids_to_qualify INTEGER NOT NULL DEFAULT 0`
+- Atualizar `block_bot_bid_when_target_leading()`:
+  - Se `open_win_mode = true` E último lance for de um real
+  - E (`min_bids_to_qualify = 0` OU contagem de lances daquele real ≥ `min_bids_to_qualify`)
+  - → bloquear bid de bot (mesmo padrão dos predefinidos).
+- Manter compatibilidade total com `predefined_winner_ids`.
 
-Evidência empírica: **TODOS** os 3 leilões ativos têm o primeiro nome duplicado no `last_bidders`, mesmo quando o `bids` real mostra 4 usuários distintos nos últimos 4 lances. Isso é impossível com apenas o trigger novo agindo sozinho.
+### 2. Edge function `auction-protection/index.ts`
+- Novo helper `getEligibleRealLeader(auctionId, openWin, minBids, predefinedIds)`:
+  - Retorna `user_id` do líder se: (a) está em `predefined_winner_ids`, OU (b) `open_win_mode=true` + é real + tem ≥ `min_bids`.
+- Substituir chamadas a `isPredefinedWinnerLeading()` por esse helper.
+- Novo `finalizeWithRealUser(userId, reason, action)` para finalizar com qualquer real elegível (generaliza `finalizeWithPredefinedWinner`).
+- Bot só é injetado se nenhum real elegível liderar.
 
-### A correção
+### 3. Frontend — `PredefinedWinnerCard.tsx` (renomear seção, manter componente)
+- Adicionar acima da lista de predefinidos:
+  - **Toggle**: "Liberar para qualquer usuário real ganhar"
+  - **Input numérico**: "Lances mínimos para qualificar usuário real" (visível só se toggle ON; default 0)
+  - **Status em tempo real**: mostra líder atual + se está elegível + qual regra disparou.
+- Botão "Salvar configuração" persiste `open_win_mode` e `min_bids_to_qualify` em `auctions`.
+- Audit log das mudanças (action_type `update_open_win_config`).
+- Manter toda a UI atual de predefined_winner_ids intacta abaixo.
 
-Remover a parte de `last_bidders` do trigger antigo `update_auction_on_bid`, deixando apenas o trigger novo `bids_refresh_last_bidders` como única fonte de verdade.
+### 4. Sem alterações em
+- UI pública (cards, bid flow).
+- `orders`, pagamento, timer.
+- `update_auction_on_bid` ou outras funções não relacionadas.
+- `predefined_winner_ids` continua funcionando exatamente como hoje.
 
-## Plano
-
-### Migration única
-Recriar `update_auction_on_bid()` removendo TODA a lógica de cálculo/atualização de `last_bidders` (manter os outros campos: `current_price`, `total_bids`, `company_revenue`, `time_left`, `last_bid_at`, `updated_at`, `scheduled_bot_bid_at`, `scheduled_bot_band`). O trigger `bids_refresh_last_bidders` continua sendo o único responsável por `last_bidders`.
-
-Sem mudanças em UI, fluxo, edge functions, ou demais tabelas. Sem mudanças nos leilões com vencedor pré-definido (regra independente).
-
-### Resultado esperado
-- Próximos lances atualizam `last_bidders` sem duplicar.
-- Duplicatas legítimas (mesmo usuário 2 vezes seguidas) continuam preservadas, pois o `rebuild_auction_last_bidders` lê fielmente do `bids`.
-- Leilões finalizados: comportamento atual mantido.
-
-### Escopo
-- 1 migration SQL (~30 linhas).
-- 0 arquivos de frontend alterados.
-- 0 edge functions alteradas.
-
+## Escopo
+- 1 migration SQL (~60 linhas: ALTER + 1 função recriada).
+- 1 edge function alterada (`auction-protection/index.ts`).
+- 1 componente React alterado (`PredefinedWinnerCard.tsx`).
+- 0 alterações em outros arquivos.
