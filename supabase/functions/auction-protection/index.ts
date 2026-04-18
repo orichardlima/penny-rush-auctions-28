@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price } = auction;
+    const { company_revenue, revenue_target, title, current_price, market_value, ends_at, max_price, predefined_winner_id } = auction;
 
     // Helper: gerar display name para last_bidders
     const getBotDisplayName = (bot: any): string => {
@@ -72,6 +72,65 @@ Deno.serve(async (req) => {
       const parts = fullName.trim().split(' ');
       if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
       return parts[0];
+    };
+
+    // Helper: verificar se alvo predefinido está liderando
+    const isPredefinedWinnerLeading = async (): Promise<boolean> => {
+      if (!predefined_winner_id) return false;
+      const { data: lastBid } = await supabase
+        .from('bids')
+        .select('user_id')
+        .eq('auction_id', auction_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return lastBid?.user_id === predefined_winner_id;
+    };
+
+    // Helper: finalizar com vencedor predefinido (jogador real)
+    const finalizeWithPredefinedWinner = async (reason: string, action: string) => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, city, state')
+        .eq('user_id', predefined_winner_id)
+        .single();
+
+      const winnerName = profile?.city && profile?.state
+        ? `${profile.full_name} - ${profile.city}, ${profile.state}`
+        : (profile?.full_name || 'Vencedor');
+
+      const displayName = (() => {
+        const parts = (profile?.full_name || 'Vencedor').trim().split(' ');
+        return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : parts[0];
+      })();
+
+      const { data: auctionData } = await supabase
+        .from('auctions')
+        .select('last_bidders')
+        .eq('id', auction_id)
+        .single();
+
+      let currentBidders: string[] = auctionData?.last_bidders || [];
+      currentBidders = [displayName, ...currentBidders].slice(0, 3);
+
+      const { error: updateError } = await supabase
+        .from('auctions')
+        .update({
+          status: 'finished',
+          finished_at: new Date().toISOString(),
+          winner_id: predefined_winner_id,
+          winner_name: winnerName,
+          last_bidders: currentBidders
+        })
+        .eq('id', auction_id);
+
+      if (updateError) throw updateError;
+
+      console.log(`🎯 [PROTECTION] Leilão "${title}" finalizado com alvo predefinido - ${reason} (${winnerName})`);
+      return new Response(
+        JSON.stringify({ message: reason, action, winner: winnerName, predefined: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     };
 
     // Helper: finalizar com bot como vencedor (REGRA ABSOLUTA)
