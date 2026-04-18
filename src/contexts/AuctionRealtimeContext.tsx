@@ -240,6 +240,12 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
       const winnerAsBidder = normalizeWinnerForLastBid(winnerNameWithRegion || auction.winner_name);
       if (!winnerAsBidder) return baseRecentBidders;
 
+      // Se o vencedor já está em primeiro, preserva o array como está (com duplicatas legítimas)
+      if (baseRecentBidders[0] === winnerAsBidder) {
+        return baseRecentBidders.slice(0, 3);
+      }
+
+      // Caso contrário (last_bidders dessincronizado), prepende o vencedor
       return [winnerAsBidder, ...baseRecentBidders.filter((name: string) => name !== winnerAsBidder)].slice(0, 3);
     })();
     
