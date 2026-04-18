@@ -1,2 +1,4 @@
 
-Pergunta de esclarecimento sobre regra de negócio. Não requer mudança de código. Vou inspecionar o código de comissionamento de recompra para responder com precisão.
+Pergunta de explicação sobre fluxo existente. Vou inspecionar onde o link de recrutamento aparece para o Manager.
+
+Já tenho o componente `ManagerRecruitmentLinkCard.tsx` no contexto. Preciso confirmar onde ele é renderizado no dashboard do afiliado.
