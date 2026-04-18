@@ -1,19 +1,47 @@
 
 
-O usuário só quer corrigir o leilão do PS5 (`93d9f950-c0b2-4422-927c-698b2caa96c0`). Sem backfill em massa.
+## Diagnóstico
 
-## Plano
+O DB está **correto**: `last_bidders = ["Richard Lima", "Richard Lima", "Sueli Cerqueira"]`.
 
-Rodar uma única chamada SQL pontual:
+O frontend (`AuctionRealtimeContext.tsx`, linha 237-244) aplica uma "sincronização defensiva" para leilões finalizados que **remove todas as ocorrências do nome do vencedor** e prepende uma única — colapsando `[Richard, Richard, Sueli]` em `[Richard, Sueli]`.
 
-```sql
-SELECT public.rebuild_auction_last_bidders('93d9f950-c0b2-4422-927c-698b2caa96c0'::uuid);
+```ts
+return [winnerAsBidder, ...baseRecentBidders.filter(name => name !== winnerAsBidder)].slice(0, 3);
 ```
 
-Isso reconstrói `last_bidders` desse leilão a partir dos lances reais na tabela `bids`, resultando em: **Richard Lima, Richard Lima, Sueli Cerqueira**.
+Essa lógica fazia sentido quando `last_bidders` podia ficar dessincronizado, mas agora o trigger `bids_refresh_last_bidders` já garante fidelidade ao histórico real.
 
-### Observações
-- Trigger `bids_refresh_last_bidders` já está ativo — novos leilões (incluindo os com `predefined_winner_id`) ficam corretos automaticamente.
-- Nenhum outro leilão é tocado.
-- Nenhuma alteração de UI, fluxo ou lógica.
+## Correção
+
+Ajustar a sincronização para **só prepender o vencedor se ele ainda não estiver na primeira posição** de `baseRecentBidders`, preservando as duplicatas legítimas.
+
+**Arquivo:** `src/contexts/AuctionRealtimeContext.tsx` (linhas 237-244)
+
+```ts
+const syncedRecentBidders = (() => {
+  if (auctionStatus !== 'finished') return baseRecentBidders;
+
+  const winnerAsBidder = normalizeWinnerForLastBid(winnerNameWithRegion || auction.winner_name);
+  if (!winnerAsBidder) return baseRecentBidders;
+
+  // Se o vencedor já está em primeiro, preserva o array como está (com duplicatas legítimas)
+  if (baseRecentBidders[0] === winnerAsBidder) {
+    return baseRecentBidders.slice(0, 3);
+  }
+
+  // Caso contrário (last_bidders dessincronizado), prepende o vencedor
+  return [winnerAsBidder, ...baseRecentBidders.filter(name => name !== winnerAsBidder)].slice(0, 3);
+})();
+```
+
+## Resultado esperado
+
+Card do PS5 passa a exibir os **3 chips**: `Richard Lima · Richard Lima · Sueli Cerqueira`.
+
+### Escopo
+- Apenas 1 arquivo, ~5 linhas alteradas.
+- Nenhuma mudança de UI, fluxo, timer, lógica de vencedor ou banco.
+- Não afeta leilões ativos (mantém comportamento atual).
+- Leilões finalizados antigos sem duplicatas continuam exibindo normalmente.
 
