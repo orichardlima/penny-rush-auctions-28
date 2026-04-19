@@ -281,6 +281,18 @@ const RecentPurchasesTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmPendingPurchaseDialog
+        open={!!confirmTarget}
+        onOpenChange={(open) => { if (!open) setConfirmTarget(null); }}
+        purchase={confirmTarget ? {
+          id: confirmTarget.id,
+          userName: confirmTarget.userName,
+          bids_purchased: confirmTarget.bids_purchased,
+          amount_paid: confirmTarget.amount_paid,
+        } : null}
+        onConfirmed={() => { fetchPurchases(); fetchSummary(); }}
+      />
     </div>
   );
 };
