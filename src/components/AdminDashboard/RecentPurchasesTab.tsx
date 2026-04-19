@@ -5,9 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, DollarSign, Package, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ShoppingCart, DollarSign, Package, ChevronLeft, ChevronRight, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import ConfirmPendingPurchaseDialog from '@/components/Admin/ConfirmPendingPurchaseDialog';
 
 const PAGE_SIZE = 20;
 
