@@ -1,16 +1,19 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Mail, Calendar, CheckCircle, TrendingUp, DollarSign, Users, Target, Edit, Ban, Link as LinkIcon } from "lucide-react";
+import { Copy, Mail, Calendar, CheckCircle, TrendingUp, DollarSign, Users, Target, Edit, Ban, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import EmergencyWithdrawalDialog from "@/components/Admin/EmergencyWithdrawalDialog";
 
 interface AffiliateDetails {
   id: string;
+  userId?: string;
   name: string;
   email: string;
   code: string;
@@ -39,6 +42,7 @@ interface AffiliateDetailModalProps {
 }
 
 export function AffiliateDetailModal({ affiliate, open, onOpenChange, onEditRate, onSuspend }: AffiliateDetailModalProps) {
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
   if (!affiliate) return null;
 
   const copyReferralLink = () => {
@@ -141,16 +145,25 @@ export function AffiliateDetailModal({ affiliate, open, onOpenChange, onEditRate
               </CardContent>
             </Card>
 
-            <div className="flex gap-2">
-              <Button onClick={() => onEditRate(affiliate.id)} className="flex-1">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => onEditRate(affiliate.id)} className="flex-1 min-w-[140px]">
                 <Edit className="h-4 w-4 mr-2" />
                 Editar Taxa
               </Button>
-              <Button onClick={() => onSuspend(affiliate.id)} variant="destructive" className="flex-1">
+              <Button onClick={() => onSuspend(affiliate.id)} variant="destructive" className="flex-1 min-w-[140px]">
                 <Ban className="h-4 w-4 mr-2" />
                 Suspender
               </Button>
-              <Button onClick={copyReferralLink} variant="outline" className="flex-1">
+              {affiliate.userId && (
+                <Button
+                  onClick={() => setEmergencyOpen(true)}
+                  className="flex-1 min-w-[170px] bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Saque Emergencial
+                </Button>
+              )}
+              <Button onClick={copyReferralLink} variant="outline" className="flex-1 min-w-[120px]">
                 <LinkIcon className="h-4 w-4 mr-2" />
                 Ver Link
               </Button>
@@ -246,6 +259,17 @@ export function AffiliateDetailModal({ affiliate, open, onOpenChange, onEditRate
           </TabsContent>
         </Tabs>
       </DialogContent>
+      {affiliate.userId && (
+        <EmergencyWithdrawalDialog
+          open={emergencyOpen}
+          onClose={() => setEmergencyOpen(false)}
+          userId={affiliate.userId}
+          userName={affiliate.name}
+          type="affiliate"
+          defaultPixKey={affiliate.pixKey}
+          defaultHolderName={affiliate.name}
+        />
+      )}
     </Dialog>
   );
 }
