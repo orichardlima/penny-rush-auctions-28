@@ -5,9 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, Gift, GitBranch, Coins, ArrowDownCircle, Wallet, TrendingUp, Calendar, Info, UserCheck, Link2 } from 'lucide-react';
+import { DollarSign, Gift, GitBranch, Coins, ArrowDownCircle, Wallet, TrendingUp, Calendar, Info, UserCheck, Link2, AlertTriangle } from 'lucide-react';
 import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
 import DailyRevenueBars from '@/components/Partner/DailyRevenueBars';
+import { Button } from '@/components/ui/button';
+import EmergencyWithdrawalDialog from '@/components/Admin/EmergencyWithdrawalDialog';
 
 interface PartnerDetailModalProps {
   contract: any;
@@ -23,6 +25,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const [manualCredits, setManualCredits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [sponsorInfo, setSponsorInfo] = useState<{ name: string; referralCode: string | null; date: string; source?: string } | null>(null);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
 
   // Hook for current week revenue (must be called unconditionally)
   const weekContract = useMemo(() => (
