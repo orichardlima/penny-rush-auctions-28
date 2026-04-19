@@ -1,30 +1,58 @@
 
 
-## Resposta direta
+## Diagnóstico
 
-**Não, o bug não voltará a ocorrer** para leilões com `open_win_mode = true` finalizados por horário/inatividade/meta. A correção aplicada na `sync-timers-and-protection/index.ts` agora replica exatamente a lógica do `auction-protection`:
+A edge function `order-pix-payment` está **funcionando perfeitamente** — os logs mostram que a MagenPay retorna o `pixCopiaECola` (código copia-e-cola) corretamente.
 
-1. **SELECT atualizado** — agora traz `predefined_winner_ids`, `open_win_mode` e `min_bids_to_qualify`.
-2. **`getEligibleRealLeader()`** — verifica se o último lance é de um real elegível (predefinido OU open_win + ≥ min_bids).
-3. **`finalizeWithRealUser()`** — finaliza com o real quando elegível, em vez de cair no bot.
-4. **Pausa de bots** — agendamento de bot é bloqueado enquanto o real elegível lidera.
+**O problema está no frontend, em `src/components/UserOrders.tsx` (linhas 113-119):**
 
-## Cenário Mi Band se repetisse hoje
+```ts
+setPixPaymentData({
+  paymentId: data.paymentId,
+  qrCode: data.qrCode,
+  qrCodeBase64: data.qrCodeBase64,
+  pixCopyPaste: data.pixCopyPaste   // ❌ Backend nunca retorna isso!
+});
+```
 
-- 01:59:44 — Luis Paulo dá lance, vira líder real.
-- 01:59:45+ — `sync-timers-and-protection` rodaria, veria `open_win_mode=true` + `min_bids=0` + Luis Paulo (real) liderando → **não agendaria bot**.
-- 02:00:38 — finalização por horário/inatividade → `getEligibleRealLeader` retorna Luis Paulo → `finalizeWithRealUser` registra ele como vencedor.
+Olhando a edge function `order-pix-payment/index.ts` (linhas 73-79), a resposta é:
+```ts
+{
+  orderId,
+  paymentId,
+  qrCodeBase64,    // vem vazio na MagenPay (não retorna imagem)
+  pixCopyPaste: null,   // ❌ Hardcoded como null!
+  status
+}
+```
 
-## Pontos de atenção (não são bugs, são limites do sistema)
+A função **descarta** o `pixCopyPaste` retornado pela MagenPay (forçando `null`) e a MagenPay **não retorna `qrCodeBase64`** (só retorna `pixCopiaECola`).
 
-- **Janela de corrida de ~5s**: se um bot já tinha lance agendado antes do real dar o último lance, esse lance pode disparar via RPC `execute_overdue_bot_bids`. Isso é mitigado pelo trigger SQL `block_bot_bid_when_target_leading` (já existente). Vale validar via teste real que esse trigger também respeita `open_win_mode` — se não respeitar, é um próximo ajuste pequeno.
-- **`min_bids_to_qualify > 0`**: se o admin exigir, ex., 10 lances e o real tiver só 8, ele NÃO ganha (comportamento correto, mas o admin precisa entender).
+Resultado: o modal abre vazio — sem QR code, sem botão "Copiar código PIX". É exatamente o que aparece na sua screenshot: só "Aguardando pagamento" e "Já fiz o pagamento".
 
-## Como confirmar em produção
+## Correção (1 arquivo)
 
-Sugestão: criar um leilão de teste com `open_win_mode=true`, `min_bids_to_qualify=0`, dar 1 lance real perto do fim, e observar:
-- Logs do `sync-timers-and-protection` devem mostrar `[REAL-LEADING]` (bots pausados).
-- Na finalização, log esperado: `[FINALIZED-REAL]` em vez de `[FINALIZED]` com bot.
+Editar `supabase/functions/order-pix-payment/index.ts` para repassar o `pixCopyPaste` real do `depositResult` (que já vem do `payment-router` → `magen-auth`):
 
-Se quiser, posso preparar um plano de validação via query no banco logo após o próximo leilão `open_win_mode` finalizar, comparando líder real vs vencedor registrado.
+```ts
+const response = {
+  orderId: order.id,
+  paymentId: depositResult.transactionId,
+  qrCodeBase64: depositResult.qrCodeBase64,
+  qrCodeUrl: depositResult.qrCodeUrl,
+  pixCopyPaste: depositResult.pixCopyPaste,  // ← era null, passa o real
+  status: depositResult.status
+}
+```
+
+O modal `OrderPixPaymentModal.tsx` já trata esse caso: quando só há `pixCopyPaste` (sem `qrCodeBase64`/`qrCodeUrl`), ele **gera o QR code no cliente** via `<QRCodeSVG value={pixCopyPaste} />` (linhas 152-154). Então tanto o QR quanto o botão "Copiar código PIX" passarão a aparecer.
+
+### Fora de escopo
+- UI do modal (já está correta).
+- Webhook de confirmação (já funcional).
+- Frontend `UserOrders.tsx` (já lê `pixCopyPaste` do response).
+- Outras edge functions de pagamento (partner, upgrade, etc).
+
+### Resultado esperado
+Ao clicar em "Pagar com PIX", o modal abre com QR Code escaneável + botão "Copiar código PIX" funcional, idêntico ao fluxo de pacotes de lances.
 
