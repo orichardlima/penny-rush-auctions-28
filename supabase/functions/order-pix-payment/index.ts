@@ -80,7 +80,8 @@ serve(async (req) => {
       orderId: order.id,
       paymentId: depositResult.transactionId,
       qrCodeBase64: depositResult.qrCodeBase64,
-      pixCopyPaste: null,
+      qrCodeUrl: depositResult.qrCodeUrl,
+      pixCopyPaste: depositResult.pixCopyPaste,
       status: depositResult.status
     }
 
