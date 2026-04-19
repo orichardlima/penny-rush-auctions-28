@@ -517,6 +517,7 @@ export const useAdminAffiliates = () => {
 
       return {
         id: affiliate.id,
+        userId: affiliate.user_id,
         name: profile?.full_name || 'Sem nome',
         email: profile?.email || '',
         code: affiliate.affiliate_code,

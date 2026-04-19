@@ -13,6 +13,7 @@ import EmergencyWithdrawalDialog from "@/components/Admin/EmergencyWithdrawalDia
 
 interface AffiliateDetails {
   id: string;
+  userId?: string;
   name: string;
   email: string;
   code: string;
