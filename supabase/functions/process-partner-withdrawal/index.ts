@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
-import { createVeopagWithdrawal } from '../_shared/veopag-auth.ts'
+import { sendWithdrawal } from '../_shared/withdrawal-router.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +18,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    // Validate admin auth
     const authHeader = req.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -41,9 +40,8 @@ serve(async (req) => {
     }
 
     const adminUserId = claimsData.claims.sub
-
-    // Verify user is admin
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('is_admin')
@@ -60,7 +58,6 @@ serve(async (req) => {
     const { withdrawalId } = await req.json()
     console.log('📦 Processing withdrawal:', withdrawalId)
 
-    // 1. Fetch withdrawal
     const { data: withdrawal, error: wError } = await supabase
       .from('partner_withdrawals')
       .select('*')
@@ -68,7 +65,6 @@ serve(async (req) => {
       .single()
 
     if (wError || !withdrawal) {
-      console.error('❌ Withdrawal not found:', wError)
       return new Response(
         JSON.stringify({ error: 'Saque não encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -82,7 +78,6 @@ serve(async (req) => {
       )
     }
 
-    // 2. Extract payment details
     const paymentDetails = withdrawal.payment_details as any
     const pixKey = paymentDetails?.pix_key
     const pixKeyType = paymentDetails?.pix_key_type || 'CPF'
@@ -96,40 +91,60 @@ serve(async (req) => {
       )
     }
 
-    // Map pix_key_type to VeoPag key_type
+    // Map para VeoPag (MagenPay aceita a chave crua)
     const keyTypeMap: Record<string, string> = {
-      'cpf': 'CPF',
-      'cnpj': 'CNPJ',
-      'email': 'EMAIL',
-      'telefone': 'PHONE_EVP',
-      'phone': 'PHONE_EVP',
-      'aleatoria': 'PHONE_EVP',
-      'random': 'PHONE_EVP',
+      'cpf': 'CPF', 'cnpj': 'CNPJ', 'email': 'EMAIL',
+      'telefone': 'PHONE_EVP', 'phone': 'PHONE_EVP',
+      'aleatoria': 'PHONE_EVP', 'random': 'PHONE_EVP',
     }
     const veopagKeyType = keyTypeMap[pixKeyType.toLowerCase()] || 'CPF'
 
-    // 3. Call VeoPag to send PIX
-    console.log('💸 Sending PIX via VeoPag:', withdrawal.amount, 'to', pixKey)
-    
-    const veopagResult = await createVeopagWithdrawal({
+    // UUID único por tentativa — NUNCA reutilizar (MagenPay exige)
+    const externalId = crypto.randomUUID()
+
+    console.log('💸 Sending withdrawal via router:', withdrawal.amount, 'externalId:', externalId)
+
+    const result = await sendWithdrawal(supabase, {
       amount: withdrawal.amount,
-      external_id: `withdrawal:${withdrawalId}`,
-      pix_key: pixKey,
-      key_type: veopagKeyType as any,
-      taxId: taxId,
-      name: holderName,
-      description: `Saque parceiro - Penny Rush #${withdrawalId.slice(0, 8)}`
+      externalId,
+      pixKey,
+      pixKeyType: veopagKeyType,
+      taxId,
+      holderName,
+      description: `Saque parceiro - Penny Rush #${withdrawalId.slice(0, 8)}`,
     })
 
-    console.log('✅ VeoPag withdrawal result:', JSON.stringify(veopagResult))
+    console.log('✅ Router result:', JSON.stringify(result))
 
-    // 4. Update withdrawal to PAID
+    // Status do saque conforme retorno
+    if (result.status === 'failed') {
+      // Mantém APPROVED (não consome saldo) e registra falha
+      await supabase.from('partner_withdrawals').update({
+        payment_details: {
+          ...paymentDetails,
+          last_attempt_external_id: externalId,
+          last_attempt_gateway: result.gateway,
+          last_attempt_status: 'failed',
+          last_attempt_at: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      }).eq('id', withdrawalId)
+
+      return new Response(
+        JSON.stringify({ error: 'PIX rejeitado pelo gateway. Tente novamente.', gateway: result.gateway }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // success OU processing → marcar PAID (processing significa que MagenPay aceitou e está em processamento bancário)
+    const isProcessing = result.status === 'processing'
     const updatedPaymentDetails = {
       ...paymentDetails,
-      paid_via: 'veopag_auto',
-      veopag_transaction_id: veopagResult.transaction_id,
-      veopag_status: veopagResult.status,
-      veopag_fee: veopagResult.fee
+      paid_via: `${result.gateway}_auto`,
+      external_id: externalId,
+      transaction_id: result.transactionId,
+      gateway_status: result.status,
+      ...(result.fee !== undefined ? { gateway_fee: result.fee } : {}),
     }
 
     const { error: updateError } = await supabase
@@ -139,7 +154,7 @@ serve(async (req) => {
         paid_at: new Date().toISOString(),
         paid_by: adminUserId,
         payment_details: updatedPaymentDetails,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', withdrawalId)
 
@@ -151,7 +166,7 @@ serve(async (req) => {
       )
     }
 
-    // 5. Update contract total_withdrawn
+    // Atualiza total_withdrawn do contrato
     const { data: contractData } = await supabase
       .from('partner_contracts')
       .select('total_withdrawn')
@@ -163,31 +178,35 @@ serve(async (req) => {
         .from('partner_contracts')
         .update({
           total_withdrawn: (contractData.total_withdrawn || 0) + withdrawal.amount,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', withdrawal.partner_contract_id)
     }
 
-    console.log('✅ Withdrawal PAID via VeoPag auto-PIX')
+    console.log(`✅ Withdrawal PAID via ${result.gateway} (status=${result.status})`)
     console.log('=== PROCESS PARTNER WITHDRAWAL END ===')
 
     return new Response(
       JSON.stringify({
         success: true,
+        gateway: result.gateway,
+        status: result.status,
+        processing: isProcessing,
         amount: withdrawal.amount,
-        transaction_id: veopagResult.transaction_id,
-        fee: veopagResult.fee,
+        transaction_id: result.transactionId,
+        external_id: externalId,
+        fee: result.fee,
         pix_key: pixKey,
         pix_key_type: pixKeyType,
-        holder_name: holderName
+        holder_name: holderName,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Function error:', error)
     return new Response(
-      JSON.stringify({ error: error.message || 'Erro interno do servidor' }),
+      JSON.stringify({ error: error?.message || 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
