@@ -5,9 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, DollarSign, Package, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ShoppingCart, DollarSign, Package, ChevronLeft, ChevronRight, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import ConfirmPendingPurchaseDialog from '@/components/Admin/ConfirmPendingPurchaseDialog';
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +54,7 @@ const RecentPurchasesTab: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('30d');
+  const [confirmTarget, setConfirmTarget] = useState<PurchaseRow | null>(null);
 
   const fetchPurchases = useCallback(async () => {
     setLoading(true);
@@ -222,11 +224,13 @@ const RecentPurchasesTab: React.FC = () => {
                   <TableHead className="text-right">Lances</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {purchases.map((p) => {
                   const cfg = statusConfig[p.payment_status || 'pending'] || statusConfig.pending;
+                  const isPending = p.payment_status === 'pending';
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="whitespace-nowrap text-sm">
@@ -238,6 +242,19 @@ const RecentPurchasesTab: React.FC = () => {
                       <TableCell className="text-right whitespace-nowrap">R$ {p.amount_paid.toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isPending && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setConfirmTarget(p)}
+                            className="whitespace-nowrap"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                            Confirmar
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -264,6 +281,18 @@ const RecentPurchasesTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmPendingPurchaseDialog
+        open={!!confirmTarget}
+        onOpenChange={(open) => { if (!open) setConfirmTarget(null); }}
+        purchase={confirmTarget ? {
+          id: confirmTarget.id,
+          userName: confirmTarget.userName,
+          bids_purchased: confirmTarget.bids_purchased,
+          amount_paid: confirmTarget.amount_paid,
+        } : null}
+        onConfirmed={() => { fetchPurchases(); fetchSummary(); }}
+      />
     </div>
   );
 };
