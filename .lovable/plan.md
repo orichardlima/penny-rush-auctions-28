@@ -1,12 +1,9 @@
 
 
-## Contexto e descoberta
+O usuário está perguntando sobre disponibilidade de saque baseado na imagem que mostra bônus de indicação. Isso é uma pergunta de pesquisa/diagnóstico, não uma implementação. Preciso investigar:
 
-Atualmente saques (PIX Out) usam **VeoPag** via `process-partner-withdrawal` (memo `magenpay-pix-out-limitation` confirma: MagenPay/VPS é só para depósitos). O usuário quer adicionar **PIX Out via VPS MagenPay** (`POST /pix/enviar` + polling em `/pix/enviar/status/{externalId}`).
+1. As regras de saque (mínimo, carência, etc.)
+2. O saldo atual desse usuário específico
+3. Quando os bônus pendentes ficam disponíveis
 
-Preciso verificar:
-1. Como `process-partner-withdrawal` está estruturado (já vi na knowledge — usa VeoPag direto).
-2. Se existe edge function equivalente para saques de afiliado.
-3. Onde estão os botões de "Pagar" no admin para acionar o envio.
-4. Se o roteamento por gateway (igual depósitos via `payment-router.ts`) faz sentido aqui.
-
+Vou consultar o banco para entender o estado real.
