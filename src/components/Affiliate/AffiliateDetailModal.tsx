@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Mail, Calendar, CheckCircle, TrendingUp, DollarSign, Users, Target, Edit, Ban, Link as LinkIcon } from "lucide-react";
+import { Copy, Mail, Calendar, CheckCircle, TrendingUp, DollarSign, Users, Target, Edit, Ban, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import EmergencyWithdrawalDialog from "@/components/Admin/EmergencyWithdrawalDialog";
 
 interface AffiliateDetails {
   id: string;
