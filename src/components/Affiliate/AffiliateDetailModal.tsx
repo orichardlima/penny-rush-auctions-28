@@ -42,6 +42,7 @@ interface AffiliateDetailModalProps {
 }
 
 export function AffiliateDetailModal({ affiliate, open, onOpenChange, onEditRate, onSuspend }: AffiliateDetailModalProps) {
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
   if (!affiliate) return null;
 
   const copyReferralLink = () => {
@@ -144,16 +145,25 @@ export function AffiliateDetailModal({ affiliate, open, onOpenChange, onEditRate
               </CardContent>
             </Card>
 
-            <div className="flex gap-2">
-              <Button onClick={() => onEditRate(affiliate.id)} className="flex-1">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => onEditRate(affiliate.id)} className="flex-1 min-w-[140px]">
                 <Edit className="h-4 w-4 mr-2" />
                 Editar Taxa
               </Button>
-              <Button onClick={() => onSuspend(affiliate.id)} variant="destructive" className="flex-1">
+              <Button onClick={() => onSuspend(affiliate.id)} variant="destructive" className="flex-1 min-w-[140px]">
                 <Ban className="h-4 w-4 mr-2" />
                 Suspender
               </Button>
-              <Button onClick={copyReferralLink} variant="outline" className="flex-1">
+              {affiliate.userId && (
+                <Button
+                  onClick={() => setEmergencyOpen(true)}
+                  className="flex-1 min-w-[170px] bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Saque Emergencial
+                </Button>
+              )}
+              <Button onClick={copyReferralLink} variant="outline" className="flex-1 min-w-[120px]">
                 <LinkIcon className="h-4 w-4 mr-2" />
                 Ver Link
               </Button>
