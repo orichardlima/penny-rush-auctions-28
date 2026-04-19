@@ -224,11 +224,13 @@ const RecentPurchasesTab: React.FC = () => {
                   <TableHead className="text-right">Lances</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {purchases.map((p) => {
                   const cfg = statusConfig[p.payment_status || 'pending'] || statusConfig.pending;
+                  const isPending = p.payment_status === 'pending';
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="whitespace-nowrap text-sm">
@@ -240,6 +242,19 @@ const RecentPurchasesTab: React.FC = () => {
                       <TableCell className="text-right whitespace-nowrap">R$ {p.amount_paid.toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isPending && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setConfirmTarget(p)}
+                            className="whitespace-nowrap"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                            Confirmar
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
