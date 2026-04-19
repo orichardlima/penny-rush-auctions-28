@@ -480,7 +480,18 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
               </TabsContent>
 
               {/* Withdrawals Tab */}
+              {/* Withdrawals Tab */}
               <TabsContent value="withdrawals">
+                <div className="flex justify-end mb-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setEmergencyOpen(true)}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                    Saque Emergencial
+                  </Button>
+                </div>
                 <div className="max-h-64 overflow-auto rounded border">
                   <Table>
                     <TableHeader>
@@ -497,7 +508,12 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                         <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-xs">Nenhum saque</TableCell></TableRow>
                       ) : withdrawals.map(w => (
                         <TableRow key={w.id}>
-                          <TableCell className="text-xs font-medium">{formatPrice(w.amount)}</TableCell>
+                          <TableCell className="text-xs font-medium">
+                            {formatPrice(w.amount)}
+                            {(w.payment_details as any)?.emergency && (
+                              <Badge className="ml-1.5 bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">EMERG.</Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="text-xs uppercase">{w.payment_method}</TableCell>
                           <TableCell>{getStatusBadge(w.status)}</TableCell>
                           <TableCell className="text-xs">{formatDate(w.requested_at)}</TableCell>
@@ -510,6 +526,27 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
               </TabsContent>
             </Tabs>
           </div>
+        )}
+
+        {contract && (
+          <EmergencyWithdrawalDialog
+            open={emergencyOpen}
+            onClose={() => setEmergencyOpen(false)}
+            userId={contract.user_id}
+            userName={contract.user_name || 'Parceiro'}
+            type="partner"
+            defaultPixKey={contract.pix_key}
+            defaultPixKeyType={contract.pix_key_type}
+            defaultHolderName={contract.user_name}
+            onSuccess={async () => {
+              const { data } = await supabase
+                .from('partner_withdrawals')
+                .select('*')
+                .eq('partner_contract_id', contract.id)
+                .order('created_at', { ascending: false });
+              setWithdrawals(data || []);
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>
