@@ -59,44 +59,64 @@ function selectBotBand(lastBotBand: string | null): { band: string; delaySec: nu
   };
 
   let result = pickBand();
-  // Anti-repetição: re-sortear 1x se igual ao último
   if (result.band === lastBotBand) {
     result = pickBand();
   }
   return result;
 }
 
-// Helper: verifica se vencedor predefinido está liderando (último lance é dele)
-async function isPredefinedWinnerLeading(supabase: any, auctionId: string): Promise<{ leading: boolean; predefinedWinnerId: string | null }> {
-  const { data: auction } = await supabase
-    .from('auctions')
-    .select('predefined_winner_id')
-    .eq('id', auctionId)
-    .single();
-
-  const predefinedWinnerId = auction?.predefined_winner_id || null;
-  if (!predefinedWinnerId) return { leading: false, predefinedWinnerId: null };
-
+// Helper: retorna o user_id do líder real ELEGÍVEL (predefinido OU open_win_mode), ou null
+async function getEligibleRealLeader(supabase: any, auction: any): Promise<string | null> {
   const { data: lastBid } = await supabase
     .from('bids')
     .select('user_id')
-    .eq('auction_id', auctionId)
+    .eq('auction_id', auction.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  return { leading: lastBid?.user_id === predefinedWinnerId, predefinedWinnerId };
+  if (!lastBid?.user_id) return null;
+  const leaderId = lastBid.user_id;
+
+  // (a) Predefinido (array novo OU legado singular)
+  const predefinedList: string[] = Array.isArray(auction.predefined_winner_ids) ? auction.predefined_winner_ids : [];
+  if (predefinedList.includes(leaderId)) return leaderId;
+  if (auction.predefined_winner_id && auction.predefined_winner_id === leaderId) return leaderId;
+
+  // (b) Open Win Mode: precisa ser real (não bot) + lances >= min_bids_to_qualify
+  if (auction.open_win_mode === true) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_bot')
+      .eq('user_id', leaderId)
+      .maybeSingle();
+
+    if (profile && profile.is_bot === false) {
+      const minBids = Number(auction.min_bids_to_qualify || 0);
+      if (minBids <= 0) return leaderId;
+
+      const { count } = await supabase
+        .from('bids')
+        .select('id', { count: 'exact', head: true })
+        .eq('auction_id', auction.id)
+        .eq('user_id', leaderId);
+
+      if ((count || 0) >= minBids) return leaderId;
+    }
+  }
+
+  return null;
 }
 
-// Helper: finalizar com vencedor predefinido (jogador real)
-async function finalizeWithPredefinedWinner(
+// Helper: finalizar com usuário real (predefinido ou elegível por open_win)
+async function finalizeWithRealUser(
   supabase: any, auctionId: string, auctionTitle: string,
-  predefinedWinnerId: string, reason: string, finishReason: string
+  realUserId: string, reason: string, finishReason: string
 ): Promise<boolean> {
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, city, state')
-    .eq('user_id', predefinedWinnerId)
+    .eq('user_id', realUserId)
     .single();
 
   const winnerName = profile?.city && profile?.state
@@ -122,7 +142,7 @@ async function finalizeWithPredefinedWinner(
     .update({
       status: 'finished',
       finished_at: new Date().toISOString(),
-      winner_id: predefinedWinnerId,
+      winner_id: realUserId,
       winner_name: winnerName,
       last_bidders: currentBidders,
       finish_reason: finishReason,
@@ -135,18 +155,18 @@ async function finalizeWithPredefinedWinner(
     .select('id');
 
   if (error) {
-    console.error(`❌ [FINALIZE-PREDEFINED] Erro "${auctionTitle}":`, error.message);
+    console.error(`❌ [FINALIZE-REAL] Erro "${auctionTitle}":`, error.message);
     return false;
   }
   if (!data || data.length === 0) {
-    console.log(`⚡ [FINALIZE-PREDEFINED] "${auctionTitle}" já finalizado por outra camada`);
+    console.log(`⚡ [FINALIZE-REAL] "${auctionTitle}" já finalizado por outra camada`);
     return false;
   }
-  console.log(`🎯 [FINALIZED-PREDEFINED] "${auctionTitle}" - ${reason} (alvo: ${winnerName})`);
+  console.log(`🎯 [FINALIZED-REAL] "${auctionTitle}" - ${reason} (vencedor real: ${winnerName})`);
   return true;
 }
 
-// Helper: finalizar leilão SEMPRE com bot como vencedor (fallback padrão)
+// Helper: finalizar leilão com bot (fallback padrão quando não há líder real elegível)
 async function finalizeWithBot(
   supabase: any, auctionId: string, auctionTitle: string, 
   reason: string, finishReason: string
@@ -277,7 +297,7 @@ Deno.serve(async (req) => {
     // **FASE 3: Verificar leilões ativos para finalização e agendamento**
     const { data: activeAuctions, error: activeError } = await supabase
       .from('auctions')
-      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price, scheduled_bot_bid_at, scheduled_bot_band, last_bot_band, predefined_winner_id')
+      .select('id, title, current_price, market_value, company_revenue, revenue_target, last_bid_at, bid_increment, ends_at, max_price, scheduled_bot_bid_at, scheduled_bot_band, last_bot_band, predefined_winner_id, predefined_winner_ids, open_win_mode, min_bids_to_qualify')
       .eq('status', 'active');
 
     if (activeError) {
@@ -294,16 +314,14 @@ Deno.serve(async (req) => {
         const currentTime = Date.now();
         const secondsSinceLastBid = Math.floor((currentTime - lastBidTime) / 1000);
 
-        // Helper local: escolhe finalização (alvo predefinido se liderando, senão bot)
+        // Helper local: escolhe finalização (real elegível se liderando, senão bot)
         const finalize = async (reason: string, finishReason: string): Promise<boolean> => {
-          if (auction.predefined_winner_id) {
-            const { leading } = await isPredefinedWinnerLeading(supabase, auction.id);
-            if (leading) {
-              return await finalizeWithPredefinedWinner(
-                supabase, auction.id, auction.title,
-                auction.predefined_winner_id, reason, finishReason
-              );
-            }
+          const eligibleRealLeader = await getEligibleRealLeader(supabase, auction);
+          if (eligibleRealLeader) {
+            return await finalizeWithRealUser(
+              supabase, auction.id, auction.title,
+              eligibleRealLeader, reason, finishReason
+            );
           }
           return await finalizeWithBot(supabase, auction.id, auction.title, reason, finishReason);
         };
@@ -358,13 +376,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 6. PREDEFINED WINNER: pular agendamento se alvo está liderando
-        if (auction.predefined_winner_id) {
-          const { leading } = await isPredefinedWinnerLeading(supabase, auction.id);
-          if (leading) {
-            console.log(`🎯 [PREDEFINED-LEADING] "${auction.title}" - alvo lidera, bots pausados`);
-            continue;
-          }
+        // 6. PAUSAR bots se houver líder real elegível (predefinido OU open_win)
+        const eligibleRealLeader = await getEligibleRealLeader(supabase, auction);
+        if (eligibleRealLeader) {
+          console.log(`🎯 [REAL-LEADING] "${auction.title}" - real elegível lidera, bots pausados`);
+          continue;
         }
 
         // 7. Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
