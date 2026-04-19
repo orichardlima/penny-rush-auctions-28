@@ -54,6 +54,7 @@ const RecentPurchasesTab: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('30d');
+  const [confirmTarget, setConfirmTarget] = useState<PurchaseRow | null>(null);
 
   const fetchPurchases = useCallback(async () => {
     setLoading(true);
