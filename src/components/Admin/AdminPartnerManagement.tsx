@@ -1738,7 +1738,7 @@ const AdminPartnerManagement = () => {
                     ) : (
                       <DollarSign className="h-4 w-4 mr-2" />
                     )}
-                    {processing ? 'Enviando PIX...' : 'Enviar PIX Automático (VeoPag)'}
+                    {processing ? 'Enviando PIX...' : `Enviar PIX Automático (${getSettingValue('active_payment_gateway', 'veopag') === 'magenpay' ? 'MagenPay' : 'VeoPag'})`}
                   </Button>
                 </div>
               )}
