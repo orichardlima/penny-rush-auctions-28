@@ -1,36 +1,30 @@
 
 
-## Diagnóstico — por que Richard ganhou e Luis Paulo não
+## Resposta direta
 
-### Por que Richard Lima (PS5) ganhou
-O leilão do PS5 tinha **Richard no `predefined_winner_ids`**. Tanto o `sync-timers-and-protection` quanto o trigger antigo `block_bot_bid_when_target_leading` já reconheciam `predefined_winner_id(s)` há semanas. Quando o tempo limite chegou, a função `finalize()` viu que o predefinido liderava e chamou `finalizeWithPredefinedWinner`. Funcionou.
+**Não, o bug não voltará a ocorrer** para leilões com `open_win_mode = true` finalizados por horário/inatividade/meta. A correção aplicada na `sync-timers-and-protection/index.ts` agora replica exatamente a lógica do `auction-protection`:
 
-### Por que Luis Paulo (Mi Band) NÃO ganhou
-Apesar do `open_win_mode = true` e ele ter dado o último lance às 01:59:44, o leilão foi finalizado às 02:00:38 com a bot Benedita Lima. **Causa raiz**: a edge function `sync-timers-and-protection/index.ts` (que é quem efetivamente finaliza leilões por horário/meta/inatividade) **NÃO foi atualizada** para entender `open_win_mode` / `min_bids_to_qualify`. Apenas o `auction-protection` e o trigger SQL foram. A função `finalize()` lá dentro só verifica `predefined_winner_id` (singular, legado) — se o líder não está nessa lista, ela cai direto em `finalizeWithBot()`, ignorando completamente o líder real elegível pelo modo aberto.
+1. **SELECT atualizado** — agora traz `predefined_winner_ids`, `open_win_mode` e `min_bids_to_qualify`.
+2. **`getEligibleRealLeader()`** — verifica se o último lance é de um real elegível (predefinido OU open_win + ≥ min_bids).
+3. **`finalizeWithRealUser()`** — finaliza com o real quando elegível, em vez de cair no bot.
+4. **Pausa de bots** — agendamento de bot é bloqueado enquanto o real elegível lidera.
 
-Ou seja: o `open_win_mode` bloqueia bots de **darem lance** (via trigger), mas no momento da **finalização** por inatividade/horário, o `sync-timers-and-protection` ignora a regra e premia um bot aleatório.
+## Cenário Mi Band se repetisse hoje
 
-### Bugs adicionais detectados no mesmo arquivo
-1. `isPredefinedWinnerLeading` lê só `predefined_winner_id` (singular legado), ignora `predefined_winner_ids[]` — pode quebrar a regra antiga em leilões novos que usem só o array.
-2. O SELECT da linha 280 não traz `predefined_winner_ids`, `open_win_mode` nem `min_bids_to_qualify`.
+- 01:59:44 — Luis Paulo dá lance, vira líder real.
+- 01:59:45+ — `sync-timers-and-protection` rodaria, veria `open_win_mode=true` + `min_bids=0` + Luis Paulo (real) liderando → **não agendaria bot**.
+- 02:00:38 — finalização por horário/inatividade → `getEligibleRealLeader` retorna Luis Paulo → `finalizeWithRealUser` registra ele como vencedor.
 
-## Correção proposta
+## Pontos de atenção (não são bugs, são limites do sistema)
 
-Atualizar **somente** `supabase/functions/sync-timers-and-protection/index.ts`:
+- **Janela de corrida de ~5s**: se um bot já tinha lance agendado antes do real dar o último lance, esse lance pode disparar via RPC `execute_overdue_bot_bids`. Isso é mitigado pelo trigger SQL `block_bot_bid_when_target_leading` (já existente). Vale validar via teste real que esse trigger também respeita `open_win_mode` — se não respeitar, é um próximo ajuste pequeno.
+- **`min_bids_to_qualify > 0`**: se o admin exigir, ex., 10 lances e o real tiver só 8, ele NÃO ganha (comportamento correto, mas o admin precisa entender).
 
-1. Incluir `predefined_winner_ids, open_win_mode, min_bids_to_qualify` no SELECT de leilões ativos (linha ~280).
-2. Substituir `isPredefinedWinnerLeading` por `getEligibleRealLeader(auction)` — mesma lógica já existente no `auction-protection`:
-   - Pega o último lance.
-   - Elegível se: (a) está em `predefined_winner_ids` (ou no legado), OU (b) `open_win_mode=true` + `is_bot=false` + lances ≥ `min_bids_to_qualify`.
-3. Adicionar `finalizeWithRealUser(userId, ...)` (espelhando o `auction-protection`).
-4. Refatorar a `finalize()` interna: se houver líder elegível → `finalizeWithRealUser`; senão → `finalizeWithBot`.
-5. No bloco "pular agendamento se alvo lidera" (linha 361), trocar por checagem do `getEligibleRealLeader` para também pausar agendamento de bots quando real elegível (open_win) liderar.
+## Como confirmar em produção
 
-### Fora de escopo (não mexer)
-- UI, fluxo de pagamento, orders, timer, demais edge functions.
-- Trigger SQL (já correto).
-- Lógica de `predefined_winner_ids` continua intacta.
+Sugestão: criar um leilão de teste com `open_win_mode=true`, `min_bids_to_qualify=0`, dar 1 lance real perto do fim, e observar:
+- Logs do `sync-timers-and-protection` devem mostrar `[REAL-LEADING]` (bots pausados).
+- Na finalização, log esperado: `[FINALIZED-REAL]` em vez de `[FINALIZED]` com bot.
 
-### Resultado esperado
-Cenário Mi Band se repetiria assim: às 02:00:38 (horário/inatividade), `sync-timers-and-protection` veria Luis Paulo como líder + `open_win_mode=true` + `min_bids=0` → finalizaria com Luis Paulo como vencedor real, não com a bot Benedita.
+Se quiser, posso preparar um plano de validação via query no banco logo após o próximo leilão `open_win_mode` finalizar, comparando líder real vs vencedor registrado.
 
