@@ -259,6 +259,17 @@ export function AffiliateDetailModal({ affiliate, open, onOpenChange, onEditRate
           </TabsContent>
         </Tabs>
       </DialogContent>
+      {affiliate.userId && (
+        <EmergencyWithdrawalDialog
+          open={emergencyOpen}
+          onClose={() => setEmergencyOpen(false)}
+          userId={affiliate.userId}
+          userName={affiliate.name}
+          type="affiliate"
+          defaultPixKey={affiliate.pixKey}
+          defaultHolderName={affiliate.name}
+        />
+      )}
     </Dialog>
   );
 }
