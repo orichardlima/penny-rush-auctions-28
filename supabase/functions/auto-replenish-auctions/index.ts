@@ -134,9 +134,14 @@ Deno.serve(async (req) => {
     const now = Date.now()
 
     // 6. Pool elegível: sem duplicatas + sem violação de cooldown
+    // Cooldown padrão (anti-repetição) quando o template não define um valor próprio.
+    // Evita que o mesmo título apareça várias vezes em poucos minutos quando o leilão termina rápido.
+    const DEFAULT_COOLDOWN_HOURS = parseFloat(settings['auto_replenish_default_cooldown_hours'] || '4')
+
     const eligible = templates.filter(t => {
       if (activeTitles.has(t.title)) return false
-      const minHours = (t as any).min_hours_between_appearances || 0
+      const rawMinHours = (t as any).min_hours_between_appearances
+      const minHours = (rawMinHours == null || rawMinHours <= 0) ? DEFAULT_COOLDOWN_HOURS : rawMinHours
       if (minHours <= 0) return true
       const lastSeen = lastSeenByTitle.get(t.title)
       if (!lastSeen) return true
