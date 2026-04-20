@@ -596,9 +596,9 @@ export const ProductTemplatesManager = () => {
                   <TableRow key={template.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        {template.image_url ? (
+                        {(template.image_url || template.image_key) ? (
                           <img 
-                            src={template.image_url} 
+                            src={resolveTemplateImage(template)} 
                             alt={template.title}
                             className="h-10 w-10 rounded object-cover"
                           />
@@ -608,7 +608,15 @@ export const ProductTemplatesManager = () => {
                           </div>
                         )}
                         <div>
-                          <p className="font-medium">{template.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{template.title}</p>
+                            {(() => {
+                              const kind = getImageBadgeKind(template);
+                              if (kind === 'storage') return <Badge variant="secondary" className="gap-1 text-xs"><Database className="h-3 w-3" />Storage</Badge>;
+                              if (kind === 'ai') return <Badge variant="outline" className="gap-1 text-xs"><Bot className="h-3 w-3" />IA</Badge>;
+                              return <Badge variant="destructive" className="gap-1 text-xs"><AlertTriangle className="h-3 w-3" />Sem imagem</Badge>;
+                            })()}
+                          </div>
                           {template.description && (
                             <p className="text-sm text-muted-foreground truncate max-w-[200px]">
                               {template.description}
