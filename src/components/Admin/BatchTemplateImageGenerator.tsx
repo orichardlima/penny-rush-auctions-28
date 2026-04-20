@@ -13,7 +13,7 @@ import { ProductTemplate, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplate
 const MAX_BATCH = 50;
 const DELAY_MS = 800;
 
-type TierFilter = 'standard' | 'premium' | 'all';
+type TierFilter = 'standard' | 'premium' | 'luxury' | 'all';
 
 type ItemStatus = 'pending' | 'running' | 'success' | 'failed';
 
@@ -42,8 +42,6 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
 
   const candidates = useMemo(() => {
     return templates.filter((t) => {
-      // Luxury sempre excluído (image_key oficial)
-      if (t.tier === 'luxury') return false;
       if (tier !== 'all' && t.tier !== tier) return false;
       if (category !== 'all' && t.category !== category) return false;
       if (onlyMissing && (t.image_url || t.image_key)) return false;
@@ -163,9 +161,10 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Standard + Premium</SelectItem>
+                <SelectItem value="all">Standard + Premium + Luxury</SelectItem>
                 <SelectItem value="standard">Apenas Standard</SelectItem>
                 <SelectItem value="premium">Apenas Premium</SelectItem>
+                <SelectItem value="luxury">Apenas Luxury</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -209,7 +208,7 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
               )}.
             </p>
             <p className="text-xs text-muted-foreground">
-              Itens Luxury são ignorados (usam imagem oficial via Image Key). Cada imagem leva ~10–15s.
+              Itens Luxury com Image Key definido continuam usando a imagem oficial; só serão sobrescritos se você apagar o Image Key. Cada imagem leva ~10–15s.
             </p>
             <p className="text-xs text-muted-foreground">
               Cada imagem consome ~1 crédito de IA (até ~2 com retry para itens com marca).
