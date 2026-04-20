@@ -208,7 +208,7 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
               )}.
             </p>
             <p className="text-xs text-muted-foreground">
-              Itens Luxury são ignorados (usam imagem oficial via Image Key). Cada imagem leva ~10–15s.
+              Itens Luxury com Image Key definido continuam usando a imagem oficial; só serão sobrescritos se você apagar o Image Key. Cada imagem leva ~10–15s.
             </p>
             <p className="text-xs text-muted-foreground">
               Cada imagem consome ~1 crédito de IA (até ~2 com retry para itens com marca).
