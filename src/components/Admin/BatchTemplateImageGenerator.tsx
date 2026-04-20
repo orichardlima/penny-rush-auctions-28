@@ -161,9 +161,10 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Standard + Premium</SelectItem>
+                <SelectItem value="all">Standard + Premium + Luxury</SelectItem>
                 <SelectItem value="standard">Apenas Standard</SelectItem>
                 <SelectItem value="premium">Apenas Premium</SelectItem>
+                <SelectItem value="luxury">Apenas Luxury</SelectItem>
               </SelectContent>
             </Select>
           </div>
