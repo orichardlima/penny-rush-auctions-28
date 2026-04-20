@@ -30,6 +30,8 @@ export const ProductTemplatesManager = () => {
   const [uploading, setUploading] = useState(false);
   
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [customPromptOpen, setCustomPromptOpen] = useState(false);
+  const [customPromptText, setCustomPromptText] = useState('');
 
   const [formData, setFormData] = useState<ProductTemplateInput>({
     title: '',
@@ -154,17 +156,18 @@ export const ProductTemplatesManager = () => {
     setIsDialogOpen(true);
   };
 
-  const handleGenerateWithAI = async () => {
+  const runGeneration = async (promptOverride?: string) => {
     if (!editingTemplate) {
       toast.error('Salve o template primeiro para gerar imagem com IA');
       return;
     }
     setGeneratingFor(editingTemplate);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-template-image', {
-        body: { template_id: editingTemplate },
-      });
-      // Mensagem específica vinda do backend tem prioridade sobre o erro genérico do invoke
+      const body: Record<string, unknown> = { template_id: editingTemplate };
+      if (promptOverride && promptOverride.trim().length > 0) {
+        body.prompt = promptOverride.trim();
+      }
+      const { data, error } = await supabase.functions.invoke('generate-template-image', { body });
       const backendError = (data as any)?.error;
       if (backendError) {
         toast.error(backendError);
@@ -174,19 +177,30 @@ export const ProductTemplatesManager = () => {
       if (data?.image_url) {
         setFormData(prev => ({ ...prev, image_url: data.image_url, image_key: '' }));
         setImagePreview(data.image_url);
-        toast.success('Imagem gerada com IA!');
+        toast.success(`Imagem gerada${data.source ? ` (${data.source})` : ''}!`);
         await fetchTemplates();
+        setCustomPromptOpen(false);
       } else {
         toast.error('Falha ao gerar imagem');
       }
     } catch (err: any) {
       console.error('AI generation error:', err);
-      // Tenta extrair mensagem do contexto do FunctionsHttpError
       const ctxMsg = err?.context?.error || err?.context?.body?.error;
       toast.error(ctxMsg || 'Erro ao gerar imagem: ' + (err.message || 'desconhecido'));
     } finally {
       setGeneratingFor(null);
     }
+  };
+
+  const handleGenerateWithAI = () => runGeneration();
+
+  const handleOpenCustomPrompt = () => {
+    if (!editingTemplate) {
+      toast.error('Salve o template primeiro para gerar imagem com IA');
+      return;
+    }
+    setCustomPromptText('');
+    setCustomPromptOpen(true);
   };
 
   const handleSubmit = async () => {
