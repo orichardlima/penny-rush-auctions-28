@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useProductTemplates, ProductTemplateInput, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { BatchAuctionGenerator } from './BatchAuctionGenerator';
-import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database } from 'lucide-react';
+import { BatchTemplateImageGenerator } from './BatchTemplateImageGenerator';
+import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database, Wand2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { processImageFile, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
@@ -23,6 +24,7 @@ export const ProductTemplatesManager = () => {
   console.log('[ProductTemplatesManager] Render:', { loading, error, templatesCount: templates?.length });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
+  const [isBatchImageDialogOpen, setIsBatchImageDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -284,7 +286,26 @@ export const ProductTemplatesManager = () => {
           </p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={isBatchImageDialogOpen} onOpenChange={setIsBatchImageDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="secondary" className="gap-2">
+                <Wand2 className="h-4 w-4" />
+                Regerar Imagens em Lote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Regerar imagens via IA em lote</DialogTitle>
+              </DialogHeader>
+              <BatchTemplateImageGenerator
+                templates={templates}
+                onClose={() => setIsBatchImageDialogOpen(false)}
+                onCompleted={fetchTemplates}
+              />
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isBatchDialogOpen} onOpenChange={setIsBatchDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="default" className="gap-2">
