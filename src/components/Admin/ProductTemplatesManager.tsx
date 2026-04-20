@@ -366,8 +366,7 @@ export const ProductTemplatesManager = () => {
                         variant="outline"
                         size="sm"
                         onClick={handleGenerateWithAI}
-                        disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
-                        title={formData.tier === 'luxury' ? 'Itens Luxury usam imagem oficial via Image Key, não IA.' : undefined}
+                        disabled={!editingTemplate || generatingFor === editingTemplate}
                         className="gap-2"
                       >
                         {generatingFor === editingTemplate ? (
@@ -382,7 +381,7 @@ export const ProductTemplatesManager = () => {
                         variant="ghost"
                         size="sm"
                         onClick={handleOpenCustomPrompt}
-                        disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
+                        disabled={!editingTemplate || generatingFor === editingTemplate}
                         title="Regerar usando seu próprio prompt em inglês"
                         className="gap-2"
                       >
@@ -394,11 +393,6 @@ export const ProductTemplatesManager = () => {
                   {!editingTemplate && (
                     <p className="text-xs text-muted-foreground">
                       Salve o template primeiro para habilitar geração com IA
-                    </p>
-                  )}
-                  {formData.tier === 'luxury' && (
-                    <p className="text-xs text-muted-foreground">
-                      Itens Luxury usam imagem oficial via Image Key — não geram com IA.
                     </p>
                   )}
 
