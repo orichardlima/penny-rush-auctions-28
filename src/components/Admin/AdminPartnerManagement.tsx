@@ -178,7 +178,7 @@ const AdminPartnerManagement = () => {
       else params.delete(k);
     };
     set('wq', wSearch, '');
-    set('wstatus', wStatus, 'APPROVED');
+    set('wstatus', wStatus, 'all');
     set('wplan', wPlan, 'all');
     set('wpix', wPixType, 'all');
     set('wmin', wMinAmount, '');
@@ -193,7 +193,7 @@ const AdminPartnerManagement = () => {
 
   const clearWithdrawalFilters = () => {
     setWSearch('');
-    setWStatus('APPROVED');
+    setWStatus('all');
     setWPlan('all');
     setWPixType('all');
     setWMinAmount('');
