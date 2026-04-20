@@ -160,7 +160,7 @@ const AdminPartnerManagement = () => {
   // Withdrawals filters (URL-persisted)
   const [searchParams, setSearchParams] = useSearchParams();
   const [wSearch, setWSearch] = useState(() => searchParams.get('wq') || '');
-  const [wStatus, setWStatus] = useState(() => searchParams.get('wstatus') || 'APPROVED');
+  const [wStatus, setWStatus] = useState(() => searchParams.get('wstatus') || 'all');
   const [wPlan, setWPlan] = useState(() => searchParams.get('wplan') || 'all');
   const [wPixType, setWPixType] = useState(() => searchParams.get('wpix') || 'all');
   const [wMinAmount, setWMinAmount] = useState(() => searchParams.get('wmin') || '');
