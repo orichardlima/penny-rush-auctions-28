@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     const loadBalance = async () => {
@@ -95,33 +96,41 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const isButtonDisabled = availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid' || !windowStatus.open || availableBalance < wSettings.partnerMinWithdrawal;
 
   const handleRequestWithdrawal = async () => {
-    const amount = parseFloat(withdrawalAmount);
-    if (isNaN(amount) || amount <= 0) return;
+    // Trava sincrônica imediata contra duplo-clique (antes de qualquer await/setState async)
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
-    if (amount < wSettings.partnerMinWithdrawal) return;
+    try {
+      const amount = parseFloat(withdrawalAmount);
+      if (isNaN(amount) || amount <= 0) return;
 
-    if (!hasPaymentDetails) {
-      setIsWithdrawDialogOpen(false);
-      setIsPaymentDialogOpen(true);
-      return;
-    }
+      if (amount < wSettings.partnerMinWithdrawal) return;
 
-    const fee = calculateFee(amount);
-    const paymentDetails: PaymentDetails = {
-      pix_key: contract.pix_key!,
-      pix_key_type: (contract.pix_key_type as PaymentDetails['pix_key_type']) || 'cpf',
-      holder_name: contract.bank_details?.holder_name
-    };
+      if (!hasPaymentDetails) {
+        setIsWithdrawDialogOpen(false);
+        setIsPaymentDialogOpen(true);
+        return;
+      }
 
-    const result = await requestWithdrawal(amount, paymentDetails, {
-      feePercentage: fee.feePercentage,
-      feeAmount: fee.feeAmount,
-      netAmount: fee.netAmount
-    });
-    if (result.success) {
-      setWithdrawalAmount('');
-      setIsWithdrawDialogOpen(false);
-      onRefresh?.();
+      const fee = calculateFee(amount);
+      const paymentDetails: PaymentDetails = {
+        pix_key: contract.pix_key!,
+        pix_key_type: (contract.pix_key_type as PaymentDetails['pix_key_type']) || 'cpf',
+        holder_name: contract.bank_details?.holder_name
+      };
+
+      const result = await requestWithdrawal(amount, paymentDetails, {
+        feePercentage: fee.feePercentage,
+        feeAmount: fee.feeAmount,
+        netAmount: fee.netAmount
+      });
+      if (result.success) {
+        setWithdrawalAmount('');
+        setIsWithdrawDialogOpen(false);
+        onRefresh?.();
+      }
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
