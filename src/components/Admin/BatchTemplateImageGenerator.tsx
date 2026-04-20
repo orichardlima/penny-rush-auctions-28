@@ -38,6 +38,7 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ItemResult[]>([]);
   const [progress, setProgress] = useState(0);
+  const [abortNotice, setAbortNotice] = useState<string | null>(null);
 
   const candidates = useMemo(() => {
     return templates.filter((t) => {
