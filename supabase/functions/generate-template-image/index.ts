@@ -41,21 +41,119 @@ const BRAND_REPLACEMENTS: Array<[RegExp, string]> = [
   [/bose\s*\w*/gi, 'premium wireless headphones'],
 ]
 
-function sanitizeTitle(title: string): string {
-  let result = title
-  for (const [pattern, replacement] of BRAND_REPLACEMENTS) {
+// Dicionário pt→en de termos de produto (frases primeiro, palavras depois)
+const PT_EN_PHRASES: Array<[RegExp, string]> = [
+  // Áudio
+  [/microfone\s+de\s+lapela(\s+usb)?/gi, 'lavalier clip-on microphone with USB cable'],
+  [/microfone\s+lapela(\s+usb)?/gi, 'lavalier clip-on microphone with USB cable'],
+  [/microfone\s+condensador/gi, 'studio condenser microphone with stand'],
+  [/microfone\s+sem\s+fio/gi, 'wireless handheld microphone'],
+  [/caixa\s+de\s+som\s+bluetooth/gi, 'portable bluetooth speaker'],
+  [/caixa\s+de\s+som\s+port[áa]til/gi, 'portable bluetooth speaker'],
+  [/fone\s+de\s+ouvido\s+bluetooth/gi, 'bluetooth wireless headphones'],
+  [/fone\s+de\s+ouvido\s+sem\s+fio/gi, 'wireless headphones'],
+  [/fone\s+de\s+ouvido/gi, 'over-ear headphones'],
+  [/soundbar/gi, 'soundbar speaker for TV'],
+  // Ferramentas
+  [/furadeira\s+parafusadeira(\s+\d+v)?/gi, 'cordless drill driver with battery and chuck'],
+  [/furadeira\s+sem\s+fio/gi, 'cordless drill with battery'],
+  [/parafusadeira/gi, 'cordless screwdriver with battery'],
+  [/serra\s+circular/gi, 'circular saw power tool'],
+  [/lixadeira/gi, 'orbital sander power tool'],
+  [/esmerilhadeira/gi, 'angle grinder power tool'],
+  [/chave\s+de\s+impacto/gi, 'impact wrench power tool'],
+  [/maleta\s+de\s+ferramentas/gi, 'tool kit case with tools'],
+  // Cozinha / eletrodomésticos
+  [/air\s*fryer|fritadeira\s+el[ée]trica|fritadeira\s+sem\s+[óo]leo/gi, 'air fryer kitchen appliance'],
+  [/liquidificador/gi, 'kitchen blender'],
+  [/batedeira/gi, 'stand mixer'],
+  [/processador\s+de\s+alimentos/gi, 'food processor'],
+  [/cafeteira\s+el[ée]trica/gi, 'electric coffee maker'],
+  [/cafeteira/gi, 'coffee maker'],
+  [/sandu[ií]cheira/gi, 'sandwich maker grill'],
+  [/grill\s+el[ée]trico/gi, 'electric grill'],
+  [/forno\s+el[ée]trico/gi, 'electric countertop oven'],
+  [/micro-?ondas/gi, 'microwave oven'],
+  [/geladeira|refrigerador/gi, 'refrigerator'],
+  [/fog[ãa]o/gi, 'kitchen stove'],
+  [/aspirador\s+de\s+p[óo]/gi, 'vacuum cleaner'],
+  [/ferro\s+de\s+passar/gi, 'steam iron'],
+  // Beleza / cuidados
+  [/secador\s+de\s+cabelo/gi, 'hair dryer'],
+  [/chapinha|prancha\s+de\s+cabelo/gi, 'hair straightener flat iron'],
+  [/barbeador\s+el[ée]trico/gi, 'electric shaver'],
+  [/escova\s+de\s+dentes\s+el[ée]trica/gi, 'electric toothbrush'],
+  // Eletrônicos
+  [/smart\s*tv\s*\d*"?/gi, 'smart TV with thin bezels'],
+  [/televis[ãa]o|tv\s+\d+/gi, 'flat screen smart TV'],
+  [/notebook|laptop/gi, 'laptop computer with metallic finish'],
+  [/tablet/gi, 'tablet device with thin bezels'],
+  [/smartphone|celular/gi, 'modern smartphone'],
+  [/c[âa]mera\s+digital/gi, 'digital camera'],
+  [/c[âa]mera\s+de\s+a[çc][ãa]o/gi, 'compact action camera'],
+  [/console\s+de\s+videogame|videogame/gi, 'modern gaming console'],
+  [/controle\s+de\s+videogame|joystick/gi, 'gaming controller gamepad'],
+  [/teclado\s+gamer/gi, 'mechanical gaming keyboard with RGB lights'],
+  [/mouse\s+gamer/gi, 'ergonomic gaming mouse with RGB'],
+  [/headset\s+gamer/gi, 'gaming headset with microphone'],
+  [/monitor\s+gamer/gi, 'curved gaming monitor'],
+  [/monitor/gi, 'computer monitor with thin bezels'],
+  [/relógio\s+inteligente|smartwatch/gi, 'smartwatch with digital display'],
+  [/rel[óo]gio/gi, 'wristwatch'],
+  // Casa / lifestyle
+  [/ventilador/gi, 'electric fan'],
+  [/ar\s+condicionado/gi, 'air conditioner unit'],
+  [/bicicleta\s+el[ée]trica/gi, 'electric bicycle'],
+  [/bicicleta/gi, 'bicycle'],
+  [/patinete\s+el[ée]trico/gi, 'electric scooter'],
+  [/mochila/gi, 'backpack'],
+  [/mala\s+de\s+viagem/gi, 'travel suitcase with wheels'],
+  [/perfume/gi, 'perfume bottle'],
+  // Termos genéricos soltos (palavra única, depois das frases acima)
+  [/\bsem\s+fio\b/gi, 'cordless'],
+  [/\bbluetooth\b/gi, 'bluetooth'],
+  [/\busb\b/gi, 'with USB cable'],
+  [/\bbateria\s+recarreg[áa]vel\b/gi, 'rechargeable battery'],
+  [/\bmaleta\b/gi, 'with carrying case'],
+  [/\bcom\b/gi, 'with'],
+  [/\be\b/gi, 'and'],
+  [/\bde\b/gi, 'of'],
+  [/\bda\b/gi, 'of the'],
+  [/\bdo\b/gi, 'of the'],
+  [/\bpara\b/gi, 'for'],
+  [/\bpreto\b/gi, 'black'],
+  [/\bbranco\b/gi, 'white'],
+  [/\bcinza\b/gi, 'gray'],
+  [/\bvermelho\b/gi, 'red'],
+  [/\bazul\b/gi, 'blue'],
+  [/\bprateado\b/gi, 'silver'],
+  [/\bdourado\b/gi, 'gold'],
+]
+
+function applyReplacements(text: string, rules: Array<[RegExp, string]>): string {
+  let result = text
+  for (const [pattern, replacement] of rules) {
     result = result.replace(pattern, replacement)
   }
-  // Limpa espaços duplos e pontuação solta
-  result = result.replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim()
-  return result || title
+  return result
 }
 
-const buildPrompt = (cleanTitle: string) =>
-  `Product photography of ${cleanTitle}, centered, studio lighting, soft shadows, clean white background, high detail, realistic, no text, no watermark, e-commerce style, square format`
+function sanitizeAndTranslate(text: string): string {
+  let result = applyReplacements(text, BRAND_REPLACEMENTS)
+  result = applyReplacements(result, PT_EN_PHRASES)
+  result = result.replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim()
+  return result || text
+}
+
+const buildPrompt = (translatedTitle: string, translatedDescription: string) => {
+  const desc = translatedDescription && translatedDescription.trim().length > 0
+    ? ` ${translatedDescription}.`
+    : ''
+  return `Professional product photography of a ${translatedTitle}.${desc} The product MUST be exactly a ${translatedTitle}, do NOT generate any other type of object. Centered on pure white background, studio lighting, soft shadows, sharp focus on the product, photorealistic, e-commerce catalog style, square 1:1, no text, no logo, no watermark, no people, no hands.`
+}
 
 const buildGenericFallback = (category: string) =>
-  `Product photography of a generic ${category || 'consumer electronics'} product, centered on clean white background, studio lighting, soft shadows, e-commerce style, square format, no text, no watermark`
+  `Professional product photography of a generic ${category || 'consumer electronics'} product, centered on pure white background, studio lighting, soft shadows, photorealistic, e-commerce catalog style, square 1:1, no text, no watermark, no people.`
 
 async function callGemini(lovableKey: string, prompt: string) {
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -65,7 +163,7 @@ async function callGemini(lovableKey: string, prompt: string) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash-image',
+      model: 'google/gemini-3.1-flash-image-preview',
       messages: [{ role: 'user', content: prompt }],
       modalities: ['image', 'text'],
     }),
@@ -129,7 +227,7 @@ Deno.serve(async (req) => {
 
     const { data: template, error: tErr } = await supabase
       .from('product_templates')
-      .select('id, title, category, tier')
+      .select('id, title, description, category, tier')
       .eq('id', templateId)
       .single()
 
@@ -139,12 +237,21 @@ Deno.serve(async (req) => {
       })
     }
 
-    const cleanTitle = sanitizeTitle(template.title)
+    const translatedTitle = sanitizeAndTranslate(template.title)
+    const translatedDescription = template.description
+      ? sanitizeAndTranslate(template.description)
+      : ''
+
     const prompt = customPrompt && customPrompt.trim().length > 0
       ? customPrompt
-      : buildPrompt(cleanTitle)
+      : buildPrompt(translatedTitle, translatedDescription)
 
-    console.log(`[generate-template-image] ${templateId} original="${template.title}" sanitized="${cleanTitle}"`)
+    console.log(`[generate-template-image] ${templateId}`)
+    console.log(`  original title: "${template.title}"`)
+    console.log(`  translated title: "${translatedTitle}"`)
+    console.log(`  original description: "${template.description ?? ''}"`)
+    console.log(`  translated description: "${translatedDescription}"`)
+    console.log(`  final prompt: "${prompt}"`)
 
     // Tentativa 1
     let aiResp = await callGemini(lovableKey, prompt)
