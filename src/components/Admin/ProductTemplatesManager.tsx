@@ -315,8 +315,30 @@ export const ProductTemplatesManager = () => {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Imagem do Produto</Label>
-                  
+                  <div className="flex items-center justify-between">
+                    <Label>Imagem do Produto</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateWithAI}
+                      disabled={!editingTemplate || generatingFor === editingTemplate}
+                      className="gap-2"
+                    >
+                      {generatingFor === editingTemplate ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      Gerar com IA
+                    </Button>
+                  </div>
+                  {!editingTemplate && (
+                    <p className="text-xs text-muted-foreground">
+                      Salve o template primeiro para habilitar geração com IA
+                    </p>
+                  )}
+
                   {/* Preview da imagem existente ou selecionada */}
                   {imagePreview && (
                     <div className="relative w-full max-w-xs">
@@ -372,6 +394,24 @@ export const ProductTemplatesManager = () => {
                       Fazendo upload...
                     </div>
                   )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="image_key">
+                    Image Key (storage)
+                    <span className="ml-2 text-xs text-muted-foreground font-normal">
+                      Opcional — usado para imagens oficiais (Luxury)
+                    </span>
+                  </Label>
+                  <Input
+                    id="image_key"
+                    value={formData.image_key || ''}
+                    onChange={(e) => setFormData({ ...formData, image_key: e.target.value })}
+                    placeholder="Ex: luxury/iphone-16-pro-max.jpg"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se preenchido, tem prioridade sobre a imagem gerada por IA. Suba o arquivo no bucket <code className="bg-muted px-1 rounded">product-images</code>.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
