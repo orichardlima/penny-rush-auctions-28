@@ -1,45 +1,55 @@
 
 
-## Adicionar filtros e busca à aba de Saques (Admin → Parceiros)
+## Por que o saque de R$ 500 do João não aparece na aba Saques
 
-A aba **Saques** em `AdminPartnerManagement.tsx` hoje exibe a lista crua de `withdrawals`, sem nenhum filtro ou busca. Em volume crescente isso fica impraticável. A proposta abaixo adiciona uma barra de filtros logo acima da tabela, sem alterar layout de colunas, ações ou fluxo de aprovação/rejeição/pagamento existente.
+### Diagnóstico
 
-### Filtros que serão adicionados
+Confirmei no banco — o saque existe e está íntegro:
 
-Acima da tabela, em uma linha responsiva (flex-wrap, mobile vira coluna):
+| Campo | Valor |
+|---|---|
+| ID | `8e62f68f-f566-4adb-b638-87b4e3b8dbb6` |
+| Parceiro | João Batista Sena Nascimento (Legend, 2 cotas) |
+| Valor | R$ 500,00 (líquido R$ 500,00, sem taxa) |
+| **Solicitado em** | **06/04/2026** (não 12/04 — a confusão pode ser com a data do payout que originou o saldo, semana 06–12/04) |
+| Aprovado em | 06/04/2026 |
+| **Pago em** | **19/04/2026** |
+| **Status** | **PAID** |
 
-1. **Busca textual livre** — input com ícone de lupa que filtra por:
-   - Nome do parceiro (`user_name`)
-   - E-mail (`user_email`)
-   - Chave PIX (`payment_details.pix_key`)
-   - ID do saque (curto, primeiros 8 chars)
-2. **Status** — Select com opções: `Todos`, `Aguardando Pagamento (APPROVED)`, `Pago (PAID)`, `Rejeitado (REJECTED)`. Default: `Aguardando Pagamento` (caso de uso mais comum do admin é despachar pendentes).
-3. **Plano** — Select dinâmico com os planos distintos presentes na lista (`Standard`, `Premium`, `Diamond`, `Legend` — só aparecem opções que existem nos dados). Default: `Todos`.
-4. **Tipo de chave PIX** — Select: `Todos`, `CPF`, `CNPJ`, `E-mail`, `Telefone`, `Aleatória`. Default: `Todos`.
-5. **Faixa de valor** — dois inputs numéricos compactos: `Min (R$)` e `Max (R$)`. Vazios = sem limite.
-6. **Período** — dois inputs `type="date"`: `De` e `Até`, aplicados sobre `requested_at`. Vazios = sem limite.
-7. **Botão "Limpar filtros"** — reseta todos os campos ao default.
+### Por que ele sumiu da tela
 
-### Indicadores e UX
+Na implementação da aba de filtros que aprovamos no plano anterior, o **Status default ficou em `Aguardando Pagamento (APPROVED)`** — porque é o caso de uso mais comum do admin (despachar pendentes). Como esse saque já está **PAID**, ele é filtrado para fora da visualização inicial.
 
-- **Contador de resultados** ao lado dos filtros: `Mostrando X de Y solicitações`.
-- **Resumo dinâmico** (3 mini-cards inline acima da tabela, baseados no resultado filtrado): `Total filtrado (R$)`, `Líquido a pagar (R$)` (somente APPROVED), `Quantidade`.
-- **Ordenação por coluna** clicando no cabeçalho `Valor` e `Data` (toggle asc/desc). Default: `Data desc` (igual ao atual).
-- **Persistência leve em URL** via `useSearchParams` — os filtros viram query string (ex.: `?wstatus=APPROVED&plan=Legend`) para que o admin possa compartilhar/voltar ao mesmo recorte.
-- Vazio filtrado mostra mensagem específica: "Nenhum saque corresponde aos filtros aplicados" + botão "Limpar filtros".
+Existem 2 razões adicionais que podem estar contribuindo:
+
+1. **Filtro de Status** — está em "Aguardando Pagamento", então tudo que é PAID/REJECTED some.
+2. **Sem indicação visual clara** do filtro ativo — o admin não percebe que está olhando uma fatia, e não o total.
+
+### Como ver o saque agora (sem mudar código)
+
+Na aba Saques:
+- Trocar o filtro **Status** para `Pago (PAID)` ou `Todos` → o saque de R$ 500 aparece imediatamente.
+- Alternativamente, digitar `joão` ou `500` na busca (mas com Status filtrando, ainda some — precisa relaxar o Status primeiro).
+
+### Ação recomendada (melhoria de UX da aba)
+
+Pequenos ajustes em `src/components/Admin/AdminPartnerManagement.tsx`, dentro de `<TabsContent value="withdrawals">`:
+
+1. **Mudar o default do filtro Status para `Todos`** em vez de `APPROVED`. Razão: hoje o admin abre a aba e acha que "sumiram" saques antigos. Mostrar tudo por padrão é menos surpreendente. Quem quiser ver só pendentes filtra em 1 clique.
+2. **Banner/aviso visível quando há filtro ativo escondendo registros**: logo abaixo da barra de filtros, mostrar uma linha discreta tipo *"Filtros ativos escondendo X solicitações — [Limpar filtros]"* sempre que `filteredWithdrawals.length < withdrawals.length`. Já temos o botão "Limpar filtros"; isto só torna o estado explícito.
+3. **Ordenação default por `created_at desc`** continua igual (já está), garantindo que os mais recentes apareçam no topo independente do status.
 
 ### O que NÃO muda
 
-- Tabela, colunas, badges de status, botões de ação (`Marcar como Pago`, `Rejeitar`), dialog de confirmação PIX, dialog de rejeição, contagem do badge na `TabsTrigger` (continua sendo `stats.pendingWithdrawals` global, não filtrado).
-- Hook `useAdminPartners` — todo o filtro é client-side sobre o array `withdrawals` já carregado (mesma estratégia usada em outras abas do painel).
-- Nenhuma mudança de banco de dados, RLS, edge function ou outra aba (Parceiros, Planos, Repasses, Cashflow).
-- Comportamento mobile: na largura atual o filtro vira coluna; tabela continua com `overflow-x-auto`.
+- Lógica de filtros, busca textual, ordenação clicável, mini-cards de resumo, persistência em URL — tudo permanece como implementado.
+- Tabela, colunas, ações (Marcar como Pago / Rejeitar), badges, dialogs.
+- Hooks, RLS, banco, edge functions.
 
 ### Resumo técnico
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/Admin/AdminPartnerManagement.tsx` | Dentro de `<TabsContent value="withdrawals">`: adicionar bloco de filtros (Input + 4 Selects + 2 inputs número + 2 inputs data + botão limpar), `useState` para cada filtro, `useMemo` `filteredWithdrawals` que aplica os filtros sobre `withdrawals`, mini-cards de resumo, ordenação clicável e mensagem de vazio filtrado. Substituir `withdrawals.map(...)` por `filteredWithdrawals.map(...)`. |
+| `src/components/Admin/AdminPartnerManagement.tsx` | (a) trocar default `useState` do filtro `wstatus` de `'APPROVED'` para `'all'`; (b) ajustar leitura inicial do `useSearchParams` para o mesmo default; (c) adicionar 1 linha condicional acima da tabela exibindo "Filtros ativos escondendo N solicitações" + botão Limpar quando `filteredWithdrawals.length < withdrawals.length`. |
 
-Sem migrations. Sem alterações em hooks, edge functions ou outras telas. Nenhum efeito colateral em UI/UX fora desta aba.
+Sem migrations. Sem alterações em outras telas, hooks ou banco.
 
