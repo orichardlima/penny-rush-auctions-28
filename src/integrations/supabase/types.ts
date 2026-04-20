@@ -2602,6 +2602,7 @@ export type Database = {
         Returns: number
       }
       bot_protection_loop: { Args: never; Returns: undefined }
+      bot_protection_loop_safe: { Args: never; Returns: undefined }
       check_affiliate_code_availability: {
         Args: { code_to_check: string }
         Returns: boolean
@@ -2617,6 +2618,7 @@ export type Database = {
         Returns: undefined
       }
       execute_overdue_bot_bids: { Args: never; Returns: Json }
+      execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
       expire_suspended_bonuses: { Args: never; Returns: undefined }
       fix_partner_referral: {
         Args: { p_referral_code: string; p_referred_contract_id: string }
