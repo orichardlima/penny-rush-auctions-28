@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,12 @@ import {
   Copy,
   ClipboardCopy,
   Zap,
-  Gift
+  Gift,
+  Search,
+  X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
