@@ -11,10 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useProductTemplates, ProductTemplateInput, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { BatchAuctionGenerator } from './BatchAuctionGenerator';
-import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { processImageFile, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
+import { resolveTemplateImage, getImageBadgeKind } from '@/utils/templateImage';
 
 export const ProductTemplatesManager = () => {
   const { templates, loading, error, fetchTemplates, createTemplate, updateTemplate, deleteTemplate } = useProductTemplates();
@@ -28,10 +29,13 @@ export const ProductTemplatesManager = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<ProductTemplateInput>({
     title: '',
     description: '',
     image_url: '',
+    image_key: '',
     market_value: 0,
     revenue_target: 0,
     starting_price: 0.01,
@@ -48,6 +52,7 @@ export const ProductTemplatesManager = () => {
       title: '',
       description: '',
       image_url: '',
+      image_key: '',
       market_value: 0,
       revenue_target: 0,
       starting_price: 0.01,
@@ -126,6 +131,7 @@ export const ProductTemplatesManager = () => {
           title: template.title,
           description: template.description || '',
           image_url: template.image_url || '',
+          image_key: template.image_key || '',
           market_value: template.market_value,
           revenue_target: template.revenue_target,
           starting_price: template.starting_price,
@@ -137,15 +143,42 @@ export const ProductTemplatesManager = () => {
           min_hours_between_appearances: template.min_hours_between_appearances || 0
         });
         setEditingTemplate(templateId);
-        // Set existing image as preview
-        if (template.image_url) {
-          setImagePreview(template.image_url);
+        const resolved = resolveTemplateImage(template);
+        if (resolved && resolved !== '/placeholder.svg') {
+          setImagePreview(resolved);
         }
       }
     } else {
       resetForm();
     }
     setIsDialogOpen(true);
+  };
+
+  const handleGenerateWithAI = async () => {
+    if (!editingTemplate) {
+      toast.error('Salve o template primeiro para gerar imagem com IA');
+      return;
+    }
+    setGeneratingFor(editingTemplate);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-template-image', {
+        body: { template_id: editingTemplate },
+      });
+      if (error) throw error;
+      if (data?.image_url) {
+        setFormData(prev => ({ ...prev, image_url: data.image_url, image_key: '' }));
+        setImagePreview(data.image_url);
+        toast.success('Imagem gerada com IA!');
+        await fetchTemplates();
+      } else {
+        toast.error(data?.error || 'Falha ao gerar imagem');
+      }
+    } catch (err: any) {
+      console.error('AI generation error:', err);
+      toast.error('Erro ao gerar imagem: ' + (err.message || 'desconhecido'));
+    } finally {
+      setGeneratingFor(null);
+    }
   };
 
   const handleSubmit = async () => {
