@@ -157,6 +157,115 @@ const AdminPartnerManagement = () => {
   // PIX Payment Confirmation Dialog State
   const [pixConfirmWithdrawal, setPixConfirmWithdrawal] = useState<any>(null);
 
+  // Withdrawals filters (URL-persisted)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [wSearch, setWSearch] = useState(() => searchParams.get('wq') || '');
+  const [wStatus, setWStatus] = useState(() => searchParams.get('wstatus') || 'APPROVED');
+  const [wPlan, setWPlan] = useState(() => searchParams.get('wplan') || 'all');
+  const [wPixType, setWPixType] = useState(() => searchParams.get('wpix') || 'all');
+  const [wMinAmount, setWMinAmount] = useState(() => searchParams.get('wmin') || '');
+  const [wMaxAmount, setWMaxAmount] = useState(() => searchParams.get('wmax') || '');
+  const [wDateFrom, setWDateFrom] = useState(() => searchParams.get('wfrom') || '');
+  const [wDateTo, setWDateTo] = useState(() => searchParams.get('wto') || '');
+  const [wSortBy, setWSortBy] = useState<'date' | 'amount'>(() => (searchParams.get('wsort') as any) || 'date');
+  const [wSortDir, setWSortDir] = useState<'asc' | 'desc'>(() => (searchParams.get('wdir') as any) || 'desc');
+
+  // Sync withdrawal filters to URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const set = (k: string, v: string, def: string) => {
+      if (v && v !== def) params.set(k, v);
+      else params.delete(k);
+    };
+    set('wq', wSearch, '');
+    set('wstatus', wStatus, 'APPROVED');
+    set('wplan', wPlan, 'all');
+    set('wpix', wPixType, 'all');
+    set('wmin', wMinAmount, '');
+    set('wmax', wMaxAmount, '');
+    set('wfrom', wDateFrom, '');
+    set('wto', wDateTo, '');
+    set('wsort', wSortBy, 'date');
+    set('wdir', wSortDir, 'desc');
+    setSearchParams(params, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wSearch, wStatus, wPlan, wPixType, wMinAmount, wMaxAmount, wDateFrom, wDateTo, wSortBy, wSortDir]);
+
+  const clearWithdrawalFilters = () => {
+    setWSearch('');
+    setWStatus('APPROVED');
+    setWPlan('all');
+    setWPixType('all');
+    setWMinAmount('');
+    setWMaxAmount('');
+    setWDateFrom('');
+    setWDateTo('');
+    setWSortBy('date');
+    setWSortDir('desc');
+  };
+
+  // Distinct plans present in withdrawals
+  const withdrawalPlanOptions = useMemo(() => {
+    const set = new Set<string>();
+    (withdrawals || []).forEach((w: any) => { if (w.plan_name) set.add(w.plan_name); });
+    return Array.from(set).sort();
+  }, [withdrawals]);
+
+  const filteredWithdrawals = useMemo(() => {
+    const term = wSearch.trim().toLowerCase();
+    const min = wMinAmount === '' ? null : parseFloat(wMinAmount);
+    const max = wMaxAmount === '' ? null : parseFloat(wMaxAmount);
+    const from = wDateFrom ? new Date(wDateFrom + 'T00:00:00').getTime() : null;
+    const to = wDateTo ? new Date(wDateTo + 'T23:59:59').getTime() : null;
+
+    let list = (withdrawals || []).filter((w: any) => {
+      if (wStatus !== 'all' && w.status !== wStatus) return false;
+      if (wPlan !== 'all' && w.plan_name !== wPlan) return false;
+      if (wPixType !== 'all') {
+        const t = (w.payment_details?.pix_key_type || '').toLowerCase();
+        if (t !== wPixType.toLowerCase()) return false;
+      }
+      if (min !== null && Number(w.amount) < min) return false;
+      if (max !== null && Number(w.amount) > max) return false;
+      if (from !== null || to !== null) {
+        const ts = new Date(w.requested_at).getTime();
+        if (from !== null && ts < from) return false;
+        if (to !== null && ts > to) return false;
+      }
+      if (term) {
+        const hay = [
+          w.user_name,
+          w.user_email,
+          w.payment_details?.pix_key,
+          (w.id || '').slice(0, 8),
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+
+    list = [...list].sort((a: any, b: any) => {
+      const dir = wSortDir === 'asc' ? 1 : -1;
+      if (wSortBy === 'amount') return (Number(a.amount) - Number(b.amount)) * dir;
+      return (new Date(a.requested_at).getTime() - new Date(b.requested_at).getTime()) * dir;
+    });
+    return list;
+  }, [withdrawals, wSearch, wStatus, wPlan, wPixType, wMinAmount, wMaxAmount, wDateFrom, wDateTo, wSortBy, wSortDir]);
+
+  const withdrawalSummary = useMemo(() => {
+    const total = filteredWithdrawals.reduce((s: number, w: any) => s + Number(w.amount || 0), 0);
+    const netApproved = filteredWithdrawals
+      .filter((w: any) => w.status === 'APPROVED')
+      .reduce((s: number, w: any) => s + Number(w.net_amount ?? w.amount ?? 0), 0);
+    return { total, netApproved, count: filteredWithdrawals.length };
+  }, [filteredWithdrawals]);
+
+  const toggleWithdrawalSort = (key: 'date' | 'amount') => {
+    if (wSortBy === key) setWSortDir(wSortDir === 'asc' ? 'desc' : 'asc');
+    else { setWSortBy(key); setWSortDir('desc'); }
+  };
+
+
   // Upgrade Cotas State
   const [isUpgradeCotasOpen, setIsUpgradeCotasOpen] = useState(false);
   const [selectedContractForUpgrade, setSelectedContractForUpgrade] = useState<any>(null);
