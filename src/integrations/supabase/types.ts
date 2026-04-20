@@ -2601,6 +2601,7 @@ export type Database = {
         }
         Returns: number
       }
+      archive_old_finished_auctions: { Args: never; Returns: undefined }
       bot_protection_loop: { Args: never; Returns: undefined }
       bot_protection_loop_safe: { Args: never; Returns: undefined }
       check_affiliate_code_availability: {
