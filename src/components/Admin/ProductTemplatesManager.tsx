@@ -38,7 +38,9 @@ export const ProductTemplatesManager = () => {
     bid_increment: 0.01,
     bid_cost: 1,
     category: 'geral',
-    is_active: true
+    is_active: true,
+    tier: 'standard',
+    min_hours_between_appearances: 0
   });
 
   const resetForm = () => {
@@ -52,7 +54,9 @@ export const ProductTemplatesManager = () => {
       bid_increment: 0.01,
       bid_cost: 1,
       category: 'geral',
-      is_active: true
+      is_active: true,
+      tier: 'standard',
+      min_hours_between_appearances: 0
     });
     setEditingTemplate(null);
     setSelectedImage(null);
@@ -128,7 +132,9 @@ export const ProductTemplatesManager = () => {
           bid_increment: template.bid_increment,
           bid_cost: template.bid_cost,
           category: template.category,
-          is_active: template.is_active
+          is_active: template.is_active,
+          tier: template.tier || 'standard',
+          min_hours_between_appearances: template.min_hours_between_appearances || 0
         });
         setEditingTemplate(templateId);
         // Set existing image as preview
