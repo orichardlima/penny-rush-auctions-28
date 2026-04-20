@@ -1723,7 +1723,18 @@ const AdminPartnerManagement = () => {
                 </div>
               </div>
 
-              <Table>
+              {withdrawals.length > 0 && filteredWithdrawals.length < withdrawals.length && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
+                  <span className="text-amber-700 dark:text-amber-400">
+                    Filtros ativos escondendo {withdrawals.length - filteredWithdrawals.length} {withdrawals.length - filteredWithdrawals.length === 1 ? 'solicitação' : 'solicitações'}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={clearWithdrawalFilters} className="h-7 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20">
+                    <X className="h-3 w-3 mr-1" /> Limpar filtros
+                  </Button>
+                </div>
+              )}
+
+
                 <TableHeader>
                   <TableRow>
                     <TableHead>Parceiro</TableHead>
