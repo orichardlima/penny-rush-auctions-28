@@ -30,6 +30,8 @@ export const ProductTemplatesManager = () => {
   const [uploading, setUploading] = useState(false);
   
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [customPromptOpen, setCustomPromptOpen] = useState(false);
+  const [customPromptText, setCustomPromptText] = useState('');
 
   const [formData, setFormData] = useState<ProductTemplateInput>({
     title: '',
@@ -154,17 +156,18 @@ export const ProductTemplatesManager = () => {
     setIsDialogOpen(true);
   };
 
-  const handleGenerateWithAI = async () => {
+  const runGeneration = async (promptOverride?: string) => {
     if (!editingTemplate) {
       toast.error('Salve o template primeiro para gerar imagem com IA');
       return;
     }
     setGeneratingFor(editingTemplate);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-template-image', {
-        body: { template_id: editingTemplate },
-      });
-      // Mensagem específica vinda do backend tem prioridade sobre o erro genérico do invoke
+      const body: Record<string, unknown> = { template_id: editingTemplate };
+      if (promptOverride && promptOverride.trim().length > 0) {
+        body.prompt = promptOverride.trim();
+      }
+      const { data, error } = await supabase.functions.invoke('generate-template-image', { body });
       const backendError = (data as any)?.error;
       if (backendError) {
         toast.error(backendError);
@@ -174,19 +177,30 @@ export const ProductTemplatesManager = () => {
       if (data?.image_url) {
         setFormData(prev => ({ ...prev, image_url: data.image_url, image_key: '' }));
         setImagePreview(data.image_url);
-        toast.success('Imagem gerada com IA!');
+        toast.success(`Imagem gerada${data.source ? ` (${data.source})` : ''}!`);
         await fetchTemplates();
+        setCustomPromptOpen(false);
       } else {
         toast.error('Falha ao gerar imagem');
       }
     } catch (err: any) {
       console.error('AI generation error:', err);
-      // Tenta extrair mensagem do contexto do FunctionsHttpError
       const ctxMsg = err?.context?.error || err?.context?.body?.error;
       toast.error(ctxMsg || 'Erro ao gerar imagem: ' + (err.message || 'desconhecido'));
     } finally {
       setGeneratingFor(null);
     }
+  };
+
+  const handleGenerateWithAI = () => runGeneration();
+
+  const handleOpenCustomPrompt = () => {
+    if (!editingTemplate) {
+      toast.error('Salve o template primeiro para gerar imagem com IA');
+      return;
+    }
+    setCustomPromptText('');
+    setCustomPromptOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -325,22 +339,36 @@ export const ProductTemplatesManager = () => {
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
                     <Label>Imagem do Produto</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateWithAI}
-                      disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
-                      title={formData.tier === 'luxury' ? 'Itens Luxury usam imagem oficial via Image Key, não IA.' : undefined}
-                      className="gap-2"
-                    >
-                      {generatingFor === editingTemplate ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4" />
-                      )}
-                      Gerar com IA
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateWithAI}
+                        disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
+                        title={formData.tier === 'luxury' ? 'Itens Luxury usam imagem oficial via Image Key, não IA.' : undefined}
+                        className="gap-2"
+                      >
+                        {generatingFor === editingTemplate ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Gerar com IA
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleOpenCustomPrompt}
+                        disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
+                        title="Regerar usando seu próprio prompt em inglês"
+                        className="gap-2"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Prompt
+                      </Button>
+                    </div>
                   </div>
                   {!editingTemplate && (
                     <p className="text-xs text-muted-foreground">
@@ -554,6 +582,43 @@ export const ProductTemplatesManager = () => {
                   </Button>
                   <Button onClick={handleSubmit} disabled={!formData.title}>
                     {editingTemplate ? 'Salvar Alterações' : 'Criar Template'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={customPromptOpen} onOpenChange={setCustomPromptOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Regerar imagem com prompt customizado</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  Escreva o prompt diretamente em inglês para máxima fidelidade. Ex.:
+                  <em className="block mt-1">"Professional product photo of an Apple Watch SE 40mm with sport band, square touchscreen face, on white background, studio lighting."</em>
+                </p>
+                <Textarea
+                  value={customPromptText}
+                  onChange={(e) => setCustomPromptText(e.target.value)}
+                  placeholder="Digite seu prompt em inglês..."
+                  rows={6}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setCustomPromptOpen(false)} disabled={generatingFor === editingTemplate}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => runGeneration(customPromptText)}
+                    disabled={!customPromptText.trim() || generatingFor === editingTemplate}
+                    className="gap-2"
+                  >
+                    {generatingFor === editingTemplate ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Gerar
                   </Button>
                 </div>
               </div>
