@@ -7,6 +7,8 @@ export interface ProductTemplate {
   title: string;
   description: string | null;
   image_url: string | null;
+  image_key: string | null;
+  image_source: string;
   market_value: number;
   revenue_target: number;
   starting_price: number;
@@ -25,6 +27,8 @@ export interface ProductTemplateInput {
   title: string;
   description?: string;
   image_url?: string;
+  image_key?: string | null;
+  image_source?: string;
   market_value?: number;
   revenue_target?: number;
   starting_price?: number;

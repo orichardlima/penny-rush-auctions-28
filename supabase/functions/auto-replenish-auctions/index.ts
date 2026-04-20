@@ -179,10 +179,16 @@ Deno.serve(async (req) => {
       const randomDurationMs = (durationMinHours + Math.random() * (durationMaxHours - durationMinHours)) * 60 * 60 * 1000
       const endsAt = new Date(startsAt.getTime() + randomDurationMs)
 
+      // Resolver image_url se template tem image_key (storage), senão usa image_url existente
+      const resolvedImageUrl = (template as any).image_key
+        ? `${supabaseUrl}/storage/v1/object/public/product-images/${(template as any).image_key}`
+        : template.image_url
+
       const auctionData = {
         title: template.title,
         description: template.description,
-        image_url: template.image_url,
+        image_url: resolvedImageUrl,
+        image_key: (template as any).image_key || null,
         market_value: template.market_value || 0,
         starting_price: template.starting_price || 1.00,
         current_price: template.starting_price || 1.00,
