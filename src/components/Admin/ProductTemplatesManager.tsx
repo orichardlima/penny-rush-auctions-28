@@ -425,6 +425,42 @@ export const ProductTemplatesManager = () => {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="tier">Tier (frequência no auto-replenish)</Label>
+                    <Select 
+                      value={formData.tier || 'standard'} 
+                      onValueChange={(value) => setFormData({ ...formData, tier: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard (peso alto)</SelectItem>
+                        <SelectItem value="premium">Premium (peso médio)</SelectItem>
+                        <SelectItem value="luxury">Luxury (peso baixo)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Itens Luxury aparecem com menos frequência nos leilões automáticos
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="min_hours">Horas mínimas entre aparições</Label>
+                    <Input
+                      id="min_hours"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formData.min_hours_between_appearances ?? 0}
+                      onChange={(e) => setFormData({ ...formData, min_hours_between_appearances: parseInt(e.target.value) || 0 })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      0 = sem restrição. Sugestões: Premium 24h, Luxury 72h
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancelar
@@ -473,8 +509,10 @@ export const ProductTemplatesManager = () => {
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead>Categoria</TableHead>
+                  <TableHead>Tier</TableHead>
                   <TableHead className="text-right">Valor de Mercado</TableHead>
                   <TableHead className="text-right">Meta Receita</TableHead>
+                  <TableHead className="text-center">Cooldown</TableHead>
                   <TableHead className="text-center">Usos</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -511,11 +549,27 @@ export const ProductTemplatesManager = () => {
                         {TEMPLATE_CATEGORIES.find(c => c.value === template.category)?.label || template.category}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          template.tier === 'luxury' ? 'destructive'
+                          : template.tier === 'premium' ? 'default'
+                          : 'secondary'
+                        }
+                      >
+                        {template.tier === 'luxury' ? 'Luxury' : template.tier === 'premium' ? 'Premium' : 'Standard'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(template.market_value)}
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(template.revenue_target)}
+                    </TableCell>
+                    <TableCell className="text-center text-sm text-muted-foreground">
+                      {template.min_hours_between_appearances > 0
+                        ? `${template.min_hours_between_appearances}h`
+                        : '—'}
                     </TableCell>
                     <TableCell className="text-center">
                       {template.times_used}x
