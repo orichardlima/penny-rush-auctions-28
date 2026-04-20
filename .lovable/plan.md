@@ -1,55 +1,70 @@
 
 
-## Por que o saque de R$ 500 do João não aparece na aba Saques
+## Como o João conseguiu R$ 980,28 de saldo disponível
 
-### Diagnóstico
+### Sua dúvida (legítima)
 
-Confirmei no banco — o saque existe e está íntegro:
+> "Ele ganha até 2,5% por semana sobre o aporte de R$ 19.998 — então no máximo ~R$ 500/semana. Como tem R$ 980 disponíveis?"
 
-| Campo | Valor |
+A resposta: **R$ 980,28 não é o ganho de uma semana**. É o **saldo acumulado de 4 semanas de payouts**, menos o que ele já sacou. Está tudo dentro da regra.
+
+### Composição exata do saldo do João
+
+**Contrato:** Legend, 2 cotas, aporte R$ 19.998, weekly_cap **R$ 500/semana** (2,5% × 2 cotas), total_cap R$ 40.000.
+
+#### 1) Total recebido em payouts semanais (4 semanas pagas)
+
+| Semana | Período | Calculado | Pago | Cap aplicado? |
+|---|---|---|---|---|
+| 1 | 23–29/03 | R$ 251,97 | **R$ 176,38** | (parcial — aporte só dia 25/03) |
+| 2 | 30/03–05/04 | R$ 499,95 | **R$ 499,95** | não (abaixo do cap) |
+| 3 | 06–12/04 | R$ 479,95 | **R$ 479,95** | não (abaixo do cap) |
+| 4 | 13–19/04 | R$ 500,00 | **R$ 500,00** | **sim** (bateu o teto de R$ 500) |
+| | | **Total recebido** | **R$ 1.656,28** | |
+
+Todos os 4 payouts estão com status `PAID`. Os percentuais semanais estão **dentro da regra** (≤ 2,5% × cotas = R$ 500/semana). Em nenhuma semana ele ultrapassou o teto.
+
+#### 2) Saques já realizados/comprometidos
+
+| Data | Valor | Status |
+|---|---|---|
+| 31/03 | R$ 176,00 | PAID |
+| 06/04 (pago em 19/04) | R$ 500,00 | PAID |
+| | **Total sacado** | **R$ 676,00** |
+
+#### 3) Saldo disponível = Recebido − Sacado
+
+```
+R$ 1.656,28  (4 payouts pagos)
+−  R$ 676,00  (2 saques já PAID)
+─────────────
+=  R$ 980,28  ← exatamente o valor solicitado no saque APPROVED
+```
+
+Bate centavo a centavo com a solicitação `252401ac-4719-4f49-9f2b-a99c70ba7364` (R$ 980,28 bruto, taxa R$ 49,01, líquido R$ 931,27).
+
+### Conclusão
+
+- **Não houve violação de regra.** O João recebeu, em 4 semanas, no máximo R$ 500/semana (teto correto para Legend × 2 cotas).
+- O acúmulo de R$ 980 é simplesmente o saldo do que ele **deixou de sacar antes**: ele sacou só R$ 176 da 1ª semana e R$ 500 da 2ª, deixando o restante (R$ 0,38 + R$ 0,05 + R$ 479,95 + R$ 500,00) acumular no contrato.
+- Ele **não tem** bônus binários, fast start ou referral creditados (verificado nas tabelas `binary_bonuses`, `fast_start_achievements`, `partner_referral_bonuses`). O ganho é 100% payouts semanais.
+
+### O que isso revela sobre a UX do painel (oportunidade — não obrigatório)
+
+Hoje, ao olhar um saque de R$ 980, o admin não tem como saber rapidamente *de onde* veio o saldo sem cruzar 3 tabelas manualmente, como fiz aqui. Posso (se você aprovar **em uma próxima conversa**) adicionar no modal de detalhes do saque uma seção **"Composição do saldo"** mostrando:
+
+- Soma de payouts PAID até a data do saque
+- Soma de saques PAID/APPROVED anteriores
+- Saldo resultante (= valor solicitado)
+
+Isso elimina dúvidas como esta no futuro, em 1 clique.
+
+### Resumo
+
+| Pergunta | Resposta |
 |---|---|
-| ID | `8e62f68f-f566-4adb-b638-87b4e3b8dbb6` |
-| Parceiro | João Batista Sena Nascimento (Legend, 2 cotas) |
-| Valor | R$ 500,00 (líquido R$ 500,00, sem taxa) |
-| **Solicitado em** | **06/04/2026** (não 12/04 — a confusão pode ser com a data do payout que originou o saldo, semana 06–12/04) |
-| Aprovado em | 06/04/2026 |
-| **Pago em** | **19/04/2026** |
-| **Status** | **PAID** |
-
-### Por que ele sumiu da tela
-
-Na implementação da aba de filtros que aprovamos no plano anterior, o **Status default ficou em `Aguardando Pagamento (APPROVED)`** — porque é o caso de uso mais comum do admin (despachar pendentes). Como esse saque já está **PAID**, ele é filtrado para fora da visualização inicial.
-
-Existem 2 razões adicionais que podem estar contribuindo:
-
-1. **Filtro de Status** — está em "Aguardando Pagamento", então tudo que é PAID/REJECTED some.
-2. **Sem indicação visual clara** do filtro ativo — o admin não percebe que está olhando uma fatia, e não o total.
-
-### Como ver o saque agora (sem mudar código)
-
-Na aba Saques:
-- Trocar o filtro **Status** para `Pago (PAID)` ou `Todos` → o saque de R$ 500 aparece imediatamente.
-- Alternativamente, digitar `joão` ou `500` na busca (mas com Status filtrando, ainda some — precisa relaxar o Status primeiro).
-
-### Ação recomendada (melhoria de UX da aba)
-
-Pequenos ajustes em `src/components/Admin/AdminPartnerManagement.tsx`, dentro de `<TabsContent value="withdrawals">`:
-
-1. **Mudar o default do filtro Status para `Todos`** em vez de `APPROVED`. Razão: hoje o admin abre a aba e acha que "sumiram" saques antigos. Mostrar tudo por padrão é menos surpreendente. Quem quiser ver só pendentes filtra em 1 clique.
-2. **Banner/aviso visível quando há filtro ativo escondendo registros**: logo abaixo da barra de filtros, mostrar uma linha discreta tipo *"Filtros ativos escondendo X solicitações — [Limpar filtros]"* sempre que `filteredWithdrawals.length < withdrawals.length`. Já temos o botão "Limpar filtros"; isto só torna o estado explícito.
-3. **Ordenação default por `created_at desc`** continua igual (já está), garantindo que os mais recentes apareçam no topo independente do status.
-
-### O que NÃO muda
-
-- Lógica de filtros, busca textual, ordenação clicável, mini-cards de resumo, persistência em URL — tudo permanece como implementado.
-- Tabela, colunas, ações (Marcar como Pago / Rejeitar), badges, dialogs.
-- Hooks, RLS, banco, edge functions.
-
-### Resumo técnico
-
-| Arquivo | Mudança |
-|---|---|
-| `src/components/Admin/AdminPartnerManagement.tsx` | (a) trocar default `useState` do filtro `wstatus` de `'APPROVED'` para `'all'`; (b) ajustar leitura inicial do `useSearchParams` para o mesmo default; (c) adicionar 1 linha condicional acima da tabela exibindo "Filtros ativos escondendo N solicitações" + botão Limpar quando `filteredWithdrawals.length < withdrawals.length`. |
-
-Sem migrations. Sem alterações em outras telas, hooks ou banco.
+| Ele ultrapassou o teto semanal? | **Não.** Máximo por semana foi R$ 500 (=2,5% × 2 cotas × R$ 9.999). |
+| De onde vieram os R$ 980? | Acúmulo de **4 payouts semanais pagos** (R$ 1.656,28) menos **2 saques anteriores** (R$ 676,00). |
+| O saque é legítimo? | **Sim.** Saldo bate exatamente. |
+| Precisa alterar código/banco? | **Não.** Apenas esclarecimento. |
 
