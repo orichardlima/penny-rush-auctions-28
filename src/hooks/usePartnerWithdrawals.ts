@@ -106,24 +106,38 @@ export const usePartnerWithdrawals = (contractId?: string) => {
       return { success: false };
     }
 
-    // Verificar saldo disponível
+    // Revalidação direta no banco (não confiar apenas no estado local — evita race condition de duplo-clique)
+    const { data: activeWithdrawals, error: activeError } = await supabase
+      .from('partner_withdrawals')
+      .select('id, amount, status')
+      .eq('partner_contract_id', contractId)
+      .in('status', ['PENDING', 'APPROVED']);
+
+    if (activeError) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível validar saques pendentes. Tente novamente."
+      });
+      return { success: false };
+    }
+
+    if (activeWithdrawals && activeWithdrawals.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Saque em andamento",
+        description: "Você já possui uma solicitação aguardando pagamento."
+      });
+      return { success: false };
+    }
+
+    // Verificar saldo disponível (re-calculado já considera APPROVED/PENDING comprometidos)
     const availableBalance = await calculateAvailableBalance();
     if (Math.round(amount * 100) > Math.round(availableBalance * 100)) {
       toast({
         variant: "destructive",
         title: "Saldo insuficiente",
         description: `Saldo disponível: R$ ${availableBalance.toFixed(2)}`
-      });
-      return { success: false };
-    }
-
-    // Verificar se já existe solicitação aguardando pagamento
-    const awaitingPayment = withdrawals.find(w => w.status === 'APPROVED');
-    if (awaitingPayment) {
-      toast({
-        variant: "destructive",
-        title: "Saque em andamento",
-        description: "Você já possui uma solicitação aguardando pagamento."
       });
       return { success: false };
     }
@@ -148,7 +162,20 @@ export const usePartnerWithdrawals = (contractId?: string) => {
           net_amount: netAmount
         }]);
 
-      if (error) throw error;
+      if (error) {
+        // Trata violação do índice único parcial (uniq_partner_active_withdrawal) como duplicata
+        const msg = (error.message || '').toLowerCase();
+        if (error.code === '23505' || msg.includes('uniq_partner_active_withdrawal') || msg.includes('duplicate key')) {
+          toast({
+            variant: "destructive",
+            title: "Saque em andamento",
+            description: "Já existe uma solicitação ativa para este contrato."
+          });
+          await fetchWithdrawals();
+          return { success: false };
+        }
+        throw error;
+      }
 
       toast({
         title: "Saque solicitado!",
