@@ -211,9 +211,18 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
             <p className="text-xs text-muted-foreground">
               Itens Luxury são ignorados (usam imagem oficial via Image Key). Cada imagem leva ~10–15s.
             </p>
+            <p className="text-xs text-muted-foreground">
+              Cada imagem consome ~1 crédito de IA (até ~2 com retry para itens com marca).
+            </p>
           </div>
         </div>
       </div>
+
+      {abortNotice && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          <strong>Lote interrompido:</strong> {abortNotice}
+        </div>
+      )}
 
       {(running || results.length > 0) && (
         <div className="space-y-2">
