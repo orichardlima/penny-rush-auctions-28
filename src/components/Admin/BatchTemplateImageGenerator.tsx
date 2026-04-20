@@ -13,7 +13,7 @@ import { ProductTemplate, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplate
 const MAX_BATCH = 50;
 const DELAY_MS = 800;
 
-type TierFilter = 'standard' | 'premium' | 'all';
+type TierFilter = 'standard' | 'premium' | 'luxury' | 'all';
 
 type ItemStatus = 'pending' | 'running' | 'success' | 'failed';
 
