@@ -339,22 +339,36 @@ export const ProductTemplatesManager = () => {
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
                     <Label>Imagem do Produto</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateWithAI}
-                      disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
-                      title={formData.tier === 'luxury' ? 'Itens Luxury usam imagem oficial via Image Key, não IA.' : undefined}
-                      className="gap-2"
-                    >
-                      {generatingFor === editingTemplate ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4" />
-                      )}
-                      Gerar com IA
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateWithAI}
+                        disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
+                        title={formData.tier === 'luxury' ? 'Itens Luxury usam imagem oficial via Image Key, não IA.' : undefined}
+                        className="gap-2"
+                      >
+                        {generatingFor === editingTemplate ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Gerar com IA
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleOpenCustomPrompt}
+                        disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
+                        title="Regerar usando seu próprio prompt em inglês"
+                        className="gap-2"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Prompt
+                      </Button>
+                    </div>
                   </div>
                   {!editingTemplate && (
                     <p className="text-xs text-muted-foreground">
