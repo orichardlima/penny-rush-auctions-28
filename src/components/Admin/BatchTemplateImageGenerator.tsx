@@ -38,6 +38,7 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ItemResult[]>([]);
   const [progress, setProgress] = useState(0);
+  const [abortNotice, setAbortNotice] = useState<string | null>(null);
 
   const candidates = useMemo(() => {
     return templates.filter((t) => {
@@ -61,6 +62,7 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
     }
     setRunning(true);
     setProgress(0);
+    setAbortNotice(null);
     const initial: ItemResult[] = candidates.slice(0, totalToRun).map((t) => ({
       id: t.id,
       title: t.title,
@@ -70,6 +72,7 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
 
     let success = 0;
     let failed = 0;
+    let aborted = false;
 
     for (let i = 0; i < initial.length; i++) {
       const item = initial[i];
@@ -79,11 +82,42 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
         const { data, error } = await supabase.functions.invoke('generate-template-image', {
           body: { template_id: item.id },
         });
-        const backendError = (data as any)?.error;
-        if (backendError) {
-          throw new Error(backendError);
+
+        // Mensagem real do servidor (mesmo em respostas non-2xx, o body pode trazer error)
+        const serverError = (data as any)?.error as string | undefined;
+        const lower = (serverError || error?.message || '').toLowerCase();
+
+        // Detecta billing (402) ou rate limit (429) e aborta o lote
+        const isBilling =
+          lower.includes('crédit') ||
+          lower.includes('credit') ||
+          lower.includes('payment_required') ||
+          lower.includes('402');
+        const isRateLimit =
+          lower.includes('limite de requisi') ||
+          lower.includes('rate limit') ||
+          lower.includes('too many requests') ||
+          lower.includes('429');
+
+        if (isBilling || isRateLimit) {
+          const notice = isBilling
+            ? 'Créditos de IA esgotados. Adicione créditos em Settings → Workspace → Usage e tente novamente.'
+            : 'Limite de requisições atingido. Aguarde alguns minutos e reinicie o lote.';
+          setAbortNotice(notice);
+          toast.error(notice);
+          // Item atual marcado como falha com mensagem clara; restantes ficam pending
+          setResults((prev) =>
+            prev.map((r) => (r.id === item.id ? { ...r, status: 'failed', error: notice } : r))
+          );
+          aborted = true;
+          break;
+        }
+
+        if (serverError) {
+          throw new Error(serverError);
         }
         if (error) throw error;
+
         if (data?.image_url) {
           success++;
           setResults((prev) =>
@@ -112,7 +146,9 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
     }
 
     setRunning(false);
-    toast.success(`Lote finalizado: ${success} regerados, ${failed} falharam`);
+    if (!aborted) {
+      toast.success(`Lote finalizado: ${success} regerados, ${failed} falharam`);
+    }
     onCompleted();
   };
 
@@ -175,9 +211,18 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
             <p className="text-xs text-muted-foreground">
               Itens Luxury são ignorados (usam imagem oficial via Image Key). Cada imagem leva ~10–15s.
             </p>
+            <p className="text-xs text-muted-foreground">
+              Cada imagem consome ~1 crédito de IA (até ~2 com retry para itens com marca).
+            </p>
           </div>
         </div>
       </div>
+
+      {abortNotice && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          <strong>Lote interrompido:</strong> {abortNotice}
+        </div>
+      )}
 
       {(running || results.length > 0) && (
         <div className="space-y-2">
