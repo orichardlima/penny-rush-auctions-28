@@ -1631,7 +1631,98 @@ const AdminPartnerManagement = () => {
               <CardTitle>Solicitações de Saque</CardTitle>
               <CardDescription>Gerencie as solicitações de saque dos parceiros</CardDescription>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
+            <CardContent className="overflow-x-auto space-y-4">
+              {/* Filtros */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex-1 min-w-[200px]">
+                    <Label className="text-xs text-muted-foreground">Buscar</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={wSearch}
+                        onChange={(e) => setWSearch(e.target.value)}
+                        placeholder="Nome, e-mail, PIX ou ID…"
+                        className="pl-8 h-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="min-w-[170px]">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Select value={wStatus} onValueChange={setWStatus}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="APPROVED">Aguardando Pagamento</SelectItem>
+                        <SelectItem value="PAID">Pago</SelectItem>
+                        <SelectItem value="REJECTED">Rejeitado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="min-w-[140px]">
+                    <Label className="text-xs text-muted-foreground">Plano</Label>
+                    <Select value={wPlan} onValueChange={setWPlan}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {withdrawalPlanOptions.map((p) => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="min-w-[130px]">
+                    <Label className="text-xs text-muted-foreground">Tipo PIX</Label>
+                    <Select value={wPixType} onValueChange={setWPixType}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                        <SelectItem value="cnpj">CNPJ</SelectItem>
+                        <SelectItem value="email">E-mail</SelectItem>
+                        <SelectItem value="telefone">Telefone</SelectItem>
+                        <SelectItem value="aleatoria">Aleatória</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-[110px]">
+                    <Label className="text-xs text-muted-foreground">Min (R$)</Label>
+                    <Input type="number" inputMode="decimal" value={wMinAmount} onChange={(e) => setWMinAmount(e.target.value)} className="h-9" placeholder="0" />
+                  </div>
+                  <div className="w-[110px]">
+                    <Label className="text-xs text-muted-foreground">Max (R$)</Label>
+                    <Input type="number" inputMode="decimal" value={wMaxAmount} onChange={(e) => setWMaxAmount(e.target.value)} className="h-9" placeholder="∞" />
+                  </div>
+                  <div className="w-[150px]">
+                    <Label className="text-xs text-muted-foreground">De</Label>
+                    <Input type="date" value={wDateFrom} onChange={(e) => setWDateFrom(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="w-[150px]">
+                    <Label className="text-xs text-muted-foreground">Até</Label>
+                    <Input type="date" value={wDateTo} onChange={(e) => setWDateTo(e.target.value)} className="h-9" />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={clearWithdrawalFilters} className="h-9">
+                    <X className="h-4 w-4 mr-1" /> Limpar
+                  </Button>
+                </div>
+
+                {/* Resumo + contador */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="rounded-md border bg-muted/30 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Quantidade</p>
+                    <p className="text-base font-semibold">{withdrawalSummary.count} <span className="text-xs font-normal text-muted-foreground">de {withdrawals.length}</span></p>
+                  </div>
+                  <div className="rounded-md border bg-muted/30 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total filtrado</p>
+                    <p className="text-base font-semibold">{formatPrice(withdrawalSummary.total)}</p>
+                  </div>
+                  <div className="rounded-md border bg-muted/30 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Líquido a pagar (Aprovados)</p>
+                    <p className="text-base font-semibold text-yellow-600">{formatPrice(withdrawalSummary.netApproved)}</p>
+                  </div>
+                </div>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow>
