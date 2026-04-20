@@ -1,73 +1,111 @@
 
 
-## Plano: Controle de frequência por item premium na criação automática de leilões
+## Plano final aprovado: Catálogo expandido com estratégia mista de imagens
 
-### Problema
-Hoje em `auto-replenish-auctions/index.ts` os templates ativos são embaralhados aleatoriamente (`Math.random()`) e selecionados sem considerar valor de mercado nem histórico recente. Itens caros (iPhone, etc.) podem cair no sorteio várias vezes seguidas, comprometendo a sustentabilidade financeira.
+### 1. Migration de banco
 
-### Solução proposta: sistema de "tier" + cooldown por template
+**`product_templates`** — adicionar:
+- `image_key` (text, nullable) — caminho no bucket
+- `image_source` (text, default `'ai'`) — `'ai'` | `'storage'` | `'manual'`
 
-Adicionar dois controles complementares no `product_templates`:
+**`auctions`** — adicionar:
+- `image_key` (text, nullable) — copiado do template na criação
 
-**1. Tier de raridade (peso no sorteio)**
-- Campo `tier text` com valores: `standard` (padrão), `premium`, `luxury`
-- Cada tier tem um peso de sorteio configurável em `system_settings`:
-  - `auto_replenish_weight_standard` (padrão: 10)
-  - `auto_replenish_weight_premium` (padrão: 3)
-  - `auto_replenish_weight_luxury` (padrão: 1)
-- Sorteio passa a ser **ponderado**: itens luxury têm 10x menos chance que standard
+**Trigger** em `auctions` (no INSERT) já existente que copia campos do template: estender para incluir `image_key`. Se não existir trigger, ajustar a edge function `auto-replenish-auctions` para copiar `image_key` ao criar leilão.
 
-**2. Cooldown mínimo entre aparições**
-- Campo `min_hours_between_appearances integer` no template (default: 0, ou seja, sem restrição)
-- Sugestão de uso: standard=0h, premium=24h, luxury=72h
-- Antes de sortear, filtrar templates cujo último leilão (criado/finalizado) é mais recente que esse cooldown
-- Usa `auctions` filtrando por `title = template.title` e `created_at >= now() - interval`
+### 2. Storage
 
-**3. Classificação automática (opcional, na migração)**
-- Sugerir tier baseado em `market_value` para popular dados existentes:
-  - `< R$ 500` → standard
-  - `R$ 500 - R$ 2000` → premium
-  - `> R$ 2000` → luxury
-- Admin pode ajustar manualmente depois
+Criar bucket `product-images` (público para leitura):
+- `/generated/{template_id}.png` — IA
+- `/luxury/{slug}.jpg` — upload manual admin
 
-### Mudanças
+RLS:
+- SELECT: público
+- INSERT/UPDATE/DELETE: apenas `is_admin_user(auth.uid())`
 
-**Migração de banco:**
-- `product_templates`: adicionar `tier text default 'standard'` e `min_hours_between_appearances integer default 0`
-- `system_settings`: inserir 3 chaves de peso (standard/premium/luxury)
-- Seed: classificar templates existentes pelo `market_value`
+Servir com header `cache-control: public, max-age=31536000, immutable` (configurado no upload via `cacheControl: '31536000'`).
 
-**Edge Function `auto-replenish-auctions/index.ts`:**
-- Buscar pesos do `system_settings`
-- Após filtrar templates não duplicados, aplicar **filtro de cooldown** (consultar `auctions` por título + janela temporal)
-- Substituir `sort(() => Math.random() - 0.5)` por **sorteio ponderado** usando os pesos do tier
-- Logar tier sorteado para auditoria
+### 3. Edge function `generate-template-image`
 
-**UI Admin (`ProductTemplatesManager.tsx`):**
-- Adicionar select de **Tier** (Standard / Premium / Luxury) no formulário
-- Adicionar input numérico **"Horas mínimas entre aparições"**
-- Mostrar coluna Tier na lista de templates (badge colorido)
+Recebe `{ template_id, prompt? }`. Validação JWT + admin. Fluxo:
+1. Busca template pelo `id`
+2. Monta prompt: `"Product photography of {title}, centered, studio lighting, soft shadows, clean white background, high detail, realistic, no text, no watermark, e-commerce style, square format"` (ou usa prompt custom)
+3. Chama Lovable AI Gateway (`google/gemini-2.5-flash-image`, `modalities: ['image','text']`)
+4. Decodifica base64 → faz upload em `product-images/generated/{template_id}.png` com cache de 1 ano
+5. Atualiza `image_url` (URL pública) e `image_source = 'ai'` no template
+6. Retorna URL
 
-**UI Admin (configurações):**
-- Em algum painel de configurações de auto-replenish, mostrar 3 inputs para os pesos por tier
+### 4. Edge function `seed-template-images`
 
-### Diagrama do sorteio
+One-shot, validação admin. Varre `product_templates` onde `image_url IS NULL AND image_key IS NULL AND tier IN ('standard','premium')`, chama `generate-template-image` para cada um, com delay de 2s entre chamadas (rate-limit safety). Retorna sumário `{ ok, failed, errors[] }`.
 
-```text
-Templates ativos (N)
-  ↓ remove títulos já em uso
-  ↓ remove templates em cooldown (último uso < min_hours)
-  ↓ pool elegível
-  ↓ sorteio ponderado (luxury=1, premium=3, standard=10)
-  ↓ N selecionados (até batch_size)
+### 5. Migration SQL — seed dos ~60 templates
+
+Distribuição:
+
+| Tier | Qtd | Cooldown | Imagem |
+|---|---|---|---|
+| Standard | 36 | 0–6h | `image_url=NULL` (preencher via seed-template-images) |
+| Premium | 18 | 24–48h | `image_url=NULL` (preencher via seed-template-images) |
+| Luxury | 6 | 72–168h | `image_key='luxury/{slug}.jpg'`, `image_source='storage'` |
+
+**Categorias:**
+- **Standard (36)**: 8 acessórios mobile, 6 áudio entry, 6 cozinha, 4 gift cards, 4 cosméticos, 4 ferramentas, 4 brinquedos
+- **Premium (18)**: 5 smartphones intermediários, 4 áudio premium, 3 games portáteis, 3 smartwatches, 3 eletrodomésticos médios
+- **Luxury (6)**: iPhone 16 Pro Max, PS5, MacBook Air M3, TV OLED LG 55", Apple Watch Ultra 2, Sony A6700
+
+Dados financeiros calibrados por tier (bid_cost, market_value, revenue_target, starting_price, bid_increment) seguindo a lógica já existente.
+
+### 6. Helper frontend de resolução
+
+Criar `src/utils/templateImage.ts`:
+```ts
+export function resolveTemplateImage(t: { image_key?: string | null; image_url?: string | null }) {
+  if (t.image_key) return `${SUPABASE_URL}/storage/v1/object/public/product-images/${t.image_key}`;
+  return t.image_url ?? '/placeholder.svg';
+}
 ```
 
-### Fora de escopo
-- Não altera duração, intervalo ou batch size
-- Não altera lógica de bots / vencedores
-- Não altera UI do usuário final
-- Não toca em `product_templates.times_used` (continua incrementando)
+Aplicar em:
+- `AuctionCard.tsx` (renderização do leilão)
+- `ProductTemplatesManager.tsx` (preview admin)
+- Qualquer outro local que renderize imagem de template/auction
 
-### Resultado esperado
-iPhones e outros itens caros aparecem proporcionalmente menos no carrossel automático, com janela mínima de descanso entre aparições. Admin controla a distribuição via tier do template e pesos globais nas configurações.
+### 7. UI Admin (`ProductTemplatesManager.tsx`)
+
+Adicionar **sem mexer no que já existe**:
+- Input `image_key` (texto, hint: `luxury/iphone-16.jpg`)
+- Botão **"Gerar com IA"** ao lado do upload — abre modal com prompt pré-preenchido (editável), chama `generate-template-image`, mostra preview, recarrega lista
+- Badge na listagem:
+  - 📦 Storage (tem `image_key`)
+  - 🤖 IA (tem `image_url` sem `image_key`)
+  - ⚠️ Sem imagem (nenhum dos dois)
+- Preview da imagem na listagem usando `resolveTemplateImage`
+
+### 8. Lista de uploads manuais (Luxury)
+
+Admin precisa subir no bucket após o seed:
+- `luxury/iphone-16-pro-max.jpg`
+- `luxury/playstation-5.jpg`
+- `luxury/macbook-air-m3.jpg`
+- `luxury/tv-oled-lg-55.jpg`
+- `luxury/apple-watch-ultra-2.jpg`
+- `luxury/sony-a6700.jpg`
+
+Documentado na UI admin via badge ⚠️ até o upload ser feito.
+
+### 9. Ordem de execução
+
+1. Migration: colunas + bucket + RLS
+2. Deploy de `generate-template-image` e `seed-template-images`
+3. UI admin atualizada (campo, botão, badges, preview)
+4. Migration de seed (60 templates)
+5. Admin roda `seed-template-images` (botão admin ou chamada manual) para popular Standard/Premium
+6. Admin sobe os 6 arquivos Luxury no bucket
+
+### Fora de escopo
+- Não altera tiers/cooldown/pesos (já implementado)
+- Não altera `auto-replenish-auctions` além de copiar `image_key`
+- Não altera UI do usuário final além da resolução transparente da imagem
+- Não busca imagens de sites de marca
 
