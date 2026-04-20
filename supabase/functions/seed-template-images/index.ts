@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       .select('id, title, tier')
       .is('image_url', null)
       .is('image_key', null)
-      .in('tier', ['standard', 'premium'])
+      .in('tier', ['standard', 'premium', 'luxury'])
 
     if (tErr) throw tErr
 
