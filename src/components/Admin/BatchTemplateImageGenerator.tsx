@@ -42,8 +42,6 @@ export const BatchTemplateImageGenerator = ({ templates, onClose, onCompleted }:
 
   const candidates = useMemo(() => {
     return templates.filter((t) => {
-      // Luxury sempre excluído (image_key oficial)
-      if (t.tier === 'luxury') return false;
       if (tier !== 'all' && t.tier !== tier) return false;
       if (category !== 'all' && t.category !== category) return false;
       if (onlyMissing && (t.image_url || t.image_key)) return false;
