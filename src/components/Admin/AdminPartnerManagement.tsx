@@ -1734,7 +1734,7 @@ const AdminPartnerManagement = () => {
                 </div>
               )}
 
-
+              <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Parceiro</TableHead>
