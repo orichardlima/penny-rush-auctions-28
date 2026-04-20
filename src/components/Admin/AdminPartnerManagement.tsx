@@ -1764,6 +1764,14 @@ const AdminPartnerManagement = () => {
                   Nenhuma solicitação de saque
                 </div>
               )}
+              {withdrawals.length > 0 && filteredWithdrawals.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground space-y-2">
+                  <p>Nenhum saque corresponde aos filtros aplicados</p>
+                  <Button variant="outline" size="sm" onClick={clearWithdrawalFilters}>
+                    <X className="h-4 w-4 mr-1" /> Limpar filtros
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
