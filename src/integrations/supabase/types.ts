@@ -2250,8 +2250,10 @@ export type Database = {
           image_url: string | null
           is_active: boolean | null
           market_value: number | null
+          min_hours_between_appearances: number
           revenue_target: number | null
           starting_price: number | null
+          tier: string
           times_used: number | null
           title: string
           updated_at: string | null
@@ -2266,8 +2268,10 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           market_value?: number | null
+          min_hours_between_appearances?: number
           revenue_target?: number | null
           starting_price?: number | null
+          tier?: string
           times_used?: number | null
           title: string
           updated_at?: string | null
@@ -2282,8 +2286,10 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           market_value?: number | null
+          min_hours_between_appearances?: number
           revenue_target?: number | null
           starting_price?: number | null
+          tier?: string
           times_used?: number | null
           title?: string
           updated_at?: string | null

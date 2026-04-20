@@ -5,6 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Sorteio ponderado: escolhe um índice respeitando os pesos
+function weightedPickIndex(weights: number[]): number {
+  const total = weights.reduce((s, w) => s + w, 0)
+  if (total <= 0) return Math.floor(Math.random() * weights.length)
+  let r = Math.random() * total
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i]
+    if (r <= 0) return i
+  }
+  return weights.length - 1
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -26,6 +38,9 @@ Deno.serve(async (req) => {
         'auto_replenish_interval_minutes',
         'auto_replenish_duration_min_hours',
         'auto_replenish_duration_max_hours',
+        'auto_replenish_weight_standard',
+        'auto_replenish_weight_premium',
+        'auto_replenish_weight_luxury',
       ])
 
     if (settingsError) throw settingsError
@@ -48,6 +63,12 @@ Deno.serve(async (req) => {
     const durationMinHours = parseFloat(settings['auto_replenish_duration_min_hours'] || '1')
     const durationMaxHours = parseFloat(settings['auto_replenish_duration_max_hours'] || '5')
 
+    const tierWeights: Record<string, number> = {
+      standard: parseFloat(settings['auto_replenish_weight_standard'] || '10'),
+      premium: parseFloat(settings['auto_replenish_weight_premium'] || '3'),
+      luxury: parseFloat(settings['auto_replenish_weight_luxury'] || '1'),
+    }
+
     // 2. Count active + waiting auctions
     const { count, error: countError } = await supabase
       .from('auctions')
@@ -65,10 +86,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 3. Calculate how many to create
     const needed = Math.min(minActive - currentCount, batchSize)
 
-    // 4. Fetch active templates
+    // 3. Fetch active templates
     const { data: templates, error: templatesError } = await supabase
       .from('product_templates')
       .select('*')
@@ -82,7 +102,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 4b. Fetch titles of active/waiting auctions to avoid duplicates
+    // 4. Filtrar títulos já em uso (active/waiting)
     const { data: activeAuctions, error: activeError } = await supabase
       .from('auctions')
       .select('title')
@@ -91,31 +111,71 @@ Deno.serve(async (req) => {
     if (activeError) throw activeError
 
     const activeTitles = new Set((activeAuctions || []).map(a => a.title))
-    console.log(`Active/waiting auction titles: ${activeTitles.size}`)
 
-    // Filter out templates already in use
-    const availableTemplates = templates.filter(t => !activeTitles.has(t.title))
-    console.log(`Available templates (not duplicated): ${availableTemplates.length}`)
+    // 5. Buscar últimos leilões para cooldown (qualquer status, últimas 7 dias)
+    const cooldownLookbackHours = 24 * 7
+    const lookbackSince = new Date(Date.now() - cooldownLookbackHours * 60 * 60 * 1000).toISOString()
 
-    if (availableTemplates.length === 0) {
-      return new Response(JSON.stringify({ message: 'All templates already have active auctions' }), {
+    const { data: recentAuctions, error: recentError } = await supabase
+      .from('auctions')
+      .select('title, created_at')
+      .gte('created_at', lookbackSince)
+
+    if (recentError) throw recentError
+
+    // Mapa: title -> created_at mais recente
+    const lastSeenByTitle = new Map<string, number>()
+    for (const a of recentAuctions || []) {
+      const t = new Date(a.created_at).getTime()
+      const prev = lastSeenByTitle.get(a.title) || 0
+      if (t > prev) lastSeenByTitle.set(a.title, t)
+    }
+
+    const now = Date.now()
+
+    // 6. Pool elegível: sem duplicatas + sem violação de cooldown
+    const eligible = templates.filter(t => {
+      if (activeTitles.has(t.title)) return false
+      const minHours = (t as any).min_hours_between_appearances || 0
+      if (minHours <= 0) return true
+      const lastSeen = lastSeenByTitle.get(t.title)
+      if (!lastSeen) return true
+      const hoursSince = (now - lastSeen) / (60 * 60 * 1000)
+      return hoursSince >= minHours
+    })
+
+    console.log(`Templates: total=${templates.length}, eligible=${eligible.length}`)
+
+    if (eligible.length === 0) {
+      return new Response(JSON.stringify({ message: 'No eligible templates (duplicates or cooldown)' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Shuffle available templates and select what's needed
-    const shuffled = [...availableTemplates].sort(() => Math.random() - 0.5)
-    const selected = shuffled.slice(0, Math.min(needed, availableTemplates.length))
+    // 7. Sorteio ponderado por tier (sem reposição)
+    const pool = [...eligible]
+    const selected: typeof eligible = []
+    const wantedCount = Math.min(needed, pool.length)
 
-    // 5. Create auctions with staggered starts
-    const now = new Date()
-    const createdAuctions = []
+    for (let i = 0; i < wantedCount; i++) {
+      const weights = pool.map(t => {
+        const tier = (t as any).tier || 'standard'
+        return tierWeights[tier] ?? tierWeights.standard
+      })
+      const idx = weightedPickIndex(weights)
+      selected.push(pool[idx])
+      pool.splice(idx, 1)
+    }
+
+    console.log('Selected tiers:', selected.map(t => `${(t as any).tier || 'standard'}:${t.title}`).join(' | '))
+
+    // 8. Criar leilões com starts escalonados
+    const nowDate = new Date()
+    const createdAuctions: string[] = []
 
     for (let i = 0; i < selected.length; i++) {
       const template = selected[i]
-      const startsAt = new Date(now.getTime() + i * intervalMinutes * 60 * 1000)
-      
-      // Random duration between min and max hours
+      const startsAt = new Date(nowDate.getTime() + i * intervalMinutes * 60 * 1000)
       const randomDurationMs = (durationMinHours + Math.random() * (durationMaxHours - durationMinHours)) * 60 * 60 * 1000
       const endsAt = new Date(startsAt.getTime() + randomDurationMs)
 
@@ -151,7 +211,6 @@ Deno.serve(async (req) => {
 
       createdAuctions.push(auction.id)
 
-      // Increment times_used on template
       await supabase
         .from('product_templates')
         .update({ times_used: (template.times_used || 0) + 1 })

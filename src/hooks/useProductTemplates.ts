@@ -15,6 +15,8 @@ export interface ProductTemplate {
   category: string;
   is_active: boolean;
   times_used: number;
+  tier: string;
+  min_hours_between_appearances: number;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +32,8 @@ export interface ProductTemplateInput {
   bid_cost?: number;
   category?: string;
   is_active?: boolean;
+  tier?: string;
+  min_hours_between_appearances?: number;
 }
 
 export const useProductTemplates = () => {
