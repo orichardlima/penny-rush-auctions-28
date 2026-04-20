@@ -609,6 +609,7 @@ export type Database = {
           finish_reason: string | null
           finished_at: string | null
           id: string
+          image_key: string | null
           image_url: string | null
           is_hidden: boolean | null
           last_bid_at: string | null
@@ -645,6 +646,7 @@ export type Database = {
           finish_reason?: string | null
           finished_at?: string | null
           id?: string
+          image_key?: string | null
           image_url?: string | null
           is_hidden?: boolean | null
           last_bid_at?: string | null
@@ -681,6 +683,7 @@ export type Database = {
           finish_reason?: string | null
           finished_at?: string | null
           id?: string
+          image_key?: string | null
           image_url?: string | null
           is_hidden?: boolean | null
           last_bid_at?: string | null
@@ -2247,6 +2250,8 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          image_key: string | null
+          image_source: string
           image_url: string | null
           is_active: boolean | null
           market_value: number | null
@@ -2265,6 +2270,8 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          image_key?: string | null
+          image_source?: string
           image_url?: string | null
           is_active?: boolean | null
           market_value?: number | null
@@ -2283,6 +2290,8 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          image_key?: string | null
+          image_source?: string
           image_url?: string | null
           is_active?: boolean | null
           market_value?: number | null
