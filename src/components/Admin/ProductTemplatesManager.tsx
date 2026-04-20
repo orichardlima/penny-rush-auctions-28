@@ -164,6 +164,12 @@ export const ProductTemplatesManager = () => {
       const { data, error } = await supabase.functions.invoke('generate-template-image', {
         body: { template_id: editingTemplate },
       });
+      // Mensagem específica vinda do backend tem prioridade sobre o erro genérico do invoke
+      const backendError = (data as any)?.error;
+      if (backendError) {
+        toast.error(backendError);
+        return;
+      }
       if (error) throw error;
       if (data?.image_url) {
         setFormData(prev => ({ ...prev, image_url: data.image_url, image_key: '' }));
@@ -171,11 +177,13 @@ export const ProductTemplatesManager = () => {
         toast.success('Imagem gerada com IA!');
         await fetchTemplates();
       } else {
-        toast.error(data?.error || 'Falha ao gerar imagem');
+        toast.error('Falha ao gerar imagem');
       }
     } catch (err: any) {
       console.error('AI generation error:', err);
-      toast.error('Erro ao gerar imagem: ' + (err.message || 'desconhecido'));
+      // Tenta extrair mensagem do contexto do FunctionsHttpError
+      const ctxMsg = err?.context?.error || err?.context?.body?.error;
+      toast.error(ctxMsg || 'Erro ao gerar imagem: ' + (err.message || 'desconhecido'));
     } finally {
       setGeneratingFor(null);
     }
@@ -322,7 +330,8 @@ export const ProductTemplatesManager = () => {
                       variant="outline"
                       size="sm"
                       onClick={handleGenerateWithAI}
-                      disabled={!editingTemplate || generatingFor === editingTemplate}
+                      disabled={!editingTemplate || generatingFor === editingTemplate || formData.tier === 'luxury'}
+                      title={formData.tier === 'luxury' ? 'Itens Luxury usam imagem oficial via Image Key, não IA.' : undefined}
                       className="gap-2"
                     >
                       {generatingFor === editingTemplate ? (
@@ -336,6 +345,11 @@ export const ProductTemplatesManager = () => {
                   {!editingTemplate && (
                     <p className="text-xs text-muted-foreground">
                       Salve o template primeiro para habilitar geração com IA
+                    </p>
+                  )}
+                  {formData.tier === 'luxury' && (
+                    <p className="text-xs text-muted-foreground">
+                      Itens Luxury usam imagem oficial via Image Key — não geram com IA.
                     </p>
                   )}
 
