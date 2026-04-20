@@ -587,6 +587,43 @@ export const ProductTemplatesManager = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={customPromptOpen} onOpenChange={setCustomPromptOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Regerar imagem com prompt customizado</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  Escreva o prompt diretamente em inglês para máxima fidelidade. Ex.:
+                  <em className="block mt-1">"Professional product photo of an Apple Watch SE 40mm with sport band, square touchscreen face, on white background, studio lighting."</em>
+                </p>
+                <Textarea
+                  value={customPromptText}
+                  onChange={(e) => setCustomPromptText(e.target.value)}
+                  placeholder="Digite seu prompt em inglês..."
+                  rows={6}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setCustomPromptOpen(false)} disabled={generatingFor === editingTemplate}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => runGeneration(customPromptText)}
+                    disabled={!customPromptText.trim() || generatingFor === editingTemplate}
+                    className="gap-2"
+                  >
+                    {generatingFor === editingTemplate ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Gerar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
