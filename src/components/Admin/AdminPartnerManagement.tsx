@@ -1728,15 +1728,25 @@ const AdminPartnerManagement = () => {
                   <TableRow>
                     <TableHead>Parceiro</TableHead>
                     <TableHead className="hidden md:table-cell">Plano</TableHead>
-                    <TableHead>Valor</TableHead>
+                    <TableHead>
+                      <button type="button" onClick={() => toggleWithdrawalSort('amount')} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Valor
+                        {wSortBy === 'amount' ? (wSortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-50" />}
+                      </button>
+                    </TableHead>
                     <TableHead className="hidden lg:table-cell">PIX</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden sm:table-cell">Data</TableHead>
+                    <TableHead className="hidden sm:table-cell">
+                      <button type="button" onClick={() => toggleWithdrawalSort('date')} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Data
+                        {wSortBy === 'date' ? (wSortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-50" />}
+                      </button>
+                    </TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {withdrawals.map((withdrawal) => (
+                  {filteredWithdrawals.map((withdrawal) => (
                     <TableRow key={withdrawal.id}>
                       <TableCell>
                         <div>
