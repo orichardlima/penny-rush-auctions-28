@@ -2,46 +2,46 @@
 
 ## Diagnóstico
 
-Os logs da `generate-template-image` mostram a resposta do Gemini sem o campo `images` e com `content: null`:
+**Problema 1 — Prompt fraco demais.** O prompt atual passa só o título traduzido literalmente (`"Microfone Lapela USB"` ou `"Furadeira Parafusadeira 12V"`). O Gemini, sem contexto visual nem descrição funcional, "alucina" produtos visualmente parecidos: lapela USB → puck preto redondo (carregador wireless), furadeira → garrafa térmica metálica.
 
-```
-{"choices":[{"message":{"role":"assistant","content":null,"images":undefined}}]}
-```
+**Problema 2 — Descrição do template ignorada.** A tabela `product_templates` tem a coluna `description` rica (ex.: *"Furadeira sem fio com bateria recarregável e maleta"*) que não é usada na geração. Essa descrição é exatamente o contexto que o modelo precisa para produzir a imagem correta.
 
-Causa provável: **uso de marca específica no título** (`Sony Alpha A6700 Mirrorless`) acionou filtro de copyright/safety do Gemini, que devolveu uma resposta vazia em vez de imagem. O caso testado pelo usuário é um item **Luxury** — pela arquitetura aprovada, Luxury **não deve** usar IA, mas o botão "Gerar com IA" hoje permite isso e mascara a falha como erro genérico.
+**Problema 3 — Tradução pt→en ausente.** O Gemini de imagem é treinado majoritariamente em inglês. Termos técnicos em português ("Furadeira Parafusadeira", "Lapela") podem ser mal interpretados.
+
+**Problema 4 — Fallback genérico piora o resultado.** Quando a tentativa 1 falha por falsa razão (já gerou algo errado), nunca cai no retry — porque a função recebeu uma imagem (errada). O retry só dispara se `imageUrl` estiver vazio. Ou seja: imagem errada é tratada como sucesso.
 
 ## Plano de correção
 
-### 1. Sanitizar o prompt (remover marcas/modelos icônicos)
-Antes de chamar o gateway, normalizar o título removendo marcas conhecidas (Sony, Apple, iPhone, PlayStation, Samsung, Nintendo, MacBook, AirPods, LG, Xiaomi etc.) e substituindo por categoria genérica. Exemplos:
-- `"Sony Alpha A6700 Mirrorless"` → `"professional mirrorless camera with detachable lens"`
-- `"iPhone 16 Pro Max"` → `"premium smartphone with triple camera, titanium finish"`
-- `"PlayStation 5"` → `"modern gaming console, white and black, two-tone design"`
+### 1. Reescrever o prompt usando título + descrição + dicionário pt→en
+Editar `generate-template-image/index.ts`:
 
-Mapeamento mantido em uma constante dentro da edge function. Para títulos sem marca conhecida, usa o título original.
+- Ler também a coluna `description` do template (já existe)
+- Adicionar dicionário pequeno de termos comuns pt→en (`microfone lapela` → `lavalier clip-on microphone`, `furadeira parafusadeira` → `cordless drill driver with battery`, `caixa de som bluetooth` → `bluetooth portable speaker`, etc.) — ~30-40 entradas cobrindo os 60 templates do seed
+- Construir prompt no formato:
+  ```
+  Professional product photography of a {translated_title}. {translated_description}. Centered on pure white background, studio lighting, soft shadows, sharp focus on the product, photorealistic, e-commerce catalog style, square 1:1, no text, no logo, no watermark, no people.
+  ```
 
-### 2. Retry inteligente com fallback de prompt
-Se a primeira chamada retornar resposta sem `images`:
-- Refazer 1x com prompt ainda mais genérico (somente categoria + descrição visual neutra)
-- Se ainda falhar, retornar erro **explicativo** ao frontend: `"Modelo recusou geração — provavelmente conflito de marca. Use upload manual ou image_key."`
+### 2. Adicionar negative prompts e reforço de identidade
+Incluir reforços como `"the product MUST be a {category_in_english}, do NOT generate any other type of object"` para reduzir alucinação.
 
-### 3. Bloquear "Gerar com IA" para tier Luxury no frontend
-No `ProductTemplatesManager.tsx`, desabilitar o botão "Gerar com IA" quando `tier === 'luxury'`, com tooltip: *"Itens Luxury usam imagem oficial via Image Key, não IA."* Isso reforça a regra arquitetural já aprovada.
+### 3. Trocar para modelo de qualidade superior
+Usar `google/gemini-3.1-flash-image-preview` (Nano Banana 2 — qualidade pro, velocidade flash) em vez de `gemini-2.5-flash-image`. Mais fiel ao prompt, melhor para fotografia de produto.
 
-### 4. Mensagem de erro mais clara no toast
-Substituir o genérico *"Edge Function returned a non-2xx status code"* por mensagens vindas do `error.detail` da função (rate limit, créditos, recusa do modelo, marca bloqueada).
+### 4. Manter botão "Regenerar" (já existe) para reprocessar templates com imagens ruins
+Sem mudança de UI — admin já pode clicar "Gerar com IA" novamente em qualquer template Standard/Premium para sobrescrever.
 
-### 5. Logging extra na edge function
-Adicionar `console.log` do `finish_reason` e `refusal` da resposta do Gemini para facilitar diagnóstico futuro.
+### 5. Logging do prompt final
+Adicionar `console.log` do prompt completo enviado ao Gemini, para diagnosticar futuros desvios visuais.
 
 ### Fora de escopo
-- Não trocar de modelo (o `gemini-2.5-flash-image` continua sendo o padrão)
+- Não mexer em Luxury (continua via `image_key`)
+- Não alterar UI do admin além do que já existe
 - Não alterar fluxo de seed-template-images
-- Não mexer na resolução de imagem do frontend (`templateImage.ts`)
-- Não alterar UI/funcionalidade fora do botão "Gerar com IA" e seu modal
+- Não alterar `templateImage.ts`, `auto-replenish-auctions` ou qualquer outro arquivo
 
 ### Resultado esperado
-- Standard/Premium voltam a gerar normalmente (títulos genéricos não acionam o filtro)
-- Tentativas em Luxury são bloqueadas na UI antes de chamar a função
-- Quando o filtro do Gemini bloquear mesmo assim, o admin vê uma mensagem clara em vez de um erro genérico
+- "Microfone Lapela USB" → microfone de lapela real com clipe e cabo USB
+- "Furadeira Parafusadeira 12V" → furadeira sem fio com mandril e bateria
+- Após aprovação, admin clica "Gerar com IA" novamente nos templates problemáticos para regerar
 
