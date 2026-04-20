@@ -1,111 +1,47 @@
 
 
-## Plano final aprovado: Catálogo expandido com estratégia mista de imagens
+## Diagnóstico
 
-### 1. Migration de banco
+Os logs da `generate-template-image` mostram a resposta do Gemini sem o campo `images` e com `content: null`:
 
-**`product_templates`** — adicionar:
-- `image_key` (text, nullable) — caminho no bucket
-- `image_source` (text, default `'ai'`) — `'ai'` | `'storage'` | `'manual'`
-
-**`auctions`** — adicionar:
-- `image_key` (text, nullable) — copiado do template na criação
-
-**Trigger** em `auctions` (no INSERT) já existente que copia campos do template: estender para incluir `image_key`. Se não existir trigger, ajustar a edge function `auto-replenish-auctions` para copiar `image_key` ao criar leilão.
-
-### 2. Storage
-
-Criar bucket `product-images` (público para leitura):
-- `/generated/{template_id}.png` — IA
-- `/luxury/{slug}.jpg` — upload manual admin
-
-RLS:
-- SELECT: público
-- INSERT/UPDATE/DELETE: apenas `is_admin_user(auth.uid())`
-
-Servir com header `cache-control: public, max-age=31536000, immutable` (configurado no upload via `cacheControl: '31536000'`).
-
-### 3. Edge function `generate-template-image`
-
-Recebe `{ template_id, prompt? }`. Validação JWT + admin. Fluxo:
-1. Busca template pelo `id`
-2. Monta prompt: `"Product photography of {title}, centered, studio lighting, soft shadows, clean white background, high detail, realistic, no text, no watermark, e-commerce style, square format"` (ou usa prompt custom)
-3. Chama Lovable AI Gateway (`google/gemini-2.5-flash-image`, `modalities: ['image','text']`)
-4. Decodifica base64 → faz upload em `product-images/generated/{template_id}.png` com cache de 1 ano
-5. Atualiza `image_url` (URL pública) e `image_source = 'ai'` no template
-6. Retorna URL
-
-### 4. Edge function `seed-template-images`
-
-One-shot, validação admin. Varre `product_templates` onde `image_url IS NULL AND image_key IS NULL AND tier IN ('standard','premium')`, chama `generate-template-image` para cada um, com delay de 2s entre chamadas (rate-limit safety). Retorna sumário `{ ok, failed, errors[] }`.
-
-### 5. Migration SQL — seed dos ~60 templates
-
-Distribuição:
-
-| Tier | Qtd | Cooldown | Imagem |
-|---|---|---|---|
-| Standard | 36 | 0–6h | `image_url=NULL` (preencher via seed-template-images) |
-| Premium | 18 | 24–48h | `image_url=NULL` (preencher via seed-template-images) |
-| Luxury | 6 | 72–168h | `image_key='luxury/{slug}.jpg'`, `image_source='storage'` |
-
-**Categorias:**
-- **Standard (36)**: 8 acessórios mobile, 6 áudio entry, 6 cozinha, 4 gift cards, 4 cosméticos, 4 ferramentas, 4 brinquedos
-- **Premium (18)**: 5 smartphones intermediários, 4 áudio premium, 3 games portáteis, 3 smartwatches, 3 eletrodomésticos médios
-- **Luxury (6)**: iPhone 16 Pro Max, PS5, MacBook Air M3, TV OLED LG 55", Apple Watch Ultra 2, Sony A6700
-
-Dados financeiros calibrados por tier (bid_cost, market_value, revenue_target, starting_price, bid_increment) seguindo a lógica já existente.
-
-### 6. Helper frontend de resolução
-
-Criar `src/utils/templateImage.ts`:
-```ts
-export function resolveTemplateImage(t: { image_key?: string | null; image_url?: string | null }) {
-  if (t.image_key) return `${SUPABASE_URL}/storage/v1/object/public/product-images/${t.image_key}`;
-  return t.image_url ?? '/placeholder.svg';
-}
+```
+{"choices":[{"message":{"role":"assistant","content":null,"images":undefined}}]}
 ```
 
-Aplicar em:
-- `AuctionCard.tsx` (renderização do leilão)
-- `ProductTemplatesManager.tsx` (preview admin)
-- Qualquer outro local que renderize imagem de template/auction
+Causa provável: **uso de marca específica no título** (`Sony Alpha A6700 Mirrorless`) acionou filtro de copyright/safety do Gemini, que devolveu uma resposta vazia em vez de imagem. O caso testado pelo usuário é um item **Luxury** — pela arquitetura aprovada, Luxury **não deve** usar IA, mas o botão "Gerar com IA" hoje permite isso e mascara a falha como erro genérico.
 
-### 7. UI Admin (`ProductTemplatesManager.tsx`)
+## Plano de correção
 
-Adicionar **sem mexer no que já existe**:
-- Input `image_key` (texto, hint: `luxury/iphone-16.jpg`)
-- Botão **"Gerar com IA"** ao lado do upload — abre modal com prompt pré-preenchido (editável), chama `generate-template-image`, mostra preview, recarrega lista
-- Badge na listagem:
-  - 📦 Storage (tem `image_key`)
-  - 🤖 IA (tem `image_url` sem `image_key`)
-  - ⚠️ Sem imagem (nenhum dos dois)
-- Preview da imagem na listagem usando `resolveTemplateImage`
+### 1. Sanitizar o prompt (remover marcas/modelos icônicos)
+Antes de chamar o gateway, normalizar o título removendo marcas conhecidas (Sony, Apple, iPhone, PlayStation, Samsung, Nintendo, MacBook, AirPods, LG, Xiaomi etc.) e substituindo por categoria genérica. Exemplos:
+- `"Sony Alpha A6700 Mirrorless"` → `"professional mirrorless camera with detachable lens"`
+- `"iPhone 16 Pro Max"` → `"premium smartphone with triple camera, titanium finish"`
+- `"PlayStation 5"` → `"modern gaming console, white and black, two-tone design"`
 
-### 8. Lista de uploads manuais (Luxury)
+Mapeamento mantido em uma constante dentro da edge function. Para títulos sem marca conhecida, usa o título original.
 
-Admin precisa subir no bucket após o seed:
-- `luxury/iphone-16-pro-max.jpg`
-- `luxury/playstation-5.jpg`
-- `luxury/macbook-air-m3.jpg`
-- `luxury/tv-oled-lg-55.jpg`
-- `luxury/apple-watch-ultra-2.jpg`
-- `luxury/sony-a6700.jpg`
+### 2. Retry inteligente com fallback de prompt
+Se a primeira chamada retornar resposta sem `images`:
+- Refazer 1x com prompt ainda mais genérico (somente categoria + descrição visual neutra)
+- Se ainda falhar, retornar erro **explicativo** ao frontend: `"Modelo recusou geração — provavelmente conflito de marca. Use upload manual ou image_key."`
 
-Documentado na UI admin via badge ⚠️ até o upload ser feito.
+### 3. Bloquear "Gerar com IA" para tier Luxury no frontend
+No `ProductTemplatesManager.tsx`, desabilitar o botão "Gerar com IA" quando `tier === 'luxury'`, com tooltip: *"Itens Luxury usam imagem oficial via Image Key, não IA."* Isso reforça a regra arquitetural já aprovada.
 
-### 9. Ordem de execução
+### 4. Mensagem de erro mais clara no toast
+Substituir o genérico *"Edge Function returned a non-2xx status code"* por mensagens vindas do `error.detail` da função (rate limit, créditos, recusa do modelo, marca bloqueada).
 
-1. Migration: colunas + bucket + RLS
-2. Deploy de `generate-template-image` e `seed-template-images`
-3. UI admin atualizada (campo, botão, badges, preview)
-4. Migration de seed (60 templates)
-5. Admin roda `seed-template-images` (botão admin ou chamada manual) para popular Standard/Premium
-6. Admin sobe os 6 arquivos Luxury no bucket
+### 5. Logging extra na edge function
+Adicionar `console.log` do `finish_reason` e `refusal` da resposta do Gemini para facilitar diagnóstico futuro.
 
 ### Fora de escopo
-- Não altera tiers/cooldown/pesos (já implementado)
-- Não altera `auto-replenish-auctions` além de copiar `image_key`
-- Não altera UI do usuário final além da resolução transparente da imagem
-- Não busca imagens de sites de marca
+- Não trocar de modelo (o `gemini-2.5-flash-image` continua sendo o padrão)
+- Não alterar fluxo de seed-template-images
+- Não mexer na resolução de imagem do frontend (`templateImage.ts`)
+- Não alterar UI/funcionalidade fora do botão "Gerar com IA" e seu modal
+
+### Resultado esperado
+- Standard/Premium voltam a gerar normalmente (títulos genéricos não acionam o filtro)
+- Tentativas em Luxury são bloqueadas na UI antes de chamar a função
+- Quando o filtro do Gemini bloquear mesmo assim, o admin vê uma mensagem clara em vez de um erro genérico
 
