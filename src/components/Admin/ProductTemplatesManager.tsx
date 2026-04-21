@@ -668,14 +668,23 @@ export const ProductTemplatesManager = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">
-              Biblioteca de Templates ({filteredTemplates.length})
-            </CardTitle>
+        <CardHeader className="space-y-4">
+          <CardTitle className="text-lg">
+            Biblioteca de Templates ({filteredTemplates.length})
+          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título ou descrição..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar categoria" />
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
@@ -686,6 +695,33 @@ export const ProductTemplatesManager = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={tierFilter} onValueChange={setTierFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Tier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tiers</SelectItem>
+                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="premium">Premium</SelectItem>
+                <SelectItem value="luxury">Luxury</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="inactive">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="h-4 w-4" />
+                Limpar filtros
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
