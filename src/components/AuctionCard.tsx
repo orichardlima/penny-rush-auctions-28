@@ -113,7 +113,7 @@ export const AuctionCard = ({
     let cancelled = false;
     const intervalId = setInterval(() => {
       if (!cancelled) forceSync();
-    }, 5000);
+    }, 2000);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
