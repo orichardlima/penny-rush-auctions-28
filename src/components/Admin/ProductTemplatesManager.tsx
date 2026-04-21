@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useProductTemplates, ProductTemplateInput, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { BatchAuctionGenerator } from './BatchAuctionGenerator';
 import { BatchTemplateImageGenerator } from './BatchTemplateImageGenerator';
-import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database, Wand2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database, Wand2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { processImageFile, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
@@ -27,6 +27,9 @@ export const ProductTemplatesManager = () => {
   const [isBatchImageDialogOpen, setIsBatchImageDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [tierFilter, setTierFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -239,9 +242,31 @@ export const ProductTemplatesManager = () => {
     }
   };
 
-  const filteredTemplates = categoryFilter === 'all' 
-    ? templates 
-    : templates.filter(t => t.category === categoryFilter);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredTemplates = templates.filter(t => {
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    if (tierFilter !== 'all' && t.tier !== tierFilter) return false;
+    if (statusFilter === 'active' && !t.is_active) return false;
+    if (statusFilter === 'inactive' && t.is_active) return false;
+    if (normalizedSearch) {
+      const haystack = `${t.title || ''} ${t.description || ''}`.toLowerCase();
+      if (!haystack.includes(normalizedSearch)) return false;
+    }
+    return true;
+  });
+
+  const hasActiveFilters =
+    categoryFilter !== 'all' ||
+    tierFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    searchQuery.trim() !== '';
+
+  const clearFilters = () => {
+    setCategoryFilter('all');
+    setTierFilter('all');
+    setStatusFilter('all');
+    setSearchQuery('');
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -643,14 +668,23 @@ export const ProductTemplatesManager = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">
-              Biblioteca de Templates ({filteredTemplates.length})
-            </CardTitle>
+        <CardHeader className="space-y-4">
+          <CardTitle className="text-lg">
+            Biblioteca de Templates ({filteredTemplates.length})
+          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título ou descrição..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar categoria" />
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
@@ -661,6 +695,33 @@ export const ProductTemplatesManager = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={tierFilter} onValueChange={setTierFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Tier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tiers</SelectItem>
+                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="premium">Premium</SelectItem>
+                <SelectItem value="luxury">Luxury</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="inactive">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="h-4 w-4" />
+                Limpar filtros
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
