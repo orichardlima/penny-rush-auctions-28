@@ -242,9 +242,31 @@ export const ProductTemplatesManager = () => {
     }
   };
 
-  const filteredTemplates = categoryFilter === 'all' 
-    ? templates 
-    : templates.filter(t => t.category === categoryFilter);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredTemplates = templates.filter(t => {
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    if (tierFilter !== 'all' && t.tier !== tierFilter) return false;
+    if (statusFilter === 'active' && !t.is_active) return false;
+    if (statusFilter === 'inactive' && t.is_active) return false;
+    if (normalizedSearch) {
+      const haystack = `${t.title || ''} ${t.description || ''}`.toLowerCase();
+      if (!haystack.includes(normalizedSearch)) return false;
+    }
+    return true;
+  });
+
+  const hasActiveFilters =
+    categoryFilter !== 'all' ||
+    tierFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    searchQuery.trim() !== '';
+
+  const clearFilters = () => {
+    setCategoryFilter('all');
+    setTierFilter('all');
+    setStatusFilter('all');
+    setSearchQuery('');
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
