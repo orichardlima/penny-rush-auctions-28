@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useProductTemplates, ProductTemplateInput, TEMPLATE_CATEGORIES } from '@/hooks/useProductTemplates';
 import { BatchAuctionGenerator } from './BatchAuctionGenerator';
 import { BatchTemplateImageGenerator } from './BatchTemplateImageGenerator';
-import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database, Wand2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, Rocket, Image, AlertCircle, RefreshCw, Upload, X, Sparkles, AlertTriangle, Bot, Database, Wand2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { processImageFile, AUCTION_CARD_OPTIONS } from '@/utils/imageUtils';
