@@ -1,44 +1,47 @@
 
 
-## Aplicar correção dos 504s — execução em 1 passo
+## Aplicar a migration agora (nova tentativa)
 
-Plano já aprovado anteriormente. Estou re-apresentando para você liberar a execução agora.
+API do Supabase pode ainda estar instável, mas vamos tentar.
 
-### O que vou fazer (na ordem)
+### O que será executado
 
-**1. Migration SQL** — cria 2 funções helper para advisory lock distribuído:
+**1 única migration SQL** — cria as 2 funções de advisory lock que destravam o resto do plano:
 
 ```sql
 CREATE OR REPLACE FUNCTION public.try_protection_lock()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
 AS $$ SELECT pg_try_advisory_lock(8675309); $$;
 
 CREATE OR REPLACE FUNCTION public.release_protection_lock()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
 AS $$ SELECT pg_advisory_unlock(8675309); $$;
 
+REVOKE ALL ON FUNCTION public.try_protection_lock() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.release_protection_lock() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.try_protection_lock() TO service_role;
 GRANT EXECUTE ON FUNCTION public.release_protection_lock() TO service_role;
 ```
 
-**2. `supabase/functions/sync-timers-and-protection/index.ts`** — envolver a lógica atual em:
-- `try_protection_lock` no início; se falhar, retorna `200 {skipped:true}` em <50ms
-- `Promise.race([work, timeout(25000)])`; se estourar, retorna `200 {partial:true}`
-- `release_protection_lock` no `finally`
-- **Toda a lógica de bots/finalização preservada idêntica**
+### O que NÃO muda nesta etapa
+- Nenhuma tabela alterada
+- Nenhuma RLS modificada
+- Nenhum dado movido
+- Nenhum efeito sobre leilões, bots, pagamentos ou UI
 
-**3. `src/hooks/useRealTimeProtection.ts`**:
-- `setInterval` 15000 → 60000
-- Guard: busca `profiles.is_admin` no mount; só inicia interval se admin === true
+### Próximos passos (após a migration passar)
+1. Refatorar `supabase/functions/sync-timers-and-protection/index.ts` com lock + timeout 25s
+2. Atualizar `src/hooks/useRealTimeProtection.ts` (remover/limitar a admin com intervalo 60s)
+3. Validar logs da edge
 
-### O que NÃO muda
-- Cron `bot-protection-loop` (backbone) → inalterado
-- Lógica de bots, finalização, fury vault, predefined winner, open win → idênticos
-- UI, hooks de leilões, dashboards, pagamentos → nenhuma alteração
-- Comportamento visível para o usuário → idêntico
-
-### Resultado esperado
-- 504s → ~zero
-- Carga Postgres −80%
-- Bots continuam atuando exatamente como hoje (via cron)
+### Se falhar de novo
+Se a Management API retornar 503/timeout outra vez, eu te aviso imediatamente e podemos:
+- Aguardar mais alguns minutos
+- Você executar a SQL manualmente no SQL Editor do Supabase (link abaixo) — leva 5 segundos
 
