@@ -2956,10 +2956,12 @@ export type Database = {
         Returns: Json
       }
       release_pending_referral_bonuses: { Args: never; Returns: number }
+      release_protection_lock: { Args: never; Returns: boolean }
       resolve_manager_by_ref_code: {
         Args: { _ref_code: string }
         Returns: string
       }
+      try_protection_lock: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
