@@ -105,41 +105,20 @@ export const AuctionCard = ({
   // Também mostra "Sincronizando" quando isSyncing é true (last_bid_at não disponível)
   const isVerifying = displayStatus === 'active' && (displayTimeLeft === 0 || isSyncing);
 
-  // Finalização ativa: ao entrar em "Verificando", dispara edge function para forçar encerramento
+  // Finalização é 100% server-driven via pg_cron (bot-protection-loop a cada 30s).
+  // O card apenas relê o estado do banco periodicamente enquanto está "Verificando",
+  // sem invocar nenhuma edge function (evita rajadas e sobrecarga).
   useEffect(() => {
     if (!isVerifying) return;
-
     let cancelled = false;
-    let count = 0;
-    const maxCalls = 5;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const triggerFinalization = async () => {
-      if (cancelled || count >= maxCalls) return;
-      count++;
-      console.log(`🔫 [${id}] Disparando finalização forçada (tentativa ${count}/${maxCalls})`);
-      try {
-        await supabase.functions.invoke('sync-timers-and-protection', {
-          body: { trigger: 'verifying_card', auction_id: id }
-        });
-      } catch (err) {
-        console.error(`❌ [${id}] Erro ao invocar finalização:`, err);
-      }
-      if (!cancelled) {
-        await forceSync();
-      }
-      if (!cancelled && count < maxCalls) {
-        timeoutId = setTimeout(triggerFinalization, 2000);
-      }
-    };
-
-    timeoutId = setTimeout(triggerFinalization, 1000);
-
+    const intervalId = setInterval(() => {
+      if (!cancelled) forceSync();
+    }, 5000);
     return () => {
       cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
+      clearInterval(intervalId);
     };
-  }, [isVerifying, id, forceSync]);
+  }, [isVerifying, forceSync]);
 
   // Função para formatar preços em reais
   const formatPrice = (priceInReais: number) => {
