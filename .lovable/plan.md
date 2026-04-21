@@ -1,76 +1,47 @@
 
 
-## Correções urgentes para eliminar a sobrecarga
+## Verificação do sistema e correção residual
 
-### Diagnóstico (confirmado agora)
+### Estado atual confirmado
 
-O banco já possui **2 cron jobs nativos** rodando a cada 1 minuto, que já cuidam de toda a lógica de bots e finalização:
-- `bot-protection-loop` → `public.bot_protection_loop_safe()`
-- `execute-overdue-bot-bids` → `public.execute_overdue_bot_bids_safe()`
+**O que está funcionando corretamente:**
+- `bot-protection-loop-00/30` e `execute-overdue-bot-bids-00/30` rodando a cada 30s no `pg_cron` (todos `active=true`)
+- As funções `*_safe` já usam `pg_try_advisory_lock(8675309/8675310)` internamente, ou seja, mesmo se 2 execuções colidirem, a segunda sai sem fazer nada
+- `useRealTimeProtection` está no-op (frontend não chama mais a cada 15s)
+- Logs da edge function mostram execuções rápidas (200-700ms) sem timeouts
 
-Em paralelo, **cada cliente conectado** está chamando a edge function `sync-timers-and-protection` a cada **15 segundos** via `useRealTimeProtection`. Isso é a fonte primária de sobrecarga: cada usuário gera ~5.760 chamadas/dia que duplicam trabalho que o cron já está fazendo.
+**Risco residual encontrado (1 ponto):**
+`src/components/AuctionCard.tsx` linhas 109-142 ainda invoca `sync-timers-and-protection` via `supabase.functions.invoke()` quando o card entra em estado "Verificando":
+- Dispara **5 chamadas em sequência, espaçadas de 2s**, por card
+- Acontece sempre que um leilão chega ao timer 0 antes do backend finalizar
+- Com N usuários assistindo M leilões simultaneamente em "Verificando", isso pode gerar `N × M × 5` chamadas em rajada — exatamente o tipo de pico que sobrecarregava o banco antes
 
-### Plano de correção (3 mudanças mínimas, zero impacto em UI/funcionalidade)
+Como o cron de 30s já cobre essa finalização (via `safety net` de inatividade ≥45s e via `execute_overdue_bot_bids`), essa chamada do card é **redundante** e perigosa.
 
-**1. Desativar a chamada do frontend (causa raiz da sobrecarga)**
+### Correção proposta (1 arquivo, mudança mínima)
 
-Arquivo: `src/hooks/useRealTimeProtection.ts`
-- Transformar o hook num **no-op** (corpo vazio, mantém a exportação para não quebrar imports).
-- Resultado imediato: ~95% de redução nas invocações da edge function.
+**Arquivo:** `src/components/AuctionCard.tsx`
 
-**2. Garantir frequência adequada do cron central**
+Remover o bloco `useEffect` que dispara `sync-timers-and-protection` (linhas 108-142), mantendo apenas o `forceSync()` local (que apenas relê o leilão do banco, não invoca edge function).
 
-Atualmente `bot-protection-loop` roda a cada 1 minuto. Como o ciclo natural de leilão é de 15s, vamos ajustar para rodar a cada 30s (2 jobs defasados) — ainda muito menor que a carga atual e suficiente para os bots agirem em janela aceitável:
+Resultado: o card continua mostrando "Verificando" e re-sincronizando o estado quando o backend finalizar, mas para de empurrar a edge function. O cron nativo finaliza o leilão no próximo ciclo (≤30s), e o realtime já avisa todos os clientes.
 
-```sql
--- Reagendar bot-protection-loop para rodar 2x por minuto (00s e 30s)
-SELECT cron.unschedule('bot-protection-loop');
-SELECT cron.schedule('bot-protection-loop-00', '* * * * *',
-  $$ SELECT public.bot_protection_loop_safe(); $$);
-SELECT cron.schedule('bot-protection-loop-30', '* * * * *',
-  $$ SELECT pg_sleep(30); SELECT public.bot_protection_loop_safe(); $$);
+### Verificações que ficam intactas
 
--- Mesma coisa para execute-overdue-bot-bids
-SELECT cron.unschedule('execute-overdue-bot-bids');
-SELECT cron.schedule('execute-overdue-bot-bids-00', '* * * * *',
-  $$ SELECT public.execute_overdue_bot_bids_safe(); $$);
-SELECT cron.schedule('execute-overdue-bot-bids-30', '* * * * *',
-  $$ SELECT pg_sleep(30); SELECT public.execute_overdue_bot_bids_safe(); $$);
-```
+- Triggers `*_safe` com advisory lock — protegem contra qualquer execução concorrente futura
+- Cron nativo a cada 30s (00s/30s) — única fonte de finalização e agendamento de bots
+- Hook `useRealTimeProtection` — permanece no-op
+- Edge function `sync-timers-and-protection` — continua existindo e pode ser chamada manualmente por admin se quiser, mas nenhum código do app a invoca mais
+- Toda lógica de bots, vencedores, predefinidos, open_win_mode, fury vault, pagamentos e UI permanecem **idênticos**
 
-**3. Criar advisory lock como rede de segurança**
+### Resultado esperado após esta correção
 
-Criar as 2 funções de lock que estavam pendentes (a migration que vinha falhando):
+- **Zero chamadas automáticas** à edge function `sync-timers-and-protection` vindas do frontend
+- A função continua rodando apenas via os 2 cron jobs nativos do Postgres (~120 execuções/hora total, distribuídas)
+- Sem possibilidade de retorno do problema de sobrecarga, mesmo com muitos usuários simultâneos e muitos leilões em "Verificando"
+- Tempo de finalização visual: no pior caso, 30s (vs. instantâneo antes — mas o cron já estava cobrindo isso)
 
-```sql
-CREATE OR REPLACE FUNCTION public.try_protection_lock()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public
-AS $$ SELECT pg_try_advisory_lock(8675309); $$;
+### Diagnóstico final
 
-CREATE OR REPLACE FUNCTION public.release_protection_lock()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public
-AS $$ SELECT pg_advisory_unlock(8675309); $$;
-
-REVOKE ALL ON FUNCTION public.try_protection_lock() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.release_protection_lock() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.try_protection_lock() TO service_role;
-GRANT EXECUTE ON FUNCTION public.release_protection_lock() TO service_role;
-```
-
-### O que NÃO muda
-- Nenhum componente visual
-- Nenhuma RLS, tabela ou dado
-- Nenhum fluxo de leilão, bot, pagamento, parceiro ou afiliado
-- A edge function `sync-timers-and-protection` continua existindo (admin pode invocar manualmente se quiser)
-- Os outros 6 cron jobs ficam intactos
-
-### Impacto esperado
-- **−95%** de invocações da edge function `sync-timers-and-protection`
-- Eliminação de timeouts 504
-- Eliminação da pressão de conexões na Management API
-- Ciclo de bots mantém responsividade (30s no pior caso vs. 60s do cron atual sozinho — ainda dentro do timing humano dos bots)
-
-### Ordem de execução
-1. Migration SQL (lock + reagendamento dos 2 crons) — 1 chamada
-2. Edit em `src/hooks/useRealTimeProtection.ts` — transformar em no-op
+Com essa última remoção, o sistema fica 100% server-driven: o frontend só lê estado via realtime e a finalização é exclusivamente responsabilidade do cron nativo, que já tem dupla proteção (lock + idle 45s safety net). O problema **não pode voltar** porque não existe mais nenhum loop client-side que chame a edge function automaticamente.
 
