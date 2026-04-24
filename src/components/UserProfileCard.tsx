@@ -135,10 +135,19 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
             .eq('user_id', paymentIntent.referred_by_user_id)
             .single();
 
+          // Verifica se o usuário já tem contrato ATIVO — se sim, não é mais "pendente"
+          const { data: activeContract } = await supabase
+            .from('partner_contracts')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('status', 'ACTIVE')
+            .maybeSingle();
+
           partnerReferrer = {
             name: intentProfile?.full_name || 'Desconhecido',
             date: paymentIntent.created_at,
-            pending: true,
+            pending: !activeContract,
+            signupLink: !!activeContract,
           };
         }
       }
