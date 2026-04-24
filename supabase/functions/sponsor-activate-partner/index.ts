@@ -233,6 +233,13 @@ Deno.serve(async (req) => {
 
     // 10. Lances bônus são creditados automaticamente pelo trigger trg_credit_bonus_bids_on_contract
 
+    // 10b. Limpar intents pendentes do usuário para evitar rótulo "Parceria pendente de pagamento"
+    await adminClient
+      .from('partner_payment_intents')
+      .update({ payment_status: 'approved' })
+      .eq('user_id', referredUser.id)
+      .eq('payment_status', 'pending');
+
     // 11. Audit log in partner_manual_credits
     await adminClient
       .from('partner_manual_credits')
