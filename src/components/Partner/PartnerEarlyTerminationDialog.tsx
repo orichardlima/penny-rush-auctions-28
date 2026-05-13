@@ -128,13 +128,18 @@ const PartnerEarlyTerminationDialog = ({ contract, onSuccess }: PartnerEarlyTerm
               <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                 <p className="text-sm font-medium">Proposta de liquidação:</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Teto restante:</span>
-                  <span>{formatPrice(proposal.remainingCap)}</span>
-                  <span className="text-muted-foreground">Deságio:</span>
+                  <span className="text-muted-foreground">Valor aportado:</span>
+                  <span>{formatPrice(contract.aporte_value)}</span>
+                  <span className="text-muted-foreground">Deságio sobre o aporte:</span>
                   <span className="text-orange-600">{proposal.discountPercentage}%</span>
+                  <span className="text-muted-foreground">Já recebido em payouts:</span>
+                  <span>− {formatPrice(contract.total_received)}</span>
                   <span className="text-muted-foreground">Valor proposto:</span>
                   <span className="font-medium text-green-600">{formatPrice(proposal.proposedValue)}</span>
                 </div>
+                <p className="text-xs text-muted-foreground pt-2">
+                  Cálculo: ({formatPrice(contract.aporte_value)} × 70%) − {formatPrice(contract.total_received)}
+                </p>
               </div>
 
               <div className="space-y-3">
