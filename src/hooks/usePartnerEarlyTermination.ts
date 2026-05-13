@@ -78,8 +78,11 @@ export const usePartnerEarlyTermination = () => {
   const calculateLiquidationProposal = useCallback((contract: PartnerContract): LiquidationProposal => {
     const remainingCap = contract.total_cap - contract.total_received;
     const discountPercentage = DEFAULT_DISCOUNT_PERCENTAGE;
-    const proposedValue = remainingCap * (1 - discountPercentage / 100);
-    
+    // Deságio recai sobre o APORTE (não sobre o teto futuro)
+    // Fórmula: (aporte × 70%) − total já recebido em payouts
+    const aporteAfterDiscount = contract.aporte_value * (1 - discountPercentage / 100);
+    const proposedValue = Math.max(0, aporteAfterDiscount - contract.total_received);
+
     return {
       remainingCap,
       discountPercentage,
