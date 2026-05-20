@@ -67,7 +67,9 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
   const [auctionDetails, setAuctionDetails] = useState<AuctionFinancialData[]>([]);
   const [revenueTrends, setRevenueTrends] = useState<RevenueData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
+  const [auctionsError, setAuctionsError] = useState<string | null>(null);
   const isRefreshingRef = useRef(false);
   const lastFiltersRef = useRef<string>('');
   const isMountedRef = useRef(true);
@@ -78,75 +80,60 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
   }, []);
 
   const fetchFinancialSummary = async (f?: FinancialFilters) => {
-    try {
-      const startDate = f?.startDate ? f.startDate.toISOString().split('T')[0] : null;
-      const endDate = f?.endDate ? f.endDate.toISOString().split('T')[0] : null;
-      const realOnly = f?.realOnly || false;
+    const startDate = f?.startDate ? f.startDate.toISOString().split('T')[0] : null;
+    const endDate = f?.endDate ? f.endDate.toISOString().split('T')[0] : null;
+    const realOnly = f?.realOnly || false;
 
-      const { data, error } = await supabase.rpc('get_financial_summary_filtered', {
-        start_date: startDate,
-        end_date: endDate,
-        real_only: realOnly
-      });
-      
-      if (error) throw error;
-      if (data && data.length > 0 && isMountedRef.current) {
-        setSummary(data[0]);
-      }
-    } catch (err) {
-      console.error('Error fetching financial summary:', err);
-      if (isMountedRef.current) setError('Erro ao carregar resumo financeiro');
+    const { data, error } = await supabase.rpc('get_financial_summary_filtered', {
+      start_date: startDate,
+      end_date: endDate,
+      real_only: realOnly
+    });
+
+    if (error) throw error;
+    if (data && data.length > 0 && isMountedRef.current) {
+      setSummary(data[0]);
     }
   };
 
   const fetchAuctionDetails = async () => {
-    try {
-      const { data: auctions, error: auctionsError } = await supabase
-        .from('auctions')
-        .select('id, title, status')
-        .order('created_at', { ascending: false })
-        .limit(20);
+    const { data: auctions, error: auctionsError } = await supabase
+      .from('auctions')
+      .select('id, title, status')
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-      if (auctionsError) throw auctionsError;
+    if (auctionsError) throw auctionsError;
 
-      if (auctions && auctions.length > 0) {
-        const results = await Promise.all(
-          auctions.map(async (auction) => {
-            const { data, error } = await supabase.rpc('get_auction_financials', {
-              auction_uuid: auction.id
-            });
-            if (error) return null;
-            return data && data.length > 0 ? data[0] : null;
-          })
-        );
-        const validResults = results.filter((r): r is AuctionFinancialData => r !== null);
-        if (isMountedRef.current) setAuctionDetails(validResults);
-      }
-    } catch (err) {
-      console.error('Error fetching auction details:', err);
-      if (isMountedRef.current) setError('Erro ao carregar detalhes dos leilões');
+    if (auctions && auctions.length > 0) {
+      const results = await Promise.all(
+        auctions.map(async (auction) => {
+          const { data, error } = await supabase.rpc('get_auction_financials', {
+            auction_uuid: auction.id
+          });
+          if (error) return null;
+          return data && data.length > 0 ? data[0] : null;
+        })
+      );
+      const validResults = results.filter((r): r is AuctionFinancialData => r !== null);
+      if (isMountedRef.current) setAuctionDetails(validResults);
     }
   };
 
   const fetchRevenueTrends = async (f?: FinancialFilters) => {
-    try {
-      const startDate = f?.startDate ? f.startDate.toISOString().split('T')[0] : null;
-      const endDate = f?.endDate ? f.endDate.toISOString().split('T')[0] : null;
-      const realOnly = f?.realOnly || false;
+    const startDate = f?.startDate ? f.startDate.toISOString().split('T')[0] : null;
+    const endDate = f?.endDate ? f.endDate.toISOString().split('T')[0] : null;
+    const realOnly = f?.realOnly || false;
 
-      const { data, error } = await supabase.rpc('get_revenue_trends_filtered', {
-        start_date: startDate,
-        end_date: endDate,
-        real_only: realOnly
-      });
-      
-      if (error) throw error;
-      if (data && isMountedRef.current) {
-        setRevenueTrends(data);
-      }
-    } catch (err) {
-      console.error('Error fetching revenue trends:', err);
-      if (isMountedRef.current) setError('Erro ao carregar tendências de receita');
+    const { data, error } = await supabase.rpc('get_revenue_trends_filtered', {
+      start_date: startDate,
+      end_date: endDate,
+      real_only: realOnly
+    });
+
+    if (error) throw error;
+    if (data && isMountedRef.current) {
+      setRevenueTrends(data);
     }
   };
 
@@ -154,23 +141,32 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     setLoading(true);
-    setError(null);
-    
-    try {
-      await Promise.all([
-        fetchFinancialSummary(filters),
-        fetchAuctionDetails(),
-        fetchRevenueTrends(filters)
-      ]);
-    } catch (err) {
-      console.error('Error refreshing financial data:', err);
-      if (isMountedRef.current) setError('Erro ao carregar dados financeiros');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
+    setSummaryError(null);
+    setTrendsError(null);
+    setAuctionsError(null);
+
+    const results = await Promise.allSettled([
+      fetchFinancialSummary(filters),
+      fetchAuctionDetails(),
+      fetchRevenueTrends(filters)
+    ]);
+
+    if (isMountedRef.current) {
+      if (results[0].status === 'rejected') {
+        console.error('Error fetching financial summary:', results[0].reason);
+        setSummaryError('Não foi possível carregar o resumo financeiro');
       }
-      isRefreshingRef.current = false;
+      if (results[1].status === 'rejected') {
+        console.error('Error fetching auction details:', results[1].reason);
+        setAuctionsError('Não foi possível carregar detalhes dos leilões');
+      }
+      if (results[2].status === 'rejected') {
+        console.error('Error fetching revenue trends:', results[2].reason);
+        setTrendsError('Não foi possível carregar tendências de receita');
+      }
+      setLoading(false);
     }
+    isRefreshingRef.current = false;
   }, [filters]);
 
   useEffect(() => {
@@ -180,13 +176,22 @@ export const useFinancialAnalytics = (filters?: FinancialFilters) => {
     refreshData();
   }, [filters, refreshData]);
 
+  // Compatibilidade: erro consolidado (qualquer um) — mantém API antiga
+  const error =
+    summaryError && trendsError && auctionsError
+      ? 'Erro ao carregar dados financeiros'
+      : null;
+
   return {
     summary,
     auctionDetails,
     revenueTrends,
     loading,
     error,
+    summaryError,
+    trendsError,
+    auctionsError,
     refreshData,
-    isRefreshing: loading
+    isRefreshing: loading,
   };
 };
