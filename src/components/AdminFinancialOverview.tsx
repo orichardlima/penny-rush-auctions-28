@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
 import { RevenueChart } from '@/components/FinancialAnalytics/RevenueChart';
 import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
@@ -9,7 +11,7 @@ import { UserSpendingAnalytics } from '@/components/AdminFinancial/UserSpendingA
 import { ConversionFunnelChart } from '@/components/AdminFinancial/ConversionFunnelChart';
 import { FinancialFiltersComponent } from '@/components/FinancialAnalytics/FinancialFilters';
 import { useFinancialAnalytics, FinancialFilters } from '@/hooks/useFinancialAnalytics';
-import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface AdminFinancialOverviewProps {
   auctions: any[];
