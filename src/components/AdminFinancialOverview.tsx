@@ -107,7 +107,12 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
         onFiltersChange={setFilters}
       />
 
+      {summaryError && <PartialErrorBanner message={summaryError} />}
+      {trendsError && <PartialErrorBanner message={trendsError} />}
+      {auctionsError && <PartialErrorBanner message={auctionsError} />}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
         <Card className="border-l-4 border-l-success">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
