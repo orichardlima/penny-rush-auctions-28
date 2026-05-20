@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { FinancialSummaryCards } from '@/components/FinancialAnalytics/FinancialSummaryCards';
 import { RevenueChart } from '@/components/FinancialAnalytics/RevenueChart';
 import { BidAnalytics } from '@/components/FinancialAnalytics/BidAnalytics';
@@ -9,7 +11,7 @@ import { UserSpendingAnalytics } from '@/components/AdminFinancial/UserSpendingA
 import { ConversionFunnelChart } from '@/components/AdminFinancial/ConversionFunnelChart';
 import { FinancialFiltersComponent } from '@/components/FinancialAnalytics/FinancialFilters';
 import { useFinancialAnalytics, FinancialFilters } from '@/hooks/useFinancialAnalytics';
-import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Target, BarChart3, PieChart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface AdminFinancialOverviewProps {
   auctions: any[];
@@ -38,7 +40,16 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     };
   });
 
-  const { summary, auctionDetails, revenueTrends, loading, error, refreshData } = useFinancialAnalytics(filters);
+  const {
+    summary,
+    auctionDetails,
+    revenueTrends,
+    loading,
+    summaryError,
+    trendsError,
+    auctionsError,
+    refreshData,
+  } = useFinancialAnalytics(filters);
 
   // Compartilhar dados com o componente pai
   useEffect(() => {
@@ -74,16 +85,20 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Erro ao Carregar Dados Financeiros</CardTitle>
-          <CardDescription>{error}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+  const PartialErrorBanner = ({ message }: { message: string }) => (
+    <Alert variant="destructive" className="border-warning/40 bg-warning/5">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>Carregamento parcial</AlertTitle>
+      <AlertDescription className="flex items-center justify-between gap-3">
+        <span>{message}</span>
+        <Button size="sm" variant="outline" onClick={() => refreshData()}>
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Tentar novamente
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+
 
   return (
     <div className="space-y-6">
@@ -92,7 +107,12 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
         onFiltersChange={setFilters}
       />
 
+      {summaryError && <PartialErrorBanner message={summaryError} />}
+      {trendsError && <PartialErrorBanner message={trendsError} />}
+      {auctionsError && <PartialErrorBanner message={auctionsError} />}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
         <Card className="border-l-4 border-l-success">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
