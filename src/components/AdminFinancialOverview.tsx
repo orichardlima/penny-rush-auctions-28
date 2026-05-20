@@ -26,12 +26,16 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
   onLoadingChange,
   onRefreshFnReady
 }) => {
-  const [filters, setFilters] = useState<FinancialFilters>({
-    startDate: null,
-    endDate: null,
-    realOnly: false,
-    revenueType: 'all',
-    period: '30d'
+  const [filters, setFilters] = useState<FinancialFilters>(() => {
+    const today = new Date();
+    const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return {
+      startDate,
+      endDate: today,
+      realOnly: false,
+      revenueType: 'all',
+      period: '30d'
+    };
   });
 
   const { summary, auctionDetails, revenueTrends, loading, error, refreshData } = useFinancialAnalytics(filters);
