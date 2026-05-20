@@ -40,7 +40,16 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     };
   });
 
-  const { summary, auctionDetails, revenueTrends, loading, error, refreshData } = useFinancialAnalytics(filters);
+  const {
+    summary,
+    auctionDetails,
+    revenueTrends,
+    loading,
+    summaryError,
+    trendsError,
+    auctionsError,
+    refreshData,
+  } = useFinancialAnalytics(filters);
 
   // Compartilhar dados com o componente pai
   useEffect(() => {
@@ -76,16 +85,20 @@ export const AdminFinancialOverview: React.FC<AdminFinancialOverviewProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Erro ao Carregar Dados Financeiros</CardTitle>
-          <CardDescription>{error}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+  const PartialErrorBanner = ({ message }: { message: string }) => (
+    <Alert variant="destructive" className="border-warning/40 bg-warning/5">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>Carregamento parcial</AlertTitle>
+      <AlertDescription className="flex items-center justify-between gap-3">
+        <span>{message}</span>
+        <Button size="sm" variant="outline" onClick={() => refreshData()}>
+          <RefreshCw className="h-3 w-3 mr-1" />
+          Tentar novamente
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+
 
   return (
     <div className="space-y-6">
