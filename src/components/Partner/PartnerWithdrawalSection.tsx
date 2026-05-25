@@ -51,6 +51,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [detailsWithdrawal, setDetailsWithdrawal] = useState<PartnerWithdrawal | null>(null);
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
