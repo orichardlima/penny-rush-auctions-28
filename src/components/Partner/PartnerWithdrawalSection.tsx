@@ -11,16 +11,19 @@ import { usePartnerWithdrawals, PaymentDetails } from '@/hooks/usePartnerWithdra
 import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
 import { PartnerContract } from '@/hooks/usePartnerContract';
 import PartnerPaymentDetailsForm from './PartnerPaymentDetailsForm';
-import { 
-  Wallet, 
-  ArrowUpRight, 
-  Clock, 
-  CheckCircle, 
+import PartnerWithdrawalDetailsDialog from './PartnerWithdrawalDetailsDialog';
+import {
+  Wallet,
+  ArrowUpRight,
+  Clock,
+  CheckCircle,
   XCircle,
   AlertCircle,
   CreditCard,
-  Ban
+  Ban,
+  FileSearch
 } from 'lucide-react';
+import type { PartnerWithdrawal } from '@/hooks/usePartnerWithdrawals';
 
 interface PartnerWithdrawalSectionProps {
   contract: PartnerContract & {
