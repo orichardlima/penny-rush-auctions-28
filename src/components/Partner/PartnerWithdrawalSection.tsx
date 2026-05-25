@@ -435,6 +435,15 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
           />
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Detalhes do Saque */}
+      <PartnerWithdrawalDetailsDialog
+        open={!!detailsWithdrawal}
+        onOpenChange={(open) => !open && setDetailsWithdrawal(null)}
+        withdrawal={detailsWithdrawal}
+        previousWithdrawalDate={(detailsWithdrawal as any)?._previousDate ?? null}
+        contractId={contract.id}
+      />
     </div>
   );
 };
