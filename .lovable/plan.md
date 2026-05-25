@@ -1,54 +1,72 @@
-## Problema
+## Diagnóstico
 
-A aba **Financeiro** mostra "Erro ao Carregar Dados Financeiros" porque duas RPCs do Supabase estão estourando o timeout do Postgres (`57014 canceling statement due to statement timeout`):
+Os 3 bônus de indicação da Géssica (R$ 8.500,00 total) estão com status `AVAILABLE` na tabela `partner_referral_bonuses` desde 18-20/05/2026, mas **não entram no saldo de saque**.
 
-- `get_financial_summary_filtered` — faz `bids JOIN profiles` em ~1,34M linhas para contar `user_bids` / `bot_bids`.
-- `get_revenue_trends_filtered` — mesmo join para o gráfico diário.
+### Causa raiz
 
-Apesar de já existirem datas padrão (últimos 30 dias), o `JOIN profiles` mais o `COUNT(*) FILTER (...)` continua varrendo a tabela `bids` inteira em alguns planos porque `is_bot` mora em `profiles`, e qualquer queda do índice por data faz o plano cair em seq scan.
+O fluxo de saldo do parceiro hoje considera apenas:
+- `partner_payouts` (status PAID) — gerado pelo cron `partner-weekly-payouts` a partir do *rendimento do aporte*
+- Menos `partner_withdrawals` (PENDING/APPROVED/PAID)
 
-Além disso, hoje **qualquer** erro de qualquer RPC esconde TODOS os dados financeiros (cards, tabs, gráficos), mesmo quando outras consultas funcionaram.
+O cron `release-referral-bonuses` apenas faz `UPDATE status = 'AVAILABLE'` na tabela `partner_referral_bonuses` — **não credita o `bonus_value` em lugar nenhum** que o fluxo de saque enxergue. Resultado: o parceiro vê "Disponível" no painel de bônus, mas não consegue sacar.
 
-## O que será feito
+Validei: Géssica tem `partner_payouts` PAID = R$ 1.225, sacou R$ 625, sobra R$ 600 de rendimento. Os R$ 8.500 de bônus de indicação ficam órfãos.
 
-### 1. Causa raiz — tornar as RPCs rápidas
-Migration nova que recria as duas funções para:
+## Plano de correção
 
-- Eliminar o `JOIN profiles` no caminho quente. A coluna `is_bot` será desnormalizada dentro de `bids` via nova coluna gerada/coluna materializada **OU**, alternativa mais leve: usar subconsulta `WHERE b.user_id IN (SELECT user_id FROM profiles WHERE is_bot)` apenas no contador de bot, deixando o `total_bids` puro em índice por `created_at`.
-- Aplicar `start_date`/`end_date` como `timestamptz` parametrizado para garantir uso do índice `idx_bids_created_at`.
-- Em `get_revenue_trends_filtered`, agregar `bids` por dia em uma única passada (`date_trunc('day', created_at)`) usando o mesmo índice e separar a contagem de bot via EXISTS.
-- Forçar `SET LOCAL statement_timeout = '20s'` dentro das funções para falhar rápido caso ainda haja gargalo, evitando travar o cliente.
+### 1. Atualizar `release_pending_referral_bonuses()` para creditar no saldo
 
-Se necessário, criar índice auxiliar:
+Quando o bônus passar de PENDING → AVAILABLE, também:
+- Inserir um registro em `partner_payouts` (tipo "referral_bonus") OU somar direto em `partner_contracts.available_balance` do referrer
+- Marcar `paid_at` ou um novo campo `credited_at` para evitar duplo crédito
+
+Decisão técnica: **somar em `partner_contracts.available_balance`** é mais simples e segue o mesmo padrão do binary_bonuses (que já faz `UPDATE partner_contracts SET available_balance = available_balance + v_bonus`). Mas o `calculateAvailableBalance` no frontend usa `partner_payouts - partner_withdrawals`, ignorando `available_balance`. Então a opção correta é **inserir em `partner_payouts`**.
+
+Novo comportamento da função:
 ```sql
-CREATE INDEX IF NOT EXISTS idx_bids_created_at_user
-  ON public.bids (created_at DESC, user_id);
+FOR cada bônus pendente liberado LOOP
+  INSERT INTO partner_payouts (
+    partner_contract_id, amount, calculated_amount,
+    period_start, period_end, status, paid_at,
+    source -- novo campo opcional: 'referral_bonus'
+  ) VALUES (
+    referrer_contract_id, bonus_value, bonus_value,
+    available_at::date, available_at::date, 'PAID', now(),
+    'referral_bonus'
+  );
+  
+  UPDATE partner_referral_bonuses SET status='AVAILABLE' WHERE id=...;
+END LOOP;
 ```
 
-### 2. Resiliência da UI (fallback)
-Em `src/hooks/useFinancialAnalytics.ts`:
-- Acompanhar erro por consulta (`summaryError`, `trendsError`, `auctionsError`) em vez de um `error` único global.
-- Usar `Promise.allSettled` no `refreshData` para que a falha de uma RPC não derrube as outras.
-- Retornar os erros granulares.
+### 2. Migration: backfill da Géssica (e qualquer outro parceiro afetado)
 
-Em `src/components/AdminFinancialOverview.tsx`:
-- Remover o early return que esconde TUDO quando há erro.
-- Mostrar os cards e abas que carregaram com sucesso.
-- Exibir um aviso discreto (banner amarelo) apenas nas seções cujo dado falhou (ex.: "Não foi possível carregar a evolução da receita — tente novamente"), com botão de retry usando `refreshData`.
+```sql
+INSERT INTO partner_payouts (partner_contract_id, amount, calculated_amount, period_start, period_end, status, paid_at)
+SELECT referrer_contract_id, bonus_value, bonus_value,
+       available_at::date, available_at::date, 'PAID', available_at
+FROM partner_referral_bonuses
+WHERE status = 'AVAILABLE'
+  AND NOT EXISTS (
+    SELECT 1 FROM partner_payouts pp
+    WHERE pp.partner_contract_id = partner_referral_bonuses.referrer_contract_id
+      AND pp.amount = partner_referral_bonuses.bonus_value
+      AND pp.paid_at = partner_referral_bonuses.available_at
+  );
+```
 
-### 3. Validação
-- Rodar manualmente as RPCs no SQL Editor com janela 30d para confirmar resposta < 2s.
-- Abrir a aba Financeiro e conferir que: (a) os cards aparecem, (b) o gráfico aparece, (c) se eu forçar erro em uma RPC, as outras continuam visíveis.
+Vou rodar primeiro um `SELECT` de auditoria mostrando o impacto total antes de aplicar.
 
-## Detalhes técnicos
+### 3. Verificações
 
-- Sem mudança de UI fora da aba Financeiro.
-- Sem mudança nas regras de negócio (receita continua sendo `bids` não-bot com `cost_paid > 0` + `bid_purchases` confirmadas).
-- Migrations só recriam funções e, se necessário, adicionam um índice; nenhuma tabela é alterada.
-- Tipos do Supabase serão regenerados automaticamente após a migração (assinatura das funções permanece igual).
+- Confirmar que Géssica passa a ter R$ 8.500 + R$ 600 = **R$ 9.100,00 disponível para saque**
+- Listar quantos outros parceiros foram afetados pelo bug histórico
+- Garantir que o teto total (`total_cap`) **não** se aplica a bônus de indicação (eles são pagos separados do rendimento — confirmar com você)
 
-## Arquivos afetados
+## Pergunta importante antes de executar
 
-- `supabase/migrations/<nova>.sql` (recriação das duas funções + índice opcional)
-- `src/hooks/useFinancialAnalytics.ts` (erros granulares + `Promise.allSettled`)
-- `src/components/AdminFinancialOverview.tsx` (remover early return; banners por seção)
+**Os bônus de indicação contam para o `total_cap` do contrato?**
+- Se SIM: preciso somar em `total_received` também e checar fechamento
+- Se NÃO (mais provável, segundo a memória do projeto): o bônus de indicação é um sistema separado e o backfill é direto
+
+Me confirme isso e eu sigo com a migration.
