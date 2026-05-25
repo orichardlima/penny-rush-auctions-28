@@ -1952,6 +1952,8 @@ export type Database = {
           partner_contract_id: string
           period_end: string | null
           period_start: string
+          referral_bonus_id: string | null
+          source: string
           status: string
           total_cap_applied: boolean
           weekly_cap_applied: boolean
@@ -1965,6 +1967,8 @@ export type Database = {
           partner_contract_id: string
           period_end?: string | null
           period_start: string
+          referral_bonus_id?: string | null
+          source?: string
           status?: string
           total_cap_applied?: boolean
           weekly_cap_applied?: boolean
@@ -1978,6 +1982,8 @@ export type Database = {
           partner_contract_id?: string
           period_end?: string | null
           period_start?: string
+          referral_bonus_id?: string | null
+          source?: string
           status?: string
           total_cap_applied?: boolean
           weekly_cap_applied?: boolean
@@ -1988,6 +1994,13 @@ export type Database = {
             columns: ["partner_contract_id"]
             isOneToOne: false
             referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_payouts_referral_bonus_id_fkey"
+            columns: ["referral_bonus_id"]
+            isOneToOne: true
+            referencedRelation: "partner_referral_bonuses"
             referencedColumns: ["id"]
           },
         ]
