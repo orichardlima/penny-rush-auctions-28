@@ -102,10 +102,16 @@ serve(async (req) => {
     // UUID único por tentativa — NUNCA reutilizar (MagenPay exige)
     const externalId = crypto.randomUUID()
 
-    console.log('💸 Sending withdrawal via router:', withdrawal.amount, 'externalId:', externalId)
+    // Envia o valor LÍQUIDO via PIX (bruto - taxa). Saldo é debitado pelo bruto.
+    const grossAmount = Number(withdrawal.amount)
+    const feeAmount = Number(withdrawal.fee_amount || 0)
+    const storedNet = Number(withdrawal.net_amount || 0)
+    const payoutAmount = storedNet > 0 ? storedNet : Math.max(0, grossAmount - feeAmount)
+
+    console.log('💸 Sending withdrawal via router:', { gross: grossAmount, fee: feeAmount, payout: payoutAmount, externalId })
 
     const result = await sendWithdrawal(supabase, {
-      amount: withdrawal.amount,
+      amount: payoutAmount,
       externalId,
       pixKey,
       pixKeyType: veopagKeyType,
