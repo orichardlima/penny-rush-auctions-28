@@ -11,16 +11,19 @@ import { usePartnerWithdrawals, PaymentDetails } from '@/hooks/usePartnerWithdra
 import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
 import { PartnerContract } from '@/hooks/usePartnerContract';
 import PartnerPaymentDetailsForm from './PartnerPaymentDetailsForm';
-import { 
-  Wallet, 
-  ArrowUpRight, 
-  Clock, 
-  CheckCircle, 
+import PartnerWithdrawalDetailsDialog from './PartnerWithdrawalDetailsDialog';
+import {
+  Wallet,
+  ArrowUpRight,
+  Clock,
+  CheckCircle,
   XCircle,
   AlertCircle,
   CreditCard,
-  Ban
+  Ban,
+  FileSearch
 } from 'lucide-react';
+import type { PartnerWithdrawal } from '@/hooks/usePartnerWithdrawals';
 
 interface PartnerWithdrawalSectionProps {
   contract: PartnerContract & {
@@ -48,6 +51,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [detailsWithdrawal, setDetailsWithdrawal] = useState<PartnerWithdrawal | null>(null);
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
@@ -362,27 +366,42 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   <TableHead>PIX</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observação</TableHead>
+                  <TableHead className="text-right">Detalhes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {withdrawals.map((withdrawal) => (
-                  <TableRow key={withdrawal.id}>
-                    <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
-                    <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {withdrawal.payment_details?.pix_key || '-'}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
-                    <TableCell className="text-sm">
-                      {withdrawal.status === 'PAID' && withdrawal.paid_at && (
-                        <span className="text-green-600">Pago em {formatDate(withdrawal.paid_at)}</span>
-                      )}
-                      {withdrawal.status === 'REJECTED' && withdrawal.rejection_reason && (
-                        <span className="text-red-600">{withdrawal.rejection_reason}</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {withdrawals.map((withdrawal, idx) => {
+                  // Saques estão ordenados desc por created_at — o "anterior" é o próximo no array
+                  const previous = withdrawals[idx + 1];
+                  return (
+                    <TableRow key={withdrawal.id}>
+                      <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
+                      <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {withdrawal.payment_details?.pix_key || '-'}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
+                      <TableCell className="text-sm">
+                        {withdrawal.status === 'PAID' && withdrawal.paid_at && (
+                          <span className="text-green-600">Pago em {formatDate(withdrawal.paid_at)}</span>
+                        )}
+                        {withdrawal.status === 'REJECTED' && withdrawal.rejection_reason && (
+                          <span className="text-red-600">{withdrawal.rejection_reason}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDetailsWithdrawal({ ...withdrawal, _previousDate: previous?.requested_at ?? null } as any)}
+                        >
+                          <FileSearch className="h-4 w-4 mr-1" />
+                          Ver
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -416,6 +435,15 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
           />
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Detalhes do Saque */}
+      <PartnerWithdrawalDetailsDialog
+        open={!!detailsWithdrawal}
+        onOpenChange={(open) => !open && setDetailsWithdrawal(null)}
+        withdrawal={detailsWithdrawal}
+        previousWithdrawalDate={(detailsWithdrawal as any)?._previousDate ?? null}
+        contractId={contract.id}
+      />
     </div>
   );
 };
