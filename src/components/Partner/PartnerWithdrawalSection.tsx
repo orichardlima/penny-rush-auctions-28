@@ -367,11 +367,25 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
                   {/* Fee preview */}
                   {parsedAmount > 0 && wSettings.feePercentage > 0 && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-sm border border-amber-200 dark:border-amber-800 space-y-1">
-                      <p className="font-medium text-amber-700 dark:text-amber-400">Detalhamento da taxa:</p>
-                      <p>Valor solicitado: {formatPrice(parsedAmount)}</p>
-                      <p>Taxa ({wSettings.feePercentage}%): -{formatPrice(feeInfo.feeAmount)}</p>
-                      <p className="font-bold">Você recebe: {formatPrice(feeInfo.netAmount)}</p>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        <Calculator className="h-3.5 w-3.5" />
+                        Detalhamento da taxa ({wSettings.feePercentage}%)
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="p-2.5 rounded-lg bg-muted border text-center">
+                          <p className="text-[10px] uppercase text-muted-foreground">Solicitado</p>
+                          <p className="font-semibold text-sm mt-0.5">{formatPrice(parsedAmount)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center">
+                          <p className="text-[10px] uppercase text-amber-700 dark:text-amber-400">Taxa</p>
+                          <p className="font-semibold text-sm text-amber-700 dark:text-amber-400 mt-0.5">-{formatPrice(feeInfo.feeAmount)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-green-100/60 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-center">
+                          <p className="text-[10px] uppercase text-green-700 dark:text-green-400">Líquido</p>
+                          <p className="font-bold text-sm text-green-700 dark:text-green-400 mt-0.5">{formatPrice(feeInfo.netAmount)}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
