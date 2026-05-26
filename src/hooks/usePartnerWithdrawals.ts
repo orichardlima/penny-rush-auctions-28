@@ -7,6 +7,9 @@ export interface PartnerWithdrawal {
   id: string;
   partner_contract_id: string;
   amount: number;
+  fee_percentage?: number | null;
+  fee_amount?: number | null;
+  net_amount?: number | null;
   payment_method: string;
   payment_details: {
     pix_key?: string;
