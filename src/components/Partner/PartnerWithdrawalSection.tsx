@@ -21,7 +21,9 @@ import {
   AlertCircle,
   CreditCard,
   Ban,
-  FileSearch
+  FileSearch,
+  Calculator,
+  Percent
 } from 'lucide-react';
 import type { PartnerWithdrawal } from '@/hooks/usePartnerWithdrawals';
 
