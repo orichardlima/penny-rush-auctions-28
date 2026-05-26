@@ -436,7 +436,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead>Valor Bruto</TableHead>
+                  <TableHead>Taxa</TableHead>
+                  <TableHead>Líquido (recebido)</TableHead>
                   <TableHead>PIX</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observação</TableHead>
@@ -447,10 +449,25 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                 {withdrawals.map((withdrawal, idx) => {
                   // Saques estão ordenados desc por created_at — o "anterior" é o próximo no array
                   const previous = withdrawals[idx + 1];
+                  const feePct = Number(withdrawal.fee_percentage || 0);
+                  const feeAmt = Number(withdrawal.fee_amount || 0);
+                  const netAmt = Number(withdrawal.net_amount || withdrawal.amount);
                   return (
                     <TableRow key={withdrawal.id}>
                       <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
                       <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
+                      <TableCell className="text-sm">
+                        {feeAmt > 0 ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            -{formatPrice(feeAmt)} <span className="text-xs text-muted-foreground">({feePct}%)</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                        {formatPrice(netAmt)}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {withdrawal.payment_details?.pix_key || '-'}
                       </TableCell>
