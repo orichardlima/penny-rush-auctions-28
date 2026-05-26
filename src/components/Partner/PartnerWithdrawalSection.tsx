@@ -68,6 +68,8 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const windowStatus = isWithdrawalWindowOpen();
   const parsedAmount = parseFloat(withdrawalAmount) || 0;
   const feeInfo = calculateFee(parsedAmount);
+  const parsedSimulator = parseFloat(simulatorAmount) || 0;
+  const simulatorFee = calculateFee(parsedSimulator);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
