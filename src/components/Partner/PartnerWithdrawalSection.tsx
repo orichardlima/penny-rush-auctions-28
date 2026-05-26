@@ -21,7 +21,9 @@ import {
   AlertCircle,
   CreditCard,
   Ban,
-  FileSearch
+  FileSearch,
+  Calculator,
+  Percent
 } from 'lucide-react';
 import type { PartnerWithdrawal } from '@/hooks/usePartnerWithdrawals';
 
@@ -49,6 +51,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
   const [availableBalance, setAvailableBalance] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [simulatorAmount, setSimulatorAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [detailsWithdrawal, setDetailsWithdrawal] = useState<PartnerWithdrawal | null>(null);
@@ -65,6 +68,8 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const windowStatus = isWithdrawalWindowOpen();
   const parsedAmount = parseFloat(withdrawalAmount) || 0;
   const feeInfo = calculateFee(parsedAmount);
+  const parsedSimulator = parseFloat(simulatorAmount) || 0;
+  const simulatorFee = calculateFee(parsedSimulator);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -244,6 +249,61 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         </Card>
       </div>
 
+      {/* Visualizador / Simulador de Taxa */}
+      {wSettings.feePercentage > 0 && (
+        <Card className="border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calculator className="h-4 w-4 text-amber-600" />
+              Simulador de Taxa de Saque
+            </CardTitle>
+            <CardDescription className="flex items-center gap-1.5">
+              <Percent className="h-3 w-3" />
+              Taxa atual: <strong>{wSettings.feePercentage}%</strong> sobre o valor solicitado
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="simulator">Simule um valor de saque</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="simulator"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={simulatorAmount}
+                  onChange={(e) => setSimulatorAmount(e.target.value)}
+                  placeholder="Ex: 500.00"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSimulatorAmount((Math.round(availableBalance * 100) / 100).toFixed(2))}
+                  disabled={availableBalance <= 0}
+                >
+                  Usar saldo
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <div className="p-3 rounded-lg bg-background border text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Solicitado</p>
+                <p className="font-bold text-foreground mt-1">{formatPrice(parsedSimulator)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400">Taxa ({wSettings.feePercentage}%)</p>
+                <p className="font-bold text-amber-700 dark:text-amber-400 mt-1">-{formatPrice(simulatorFee.feeAmount)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-green-100/60 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-green-700 dark:text-green-400">Você recebe</p>
+                <p className="font-bold text-green-700 dark:text-green-400 mt-1">{formatPrice(simulatorFee.netAmount)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Botão de Solicitar Saque */}
       <Card>
         <CardContent className="py-4">
@@ -307,11 +367,25 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
                   {/* Fee preview */}
                   {parsedAmount > 0 && wSettings.feePercentage > 0 && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-sm border border-amber-200 dark:border-amber-800 space-y-1">
-                      <p className="font-medium text-amber-700 dark:text-amber-400">Detalhamento da taxa:</p>
-                      <p>Valor solicitado: {formatPrice(parsedAmount)}</p>
-                      <p>Taxa ({wSettings.feePercentage}%): -{formatPrice(feeInfo.feeAmount)}</p>
-                      <p className="font-bold">Você recebe: {formatPrice(feeInfo.netAmount)}</p>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        <Calculator className="h-3.5 w-3.5" />
+                        Detalhamento da taxa ({wSettings.feePercentage}%)
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="p-2.5 rounded-lg bg-muted border text-center">
+                          <p className="text-[10px] uppercase text-muted-foreground">Solicitado</p>
+                          <p className="font-semibold text-sm mt-0.5">{formatPrice(parsedAmount)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center">
+                          <p className="text-[10px] uppercase text-amber-700 dark:text-amber-400">Taxa</p>
+                          <p className="font-semibold text-sm text-amber-700 dark:text-amber-400 mt-0.5">-{formatPrice(feeInfo.feeAmount)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-green-100/60 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-center">
+                          <p className="text-[10px] uppercase text-green-700 dark:text-green-400">Líquido</p>
+                          <p className="font-bold text-sm text-green-700 dark:text-green-400 mt-0.5">{formatPrice(feeInfo.netAmount)}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -362,7 +436,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead>Valor Bruto</TableHead>
+                  <TableHead>Taxa</TableHead>
+                  <TableHead>Líquido (recebido)</TableHead>
                   <TableHead>PIX</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observação</TableHead>
@@ -373,10 +449,25 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                 {withdrawals.map((withdrawal, idx) => {
                   // Saques estão ordenados desc por created_at — o "anterior" é o próximo no array
                   const previous = withdrawals[idx + 1];
+                  const feePct = Number(withdrawal.fee_percentage || 0);
+                  const feeAmt = Number(withdrawal.fee_amount || 0);
+                  const netAmt = Number(withdrawal.net_amount || withdrawal.amount);
                   return (
                     <TableRow key={withdrawal.id}>
                       <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
                       <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
+                      <TableCell className="text-sm">
+                        {feeAmt > 0 ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            -{formatPrice(feeAmt)} <span className="text-xs text-muted-foreground">({feePct}%)</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                        {formatPrice(netAmt)}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {withdrawal.payment_details?.pix_key || '-'}
                       </TableCell>
