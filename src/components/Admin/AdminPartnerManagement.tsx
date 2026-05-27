@@ -1360,6 +1360,9 @@ const AdminPartnerManagement = () => {
                       <TableCell className="text-yellow-600 font-medium">
                         {plan.bonus_bids ?? 0}
                       </TableCell>
+                      <TableCell className="text-purple-600 font-medium">
+                        {planBinaryPoints[plan.name] ?? 0}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={plan.is_active ? 'default' : 'secondary'}>
                           {plan.is_active ? 'Ativo' : 'Inativo'}
