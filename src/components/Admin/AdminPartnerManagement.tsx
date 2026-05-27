@@ -1320,7 +1320,7 @@ const AdminPartnerManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {plans.map((plan) => (
+                  {plans.filter(p => showInactivePlans || p.is_active).map((plan) => (
                     <TableRow key={plan.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
