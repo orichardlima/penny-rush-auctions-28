@@ -1,21 +1,19 @@
 ## Objetivo
-Adicionar um filtro/toggle "Mostrar inativos" na aba **Planos de Participação** do painel admin, para que planos com `is_active = false` fiquem ocultos por padrão e a tabela fique limpa.
+Exibir a coluna **Pontos Binários** na tabela de Planos de Participação, junto com as demais informações já mostradas (Aporte, Limites, Bônus, Lances etc.).
 
 ## Alterações
 
-### 1. Estado e Toggle
-- Adicionar estado local `showInactivePlans` (boolean, default `false`) no componente `AdminPartnerManagement`.
-- Inserir um `<Switch>` com label "Mostrar inativos" ao lado do botão "Novo Plano" no header do card da aba `plans`.
+### 1. Carregar pontos binários para todos os planos
+- No `AdminPartnerManagement.tsx`, adicionar estado `planBinaryPoints` (`Record<string, number>` indexado por `plan.name`).
+- Adicionar um `useEffect` que, sempre que `plans` mudar, busca todos os registros de `partner_level_points` (uma única query: `select plan_name, points`) e popula o map.
 
-### 2. Filtragem da Tabela
-- Aplicar filtro na renderização da tabela de planos (`plans.map`):
-  - Se `showInactivePlans === false`, exibir apenas `plan.is_active === true`.
-  - Se `showInactivePlans === true`, exibir todos os planos.
-- Exibir um contador sutil (ex: "X planos exibidos") ou manter a mensagem de "Nenhum plano encontrado" caso o filtro zere a lista.
+### 2. Nova coluna na tabela
+- Inserir `<TableHead>Pontos Bin.</TableHead>` entre "Lances Bônus" e "Status".
+- Em cada linha, exibir `planBinaryPoints[plan.name] ?? 0` com estilo destacado (ex: `text-purple-600 font-medium`), consistente com as outras colunas numéricas.
 
 ## Arquivo Alvo
 - `src/components/Admin/AdminPartnerManagement.tsx`
 
 ## Fora do Escopo
-- Nenhuma mudança em hooks, backend, ou regras de soft delete de planos.
-- Nenhuma alteração em outras abas do admin.
+- Edição inline (a edição continua via dialog existente, que já carrega/salva `binary_points`).
+- Mudanças em hooks ou backend.

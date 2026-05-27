@@ -128,6 +128,21 @@ const AdminPartnerManagement = () => {
   // Create Plan State
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [showInactivePlans, setShowInactivePlans] = useState(false);
+  const [planBinaryPoints, setPlanBinaryPoints] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!plans || plans.length === 0) return;
+    (async () => {
+      const { data } = await supabase
+        .from('partner_level_points')
+        .select('plan_name, points');
+      if (data) {
+        const map: Record<string, number> = {};
+        data.forEach((row: any) => { map[row.plan_name] = row.points; });
+        setPlanBinaryPoints(map);
+      }
+    })();
+  }, [plans]);
   const [newPlan, setNewPlan] = useState({
     name: '',
     display_name: '',
@@ -1315,6 +1330,7 @@ const AdminPartnerManagement = () => {
                     <TableHead>Retorno</TableHead>
                     <TableHead>Bônus Ind.</TableHead>
                     <TableHead>Lances Bônus</TableHead>
+                    <TableHead>Pontos Bin.</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
