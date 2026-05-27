@@ -127,6 +127,7 @@ const AdminPartnerManagement = () => {
   
   // Create Plan State
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+  const [showInactivePlans, setShowInactivePlans] = useState(false);
   const [newPlan, setNewPlan] = useState({
     name: '',
     display_name: '',
@@ -1104,11 +1105,22 @@ const AdminPartnerManagement = () => {
         {/* Planos Tab */}
         <TabsContent value="plans" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
               <div>
                 <CardTitle>Planos de Participação</CardTitle>
                 <CardDescription>Configure os planos disponíveis</CardDescription>
               </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="show-inactive-plans"
+                    checked={showInactivePlans}
+                    onCheckedChange={setShowInactivePlans}
+                  />
+                  <Label htmlFor="show-inactive-plans" className="text-sm cursor-pointer">
+                    Mostrar inativos
+                  </Label>
+                </div>
               <Dialog open={isCreatingPlan} onOpenChange={setIsCreatingPlan}>
                 <DialogTrigger asChild>
                   <Button>
@@ -1290,6 +1302,7 @@ const AdminPartnerManagement = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -1307,7 +1320,7 @@ const AdminPartnerManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {plans.map((plan) => (
+                  {plans.filter(p => showInactivePlans || p.is_active).map((plan) => (
                     <TableRow key={plan.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
