@@ -1302,6 +1302,7 @@ const AdminPartnerManagement = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
