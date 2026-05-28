@@ -333,7 +333,7 @@ export const AdminBinaryTreeView: React.FC = () => {
       }
 
       const pointsMsg = pointsPropagated > 0 ? ` ${pointsPropagated} pontos propagados.` : ' (sem pontos configurados para propagar)';
-      toast({ title: 'Vinculado com sucesso', description: `${selectedIsolated.partnerName} foi vinculado à árvore binária sob ${posMap.get(selectedSponsorId)?.partnerName || 'sponsor'}.${pointsMsg}` });
+      toast({ title: 'Vinculado com sucesso', description: `${selectedIsolated.partnerName} foi vinculado à estrutura da rede sob ${posMap.get(selectedSponsorId)?.partnerName || 'indicador'}.${pointsMsg}` });
       setLinkDialogOpen(false);
       fetchData();
     } catch (err: any) {
@@ -401,7 +401,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           action_type: 'RELOCATE_BINARY_NODE',
           target_type: 'partner_binary_positions',
           target_id: relocateTarget.id,
-          description: `Realocou ${relocateTarget.partnerName} na árvore binária`,
+          description: `Realocou ${relocateTarget.partnerName} na estrutura da rede`,
           old_values: {
             parent_contract_id: oldParentId,
             sponsor_contract_id: oldSponsorId,
@@ -417,7 +417,7 @@ export const AdminBinaryTreeView: React.FC = () => {
 
       toast({
         title: 'Parceiro realocado com sucesso',
-        description: `${relocateTarget.partnerName} foi movido para a rede de ${posMap.get(relocateSponsorId)?.partnerName || 'sponsor'}. Lembre-se de recalcular os pontos dos uplines antigos e novos.`,
+        description: `${relocateTarget.partnerName} foi movido para a rede de ${posMap.get(relocateSponsorId)?.partnerName || 'indicador'}. Lembre-se de recalcular os pontos da rede acima antiga e nova.`,
       });
       setRelocateDialogOpen(false);
       fetchData();
@@ -492,17 +492,17 @@ export const AdminBinaryTreeView: React.FC = () => {
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Vincular Parceiro à Árvore</DialogTitle>
+            <DialogTitle>Vincular Parceiro à Rede</DialogTitle>
             <DialogDescription>
-              Vincular <strong>{selectedIsolated?.partnerName}</strong> ({selectedIsolated?.planName}) a um sponsor. O posicionamento será automático (spillover).
+              Vincular <strong>{selectedIsolated?.partnerName}</strong> ({selectedIsolated?.planName}) a um indicador. O posicionamento será automático (realocação na rede).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label>Sponsor (quem indicou)</Label>
+              <Label>Indicador (quem indicou)</Label>
               <Select value={selectedSponsorId} onValueChange={setSelectedSponsorId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o sponsor..." />
+                  <SelectValue placeholder="Selecione o indicador..." />
                 </SelectTrigger>
                 <SelectContent>
                   {positions
@@ -524,7 +524,7 @@ export const AdminBinaryTreeView: React.FC = () => {
             )}
 
             {selectedSponsorId && !spilloverResult && (
-              <p className="text-sm text-destructive">Nenhuma vaga disponível na subárvore deste sponsor.</p>
+              <p className="text-sm text-destructive">Nenhuma vaga disponível na rede deste indicador.</p>
             )}
 
             <Button
@@ -544,13 +544,13 @@ export const AdminBinaryTreeView: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Recalcular Pontos</DialogTitle>
             <DialogDescription>
-              Propagar pontos de <strong>{recalcTarget?.partnerName}</strong> ({recalcTarget?.planName}) para todos os uplines na árvore binária.
+              Propagar pontos de <strong>{recalcTarget?.partnerName}</strong> ({recalcTarget?.planName}) para toda a rede acima na estrutura.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {recalcPoints > 0 ? (
               <div className="rounded-md border p-3 bg-muted text-sm space-y-1">
-                <p><strong>{recalcPoints}</strong> pontos serão propagados para os uplines.</p>
+                <p><strong>{recalcPoints}</strong> pontos serão propagados para a rede acima.</p>
                 <p className="text-muted-foreground">Reason: manual_recalc</p>
               </div>
             ) : (
@@ -576,7 +576,7 @@ export const AdminBinaryTreeView: React.FC = () => {
               Realocar Parceiro
             </DialogTitle>
             <DialogDescription>
-              Mover <strong>{relocateTarget?.partnerName}</strong> ({relocateTarget?.planName}) para a rede de outro sponsor. A subárvore inteira será movida junto.
+              Mover <strong>{relocateTarget?.partnerName}</strong> ({relocateTarget?.planName}) para a rede de outro indicador. A rede abaixo inteira será movida junto.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
@@ -585,16 +585,16 @@ export const AdminBinaryTreeView: React.FC = () => {
               <div className="rounded-md border p-3 bg-muted text-sm space-y-1">
                 <p className="font-medium">Posição atual:</p>
                 <p>Filho <strong>{relocateTarget.position === 'left' ? 'esquerdo' : 'direito'}</strong> de <strong>{posMap.get(relocateTarget.parent_contract_id)?.partnerName || 'N/A'}</strong></p>
-                <p>Sponsor: <strong>{posMap.get(relocateTarget.sponsor_contract_id || '')?.partnerName || 'N/A'}</strong></p>
+                <p>Indicador: <strong>{posMap.get(relocateTarget.sponsor_contract_id || '')?.partnerName || 'N/A'}</strong></p>
               </div>
             )}
 
             {/* New sponsor selection */}
             <div className="space-y-2">
-              <Label>Novo Sponsor</Label>
+              <Label>Novo Indicador</Label>
               <Select value={relocateSponsorId} onValueChange={setRelocateSponsorId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o novo sponsor..." />
+                  <SelectValue placeholder="Selecione o novo indicador..." />
                 </SelectTrigger>
                 <SelectContent>
                   {positions
@@ -623,7 +623,7 @@ export const AdminBinaryTreeView: React.FC = () => {
             )}
 
             {relocateSponsorId && !relocateSpillover && (
-              <p className="text-sm text-destructive">Nenhuma vaga disponível na subárvore deste sponsor.</p>
+              <p className="text-sm text-destructive">Nenhuma vaga disponível na rede deste indicador.</p>
             )}
 
             {/* Warning */}
@@ -633,7 +633,7 @@ export const AdminBinaryTreeView: React.FC = () => {
                 Atenção
               </p>
               <p className="text-muted-foreground">
-                Os pontos do upline antigo <strong>NÃO</strong> são recalculados automaticamente. Após a realocação, use "Recalcular Pontos" nos ancestrais afetados.
+                Os pontos da rede acima antiga <strong>NÃO</strong> são recalculados automaticamente. Após a realocação, use "Recalcular Pontos" nos ancestrais afetados.
               </p>
             </div>
 
@@ -654,9 +654,9 @@ export const AdminBinaryTreeView: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Realocação</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja mover <strong>{relocateTarget?.partnerName}</strong> e toda sua subárvore para a rede de <strong>{posMap.get(relocateSponsorId)?.partnerName || 'N/A'}</strong>?
+              Você tem certeza que deseja mover <strong>{relocateTarget?.partnerName}</strong> e toda sua rede abaixo para a rede de <strong>{posMap.get(relocateSponsorId)?.partnerName || 'N/A'}</strong>?
               <br /><br />
-              Esta ação será registrada no log de auditoria. Os pontos dos uplines antigos precisarão ser ajustados manualmente.
+              Esta ação será registrada no log de auditoria. Os pontos da rede acima antiga precisarão ser ajustados manualmente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
