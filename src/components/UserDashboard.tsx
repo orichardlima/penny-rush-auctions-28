@@ -40,6 +40,8 @@ import { PersonalAnalytics } from '@/components/PersonalAnalytics';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { FuryVaultUserSection } from '@/components/FuryVaultUserSection';
 import { FuryVaultStats } from '@/components/FuryVaultStats';
+import { UserProfileEditor } from '@/components/User/UserProfileEditor';
+
 
 interface Bid {
   id: string;
