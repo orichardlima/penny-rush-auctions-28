@@ -268,7 +268,7 @@ const UserDashboard = () => {
                   <div>
                     <h3 className="text-lg font-bold text-foreground">💰 Ative sua conta de Gerente de Afiliados!</h3>
                     <p className="text-sm text-muted-foreground">
-                      Como Parceiro de Expansão, você pode recrutar Influencers e ganhar comissões + override.
+                      Como Parceiro de Expansão, você pode convidar Influencers e ganhar comissões + override.
                     </p>
                   </div>
                 </div>

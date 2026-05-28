@@ -220,7 +220,7 @@ const AdminReferralBonusesTab: React.FC = () => {
                 <TableHead>%</TableHead>
                 <TableHead>Valor Bônus</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Fast Start</TableHead>
+                <TableHead>Lançamento</TableHead>
                 <TableHead>Liberação</TableHead>
                 <TableHead>Criado em</TableHead>
               </TableRow>
