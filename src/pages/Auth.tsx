@@ -59,7 +59,7 @@ const Auth = () => {
   // Determinar tab padrão baseado no parâmetro da URL
   const defaultTab = searchParams.get('tab') === 'signup' ? 'signup' : 'signin';
 
-  // Buscar nome do patrocinador quando tiver ref na URL
+  // Buscar nome do parceiro indicador quando tiver ref na URL
   useEffect(() => {
     const refCode = searchParams.get('ref');
     
@@ -561,7 +561,7 @@ const Auth = () => {
             
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-6">
-                {/* Banner do Patrocinador */}
+                {/* Banner de Quem Indicou */}
                 {sponsorName && (
                   <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20">
                     <div className="flex items-center gap-3">
