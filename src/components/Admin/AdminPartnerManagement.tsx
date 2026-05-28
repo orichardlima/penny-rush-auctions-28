@@ -691,7 +691,7 @@ const AdminPartnerManagement = () => {
           <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
           <TabsTrigger value="binary" className="shrink-0">
             <GitBranch className="h-4 w-4 mr-1" />
-            Binário
+            Rede de Equipe
           </TabsTrigger>
           <TabsTrigger value="adcenter" className="shrink-0">
             <Megaphone className="h-4 w-4 mr-1" />
@@ -717,7 +717,7 @@ const AdminPartnerManagement = () => {
           <PartnerGraduationManager />
         </TabsContent>
 
-        {/* Sistema Binário Tab */}
+        {/* Rede de Equipe Tab */}
         <TabsContent value="binary">
           <BinaryNetworkManager />
         </TabsContent>
@@ -1068,7 +1068,7 @@ const AdminPartnerManagement = () => {
                                     <AlertDialogTitle>Converter para Contrato Regular</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       O contrato de <strong>{contract.user_name}</strong> ({contract.plan_name}) será convertido para regular.
-                                      Isso irá ativar repasses semanais, bônus de indicação e pontos binários retroativamente.
+                                      Isso irá ativar repasses semanais, bônus de indicação e pontos de equipe retroativamente.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>

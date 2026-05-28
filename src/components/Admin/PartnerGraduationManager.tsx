@@ -300,10 +300,10 @@ const PartnerGraduationManager = () => {
         <div>
           <h3 className="text-xl font-semibold flex items-center gap-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
-            Gerenciamento de Graduações
+            Gerenciamento de Níveis de Parceria
           </h3>
           <p className="text-sm text-muted-foreground">
-            Configure os níveis de parceiro e pontos necessários para cada graduação
+            Configure os níveis de parceiro e pontos necessários para cada nível
           </p>
         </div>
         <Button variant="outline" onClick={refreshData} disabled={saving}>
@@ -364,7 +364,7 @@ const PartnerGraduationManager = () => {
         <TabsList>
           <TabsTrigger value="levels">
             <Trophy className="h-4 w-4 mr-2" />
-            Graduações
+            Níveis
           </TabsTrigger>
           <TabsTrigger value="points">
             <Target className="h-4 w-4 mr-2" />
@@ -376,16 +376,16 @@ const PartnerGraduationManager = () => {
           </TabsTrigger>
           <TabsTrigger value="ranking" onClick={() => { if (graduatedPartners.length === 0) fetchGraduatedPartners(); }}>
             <Users className="h-4 w-4 mr-2" />
-            Parceiros Graduados
+            Parceiros por Nível
           </TabsTrigger>
         </TabsList>
 
-        {/* Graduações Tab */}
+        {/* Níveis Tab */}
         <TabsContent value="levels" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Níveis de Graduação</CardTitle>
+                <CardTitle>Níveis de Parceria</CardTitle>
                 <CardDescription>
                   Gerencie os níveis que os parceiros podem alcançar com base em pontos
                 </CardDescription>
@@ -394,12 +394,12 @@ const PartnerGraduationManager = () => {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Nova Graduação
+                    Novo Nível
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Criar Nova Graduação</DialogTitle>
+                    <DialogTitle>Criar Novo Nível</DialogTitle>
                     <DialogDescription>
                       Defina os parâmetros para o novo nível de parceiro
                     </DialogDescription>
@@ -556,7 +556,7 @@ const PartnerGraduationManager = () => {
                     </Button>
                     <Button onClick={handleCreateLevel} disabled={saving || !newLevel.name || !newLevel.display_name}>
                       {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                      Criar Graduação
+                      Criar Nível
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -651,7 +651,7 @@ const PartnerGraduationManager = () => {
                             </DialogTrigger>
                             <DialogContent>
                               <DialogHeader>
-                                <DialogTitle>Editar Graduação</DialogTitle>
+                                <DialogTitle>Editar Nível</DialogTitle>
                                 <DialogDescription>
                                   Modifique os parâmetros do nível
                                 </DialogDescription>
@@ -820,7 +820,7 @@ const PartnerGraduationManager = () => {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir Graduação</AlertDialogTitle>
+                                  <AlertDialogTitle>Excluir Nível</AlertDialogTitle>
                                   <AlertDialogDescription>
                                     Tem certeza que deseja excluir o nível "{level.display_name}"? Esta ação não pode ser desfeita.
                                   </AlertDialogDescription>
@@ -859,7 +859,7 @@ const PartnerGraduationManager = () => {
                   <p className="text-sm text-muted-foreground">
                     <strong>Como funciona:</strong> Quando um novo parceiro entra usando um código de indicação, 
                     o indicador recebe os pontos correspondentes ao plano escolhido. Esses pontos acumulam 
-                    e determinam a graduação do parceiro.
+                    e determinam o nível de parceria.
                   </p>
                 </div>
 
@@ -1207,7 +1207,7 @@ const PartnerGraduationManager = () => {
               </Card>
 
               <p className="text-xs text-muted-foreground text-center">
-                Total: {graduatedPartners.length} parceiros ativos • Graduação = perna menor (LEAST entre pontos esquerda e direita)
+                Total: {graduatedPartners.length} parceiros ativos • Nível = lado de menor volume (LEAST entre pontos do Lado A e Lado B)
               </p>
             </>
           )}

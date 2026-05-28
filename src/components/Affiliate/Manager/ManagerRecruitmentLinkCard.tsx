@@ -15,7 +15,7 @@ export const ManagerRecruitmentLinkCard = ({ affiliateCode }: Props) => {
 
   const copy = () => {
     navigator.clipboard.writeText(recruitmentUrl);
-    toast({ title: 'Link copiado!', description: 'Cole onde quiser para recrutar influencers.' });
+    toast({ title: 'Link copiado!', description: 'Cole onde quiser para convidar influencers.' });
   };
 
   const share = async () => {
@@ -39,7 +39,7 @@ export const ManagerRecruitmentLinkCard = ({ affiliateCode }: Props) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Link2 className="h-5 w-5 text-primary" />
-          Seu Link de Recrutamento
+          Seu Link de Convite
         </CardTitle>
         <CardDescription>
           Quem se cadastrar como afiliado por este link entra automaticamente na sua rede como Influencer.

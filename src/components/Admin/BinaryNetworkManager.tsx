@@ -59,8 +59,8 @@ export const BinaryNetworkManager: React.FC = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2"><GitBranch className="w-5 h-5" />Sistema Binário MLM</CardTitle>
-              <CardDescription>Gerencie o sistema de compensação binária</CardDescription>
+              <CardTitle className="flex items-center gap-2"><GitBranch className="w-5 h-5" />Sistema de Rede de Equipe</CardTitle>
+              <CardDescription>Gerencie o sistema de bônus de equipe (pareamento de pontos)</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={refresh}><RefreshCw className="w-4 h-4 mr-2" />Atualizar</Button>
           </div>
@@ -69,7 +69,7 @@ export const BinaryNetworkManager: React.FC = () => {
 
       <Tabs defaultValue="tree">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="tree"><TreePine className="w-4 h-4 mr-2" />Árvore</TabsTrigger>
+          <TabsTrigger value="tree"><TreePine className="w-4 h-4 mr-2" />Estrutura da Rede</TabsTrigger>
           <TabsTrigger value="cycle"><Play className="w-4 h-4 mr-2" />Fechar Ciclo</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-2" />Histórico</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-2" />Configurações</TabsTrigger>
@@ -83,7 +83,7 @@ export const BinaryNetworkManager: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Fechamento de Ciclo</CardTitle>
-              <CardDescription>Processe os bônus binários para todos os parceiros com pontos pareados</CardDescription>
+              <CardDescription>Processe os bônus de equipe para todos os parceiros com pontos pareados</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button onClick={fetchPreview} disabled={loadingPreview}>{loadingPreview ? 'Carregando...' : 'Gerar Preview do Ciclo'}</Button>
@@ -153,10 +153,10 @@ export const BinaryNetworkManager: React.FC = () => {
 
         <TabsContent value="settings">
           <Card>
-            <CardHeader><CardTitle>Configurações do Binário</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Configurações da Rede de Equipe</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
-                <div><Label>Sistema Habilitado</Label><p className="text-sm text-muted-foreground">Ativar/desativar o sistema binário</p></div>
+                <div><Label>Sistema Habilitado</Label><p className="text-sm text-muted-foreground">Ativar/desativar o sistema de rede de equipe</p></div>
                 <Switch checked={localSettings.enabled} onCheckedChange={(v) => setLocalSettings(p => ({ ...p, enabled: v }))} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
