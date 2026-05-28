@@ -272,10 +272,10 @@ export const BinaryNetworkTree: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <GitBranch className="w-5 h-5" />
-              Rede Binária
+              Rede de Equipe
             </CardTitle>
             <CardDescription>
-              Visualize sua árvore de indicações e pontos acumulados
+              Visualize a estrutura da sua rede de indicações e os pontos acumulados
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={refresh}>
@@ -291,12 +291,12 @@ export const BinaryNetworkTree: React.FC = () => {
             <div className="bg-blue-500/10 rounded-lg p-3 text-center">
               <ArrowLeft className="w-5 h-5 mx-auto mb-1 text-blue-500" />
               <p className="text-2xl font-bold text-blue-600">{stats.leftPoints}</p>
-              <p className="text-xs text-muted-foreground">Perna Esquerda</p>
+              <p className="text-xs text-muted-foreground">Lado A</p>
             </div>
             <div className="bg-amber-500/10 rounded-lg p-3 text-center">
               <ArrowRight className="w-5 h-5 mx-auto mb-1 text-amber-500" />
               <p className="text-2xl font-bold text-amber-600">{stats.rightPoints}</p>
-              <p className="text-xs text-muted-foreground">Perna Direita</p>
+              <p className="text-xs text-muted-foreground">Lado B</p>
             </div>
             <div className="bg-primary/10 rounded-lg p-3 text-center">
               <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
@@ -457,8 +457,12 @@ export const BinaryNetworkTree: React.FC = () => {
             <span>Esquerda</span>
           </div>
           <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-blue-500/30 border border-blue-500" />
+            <span>Lado A</span>
+          </div>
+          <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-amber-500/30 border border-amber-500" />
-            <span>Direita</span>
+            <span>Lado B</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded border-2 border-dashed border-muted" />
@@ -466,13 +470,14 @@ export const BinaryNetworkTree: React.FC = () => {
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-destructive/30" />
-            <span>Menor Perna</span>
+            <span>Lado de menor volume</span>
           </div>
           <div className="flex items-center gap-1">
             <Eye className="w-3 h-3" />
             <span>Clique "Entrar" para navegar</span>
           </div>
         </div>
+        <PartnershipDisclaimer className="mt-4" />
       </CardContent>
     </Card>
   );
