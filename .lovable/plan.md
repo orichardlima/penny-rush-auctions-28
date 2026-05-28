@@ -1,113 +1,51 @@
-# Reescrita de Linguagem: Remover Terminologia de MMN
+# Permitir que o usuário edite seus próprios dados cadastrais
 
-## Objetivo
+Hoje a aba **Perfil** do dashboard (`UserDashboard.tsx`) é apenas leitura. Vou transformá-la em uma área de edição, respeitando os campos que não podem ser alterados.
 
-Substituir vocabulário típico de Marketing Multinível por linguagem de "programa de parceria corporativa" em **toda a interface visível** (landing, dashboard do parceiro e painel admin), reforçando disclaimers onde houver menção a bônus/rede. Lógica de negócio, nomes de tabelas, colunas, funções RPC e endpoints **não mudam** — apenas textos visíveis (strings JSX, labels, títulos, descrições, toasts, tooltips, e-mails).
+## O que o usuário poderá editar
 
-## Glossário aprovado (aplicado de forma global)
+- **E-mail** (com confirmação via Supabase Auth — envia link de confirmação para o novo e-mail)
+- **Senha** (campo separado com senha atual + nova senha)
+- **Telefone / WhatsApp**
+- **Endereço completo**: CEP (com busca automática via ViaCEP, igual ao admin), Rua, Número, Complemento, Bairro, Cidade, Estado
+- **Avatar** (foto de perfil — opcional, se já houver upload em uso)
+- **Chave PIX** (apenas para usuários que são Afiliados ou Parceiros — já existe edição nas áreas próprias de Afiliado/Parceiro; vou apenas adicionar um atalho/link visível a partir da aba Perfil para essas telas, mantendo o fluxo atual intacto)
 
-| De (MMN) | Para |
-|---|---|
-| Patrocinador / Sponsor | Parceiro indicador / Quem indicou |
-| Upline | Rede acima |
-| Downline | Rede abaixo / Indicados |
-| Binário | Estrutura de rede / Rede de equipe |
-| Árvore binária | Estrutura da rede |
-| Perna fraca / Perna forte | Lado de menor volume / Lado de maior volume |
-| Pontos binários | Pontos de rede / Pontos de equipe |
-| Bônus binário | Bônus de equipe |
-| Bônus multinível | Bônus por indicação |
-| Graduação / Carreira | Nível de parceria / Tier |
-| Spillover | Realocação automática |
-| Ativação / Qualificação | Adesão ao plano / Plano ativo |
-| Fast Start | Bônus de Lançamento (primeiros 30 dias) |
-| Recrutamento | Convite / Indicação |
-| Rede MMN / Marketing Multinível | Programa de Parceria / Rede de Parceiros |
+## O que NÃO poderá ser editado (somente leitura, com aviso)
 
-## Escopo dos arquivos
+- **Nome completo** (dado pessoal vinculado ao CPF)
+- **CPF**
+- **Data de nascimento**
+- **Indicador / código de quem indicou**
 
-Edição **somente de textos visíveis** nos seguintes grupos:
+Para alterar esses campos, o usuário verá uma mensagem orientando a abrir um chamado / falar com o suporte (admin continua podendo editar via `AdminEditProfileDialog`).
 
-### 1. Páginas públicas / Landing
-- `src/pages/PartnerLanding.tsx`
-- `src/components/Investir/InvestmentHero.tsx`
-- `src/components/Investir/InvestmentBenefits.tsx`
-- `src/components/Investir/InvestmentModel.tsx`
-- `src/components/Investir/InvestmentTimeline.tsx`
-- `src/components/Investir/InvestmentSimulator.tsx`
-- `src/components/Investir/PlanComparison.tsx`
-- `src/components/Investir/TestimonialCarousel.tsx`
-- `src/components/Investir/InvestmentFAQ.tsx`
-- `src/pages/Auth.tsx` (mensagens de cadastro com `ref`)
-- `index.html` e `SEOHead` (title/description de /parceiro)
+## Como vai ficar a interface
 
-### 2. Dashboard do Parceiro (logado)
-- `src/components/Partner/PartnerDashboard.tsx`
-- `src/components/Partner/PartnerReferralSection.tsx`
-- `src/components/Partner/BinaryNetworkTree.tsx`
-- `src/components/Partner/BinaryBonusHistory.tsx`
-- `src/components/Partner/ReferralNetworkTree.tsx`
-- `src/components/Partner/FastStartProgress.tsx`
-- `src/components/Partner/GraduationBadge.tsx`
-- `src/components/Partner/PartnerLevelProgress.tsx`
-- `src/components/Partner/SponsorActivateDialog.tsx`
-- `src/components/Partner/PartnerPlanCard.tsx`
-- `src/components/Partner/AdCenterDashboard.tsx`
-- `src/components/ReferralBonusList.tsx`
-- `src/components/UserProfileCard.tsx`
+Substituir o card de leitura atual em `UserDashboard.tsx` (aba "Perfil") por um novo componente `UserProfileEditor.tsx`, dividido em 3 cards:
 
-### 3. Painel Admin
-- `src/components/Admin/AdminPartnerManagement.tsx`
-- `src/components/Admin/AdminBinaryTreeView.tsx`
-- `src/components/Admin/BinaryNetworkManager.tsx`
-- `src/components/Admin/PartnerGraduationManager.tsx`
-- `src/components/Admin/PartnerDetailModal.tsx`
-- `src/components/Admin/PartnerCashflowDashboard.tsx`
-- `src/components/Admin/PartnerAnalyticsCharts.tsx`
-- `src/components/Admin/FastStartTiersManager.tsx`
-- `src/components/Admin/ReferralLevelConfigManager.tsx`
-- `src/components/Admin/AdminReferralBonusesTab.tsx`
-- `src/components/Affiliate/Manager/ManagerRecruitmentLinkCard.tsx` (e similares)
-- `src/components/AdminUserManagement.tsx`
-- `src/pages/AdminParceiros.tsx`
+1. **Dados pessoais** (somente leitura): Nome, CPF, Data de nascimento + nota explicativa
+2. **Dados de contato e endereço** (editáveis): E-mail, Telefone, CEP + endereço completo. Botão "Salvar alterações".
+3. **Segurança**: Botão "Alterar senha" abrindo um dialog com: senha atual, nova senha, confirmar nova senha.
 
-### 4. E-mails transacionais
-- `supabase/functions/send-email/_templates/welcome-email.tsx` (se mencionar patrocinador/rede)
-- Demais templates serão lidos antes da edição para confirmar.
+Se for Afiliado/Parceiro, mostrar um 4º card pequeno com link "Gerenciar chave PIX" levando para a tela existente.
 
-## Reforço de disclaimers
+## Detalhes técnicos
 
-Em cada bloco onde a UI fala sobre bônus de rede / bônus de equipe / níveis / pontos de rede, adicionar (ou destacar, se já existir) um aviso curto e padronizado:
+- Validação client-side com **zod** (e-mail, telefone BR, CEP 8 dígitos, senha mínima 8 caracteres).
+- E-mail: `supabase.auth.updateUser({ email })` + atualizar `profiles.email` após confirmação. Avisar que o link de confirmação foi enviado.
+- Senha: `supabase.auth.updateUser({ password })` após reautenticar com senha atual via `signInWithPassword`.
+- Demais campos: `update` direto em `profiles` usando RLS já existente (usuário só consegue atualizar a própria linha).
+- CEP: reaproveitar lógica do `AdminEditProfileDialog` (ViaCEP) extraindo para um hook `useCepLookup` para evitar duplicação.
+- Toasts de sucesso/erro com o `useToast` já em uso.
+- Sem mudanças em RLS — políticas atuais de `profiles` já permitem ao próprio usuário atualizar sua linha. Verificarei na implementação; se faltar, adiciono uma migration mínima permitindo `UPDATE` apenas dos campos liberados (via trigger que bloqueia alterações em `cpf`, `full_name`, `birth_date`) para reforçar a segurança server-side.
 
-> *"Programa de parceria. Os repasses dependem do faturamento real da plataforma. Não há garantia de valor mínimo. Não é investimento financeiro."*
+## Arquivos previstos
 
-Pontos onde o disclaimer entra/é reforçado:
-- `InvestmentBenefits` (seção de bônus de indicação)
-- `PlanComparison` (rodapé dos cards)
-- `PartnerReferralSection` (topo da seção)
-- `BinaryNetworkTree` / `BinaryBonusHistory` (rodapé)
-- `FastStartProgress` (rodapé)
-- `InvestmentFAQ` — revisar respostas para remover qualquer termo de MMN remanescente.
+- Novo: `src/components/User/UserProfileEditor.tsx`
+- Novo: `src/components/User/ChangePasswordDialog.tsx`
+- Novo: `src/hooks/useCepLookup.ts` (extraído do dialog do admin)
+- Editado: `src/components/UserDashboard.tsx` (aba Perfil passa a renderizar o novo componente)
+- Possível migration: trigger em `profiles` bloqueando UPDATE de `cpf`, `full_name`, `birth_date` por usuários não-admin (somente se a RLS atual não restringir colunas).
 
-Será criado **um componente reutilizável** `src/components/Partner/PartnershipDisclaimer.tsx` (variantes `inline` curto e `card` completo) para garantir consistência e facilitar manutenção futura.
-
-## O que NÃO muda
-
-- Nomes de tabelas, colunas, funções RPC, edge functions, hooks (`useBinaryNetwork`, `useFastStartProgress`, etc.) — apenas textos exibidos pelos componentes.
-- Lógica de cálculo de bônus, regras de payout, validações.
-- URLs, rotas, parâmetros de query (`?ref=...`).
-- Identificadores em banco (`partner_level_points`, `binary_bonuses`, etc.).
-- Memórias do projeto em `mem://` (termos técnicos internos continuam usando "binary", "sponsor" etc. para clareza de engenharia).
-
-## Plano de execução
-
-1. Criar `PartnershipDisclaimer.tsx`.
-2. Reescrever páginas públicas (grupo 1) — maior impacto reputacional.
-3. Reescrever dashboard do parceiro (grupo 2).
-4. Reescrever painel admin (grupo 3).
-5. Revisar e ajustar e-mails (grupo 4).
-6. Busca final com `rg` pelos termos antigos em strings JSX para garantir cobertura.
-
-## Risco
-
-Baixo: alterações são exclusivamente de texto. Nenhuma mudança de schema, lógica ou contrato de API. Único risco é quebrar testes que verifiquem strings literais — será verificado ao final.
+Nenhuma alteração em outras áreas (leilões, parceria, afiliado, admin) — apenas a aba Perfil ganha funcionalidade.
