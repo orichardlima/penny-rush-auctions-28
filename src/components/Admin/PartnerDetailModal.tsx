@@ -247,7 +247,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-                  <CardTitle className="text-xs font-medium">Bônus Binário</CardTitle>
+                  <CardTitle className="text-xs font-medium">Bônus de Equipe</CardTitle>
                   <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="px-3 pb-3">
@@ -343,7 +343,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
                 <TabsTrigger value="payouts" className="text-xs">Repasses ({payouts.length})</TabsTrigger>
                 <TabsTrigger value="referral" className="text-xs">Indicação ({referralBonuses.length})</TabsTrigger>
-                <TabsTrigger value="binary" className="text-xs">Binário ({binaryBonuses.length})</TabsTrigger>
+                <TabsTrigger value="binary" className="text-xs">Equipe ({binaryBonuses.length})</TabsTrigger>
                 <TabsTrigger value="credits" className="text-xs">Créditos ({manualCredits.length})</TabsTrigger>
                 <TabsTrigger value="withdrawals" className="text-xs">Saques ({withdrawals.length})</TabsTrigger>
               </TabsList>
@@ -434,7 +434,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                     </TableHeader>
                     <TableBody>
                       {binaryBonuses.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-xs">Nenhum bônus binário</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-xs">Nenhum bônus de equipe</TableCell></TableRow>
                       ) : binaryBonuses.map(b => (
                         <TableRow key={b.id}>
                           <TableCell className="text-xs">{b.matched_points}</TableCell>

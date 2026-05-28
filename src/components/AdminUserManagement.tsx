@@ -938,7 +938,7 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
                     Contrato Demo (líder)
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Sem repasses, sem bônus de indicação, sem pontos binários
+                    Sem repasses, sem bônus de indicação, sem pontos de equipe
                   </p>
                 </div>
                 <Switch

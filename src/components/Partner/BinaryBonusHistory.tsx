@@ -78,7 +78,7 @@ export const BinaryBonusHistory: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="w-5 h-5" />
-              Histórico de Bônus Binários
+              Histórico de Bônus de Equipe
             </CardTitle>
             <CardDescription>
               Registro de todos os bônus recebidos por fechamento de ciclo
@@ -94,10 +94,10 @@ export const BinaryBonusHistory: React.FC = () => {
         {bonuses.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Trophy className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p>Você ainda não recebeu nenhum bônus binário.</p>
+            <p>Você ainda não recebeu nenhum bônus de equipe.</p>
             {!isBinaryActive ? (
               <p className="text-sm mt-1">
-                Seu binário ainda não está ativado. Indique pelo menos 1 parceiro em cada lado (esquerda e direita) para começar a receber bônus.
+                Sua rede de equipe ainda não está ativada. Indique pelo menos 1 parceiro em cada lado (A e B) para começar a receber bônus.
               </p>
             ) : (
               <p className="text-sm mt-1">

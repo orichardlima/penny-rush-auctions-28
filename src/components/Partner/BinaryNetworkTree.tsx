@@ -24,6 +24,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PartnershipDisclaimer } from './PartnershipDisclaimer';
 
 interface TreeNodeProps {
   node: BinaryTreeNode | null;
@@ -272,10 +273,10 @@ export const BinaryNetworkTree: React.FC = () => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <GitBranch className="w-5 h-5" />
-              Rede Binária
+              Rede de Equipe
             </CardTitle>
             <CardDescription>
-              Visualize sua árvore de indicações e pontos acumulados
+              Visualize a estrutura da sua rede de indicações e os pontos acumulados
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={refresh}>
@@ -291,12 +292,12 @@ export const BinaryNetworkTree: React.FC = () => {
             <div className="bg-blue-500/10 rounded-lg p-3 text-center">
               <ArrowLeft className="w-5 h-5 mx-auto mb-1 text-blue-500" />
               <p className="text-2xl font-bold text-blue-600">{stats.leftPoints}</p>
-              <p className="text-xs text-muted-foreground">Perna Esquerda</p>
+              <p className="text-xs text-muted-foreground">Lado A</p>
             </div>
             <div className="bg-amber-500/10 rounded-lg p-3 text-center">
               <ArrowRight className="w-5 h-5 mx-auto mb-1 text-amber-500" />
               <p className="text-2xl font-bold text-amber-600">{stats.rightPoints}</p>
-              <p className="text-xs text-muted-foreground">Perna Direita</p>
+              <p className="text-xs text-muted-foreground">Lado B</p>
             </div>
             <div className="bg-primary/10 rounded-lg p-3 text-center">
               <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
@@ -315,18 +316,18 @@ export const BinaryNetworkTree: React.FC = () => {
           </div>
         )}
 
-        {/* Binary Activation Warning */}
+        {/* Activation Warning */}
         {position && !isBinaryActive && (
           <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Seu binário ainda não está ativado.</strong> Indique pelo menos 1 parceiro em cada lado 
-              (esquerda e direita) para começar a receber bônus de rede. Seus pontos continuam acumulando normalmente.
+              <strong>Sua rede de equipe ainda não está ativada.</strong> Indique pelo menos 1 parceiro em cada lado 
+              (A e B) para começar a receber bônus de equipe. Seus pontos continuam acumulando normalmente.
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Weaker Leg Indicator */}
+        {/* Lower-volume side indicator */}
         {stats && stats.weakerLeg !== 'balanced' && (
           <div className={cn(
             "rounded-lg p-3 mb-6 text-center border",
@@ -335,7 +336,7 @@ export const BinaryNetworkTree: React.FC = () => {
               : "bg-amber-500/10 border-amber-500/20"
           )}>
             <p className={cn("text-sm", stats.weakerLeg === 'left' ? "text-blue-700" : "text-amber-700")}>
-              <strong>Perna Menor:</strong> {stats.weakerLeg === 'left' ? 'Esquerda' : 'Direita'} — 
+              <strong>Lado de menor volume:</strong> {stats.weakerLeg === 'left' ? 'Lado A' : 'Lado B'} — 
               Novos indicados são posicionados automaticamente neste lado.
             </p>
           </div>
@@ -410,7 +411,7 @@ export const BinaryNetworkTree: React.FC = () => {
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar downline por nome..."
+            placeholder="Buscar indicado por nome..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-9"
@@ -454,11 +455,11 @@ export const BinaryNetworkTree: React.FC = () => {
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-blue-500/30 border border-blue-500" />
-            <span>Esquerda</span>
+            <span>Lado A</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-amber-500/30 border border-amber-500" />
-            <span>Direita</span>
+            <span>Lado B</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded border-2 border-dashed border-muted" />
@@ -466,13 +467,14 @@ export const BinaryNetworkTree: React.FC = () => {
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-destructive/30" />
-            <span>Menor Perna</span>
+            <span>Lado de menor volume</span>
           </div>
           <div className="flex items-center gap-1">
             <Eye className="w-3 h-3" />
             <span>Clique "Entrar" para navegar</span>
           </div>
         </div>
+        <PartnershipDisclaimer className="mt-4" />
       </CardContent>
     </Card>
   );

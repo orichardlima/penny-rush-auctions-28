@@ -75,7 +75,7 @@ const ReferralLevelConfigManager: React.FC = () => {
             <div className="flex items-start gap-2">
               <Info className="h-5 w-5 text-blue-500 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium mb-2">Como funciona o sistema multinível?</p>
+                <p className="font-medium mb-2">Como funciona o sistema de indicação em níveis?</p>
                 <p className="text-muted-foreground">
                   Quando um novo parceiro entra através de um código de indicação, os bônus são distribuídos 
                   automaticamente para até 3 níveis acima:

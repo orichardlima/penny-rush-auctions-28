@@ -605,7 +605,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           <AlertDescription className="text-amber-800 dark:text-amber-200">
             <strong className="text-base">⚠️ Conta de Posicionamento</strong>
             <br />
-            Esta é uma conta de posicionamento. Seu contrato <strong>não gera</strong> repasses semanais pela plataforma e <strong>não propaga</strong> pontos ou bônus para quem indicou você. Porém, você recebe normalmente bônus de indicação e pontos binários da sua rede.
+            Esta é uma conta de posicionamento. Seu contrato <strong>não gera</strong> repasses semanais pela plataforma e <strong>não propaga</strong> pontos ou bônus para quem indicou você. Porém, você recebe normalmente bônus de indicação e pontos de equipe da sua rede.
           </AlertDescription>
         </Alert>
       )}
@@ -681,7 +681,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </div>
       </div>
 
-      {/* Card de Resumo: Plano + Graduação + Patrocinador */}
+      {/* Card de Resumo: Plano + Nível + Indicador */}
       <Card className="bg-gradient-to-r from-muted/50 to-muted/30">
         <CardContent className="p-4">
           <div className={`grid grid-cols-1 gap-4 ${contract.referred_by_user_id ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
@@ -715,19 +715,19 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               </div>
             </div>
 
-            {/* Graduação */}
+            {/* Nível de parceria */}
             <div className="flex items-start gap-4 p-4 rounded-lg border bg-background">
               <div className="p-3 bg-purple-500/10 rounded-full">
                 <GraduationCap className="h-6 w-6 text-purple-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground mb-1">Sua Graduação</p>
+                <p className="text-sm text-muted-foreground mb-1">Seu Nível de Parceria</p>
                 <div className="flex items-center gap-2 mb-2">
                   <GraduationBadge totalPoints={graduationPoints} size="md" showPoints={false} />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos (perna menor)</p>
-                  <p className="text-xs opacity-70">E: {binaryPoints.leftPoints} | D: {binaryPoints.rightPoints}</p>
+                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos (lado de menor volume)</p>
+                  <p className="text-xs opacity-70">Lado A: {binaryPoints.leftPoints} | Lado B: {binaryPoints.rightPoints}</p>
                   {getLevelProgress().nextLevel && (
                     <p className="mt-1">
                       <span className="font-medium text-primary">
@@ -739,16 +739,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               </div>
             </div>
 
-            {/* Patrocinador - só exibe se tiver referred_by_user_id */}
+            {/* Quem te indicou - só exibe se tiver referred_by_user_id */}
             {contract.referred_by_user_id && (
               <div className="flex items-start gap-4 p-4 rounded-lg border bg-background">
                 <div className="p-3 bg-blue-500/10 rounded-full">
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-1">Seu Patrocinador</p>
+                  <p className="text-sm text-muted-foreground mb-1">Quem te indicou</p>
                   <p className="font-semibold text-lg mb-2">
-                    {contract.sponsor_name || 'Patrocinador'}
+                    {contract.sponsor_name || 'Indicador'}
                   </p>
                   {contract.sponsor_plan_name && (
                     <div className="flex items-center gap-2">
@@ -761,7 +761,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </div>
 
           <p className="text-xs text-muted-foreground text-center mt-4">
-            ℹ️ O <strong>plano</strong> define seu aporte e teto. A <strong>graduação</strong> aumenta com indicações e dá bônus extras.
+            ℹ️ O <strong>plano</strong> define seu aporte e teto. O <strong>nível de parceria</strong> aumenta com indicações e dá bônus extras.
           </p>
         </CardContent>
       </Card>
@@ -875,8 +875,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </TabsTrigger>
           <TabsTrigger value="binary" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <GitBranch className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">Rede Binária</span>
-            <span className="sm:hidden">Binária</span>
+            <span className="hidden sm:inline">Rede de Equipe</span>
+            <span className="sm:hidden">Equipe</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1269,9 +1269,9 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           <PartnerReferralSection planName={contract.plan_name} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
-        {/* Tab de Rede Binária */}
+        {/* Tab de Rede de Equipe */}
         <TabsContent value="binary" className="space-y-6">
-          {/* Árvore binária */}
+          {/* Estrutura da rede */}
           <BinaryNetworkTree />
           
           {/* Histórico de bônus */}
