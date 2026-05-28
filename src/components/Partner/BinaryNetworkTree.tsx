@@ -24,6 +24,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PartnershipDisclaimer } from './PartnershipDisclaimer';
 
 interface TreeNodeProps {
   node: BinaryTreeNode | null;
@@ -451,10 +452,6 @@ export const BinaryNetworkTree: React.FC = () => {
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-primary/30 border border-primary" />
             <span>Raiz</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-blue-500/30 border border-blue-500" />
-            <span>Esquerda</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-blue-500/30 border border-blue-500" />
