@@ -163,7 +163,7 @@ export function AffiliateOnboarding({ profile, seoHead, setLoading, fetchAffilia
                 <div>
                   <h3 className="font-semibold text-lg mb-1">Parceiro de Expansão → Manager</h3>
                   <p className="text-muted-foreground">
-                    Todo Parceiro de Expansão ativo pode se tornar Gerente de Afiliados, recrutar Influencers
+                    Todo Parceiro de Expansão ativo pode se tornar Gerente de Afiliados, convidar Influencers
                     e ganhar comissões diretas + override sobre seus convidados.
                   </p>
                 </div>
