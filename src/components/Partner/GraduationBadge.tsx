@@ -84,7 +84,7 @@ export const GraduationBadge: React.FC<GraduationBadgeProps> = ({
   const hasReward = currentLevel.reward_type && currentLevel.reward_type !== 'none';
   const tooltipText = hasReward && currentLevel.reward_description
     ? `${currentLevel.reward_icon} Premiação: ${currentLevel.reward_description}`
-    : `Sua graduação aumenta com indicações de novos parceiros. Quanto maior o nível, maiores as premiações!`;
+    : `Seu nível de parceria aumenta com indicações de novos parceiros. Quanto maior o nível, maiores as premiações!`;
 
   return (
     <TooltipProvider>

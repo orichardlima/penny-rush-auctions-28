@@ -315,18 +315,18 @@ export const BinaryNetworkTree: React.FC = () => {
           </div>
         )}
 
-        {/* Binary Activation Warning */}
+        {/* Activation Warning */}
         {position && !isBinaryActive && (
           <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Seu binário ainda não está ativado.</strong> Indique pelo menos 1 parceiro em cada lado 
-              (esquerda e direita) para começar a receber bônus de rede. Seus pontos continuam acumulando normalmente.
+              <strong>Sua rede de equipe ainda não está ativada.</strong> Indique pelo menos 1 parceiro em cada lado 
+              (A e B) para começar a receber bônus de equipe. Seus pontos continuam acumulando normalmente.
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Weaker Leg Indicator */}
+        {/* Lower-volume side indicator */}
         {stats && stats.weakerLeg !== 'balanced' && (
           <div className={cn(
             "rounded-lg p-3 mb-6 text-center border",
@@ -335,7 +335,7 @@ export const BinaryNetworkTree: React.FC = () => {
               : "bg-amber-500/10 border-amber-500/20"
           )}>
             <p className={cn("text-sm", stats.weakerLeg === 'left' ? "text-blue-700" : "text-amber-700")}>
-              <strong>Perna Menor:</strong> {stats.weakerLeg === 'left' ? 'Esquerda' : 'Direita'} — 
+              <strong>Lado de menor volume:</strong> {stats.weakerLeg === 'left' ? 'Lado A' : 'Lado B'} — 
               Novos indicados são posicionados automaticamente neste lado.
             </p>
           </div>
@@ -410,7 +410,7 @@ export const BinaryNetworkTree: React.FC = () => {
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar downline por nome..."
+            placeholder="Buscar indicado por nome..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-9"

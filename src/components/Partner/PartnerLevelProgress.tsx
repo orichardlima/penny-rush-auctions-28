@@ -51,7 +51,7 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5" />
-          Sua Graduação
+          Seu Nível de Parceria
         </CardTitle>
         <CardDescription>
           Indique parceiros e suba de nível para conquistar premiações incríveis!
@@ -72,14 +72,14 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
             </div>
             <p className="text-sm text-muted-foreground">
               <Star className="h-4 w-4 inline mr-1" />
-              {totalPoints} pontos (perna menor)
+              {totalPoints} pontos (lado de menor volume)
             </p>
             {(leftPoints > 0 || rightPoints > 0) && (
               <p className="text-xs text-muted-foreground mt-1">
-                E: {leftPoints} pts | D: {rightPoints} pts
+                Lado A: {leftPoints} pts | Lado B: {rightPoints} pts
                 {leftPoints !== rightPoints && (
                   <span className="ml-2 text-primary">
-                    ({leftPoints < rightPoints ? 'Esquerda menor' : 'Direita menor'})
+                    ({leftPoints < rightPoints ? 'Lado A menor' : 'Lado B menor'})
                   </span>
                 )}
               </p>
