@@ -40,6 +40,8 @@ import { PersonalAnalytics } from '@/components/PersonalAnalytics';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { FuryVaultUserSection } from '@/components/FuryVaultUserSection';
 import { FuryVaultStats } from '@/components/FuryVaultStats';
+import { UserProfileEditor } from '@/components/User/UserProfileEditor';
+
 
 interface Bid {
   id: string;
@@ -599,36 +601,14 @@ const UserDashboard = () => {
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Perfil</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Nome Completo</label>
-                    <p className="text-lg">{profile?.full_name || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <p className="text-lg">{profile?.email || 'Não informado'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Membro desde</label>
-                    <p className="text-lg">
-                      {profile?.created_at ? formatDate(profile.created_at) : 'Não informado'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Saldo de Lances</label>
-                    <p className="text-lg font-bold text-primary">
-                      {profile?.bids_balance || 0} lances
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <UserProfileEditor
+              isAffiliate={isAffiliate}
+              hasPartnerContract={hasPartnerContract}
+              onNavigateAffiliate={() => setActiveTab('overview')}
+              onNavigatePartner={() => setActiveTab('overview')}
+            />
           </TabsContent>
+
         </Tabs>
       </div>
       
