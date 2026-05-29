@@ -1,51 +1,39 @@
-# Permitir que o usuário edite seus próprios dados cadastrais
+## Entrevista Richard Lima — PDF com respostas redigidas
 
-Hoje a aba **Perfil** do dashboard (`UserDashboard.tsx`) é apenas leitura. Vou transformá-la em uma área de edição, respeitando os campos que não podem ser alterados.
+Como você não especificou, vou seguir o caminho mais útil: **gerar um PDF formatado em `/mnt/documents/`** com as 12 perguntas e respostas sugeridas, escritas em 1ª pessoa como se fossem do Richard, baseadas no que sei da Show de Lances (leilões de centavos via PIX, plano de carreira binário com parceiros, foco em entretenimento + oportunidade, etc.).
 
-## O que o usuário poderá editar
+### O que o PDF terá
 
-- **E-mail** (com confirmação via Supabase Auth — envia link de confirmação para o novo e-mail)
-- **Senha** (campo separado com senha atual + nova senha)
-- **Telefone / WhatsApp**
-- **Endereço completo**: CEP (com busca automática via ViaCEP, igual ao admin), Rua, Número, Complemento, Bairro, Cidade, Estado
-- **Avatar** (foto de perfil — opcional, se já houver upload em uso)
-- **Chave PIX** (apenas para usuários que são Afiliados ou Parceiros — já existe edição nas áreas próprias de Afiliado/Parceiro; vou apenas adicionar um atalho/link visível a partir da aba Perfil para essas telas, mantendo o fluxo atual intacto)
+- Capa: título "Entrevista — Richard Lima, CEO da Show de Lances"
+- 12 blocos pergunta/resposta (cada resposta com 120–180 palavras, tom institucional/jornalístico)
+- Rodapé com data e marca Show de Lances
+- Tipografia limpa, paleta da marca
 
-## O que NÃO poderá ser editado (somente leitura, com aviso)
+### Tópicos que vou cobrir nas respostas (resumo)
 
-- **Nome completo** (dado pessoal vinculado ao CPF)
-- **CPF**
-- **Data de nascimento**
-- **Indicador / código de quem indicou**
+1. Origem: democratizar acesso a produtos premium unindo gamificação e e-commerce
+2. Diferencial: experiência ao vivo, descontos reais, comunidade
+3. Tecnologia: realtime, PWA, UX mobile-first, automação de leilões
+4. Marketing de rede: plano binário, bônus de indicação multinível, Fast Start
+5. Empreendedorismo digital: renda em todo Brasil via parceria
+6. Segurança: PIX, LGPD, criptografia, antifraude, transparência de regras
+7. Desafios: regulação, confiança, escalar tecnologia em tempo real
+8. Liderança jovem: gestão por dados, time multidisciplinar
+9. Trajetória pessoal: (rascunho genérico — você ajusta com dados reais dele)
+10. Momento decisivo: (rascunho genérico — idem)
+11. Futuro: economia colaborativa, social commerce, IA
+12. Próximos passos + mensagem motivacional
 
-Para alterar esses campos, o usuário verá uma mensagem orientando a abrir um chamado / falar com o suporte (admin continua podendo editar via `AdminEditProfileDialog`).
+### Importante
 
-## Como vai ficar a interface
+- Perguntas 9 e 10 são pessoais; vou deixar rascunhos genéricos com `[AJUSTAR COM DADOS REAIS]` para você completar.
+- **Nenhuma alteração no código do app** — é apenas geração de artefato em `/mnt/documents/entrevista-richard-lima.pdf`.
 
-Substituir o card de leitura atual em `UserDashboard.tsx` (aba "Perfil") por um novo componente `UserProfileEditor.tsx`, dividido em 3 cards:
+### Detalhes técnicos
 
-1. **Dados pessoais** (somente leitura): Nome, CPF, Data de nascimento + nota explicativa
-2. **Dados de contato e endereço** (editáveis): E-mail, Telefone, CEP + endereço completo. Botão "Salvar alterações".
-3. **Segurança**: Botão "Alterar senha" abrindo um dialog com: senha atual, nova senha, confirmar nova senha.
+- Script Python com `reportlab` em `/tmp/`
+- Saída em `/mnt/documents/entrevista-richard-lima.pdf`
+- QA: converter páginas em imagens e revisar antes de entregar
+- Entrega via `<presentation-artifact>`
 
-Se for Afiliado/Parceiro, mostrar um 4º card pequeno com link "Gerenciar chave PIX" levando para a tela existente.
-
-## Detalhes técnicos
-
-- Validação client-side com **zod** (e-mail, telefone BR, CEP 8 dígitos, senha mínima 8 caracteres).
-- E-mail: `supabase.auth.updateUser({ email })` + atualizar `profiles.email` após confirmação. Avisar que o link de confirmação foi enviado.
-- Senha: `supabase.auth.updateUser({ password })` após reautenticar com senha atual via `signInWithPassword`.
-- Demais campos: `update` direto em `profiles` usando RLS já existente (usuário só consegue atualizar a própria linha).
-- CEP: reaproveitar lógica do `AdminEditProfileDialog` (ViaCEP) extraindo para um hook `useCepLookup` para evitar duplicação.
-- Toasts de sucesso/erro com o `useToast` já em uso.
-- Sem mudanças em RLS — políticas atuais de `profiles` já permitem ao próprio usuário atualizar sua linha. Verificarei na implementação; se faltar, adiciono uma migration mínima permitindo `UPDATE` apenas dos campos liberados (via trigger que bloqueia alterações em `cpf`, `full_name`, `birth_date`) para reforçar a segurança server-side.
-
-## Arquivos previstos
-
-- Novo: `src/components/User/UserProfileEditor.tsx`
-- Novo: `src/components/User/ChangePasswordDialog.tsx`
-- Novo: `src/hooks/useCepLookup.ts` (extraído do dialog do admin)
-- Editado: `src/components/UserDashboard.tsx` (aba Perfil passa a renderizar o novo componente)
-- Possível migration: trigger em `profiles` bloqueando UPDATE de `cpf`, `full_name`, `birth_date` por usuários não-admin (somente se a RLS atual não restringir colunas).
-
-Nenhuma alteração em outras áreas (leilões, parceria, afiliado, admin) — apenas a aba Perfil ganha funcionalidade.
+Se preferir outro formato (DOCX editável, página no site, ou só texto no chat), me diga antes de eu implementar.
