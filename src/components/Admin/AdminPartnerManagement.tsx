@@ -23,6 +23,8 @@ import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import TransferSponsorManager from './TransferSponsorManager';
 import AdminNetworkExitsTab from './AdminNetworkExitsTab';
+import AdminImpersonationLogTab from './AdminImpersonationLogTab';
+import ImpersonateActions from './ImpersonateActions';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
@@ -59,7 +61,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown
-  , UserMinus,
+  , UserMinus, Shield,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
@@ -716,7 +718,12 @@ const AdminPartnerManagement = () => {
             <UserMinus className="h-4 w-4 mr-1" />
             Saídas de Rede
           </TabsTrigger>
+          <TabsTrigger value="impersonation-log" className="shrink-0">
+            <Shield className="h-4 w-4 mr-1" />
+            Auditoria de Acessos
+          </TabsTrigger>
         </TabsList>
+
 
 
         {/* Níveis de Indicação Tab */}
@@ -753,6 +760,17 @@ const AdminPartnerManagement = () => {
         <TabsContent value="transfer-sponsor">
           <TransferSponsorManager />
         </TabsContent>
+
+        {/* Saídas de Rede Tab */}
+        <TabsContent value="network-exits">
+          <AdminNetworkExitsTab />
+        </TabsContent>
+
+        {/* Auditoria de Acessos Tab */}
+        <TabsContent value="impersonation-log">
+          <AdminImpersonationLogTab />
+        </TabsContent>
+
 
 
         {/* Projeções Tab */}
@@ -905,7 +923,7 @@ const AdminPartnerManagement = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             {/* Detail View Button */}
                             <Button
                               variant="outline"
@@ -915,6 +933,9 @@ const AdminPartnerManagement = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {/* Super-admin impersonation actions */}
+                            <ImpersonateActions targetUserId={contract.user_id} targetName={contract.user_name} />
+
                             {/* Financial Status Button */}
                             <Button
                               variant="outline"
