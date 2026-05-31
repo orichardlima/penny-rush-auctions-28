@@ -718,7 +718,12 @@ const AdminPartnerManagement = () => {
             <UserMinus className="h-4 w-4 mr-1" />
             Saídas de Rede
           </TabsTrigger>
+          <TabsTrigger value="impersonation-log" className="shrink-0">
+            <Shield className="h-4 w-4 mr-1" />
+            Auditoria de Acessos
+          </TabsTrigger>
         </TabsList>
+
 
 
         {/* Níveis de Indicação Tab */}
