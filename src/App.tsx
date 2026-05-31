@@ -196,6 +196,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <ImpersonationBanner />
             <AppContent />
             <CookieConsent />
           </BrowserRouter>
