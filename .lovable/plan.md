@@ -1,40 +1,44 @@
 ## Problema
 
-A Sabriny saiu da rede da Géssica (registro em `partner_network_exits` IN_TRANSIT, com `reversed_available_count=1` / `reversed_available_total=4000`).
+Quando a Sabriny saiu da rede da Géssica, a função `partner_request_leave_sponsor` reverteu apenas os bônus **diretamente gerados pelo contrato da Sabriny** (nível 1). Mas a Maria (indicada pela Sabriny) gerou bônus de nível 2 para a Géssica — esses R$ 500 continuam `AVAILABLE` no painel da Géssica.
 
-A função `partner_request_leave_sponsor` corretamente:
-- Mudou o status do bônus de R$ 4.000 (id `9cf371d3...`) para `CANCELLED`.
-- Decrementou o `available_balance` do contrato da Géssica.
+Regra correta: quando um parceiro sai da rede, **toda a sub-rede que pendurava nele deixa de contar para a antiga upline**. Todos os bônus L1/L2/L3 que a antiga upline recebeu por causa de contratos descendentes da Sabriny precisam ser cancelados.
 
-Mas **não cancelou o registro correspondente em `partner_payouts`** (id `5c912c07-4255-4f80-94eb-aee1521a0a0f`, status PAID, R$ 4.000, vinculado via `referral_bonus_id`).
-
-Como o saldo de saque do parceiro é calculado por `SUM(partner_payouts.PAID) - SUM(partner_withdrawals)`, esse payout fantasma faz o saldo de saque continuar incluindo os R$ 4.000 (saldo atual da Géssica: R$ 8.500, que cai para R$ 4.500 após a correção).
-
-Também impacta a tela "Indique Parceiros", onde `stats.totalValue` e contagens por nível em `usePartnerReferrals` somam bônus `CANCELLED`, inflando os totais exibidos.
+Exemplo confirmado no banco:
+- Bônus L2 `dcbf3747...` — R$ 500, Géssica recebeu por aporte da Maria (indicada da Sabriny) — está `AVAILABLE` (deveria estar `CANCELLED`).
 
 ## Solução
 
-### 1. Migration — corrigir função e fazer backfill
+### 1. Migration — corrigir funções de saída + backfill
 
-- Atualizar `partner_request_leave_sponsor` para, dentro do loop que cancela bônus AVAILABLE, também marcar o `partner_payouts` correspondente como `CANCELLED` (`UPDATE partner_payouts SET status='CANCELLED' WHERE referral_bonus_id = v_bonus.id AND status IN ('PAID','PENDING')`).
-- Aplicar a mesma correção em qualquer outra função/admin tool que reverta bônus AVAILABLE (verificar a versão no `_0136e9a8` e em `TransferSponsorManager`).
-- Backfill pontual: cancelar o payout `5c912c07-4255-4f80-94eb-aee1521a0a0f` (status `PAID` → `CANCELLED`) para que o saldo da Géssica reflita os R$ 4.500 reais.
+Atualizar as três funções de saída (`partner_request_leave_sponsor`, `partner_leave_sponsor_network`, `admin_transfer_partner_sponsor`) para expandir o escopo da reversão:
 
-### 2. Frontend — `src/hooks/usePartnerReferrals.ts`
+Em vez de filtrar somente `referred_contract_id = p_contract_id`, usar uma CTE recursiva que monta o conjunto **{contrato que está saindo} ∪ {todos os descendentes via `referred_by_user_id`}**, e cancelar todos os bônus onde:
+- `referred_contract_id IN (esse conjunto)`
+- `referrer_contract_id` pertence a um contrato da antiga upline (sponsor antigo + 2 níveis acima, ou seja, qualquer contrato cujo `user_id` esteja na cadeia upline antiga até L3)
 
-Ajustar `stats` para **excluir bônus CANCELLED** de:
-- `total`
-- `totalValue`
-- `byLevel.level1/2/3.count` e `.value`
+Para cada bônus `AVAILABLE` cancelado:
+- decrementar `partner_contracts.available_balance` do referrer
+- marcar `partner_payouts` vinculados (`referral_bonus_id`) como `CANCELLED`
 
-Mantendo a linha CANCELLED visível no histórico (`bonuses` array continua igual, apenas a estatística agregada ignora cancelados).
+Bônus `PENDING` no mesmo escopo também viram `CANCELLED` (sem mexer em saldo).
+
+Atualizar `partner_network_exits.reversed_available_count/total` e `cancelled_pending_count/total` para refletir o escopo expandido.
+
+### 2. Backfill pontual
+
+Aplicar a mesma lógica para a saída já processada da Sabriny:
+- Cancelar bônus `dcbf3747...` (R$ 500 L2 da Géssica).
+- Decrementar R$ 500 do `available_balance` da Géssica (cai de R$ 4.500 → R$ 4.000).
+- Cancelar `partner_payouts` correspondentes (se existirem) ao bônus L2.
+- Repetir para qualquer outro bônus L2/L3 cujo `referred` esteja na sub-rede da Sabriny e cujo `referrer` esteja na upline antiga (Géssica e até 2 níveis acima).
 
 ## Verificação
 
-- Após a migration: `SELECT SUM(amount) FROM partner_payouts WHERE partner_contract_id='f143036a...' AND status='PAID'` deve retornar 5.725, e o saldo disponível deve cair para R$ 4.500 (5.725 - 1.225 já sacados).
-- Painel de "Indique Parceiros" da Géssica não deve mais contar a Sabriny nos cards de "Diretos / Total em bônus".
-- O histórico continua mostrando a linha da Sabriny com badge "Cancelado".
+- Após migration: o bônus L2 de R$ 500 da Maria → Géssica fica `CANCELLED`.
+- Saldo de saque da Géssica passa de R$ 4.500 para R$ 4.000.
+- Painel "Indique Parceiros" da Géssica não conta mais o bônus da Maria (o hook já exclui `CANCELLED` dos totais agregados; só precisa do banco corrigido).
 
 ## Escopo
 
-Nenhuma outra UI ou workflow é alterado.
+Apenas o backend das três funções de saída e backfill. Nenhuma alteração de UI, workflow novo ou outras regras de negócio.
