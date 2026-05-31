@@ -743,6 +743,12 @@ const AdminPartnerManagement = () => {
           <AdminReferralBonusesTab />
         </TabsContent>
 
+        {/* Transferir Patrocinador Tab */}
+        <TabsContent value="transfer-sponsor">
+          <TransferSponsorManager />
+        </TabsContent>
+
+
         {/* Projeções Tab */}
         <TabsContent value="projections">
           <RevenueProjectionDashboard />
