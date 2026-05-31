@@ -711,6 +711,10 @@ const AdminPartnerManagement = () => {
             <Users className="h-4 w-4 mr-1" />
             Transferir Patrocinador
           </TabsTrigger>
+          <TabsTrigger value="network-exits" className="shrink-0">
+            <UserMinus className="h-4 w-4 mr-1" />
+            Saídas de Rede
+          </TabsTrigger>
         </TabsList>
 
 
