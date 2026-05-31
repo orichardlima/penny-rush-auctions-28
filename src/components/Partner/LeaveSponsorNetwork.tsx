@@ -26,7 +26,8 @@ interface Eligibility {
   eligible: boolean;
   reason?: string;
   days_since_activation?: number;
-  days_until_eligible?: number;
+  days_until_deadline?: number;
+  deadline?: string;
   cooldown_until?: string;
   last_exit_at?: string;
 }
