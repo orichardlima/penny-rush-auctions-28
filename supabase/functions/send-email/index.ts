@@ -6,6 +6,11 @@ import { WelcomeEmail } from "./_templates/welcome-email.tsx";
 import { AuctionWinEmail } from "./_templates/auction-win-email.tsx";
 import { OrderStatusEmail } from "./_templates/order-status-email.tsx";
 import { PaymentReminderEmail } from "./_templates/payment-reminder-email.tsx";
+import { NetworkExitPartnerEmail } from "./_templates/network-exit-partner.tsx";
+import { NetworkExitOldSponsorEmail } from "./_templates/network-exit-old-sponsor.tsx";
+import { NetworkExitReminderEmail } from "./_templates/network-exit-reminder.tsx";
+import { NetworkExitNewSponsorEmail } from "./_templates/network-exit-new-sponsor.tsx";
+import { NetworkExitRevertedEmail } from "./_templates/network-exit-reverted.tsx";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -15,7 +20,10 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'welcome' | 'auction_win' | 'order_status' | 'payment_reminder';
+  type: 'welcome' | 'auction_win' | 'order_status' | 'payment_reminder'
+      | 'network_exit_partner' | 'network_exit_old_sponsor'
+      | 'network_exit_reminder' | 'network_exit_new_sponsor'
+      | 'network_exit_reverted';
   to: string;
   data: any;
 }
@@ -84,6 +92,37 @@ const handler = async (req: Request): Promise<Response> => {
             orderId: data.orderId
           })
         );
+        break;
+
+      case 'network_exit_partner':
+        subject = 'Saída da rede confirmada – você tem 7 dias para escolher novo patrocinador';
+        html = await renderAsync(React.createElement(NetworkExitPartnerEmail, data));
+        break;
+
+      case 'network_exit_old_sponsor':
+        subject = data.definitive
+          ? `${data.partnerName} encontrou um novo patrocinador`
+          : `${data.partnerName} saiu da sua rede`;
+        html = await renderAsync(React.createElement(NetworkExitOldSponsorEmail, data));
+        break;
+
+      case 'network_exit_reminder':
+        subject = `⏳ Faltam ${data.daysLeft} dia(s) para escolher um novo patrocinador`;
+        html = await renderAsync(React.createElement(NetworkExitReminderEmail, data));
+        break;
+
+      case 'network_exit_new_sponsor':
+        subject = data.forPartner
+          ? `Bem-vindo(a) à rede de ${data.newSponsorName}`
+          : `${data.partnerName} entrou na sua rede`;
+        html = await renderAsync(React.createElement(NetworkExitNewSponsorEmail, data));
+        break;
+
+      case 'network_exit_reverted':
+        subject = data.forPartner
+          ? 'Seu prazo expirou: você voltou para a rede anterior'
+          : `${data.partnerName} voltou para a sua rede`;
+        html = await renderAsync(React.createElement(NetworkExitRevertedEmail, data));
         break;
 
       default:

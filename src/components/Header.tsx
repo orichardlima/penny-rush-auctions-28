@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { getPartnerReferralCode } from "@/hooks/usePartnerReferralTracking";
+import NotificationBell from "@/components/NotificationBell";
 
 interface HeaderProps {
   userBids?: number;
@@ -247,6 +248,8 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                   <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" aria-hidden="true" />
                   <span className="hidden sm:inline">Comprar</span>
                 </Button>
+
+                <NotificationBell />
 
                 {/* User Profile - Desktop Dropdown */}
                 <DropdownMenu>
