@@ -23,6 +23,8 @@ import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import TransferSponsorManager from './TransferSponsorManager';
 import AdminNetworkExitsTab from './AdminNetworkExitsTab';
+import AdminImpersonationLogTab from './AdminImpersonationLogTab';
+import ImpersonateActions from './ImpersonateActions';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
