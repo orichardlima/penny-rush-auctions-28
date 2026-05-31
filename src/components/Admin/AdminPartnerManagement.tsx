@@ -22,6 +22,7 @@ import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import TransferSponsorManager from './TransferSponsorManager';
+import AdminNetworkExitsTab from './AdminNetworkExitsTab';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
@@ -58,6 +59,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown
+  , UserMinus,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
@@ -709,6 +711,10 @@ const AdminPartnerManagement = () => {
           <TabsTrigger value="transfer-sponsor" className="shrink-0">
             <Users className="h-4 w-4 mr-1" />
             Transferir Patrocinador
+          </TabsTrigger>
+          <TabsTrigger value="network-exits" className="shrink-0">
+            <UserMinus className="h-4 w-4 mr-1" />
+            Saídas de Rede
           </TabsTrigger>
         </TabsList>
 
