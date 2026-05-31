@@ -1,37 +1,40 @@
-## Objetivo
-Fazer o botão “Acessar como parceiro” funcionar sem retornar `Edge Function returned a non-2xx status code`.
+## Problema
 
-## O que vou fazer
-1. **Restaurar a publicação da função `admin-impersonate-user`**
-   - Ajustar a implementação da Edge Function para seguir o mesmo padrão das funções já ativas no projeto.
-   - Garantir que ela seja reconhecida e publicada no Supabase, porque hoje a rota está retornando `404 NOT_FOUND`.
+A Sabriny saiu da rede da Géssica (registro em `partner_network_exits` IN_TRANSIT, com `reversed_available_count=1` / `reversed_available_total=4000`).
 
-2. **Validar a lógica do fluxo `login_as`**
-   - Confirmar que a função:
-     - valida o super-admin corretamente,
-     - grava em `admin_impersonation_log`,
-     - busca o usuário alvo,
-     - gera o link de acesso sem falhar.
-   - Se houver incompatibilidade de runtime/deploy, adaptar imports/config para o padrão estável usado nas outras Edge Functions do projeto.
+A função `partner_request_leave_sponsor` corretamente:
+- Mudou o status do bônus de R$ 4.000 (id `9cf371d3...`) para `CANCELLED`.
+- Decrementou o `available_balance` do contrato da Géssica.
 
-3. **Testar o retorno esperado no frontend**
-   - Verificar que `ImpersonateActions.tsx` volta a receber resposta 2xx.
-   - Confirmar que o toast de erro desaparece e o fluxo de abertura do link funciona.
+Mas **não cancelou o registro correspondente em `partner_payouts`** (id `5c912c07-4255-4f80-94eb-aee1521a0a0f`, status PAID, R$ 4.000, vinculado via `referral_bonus_id`).
 
-## Diagnóstico encontrado
-- A tabela e as policies de `admin_impersonation_log` existem.
-- O super-admin já foi corrigido no `system_settings`.
-- O erro atual não é mais de permissão do botão.
-- A chamada para a Edge Function `/admin-impersonate-user` está retornando **404**, indicando que a função existe no código, mas **não está publicada/ativa** no projeto.
-- Não encontrei logs recentes da função no Supabase, o que reforça que ela não chegou a ser executada.
+Como o saldo de saque do parceiro é calculado por `SUM(partner_payouts.PAID) - SUM(partner_withdrawals)`, esse payout fantasma faz o saldo de saque continuar incluindo os R$ 4.000 (saldo atual da Géssica: R$ 8.500, que cai para R$ 4.500 após a correção).
 
-## Detalhes técnicos
-- Arquivo da função: `supabase/functions/admin-impersonate-user/index.ts`
-- Ponto do frontend que chama a função: `src/components/Admin/ImpersonateActions.tsx`
-- Migration da auditoria: `supabase/migrations/20260531150526_5e238037-4132-4c2e-a900-c5db8159e12e.sql`
-- Se o deploy estiver falhando por compatibilidade do runtime, vou alinhar imports/config com o padrão das outras funções do projeto e então republicar/testar a função.
+Também impacta a tela "Indique Parceiros", onde `stats.totalValue` e contagens por nível em `usePartnerReferrals` somam bônus `CANCELLED`, inflando os totais exibidos.
 
-## Resultado esperado
-- O botão `🔑` deixa de mostrar erro.
-- O acesso como parceiro gera o link corretamente.
-- O fluxo continua restrito apenas ao super-admin, sem alterar outras áreas do sistema.
+## Solução
+
+### 1. Migration — corrigir função e fazer backfill
+
+- Atualizar `partner_request_leave_sponsor` para, dentro do loop que cancela bônus AVAILABLE, também marcar o `partner_payouts` correspondente como `CANCELLED` (`UPDATE partner_payouts SET status='CANCELLED' WHERE referral_bonus_id = v_bonus.id AND status IN ('PAID','PENDING')`).
+- Aplicar a mesma correção em qualquer outra função/admin tool que reverta bônus AVAILABLE (verificar a versão no `_0136e9a8` e em `TransferSponsorManager`).
+- Backfill pontual: cancelar o payout `5c912c07-4255-4f80-94eb-aee1521a0a0f` (status `PAID` → `CANCELLED`) para que o saldo da Géssica reflita os R$ 4.500 reais.
+
+### 2. Frontend — `src/hooks/usePartnerReferrals.ts`
+
+Ajustar `stats` para **excluir bônus CANCELLED** de:
+- `total`
+- `totalValue`
+- `byLevel.level1/2/3.count` e `.value`
+
+Mantendo a linha CANCELLED visível no histórico (`bonuses` array continua igual, apenas a estatística agregada ignora cancelados).
+
+## Verificação
+
+- Após a migration: `SELECT SUM(amount) FROM partner_payouts WHERE partner_contract_id='f143036a...' AND status='PAID'` deve retornar 5.725, e o saldo disponível deve cair para R$ 4.500 (5.725 - 1.225 já sacados).
+- Painel de "Indique Parceiros" da Géssica não deve mais contar a Sabriny nos cards de "Diretos / Total em bônus".
+- O histórico continua mostrando a linha da Sabriny com badge "Cancelado".
+
+## Escopo
+
+Nenhuma outra UI ou workflow é alterado.
