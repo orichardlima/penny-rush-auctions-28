@@ -2766,7 +2766,7 @@ export type Database = {
         Args: {
           p_cancel_pending_bonuses?: boolean
           p_contract_id: string
-          p_new_sponsor_user_id?: string
+          p_new_sponsor_user_id: string
           p_reason?: string
           p_remove_from_binary?: boolean
           p_reverse_available_bonuses?: boolean
@@ -3123,6 +3123,10 @@ export type Database = {
         Returns: Json
       }
       partner_process_expired_network_exits: { Args: never; Returns: Json }
+      partner_request_leave_sponsor: {
+        Args: { p_contract_id: string; p_ip?: string; p_reason?: string }
+        Returns: Json
+      }
       partner_search_eligible_sponsors: {
         Args: { p_contract_id: string; p_term: string }
         Returns: {

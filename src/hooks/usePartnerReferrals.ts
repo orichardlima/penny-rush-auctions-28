@@ -164,19 +164,21 @@ export const usePartnerReferrals = () => {
     }
   }, [profile?.user_id, fetchReferralData]);
 
-  // Estatísticas por nível
-  const level1Bonuses = bonuses.filter(b => b.referral_level === 1);
-  const level2Bonuses = bonuses.filter(b => b.referral_level === 2);
-  const level3Bonuses = bonuses.filter(b => b.referral_level === 3);
+  // Estatísticas por nível — excluem bônus CANCELLED dos totais agregados
+  // (o histórico continua exibindo a linha com o badge "Cancelado")
+  const activeBonuses = bonuses.filter(b => b.status !== 'CANCELLED');
+  const level1Bonuses = activeBonuses.filter(b => b.referral_level === 1);
+  const level2Bonuses = activeBonuses.filter(b => b.referral_level === 2);
+  const level3Bonuses = activeBonuses.filter(b => b.referral_level === 3);
 
   const stats = {
-    total: bonuses.length,
+    total: activeBonuses.length,
     pending: bonuses.filter(b => b.status === 'PENDING').length,
     available: bonuses.filter(b => b.status === 'AVAILABLE').length,
     paid: bonuses.filter(b => b.status === 'PAID').length,
     suspended: bonuses.filter(b => b.status === 'SUSPENDED').length,
     cancelled: bonuses.filter(b => b.status === 'CANCELLED').length,
-    totalValue: bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
+    totalValue: activeBonuses.reduce((sum, b) => sum + b.bonus_value, 0),
     availableValue: bonuses.filter(b => b.status === 'AVAILABLE').reduce((sum, b) => sum + b.bonus_value, 0),
     // Estatísticas por nível
     byLevel: {
