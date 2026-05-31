@@ -134,6 +134,45 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_impersonation_log: {
+        Row: {
+          admin_user_id: string
+          ended_at: string | null
+          id: string
+          ip_address: string | null
+          mode: string
+          reason: string
+          started_at: string
+          target_email: string | null
+          target_user_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          ended_at?: string | null
+          id?: string
+          ip_address?: string | null
+          mode: string
+          reason: string
+          started_at?: string
+          target_email?: string | null
+          target_user_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          ended_at?: string | null
+          id?: string
+          ip_address?: string | null
+          mode?: string
+          reason?: string
+          started_at?: string
+          target_email?: string | null
+          target_user_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       affiliate_commissions: {
         Row: {
           affiliate_id: string
@@ -3036,6 +3075,7 @@ export type Database = {
       }
       is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
       is_affiliate_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {
           p_action_type: string
