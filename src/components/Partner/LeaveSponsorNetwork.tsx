@@ -366,8 +366,14 @@ const LeaveSponsorNetwork: React.FC<Props> = ({ contractId, partnerFullName, onC
           Sair da rede do meu patrocinador
         </CardTitle>
         <CardDescription>
-          Caso haja incompatibilidade com seu patrocinador atual, você pode sair da rede dele.
-          Você terá 7 dias para escolher um novo patrocinador; caso contrário, voltará automaticamente.
+          Você tem até 30 dias após o cadastro do contrato para sair da rede do seu patrocinador
+          {elig?.deadline && (
+            <> (prazo até <strong>{new Date(elig.deadline).toLocaleDateString('pt-BR')}</strong>)</>
+          )}
+          {elig?.days_until_deadline != null && (
+            <> — restam <strong>{elig.days_until_deadline} dia(s)</strong></>
+          )}
+          . Após confirmar, você terá 7 dias para escolher um novo patrocinador; caso contrário, voltará automaticamente.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
