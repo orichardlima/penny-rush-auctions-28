@@ -59,6 +59,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown
+  , UserMinus,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
