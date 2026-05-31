@@ -1,81 +1,96 @@
-## Contexto
 
-Sabriny quer sair da rede de Géssica. Decisões confirmadas:
+# Sair da Rede do Patrocinador (Autoatendimento)
 
-1. Sabriny continua parceira ativa
-2. Vai direto para empresa (sem patrocinador / órfã no topo)
-3. Bônus já AVAILABLE mas não sacados → reverter
-4. Remover Sabriny da perna binária de Géssica
-5. Vai se repetir → construir ferramenta admin reutilizável
+Recurso no escritório virtual que permite ao parceiro sair da rede do seu patrocinador, com cancelamento/reversão automática de bônus, desconexão binária, prazo de 7 dias para escolher novo patrocinador e retorno automático ao patrocinador original se não escolher.
 
-## Plano: Ferramenta Admin "Transferir Patrocinador"
+## Regras de negócio (consolidadas)
 
-### 1. Nova tela admin: `/admin/partners/transfer-sponsor`
+1. **Elegibilidade para solicitar saída:**
+   - Contrato precisa ter pelo menos **30 dias** desde a ativação (carência).
+   - Contrato `status = 'ACTIVE'` e `financial_status = 'paid'` (sem inadimplência).
+   - Sem solicitação de saída ativa em aberto (não pode ter duas em paralelo).
+   - Deve ter patrocinador atual (não pode "sair da Empresa").
 
-Acesso via menu admin existente (Gestão de Parceiros). Fluxo:
+2. **Efeitos imediatos ao confirmar a saída:**
+   - Cancela todos os bônus de indicação `PENDING` do antigo patrocinador originados deste parceiro (vira `CANCELLED`).
+   - Reverte bônus `AVAILABLE` ainda não sacados: marca `CANCELLED` e debita do `available_balance` do antigo patrocinador (pode ficar negativo — alerta explícito).
+   - Bônus já `PAID` permanecem (não é possível reverter).
+   - Desconecta o parceiro da árvore binária (`partner_binary_positions`): zera `parent_contract_id`, `sponsor_contract_id`, `position`, e remove referência `left_child_id`/`right_child_id` do antigo pai.
+   - Pontos binários já fechados em ciclos PAGOS não voltam; pontos em ciclos abertos são recalculados manualmente (mesma regra da realocação atual).
+   - Parceiro fica **em "trânsito"** (`referred_by_user_id = NULL`, `referrer_contract_id = NULL`) por até 7 dias.
+   - Notificação ao patrocinador antigo (registro em tabela de notificações + e-mail opcional).
 
-- **Buscar parceiro** (por nome/CPF/email) → seleciona contrato ativo
-- **Mostrar situação atual**: patrocinador direto, posição binária (parent + lado), bônus pendentes/disponíveis gerados para o upline
-- **Escolher novo destino**:
-  - Empresa (órfão - `referred_by_user_id = NULL`, `referrer_contract_id = NULL`)
-  - Outro parceiro ativo (busca)
-- **Opções de reversão** (checkboxes):
-  - [ ] Cancelar bônus de indicação PENDING do antigo patrocinador
-  - [ ] Reverter bônus AVAILABLE não sacados (debita `available_balance` do antigo upline, marca bônus como CANCELLED)
-  - [ ] Remover da árvore binária do antigo patrocinador (desconecta posição + recalcula pontos do leg afetado)
-- **Confirmação dupla** com resumo do impacto financeiro
-- **Auditoria**: registra tudo em `admin_audit_log` com `action_type='TRANSFER_SPONSOR'`
+3. **Janela de 7 dias para escolher novo patrocinador:**
+   - Parceiro pode escolher **qualquer parceiro ATIVO**, exceto:
+     - Sua própria downline binária (recursivo nas duas pernas).
+     - O patrocinador do qual acabou de sair (bloqueio para não desfazer a ação trivialmente — pode ser reativado via admin se for engano).
+   - Ao escolher: novo `referred_by_user_id` é definido. Posicionamento binário usa o mesmo fluxo de autoposicionamento existente (spillover na perna vazia do novo upline).
+   - Bônus de indicação para o NOVO patrocinador começam a contar apenas a partir das próximas compras/upgrades (não retroativo).
 
-### 2. Função SQL `admin_transfer_partner_sponsor(...)`
+4. **Expiração do prazo (cron diário):**
+   - Se passar 7 dias sem escolha, **restaura automaticamente** o patrocinador original:
+     - `referred_by_user_id` volta ao antigo.
+     - Reposiciona binário na perna disponível do antigo upline (spillover).
+     - **Não restaura** os bônus cancelados/revertidos (decisão consciente: evita ciclo de saída-volta para zerar saldo do upline). O patrocinador "perde" só os bônus daquele intervalo de 7 dias.
 
-SECURITY DEFINER, só admin pode executar. Em transação única:
+5. **Cooldown e limites anti-abuso:**
+   - Após uma saída concluída (com ou sem novo patrocinador), o parceiro só pode solicitar outra saída após **90 dias**.
+   - Confirmação dupla com digitação do nome completo e checkbox de ciência dos efeitos irreversíveis.
 
-- Atualiza `partner_contracts.referred_by_user_id` e `referrer_contract_id` da Sabriny
-- Limpa `partner_intents` antigas relacionadas a Géssica
-- Atualiza `affiliate_referrals` se houver
-- Se "remover da árvore binária":
-  - Desconecta Sabriny da posição atual (zera `left_child_id`/`right_child_id` no parent)
-  - Subtrai pontos binários propagados pela Sabriny do leg de Géssica e uplines (recalcula `total_left_points`/`total_right_points`)
-  - Sabriny fica órfã na binária (admin pode reposicionar depois via tela de relocação existente)
-- Se "reverter bônus":
-  - `UPDATE partner_referral_bonuses SET status='CANCELLED'` onde beneficiário = Géssica e origem = Sabriny e `status IN ('PENDING','AVAILABLE')`
-  - Para AVAILABLE: debita `available_balance` de Géssica (`UPDATE partner_contracts SET available_balance = available_balance - X`)
-- Insere log em `admin_audit_log` com `old_values`/`new_values` completos
+6. **Auditoria:** toda solicitação registrada em `admin_audit_log` com `action_type='PARTNER_SELF_LEAVE_NETWORK'`, incluindo IP, motivo (opcional), valores impactados.
 
-### 3. Caso específico Sabriny → Empresa (executar agora)
+## UX (escritório virtual do parceiro)
 
-Após aprovar e construir a tela:
-- Admin abre a ferramenta
-- Busca Sabriny → seleciona "Empresa" como destino
-- Marca as 3 opções de reversão
-- Confirma
+Nova seção em **Minha Parceria → Configurações da Rede → "Sair da rede do meu patrocinador"** (oculta para quem já está na Empresa ou ainda em carência).
 
-Tudo via UI, sem migração manual. Próximas brigas → mesmo fluxo.
+Fluxo:
+1. **Tela inicial:** explicação clara, mostra patrocinador atual, prazo de carência (se aplicável), cooldown (se aplicável).
+2. **Prévia de impacto:** "Ao sair você cancelará R$ X em bônus pendentes e reverterá R$ Y já disponíveis para Fulano". Lista pontos binários afetados.
+3. **Motivo (opcional, textarea).**
+4. **Confirmação dupla:** digitar nome completo + checkbox "Entendo que esta ação é irreversível e que tenho 7 dias para escolher novo patrocinador, senão voltarei automaticamente para Fulano".
+5. **Tela pós-saída (estado "em trânsito"):**
+   - Banner persistente: "Você está sem patrocinador. Restam X dias para escolher um novo, senão voltará automaticamente para Fulano".
+   - Campo de busca de novo patrocinador (mesmo padrão da busca admin) com filtro automático excluindo downline.
+   - Botão "Confirmar novo patrocinador".
 
-## Detalhes Técnicos
+## Detalhes técnicos
 
-**Tabelas afetadas:**
-- `partner_contracts` (referred_by_user_id, available_balance)
-- `partner_binary_positions` (desconecta posição, zera pontos propagados)
-- `partner_intents` (limpa)
-- `affiliate_referrals` (limpa se existir)
-- `partner_referral_bonuses` (CANCELLED)
-- `admin_audit_log` (registro)
+### Tabelas novas
+- **`partner_network_exits`**
+  - `id`, `partner_contract_id`, `old_sponsor_user_id`, `old_sponsor_contract_id`, `old_binary_parent_id`, `old_binary_position`
+  - `new_sponsor_user_id` (nullable, preenchido quando escolhe)
+  - `status`: `IN_TRANSIT` | `COMPLETED` | `REVERTED_TIMEOUT` | `REVERTED_ADMIN`
+  - `cancelled_pending_total`, `reverted_available_total`, `affected_bonus_count`
+  - `reason`, `created_at`, `expires_at` (now + 7 dias), `resolved_at`, `ip_address`
+  - RLS: parceiro vê os próprios; admin vê todos.
 
-**Arquivos novos:**
-- `src/pages/admin/TransferSponsor.tsx` — tela
-- `src/components/admin/TransferSponsor/PartnerSearch.tsx`
-- `src/components/admin/TransferSponsor/CurrentStateView.tsx`
-- `src/components/admin/TransferSponsor/TransferForm.tsx`
-- `src/components/admin/TransferSponsor/ConfirmDialog.tsx`
-- Migration: função `admin_transfer_partner_sponsor`
+### Funções SQL (SECURITY DEFINER)
+- `partner_check_leave_eligibility(p_contract_id)` → retorna `{ eligible, reason, days_since_activation, cooldown_remaining, last_exit_at }` para a UI.
+- `partner_preview_leave_network(p_contract_id)` → reusa lógica do preview admin, retorna impacto financeiro e binário.
+- `partner_leave_sponsor_network(p_contract_id, p_reason, p_ip)` → executa a saída (chama internamente o mesmo núcleo de `admin_transfer_partner_sponsor` mas sempre destino = órfão), cria registro em `partner_network_exits`, valida carência/cooldown/elegibilidade, audita.
+- `partner_choose_new_sponsor(p_contract_id, p_new_sponsor_user_id)` → valida exit ativo + não-downline + não é o sponsor antigo, atualiza `referred_by_user_id`, chama autoposicionamento binário, marca exit como `COMPLETED`.
+- `partner_search_eligible_sponsors(p_contract_id, p_term)` → busca parceiros ativos excluindo downline própria (recursivo via CTE em `partner_binary_positions`).
 
-**Rota** adicionada em `src/App.tsx` + item no menu admin.
+### Cron (pg_cron)
+- Job horário `partner_network_exit_expiry` que pega `partner_network_exits` com `status='IN_TRANSIT' AND expires_at < now()` e:
+  - Restaura `referred_by_user_id` para `old_sponsor_user_id`.
+  - Reposiciona binário no `old_binary_parent_id` na perna disponível (ou spillover se ocupada).
+  - Marca exit como `REVERTED_TIMEOUT`.
+  - Notifica parceiro e patrocinador antigo.
 
-**Não altera** nenhuma funcionalidade existente — só adiciona nova tela e função SQL.
+### Reuso
+- 90% da lógica de reversão de bônus e desconexão binária é reaproveitada da função `admin_transfer_partner_sponsor` já existente — extrair núcleo para função interna `_internal_disconnect_from_sponsor()` chamada por ambos os fluxos (admin e self-service).
 
-## Pontos de Atenção
+### Frontend
+- Novo componente `src/components/Partner/LeaveSponsorNetwork.tsx` (card + dialogs).
+- Novo componente `src/components/Partner/ChooseNewSponsorBanner.tsx` (banner persistente quando em trânsito).
+- Integrar em `PartnerDashboard.tsx` (banner no topo se em trânsito) e em uma nova aba/seção de "Configurações da rede".
+- Hook `useNetworkExitStatus` para polling do estado atual.
 
-- **Pontos binários já consumidos em ciclos fechados** (binary_bonuses com status PAID para Géssica) NÃO são revertidos — apenas os ainda não pagos. Decisão registrada como regra: bônus PAGOS são definitivos.
-- **Sabriny precisa ser reposicionada na binária** depois (usar tela existente `admin/binary/partner-relocation` se admin quiser colocá-la em outro lugar; senão fica órfã sem rede).
-- Saldo de Géssica pode ficar negativo se ela já consumiu o crédito em outra coisa — sistema permite, admin vê alerta antes de confirmar.
+### Notificações
+- Inserir em `notifications` (tabela existente) para: parceiro (confirmação, lembrete dia 5, lembrete dia 6, reversão automática), patrocinador antigo (saída ocorreu, parceiro voltou automaticamente).
+
+## Pontos de atenção a confirmar antes de codar
+- **Notificação por e-mail** ao patrocinador antigo: enviar agora ou só notificação in-app? (custo de Resend, sensibilidade do tema)
+- **Reversão de pontos binários em ciclos abertos:** manter recálculo manual (como hoje) ou tentar automatizar? Recomendo manter manual nesta primeira versão.
+- **Saldo negativo do patrocinador:** permitir (como hoje no admin) ou bloquear saída se faltar saldo? Recomendo permitir + alerta.
