@@ -68,37 +68,11 @@ const TransferSponsorManager: React.FC = () => {
     }
     setSearching(true);
     try {
-      const { data: profiles } = await supabase.rpc('admin_search_profiles', { p_query: term, p_limit: 10 } as any);
-      const userIds = (profiles || []).map((p: any) => p.user_id);
-      if (!userIds.length) {
-        setter([]);
-        return;
-      }
-      const { data: contracts } = await supabase
-        .from('partner_contracts')
-        .select('id, user_id, plan_name, status')
-        .in('user_id', userIds)
-        .eq('status', 'ACTIVE');
-
-      const hits: PartnerHit[] = (contracts || []).map((c: any) => {
-        const p = (profiles || []).find((x: any) => x.user_id === c.user_id);
-        return {
-          contract_id: c.id,
-          user_id: c.user_id,
-          full_name: p?.full_name ?? null,
-          email: p?.email ?? null,
-          plan_name: c.plan_name,
-          status: c.status,
-        };
-      });
-      setter(hits);
-    } catch (err: any) {
-      // fallback: tenta buscar pelo profiles direto (caso RPC não exista)
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name, email')
         .or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
-        .limit(10);
+        .limit(20);
       const userIds = (profiles || []).map((p: any) => p.user_id);
       if (!userIds.length) {
         setter([]);
@@ -125,6 +99,7 @@ const TransferSponsorManager: React.FC = () => {
       setSearching(false);
     }
   };
+
 
   const loadPreview = async (hit: PartnerHit) => {
     setSelected(hit);
