@@ -340,8 +340,8 @@ const LeaveSponsorNetwork: React.FC<Props> = ({ contractId, partnerFullName, onC
             <AlertTitle>Indisponível no momento</AlertTitle>
             <AlertDescription className="space-y-1">
               <div>{reasonLabel(elig.reason)}</div>
-              {elig.reason === 'grace_period' && elig.days_until_eligible != null && (
-                <div className="text-xs">Disponível em {elig.days_until_eligible} dia(s).</div>
+              {elig.reason === 'window_expired' && elig.deadline && (
+                <div className="text-xs">Prazo encerrado em {new Date(elig.deadline).toLocaleDateString('pt-BR')}.</div>
               )}
               {elig.reason === 'cooldown' && elig.cooldown_until && (
                 <div className="text-xs">
