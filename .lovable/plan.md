@@ -1,96 +1,94 @@
+## Objetivo
+Notificar o parceiro e o patrocinador antigo (e o novo, quando aplicável) em cada etapa do fluxo de saída da rede, via **e-mail** (Resend, já em uso) e **in-app** (nova tabela + sino no header).
 
-# Sair da Rede do Patrocinador (Autoatendimento)
+## Eventos cobertos
 
-Recurso no escritório virtual que permite ao parceiro sair da rede do seu patrocinador, com cancelamento/reversão automática de bônus, desconexão binária, prazo de 7 dias para escolher novo patrocinador e retorno automático ao patrocinador original se não escolher.
+| # | Evento | Quem recebe | Conteúdo principal |
+|---|--------|-------------|--------------------|
+| 1 | Saída efetivada (`partner_leave_sponsor_network`) | Parceiro | Confirmação, prazo de 7 dias, valores cancelados, data limite |
+| 1b | Saída efetivada | Patrocinador antigo | Parceiro saiu, motivo (se informado), bônus pendentes cancelados, bônus disponíveis revertidos |
+| 2 | Novo patrocinador escolhido (`partner_choose_new_sponsor`) | Parceiro | Confirmação, nome do novo patrocinador |
+| 2b | Novo patrocinador escolhido | Novo patrocinador | Boas-vindas, novo membro entrou na sua rede |
+| 2c | Novo patrocinador escolhido | Patrocinador antigo | Saída definitiva (parceiro encontrou novo patrocinador) |
+| 3 | Lembrete dia 5 e dia 6 (cron) | Parceiro em trânsito | Faltam X dias para escolher, senão volta ao anterior |
+| 4 | Reversão automática por expiração (`partner_process_expired_network_exits`) | Parceiro | Voltou para a rede do patrocinador anterior |
+| 4b | Reversão automática | Patrocinador antigo | Parceiro voltou para sua rede |
 
-## Regras de negócio (consolidadas)
+## Mudanças no banco
 
-1. **Elegibilidade para solicitar saída:**
-   - Contrato precisa ter pelo menos **30 dias** desde a ativação (carência).
-   - Contrato `status = 'ACTIVE'` e `financial_status = 'paid'` (sem inadimplência).
-   - Sem solicitação de saída ativa em aberto (não pode ter duas em paralelo).
-   - Deve ter patrocinador atual (não pode "sair da Empresa").
+### Nova tabela `notifications`
+```
+id, user_id, type, title, message, metadata (jsonb), 
+link (text, opcional), read_at, created_at
+```
+- RLS: usuário lê/atualiza apenas as próprias; admin gerencia tudo
+- Index em `(user_id, read_at, created_at)`
+- GRANTs padrão (authenticated + service_role)
 
-2. **Efeitos imediatos ao confirmar a saída:**
-   - Cancela todos os bônus de indicação `PENDING` do antigo patrocinador originados deste parceiro (vira `CANCELLED`).
-   - Reverte bônus `AVAILABLE` ainda não sacados: marca `CANCELLED` e debita do `available_balance` do antigo patrocinador (pode ficar negativo — alerta explícito).
-   - Bônus já `PAID` permanecem (não é possível reverter).
-   - Desconecta o parceiro da árvore binária (`partner_binary_positions`): zera `parent_contract_id`, `sponsor_contract_id`, `position`, e remove referência `left_child_id`/`right_child_id` do antigo pai.
-   - Pontos binários já fechados em ciclos PAGOS não voltam; pontos em ciclos abertos são recalculados manualmente (mesma regra da realocação atual).
-   - Parceiro fica **em "trânsito"** (`referred_by_user_id = NULL`, `referrer_contract_id = NULL`) por até 7 dias.
-   - Notificação ao patrocinador antigo (registro em tabela de notificações + e-mail opcional).
+### Função helper `create_notification(...)`
+SECURITY DEFINER, usada pelas RPCs e cron para inserir notificação e (opcionalmente) chamar `send-email` via `pg_net`.
 
-3. **Janela de 7 dias para escolher novo patrocinador:**
-   - Parceiro pode escolher **qualquer parceiro ATIVO**, exceto:
-     - Sua própria downline binária (recursivo nas duas pernas).
-     - O patrocinador do qual acabou de sair (bloqueio para não desfazer a ação trivialmente — pode ser reativado via admin se for engano).
-   - Ao escolher: novo `referred_by_user_id` é definido. Posicionamento binário usa o mesmo fluxo de autoposicionamento existente (spillover na perna vazia do novo upline).
-   - Bônus de indicação para o NOVO patrocinador começam a contar apenas a partir das próximas compras/upgrades (não retroativo).
+### Atualizar RPCs existentes
+- `partner_leave_sponsor_network`: ao final, criar 2 notificações (parceiro + ex-sponsor) + disparar 2 e-mails
+- `partner_choose_new_sponsor`: 3 notificações + 3 e-mails
+- `partner_process_expired_network_exits`: 2 notificações + 2 e-mails por exit revertido
 
-4. **Expiração do prazo (cron diário):**
-   - Se passar 7 dias sem escolha, **restaura automaticamente** o patrocinador original:
-     - `referred_by_user_id` volta ao antigo.
-     - Reposiciona binário na perna disponível do antigo upline (spillover).
-     - **Não restaura** os bônus cancelados/revertidos (decisão consciente: evita ciclo de saída-volta para zerar saldo do upline). O patrocinador "perde" só os bônus daquele intervalo de 7 dias.
+### Novo job pg_cron `partner_network_exit_reminders`
+- Roda 1x/dia
+- Busca exits `IN_TRANSIT` cujos `expires_at` está a 1 ou 2 dias (dias 5/6 desde criação)
+- Usa coluna nova `reminders_sent jsonb` em `partner_network_exits` para não duplicar lembretes
+- Envia notificação + e-mail apenas uma vez por marco
 
-5. **Cooldown e limites anti-abuso:**
-   - Após uma saída concluída (com ou sem novo patrocinador), o parceiro só pode solicitar outra saída após **90 dias**.
-   - Confirmação dupla com digitação do nome completo e checkbox de ciência dos efeitos irreversíveis.
+### Extensão de `send-email`
+Adicionar 4 novos `type` no edge function existente:
+- `network_exit_partner` — confirmação ao parceiro
+- `network_exit_old_sponsor` — aviso ao ex-patrocinador
+- `network_exit_reminder` — lembretes dia 5/6
+- `network_exit_new_sponsor` — boas-vindas ao novo
+- `network_exit_reverted_partner` / `network_exit_reverted_sponsor` — reversão automática
 
-6. **Auditoria:** toda solicitação registrada em `admin_audit_log` com `action_type='PARTNER_SELF_LEAVE_NETWORK'`, incluindo IP, motivo (opcional), valores impactados.
+Cada um com seu template `.tsx` em `supabase/functions/send-email/_templates/` reaproveitando o estilo dos existentes.
 
-## UX (escritório virtual do parceiro)
+## Mudanças no frontend
 
-Nova seção em **Minha Parceria → Configurações da Rede → "Sair da rede do meu patrocinador"** (oculta para quem já está na Empresa ou ainda em carência).
+### `src/hooks/useAppNotifications.ts` (novo)
+- Hook genérico: lista notificações do usuário (`notifications` table), realtime via supabase channel, `markAsRead`, `markAllRead`, contador de não-lidas.
 
-Fluxo:
-1. **Tela inicial:** explicação clara, mostra patrocinador atual, prazo de carência (se aplicável), cooldown (se aplicável).
-2. **Prévia de impacto:** "Ao sair você cancelará R$ X em bônus pendentes e reverterá R$ Y já disponíveis para Fulano". Lista pontos binários afetados.
-3. **Motivo (opcional, textarea).**
-4. **Confirmação dupla:** digitar nome completo + checkbox "Entendo que esta ação é irreversível e que tenho 7 dias para escolher novo patrocinador, senão voltarei automaticamente para Fulano".
-5. **Tela pós-saída (estado "em trânsito"):**
-   - Banner persistente: "Você está sem patrocinador. Restam X dias para escolher um novo, senão voltará automaticamente para Fulano".
-   - Campo de busca de novo patrocinador (mesmo padrão da busca admin) com filtro automático excluindo downline.
-   - Botão "Confirmar novo patrocinador".
+### `src/components/NotificationBell.tsx` (novo)
+- Ícone de sino com badge de contagem
+- Popover/Sheet com lista das últimas 20 notificações
+- Clique marca como lida; se houver `link`, navega
+- Empty state amigável
+
+### `src/components/Header.tsx` (edit pontual)
+- Adicionar `<NotificationBell />` ao lado dos controles do usuário logado, sem mexer em mais nada
 
 ## Detalhes técnicos
 
-### Tabelas novas
-- **`partner_network_exits`**
-  - `id`, `partner_contract_id`, `old_sponsor_user_id`, `old_sponsor_contract_id`, `old_binary_parent_id`, `old_binary_position`
-  - `new_sponsor_user_id` (nullable, preenchido quando escolhe)
-  - `status`: `IN_TRANSIT` | `COMPLETED` | `REVERTED_TIMEOUT` | `REVERTED_ADMIN`
-  - `cancelled_pending_total`, `reverted_available_total`, `affected_bonus_count`
-  - `reason`, `created_at`, `expires_at` (now + 7 dias), `resolved_at`, `ip_address`
-  - RLS: parceiro vê os próprios; admin vê todos.
+- E-mails disparados via `pg_net.http_post` para `supabase.functions.invoke('send-email')` — mesmo padrão já usado no projeto (anon key dinâmica, conforme memory `database-dynamic-anon-key-retrieval`)
+- Falhas de e-mail **não** podem reverter a transação principal: chamadas envoltas em `BEGIN ... EXCEPTION WHEN OTHERS THEN ... END;`
+- Notificação in-app é criada na mesma transação da ação (atômico). E-mail é assíncrono (`pg_net`).
+- `metadata` guarda IDs (`exit_id`, `partner_user_id`, `old_sponsor_user_id`) para auditoria e deep-link.
+- Templates de e-mail incluem: motivo informado (quando houver), datas (saída/expiração), valores (R$), nome dos envolvidos.
 
-### Funções SQL (SECURITY DEFINER)
-- `partner_check_leave_eligibility(p_contract_id)` → retorna `{ eligible, reason, days_since_activation, cooldown_remaining, last_exit_at }` para a UI.
-- `partner_preview_leave_network(p_contract_id)` → reusa lógica do preview admin, retorna impacto financeiro e binário.
-- `partner_leave_sponsor_network(p_contract_id, p_reason, p_ip)` → executa a saída (chama internamente o mesmo núcleo de `admin_transfer_partner_sponsor` mas sempre destino = órfão), cria registro em `partner_network_exits`, valida carência/cooldown/elegibilidade, audita.
-- `partner_choose_new_sponsor(p_contract_id, p_new_sponsor_user_id)` → valida exit ativo + não-downline + não é o sponsor antigo, atualiza `referred_by_user_id`, chama autoposicionamento binário, marca exit como `COMPLETED`.
-- `partner_search_eligible_sponsors(p_contract_id, p_term)` → busca parceiros ativos excluindo downline própria (recursivo via CTE em `partner_binary_positions`).
+## Arquivos
 
-### Cron (pg_cron)
-- Job horário `partner_network_exit_expiry` que pega `partner_network_exits` com `status='IN_TRANSIT' AND expires_at < now()` e:
-  - Restaura `referred_by_user_id` para `old_sponsor_user_id`.
-  - Reposiciona binário no `old_binary_parent_id` na perna disponível (ou spillover se ocupada).
-  - Marca exit como `REVERTED_TIMEOUT`.
-  - Notifica parceiro e patrocinador antigo.
+**Novos**
+- `supabase/migrations/<ts>_notifications_and_network_exit_alerts.sql`
+- `supabase/functions/send-email/_templates/network-exit-partner.tsx`
+- `supabase/functions/send-email/_templates/network-exit-old-sponsor.tsx`
+- `supabase/functions/send-email/_templates/network-exit-reminder.tsx`
+- `supabase/functions/send-email/_templates/network-exit-new-sponsor.tsx`
+- `supabase/functions/send-email/_templates/network-exit-reverted.tsx`
+- `src/hooks/useAppNotifications.ts`
+- `src/components/NotificationBell.tsx`
 
-### Reuso
-- 90% da lógica de reversão de bônus e desconexão binária é reaproveitada da função `admin_transfer_partner_sponsor` já existente — extrair núcleo para função interna `_internal_disconnect_from_sponsor()` chamada por ambos os fluxos (admin e self-service).
+**Editados**
+- `supabase/functions/send-email/index.ts` — novos cases
+- `src/components/Header.tsx` — adicionar sino (mínimo, sem refator)
+- `src/integrations/supabase/types.ts` — auto-regenerado após migration
 
-### Frontend
-- Novo componente `src/components/Partner/LeaveSponsorNetwork.tsx` (card + dialogs).
-- Novo componente `src/components/Partner/ChooseNewSponsorBanner.tsx` (banner persistente quando em trânsito).
-- Integrar em `PartnerDashboard.tsx` (banner no topo se em trânsito) e em uma nova aba/seção de "Configurações da rede".
-- Hook `useNetworkExitStatus` para polling do estado atual.
-
-### Notificações
-- Inserir em `notifications` (tabela existente) para: parceiro (confirmação, lembrete dia 5, lembrete dia 6, reversão automática), patrocinador antigo (saída ocorreu, parceiro voltou automaticamente).
-
-## Pontos de atenção a confirmar antes de codar
-- **Notificação por e-mail** ao patrocinador antigo: enviar agora ou só notificação in-app? (custo de Resend, sensibilidade do tema)
-- **Reversão de pontos binários em ciclos abertos:** manter recálculo manual (como hoje) ou tentar automatizar? Recomendo manter manual nesta primeira versão.
-- **Saldo negativo do patrocinador:** permitir (como hoje no admin) ou bloquear saída se faltar saldo? Recomendo permitir + alerta.
+## Fora do escopo
+- Preferências de notificação por usuário (mute por tipo) — fica para depois
+- Push notifications (web push / mobile)
+- Reescrever ou redesenhar componentes existentes não relacionados
