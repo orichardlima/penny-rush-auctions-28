@@ -63,7 +63,7 @@ const fmt = (n: number) =>
 
 const reasonLabel = (r?: string) => {
   switch (r) {
-    case 'grace_period': return 'Carência de 30 dias após a ativação ainda não cumprida.';
+    case 'window_expired': return 'O prazo de 30 dias após o cadastro do contrato para sair da rede já expirou.';
     case 'cooldown': return 'Você já saiu de uma rede recentemente. Aguarde o fim do período de carência (90 dias).';
     case 'contract_not_active': return 'Contrato não está ativo.';
     case 'contract_delinquent': return 'Contrato está inadimplente. Regularize antes de solicitar a saída.';
