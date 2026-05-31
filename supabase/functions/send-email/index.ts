@@ -135,10 +135,6 @@ const handler = async (req: Request): Promise<Response> => {
       subject,
       html,
     });
-      to: [to],
-      subject,
-      html,
-    });
 
     console.log(`Email ${type} sent successfully to ${to}:`, emailResponse);
 
