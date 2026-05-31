@@ -1,10 +1,16 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,69 +20,73 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json(401, { error: 'Unauthorized' });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Validar JWT
+    // Valida JWT consultando o próprio Auth com o token do chamador
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(token);
-    if (claimsErr || !claims?.claims?.sub) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { data: userRes, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userRes?.user?.id) {
+      console.error('auth.getUser error', userErr);
+      return json(401, { error: 'Unauthorized' });
     }
-    const adminUserId = claims.claims.sub as string;
+    const adminUserId = userRes.user.id;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Confirmar super-admin
-    const { data: isSuperData } = await admin.rpc('is_super_admin', { _user_id: adminUserId });
+    // Confirma super-admin
+    const { data: isSuperData, error: isSuperErr } = await admin.rpc('is_super_admin', {
+      _user_id: adminUserId,
+    });
+    if (isSuperErr) {
+      console.error('is_super_admin rpc error', isSuperErr);
+      return json(500, { error: 'Falha ao validar super-admin' });
+    }
     if (!isSuperData) {
-      return new Response(JSON.stringify({ error: 'Acesso restrito ao super-admin' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json(403, { error: 'Acesso restrito ao super-admin' });
     }
 
-    const body = await req.json();
-    const { target_user_id, reason, mode } = body as {
-      target_user_id?: string; reason?: string; mode?: 'view_as' | 'login_as';
-    };
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(400, { error: 'Body inválido' });
+    }
+
+    const target_user_id: string | undefined = body?.target_user_id;
+    const reason: string | undefined = body?.reason;
+    const mode: 'view_as' | 'login_as' | undefined = body?.mode;
 
     if (!target_user_id || !reason || reason.trim().length < 10 || !mode) {
-      return new Response(
-        JSON.stringify({ error: 'target_user_id, mode e reason (min 10 chars) são obrigatórios' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return json(400, {
+        error: 'target_user_id, mode e reason (min 10 chars) são obrigatórios',
+      });
     }
-
     if (mode !== 'view_as' && mode !== 'login_as') {
-      return new Response(JSON.stringify({ error: 'mode inválido' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json(400, { error: 'mode inválido' });
     }
 
-    // Buscar e-mail do alvo
-    const { data: targetUser, error: targetErr } = await admin.auth.admin.getUserById(target_user_id);
+    // Busca e-mail do alvo via Admin API
+    const { data: targetUser, error: targetErr } = await admin.auth.admin.getUserById(
+      target_user_id,
+    );
     if (targetErr || !targetUser?.user?.email) {
-      return new Response(JSON.stringify({ error: 'Parceiro não encontrado' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error('getUserById error', targetErr);
+      return json(404, { error: 'Parceiro não encontrado' });
     }
     const targetEmail = targetUser.user.email;
 
-    const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? null;
+    const ip =
+      req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? null;
     const ua = req.headers.get('user-agent') ?? null;
 
-    // Registrar no log de auditoria
+    // Registra auditoria
     const { data: logRow, error: logErr } = await admin
       .from('admin_impersonation_log')
       .insert({
@@ -92,24 +102,28 @@ Deno.serve(async (req) => {
       .single();
     if (logErr) {
       console.error('log insert error', logErr);
-      return new Response(JSON.stringify({ error: 'Falha ao registrar auditoria' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json(500, { error: 'Falha ao registrar auditoria' });
     }
 
     if (mode === 'view_as') {
-      // Retorna snapshot mínimo (perfil + contratos + saldo)
       const [{ data: profile }, { data: contracts }] = await Promise.all([
-        admin.from('profiles').select('*').eq('user_id', target_user_id).single(),
-        admin.from('partner_contracts').select('*').eq('user_id', target_user_id).order('created_at', { ascending: false }),
+        admin.from('profiles').select('*').eq('user_id', target_user_id).maybeSingle(),
+        admin
+          .from('partner_contracts')
+          .select('*')
+          .eq('user_id', target_user_id)
+          .order('created_at', { ascending: false }),
       ]);
-      return new Response(JSON.stringify({
-        ok: true, log_id: logRow.id, mode, target_email: targetEmail,
-        snapshot: { profile, contracts }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json(200, {
+        ok: true,
+        log_id: logRow.id,
+        mode,
+        target_email: targetEmail,
+        snapshot: { profile, contracts: contracts ?? [] },
+      });
     }
 
-    // login_as → gerar magic link
+    // login_as → gera magic link
     const origin = req.headers.get('origin') ?? '';
     const redirectTo = `${origin}/dashboard?impersonating=${logRow.id}`;
 
@@ -120,20 +134,18 @@ Deno.serve(async (req) => {
     });
     if (linkErr || !linkData?.properties?.action_link) {
       console.error('magic link error', linkErr);
-      return new Response(JSON.stringify({ error: 'Falha ao gerar magic link' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json(500, { error: 'Falha ao gerar magic link' });
     }
 
-    return new Response(JSON.stringify({
-      ok: true, log_id: logRow.id, mode,
+    return json(200, {
+      ok: true,
+      log_id: logRow.id,
+      mode,
       target_email: targetEmail,
       action_link: linkData.properties.action_link,
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (e) {
-    console.error(e);
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } catch (e) {
+    console.error('impersonate exception', e);
+    return json(500, { error: (e as Error).message ?? 'Erro interno' });
   }
 });

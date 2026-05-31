@@ -1,26 +1,37 @@
 ## Objetivo
-Fazer os botões de impersonação (👁️ / 🔑) aparecerem na aba **Admin → Parceiros → Contratos** para o super-admin `richardylima91@gmail.com`, corrigindo a validação no hook `useIsSuperAdmin`.
+Fazer o botão “Acessar como parceiro” funcionar sem retornar `Edge Function returned a non-2xx status code`.
 
-## Diagnóstico
-O `system_settings.super_admin_user_id` está configurado corretamente (`a2e6092e-4621-4170-91d5-b68fbaa09ccd` = seu usuário), mas o hook `useIsSuperAdmin` está retornando `false`. A comparação atual feita no frontend é frágil (string vs UUID, possível trim/case, possível shape de retorno do `system_settings` diferente do esperado).
+## O que vou fazer
+1. **Restaurar a publicação da função `admin-impersonate-user`**
+   - Ajustar a implementação da Edge Function para seguir o mesmo padrão das funções já ativas no projeto.
+   - Garantir que ela seja reconhecida e publicada no Supabase, porque hoje a rota está retornando `404 NOT_FOUND`.
 
-## Mudanças
+2. **Validar a lógica do fluxo `login_as`**
+   - Confirmar que a função:
+     - valida o super-admin corretamente,
+     - grava em `admin_impersonation_log`,
+     - busca o usuário alvo,
+     - gera o link de acesso sem falhar.
+   - Se houver incompatibilidade de runtime/deploy, adaptar imports/config para o padrão estável usado nas outras Edge Functions do projeto.
 
-### 1. `src/hooks/useIsSuperAdmin.ts`
-- Substituir a leitura direta de `system_settings` + comparação manual por uma chamada à RPC já existente no banco: `is_super_admin(_user_id uuid)`.
-- A RPC já é `SECURITY DEFINER` e usada em policies, então é a fonte única de verdade.
-- Manter o mesmo shape de retorno (`boolean | null` enquanto carrega) para não quebrar `ImpersonateActions.tsx` nem a aba "Auditoria de Acessos".
+3. **Testar o retorno esperado no frontend**
+   - Verificar que `ImpersonateActions.tsx` volta a receber resposta 2xx.
+   - Confirmar que o toast de erro desaparece e o fluxo de abertura do link funciona.
 
-```ts
-const { data } = await supabase.rpc('is_super_admin', { _user_id: user.id });
-setIsSuperAdmin(!!data);
-```
+## Diagnóstico encontrado
+- A tabela e as policies de `admin_impersonation_log` existem.
+- O super-admin já foi corrigido no `system_settings`.
+- O erro atual não é mais de permissão do botão.
+- A chamada para a Edge Function `/admin-impersonate-user` está retornando **404**, indicando que a função existe no código, mas **não está publicada/ativa** no projeto.
+- Não encontrei logs recentes da função no Supabase, o que reforça que ela não chegou a ser executada.
 
-### 2. Verificação
-- Não altera UI, rotas, policies, nem nenhum outro fluxo administrativo.
-- Confirmar no preview que, logado como `richardylima91@gmail.com`, em `/admin` → aba **Parceiros** → sub-aba **Contratos**, a coluna **Ações** mostra os botões azul (👁️ visualizar como) e âmbar (🔑 impersonar).
-- Confirmar que a aba **Auditoria de Acessos** continua acessível.
+## Detalhes técnicos
+- Arquivo da função: `supabase/functions/admin-impersonate-user/index.ts`
+- Ponto do frontend que chama a função: `src/components/Admin/ImpersonateActions.tsx`
+- Migration da auditoria: `supabase/migrations/20260531150526_5e238037-4132-4c2e-a900-c5db8159e12e.sql`
+- Se o deploy estiver falhando por compatibilidade do runtime, vou alinhar imports/config com o padrão das outras funções do projeto e então republicar/testar a função.
 
-## Fora de escopo
-- Nenhuma mudança em RLS, migrations, edge functions, ou outras telas.
-- Nenhuma mudança visual nos botões ou no layout da tabela de contratos.
+## Resultado esperado
+- O botão `🔑` deixa de mostrar erro.
+- O acesso como parceiro gera o link corretamente.
+- O fluxo continua restrito apenas ao super-admin, sem alterar outras áreas do sistema.
