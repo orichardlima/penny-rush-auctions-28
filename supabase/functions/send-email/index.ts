@@ -94,12 +94,47 @@ const handler = async (req: Request): Promise<Response> => {
         );
         break;
 
+      case 'network_exit_partner':
+        subject = 'Saída da rede confirmada – você tem 7 dias para escolher novo patrocinador';
+        html = await renderAsync(React.createElement(NetworkExitPartnerEmail, data));
+        break;
+
+      case 'network_exit_old_sponsor':
+        subject = data.definitive
+          ? `${data.partnerName} encontrou um novo patrocinador`
+          : `${data.partnerName} saiu da sua rede`;
+        html = await renderAsync(React.createElement(NetworkExitOldSponsorEmail, data));
+        break;
+
+      case 'network_exit_reminder':
+        subject = `⏳ Faltam ${data.daysLeft} dia(s) para escolher um novo patrocinador`;
+        html = await renderAsync(React.createElement(NetworkExitReminderEmail, data));
+        break;
+
+      case 'network_exit_new_sponsor':
+        subject = data.forPartner
+          ? `Bem-vindo(a) à rede de ${data.newSponsorName}`
+          : `${data.partnerName} entrou na sua rede`;
+        html = await renderAsync(React.createElement(NetworkExitNewSponsorEmail, data));
+        break;
+
+      case 'network_exit_reverted':
+        subject = data.forPartner
+          ? 'Seu prazo expirou: você voltou para a rede anterior'
+          : `${data.partnerName} voltou para a sua rede`;
+        html = await renderAsync(React.createElement(NetworkExitRevertedEmail, data));
+        break;
+
       default:
         throw new Error(`Email type not supported: ${type}`);
     }
 
     const emailResponse = await resend.emails.send({
       from: "Leilões <noreply@resend.dev>",
+      to: [to],
+      subject,
+      html,
+    });
       to: [to],
       subject,
       html,
