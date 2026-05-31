@@ -15,13 +15,10 @@ export const useIsSuperAdmin = () => {
     let cancelled = false;
     const check = async () => {
       if (!user) { setIsSuperAdmin(false); setLoading(false); return; }
-      const { data } = await supabase
-        .from('system_settings')
-        .select('setting_value')
-        .eq('setting_key', 'super_admin_user_id')
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('is_super_admin', { _user_id: user.id });
       if (!cancelled) {
-        setIsSuperAdmin(data?.setting_value === user.id);
+        if (error) console.warn('[useIsSuperAdmin] RPC error:', error);
+        setIsSuperAdmin(!!data);
         setLoading(false);
       }
     };
