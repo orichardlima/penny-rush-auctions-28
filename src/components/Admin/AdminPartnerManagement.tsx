@@ -22,6 +22,7 @@ import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
 import TransferSponsorManager from './TransferSponsorManager';
+import AdminNetworkExitsTab from './AdminNetworkExitsTab';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
