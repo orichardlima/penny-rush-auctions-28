@@ -923,7 +923,7 @@ const AdminPartnerManagement = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             {/* Detail View Button */}
                             <Button
                               variant="outline"
@@ -933,6 +933,9 @@ const AdminPartnerManagement = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {/* Super-admin impersonation actions */}
+                            <ImpersonateActions targetUserId={contract.user_id} targetName={contract.user_name} />
+
                             {/* Financial Status Button */}
                             <Button
                               variant="outline"
