@@ -21,6 +21,7 @@ import DailyRevenueConfigManager from './DailyRevenueConfigManager';
 import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
+import TransferSponsorManager from './TransferSponsorManager';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
@@ -705,7 +706,12 @@ const AdminPartnerManagement = () => {
             <Gift className="h-4 w-4 mr-1" />
             Bônus
           </TabsTrigger>
+          <TabsTrigger value="transfer-sponsor" className="shrink-0">
+            <Users className="h-4 w-4 mr-1" />
+            Transferir Patrocinador
+          </TabsTrigger>
         </TabsList>
+
 
         {/* Níveis de Indicação Tab */}
         <TabsContent value="levels">
@@ -736,6 +742,12 @@ const AdminPartnerManagement = () => {
         <TabsContent value="bonuses">
           <AdminReferralBonusesTab />
         </TabsContent>
+
+        {/* Transferir Patrocinador Tab */}
+        <TabsContent value="transfer-sponsor">
+          <TransferSponsorManager />
+        </TabsContent>
+
 
         {/* Projeções Tab */}
         <TabsContent value="projections">

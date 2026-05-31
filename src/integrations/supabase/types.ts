@@ -2614,6 +2614,21 @@ export type Database = {
         }
         Returns: number
       }
+      admin_preview_partner_sponsor_transfer: {
+        Args: { p_contract_id: string }
+        Returns: Json
+      }
+      admin_transfer_partner_sponsor: {
+        Args: {
+          p_cancel_pending_bonuses?: boolean
+          p_contract_id: string
+          p_new_sponsor_user_id?: string
+          p_reason?: string
+          p_remove_from_binary?: boolean
+          p_reverse_available_bonuses?: boolean
+        }
+        Returns: Json
+      }
       archive_old_finished_auctions: { Args: never; Returns: undefined }
       bot_protection_loop: { Args: never; Returns: undefined }
       bot_protection_loop_safe: { Args: never; Returns: undefined }
