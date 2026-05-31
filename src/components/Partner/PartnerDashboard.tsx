@@ -48,6 +48,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryBonusHistory from './BinaryBonusHistory';
 import DailyRevenueBars from './DailyRevenueBars';
+import LeaveSponsorNetwork from './LeaveSponsorNetwork';
 import AdCenterDashboard from './AdCenterDashboard';
 import { useAdCenter } from '@/hooks/useAdCenter';
 import { Separator } from '@/components/ui/separator';
@@ -1296,6 +1297,15 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Sair da rede do patrocinador (autoatendimento) */}
+      {contract.status === 'ACTIVE' && (
+        <LeaveSponsorNetwork
+          contractId={contract.id}
+          partnerFullName={profile?.full_name || ''}
+          onChanged={refreshData}
+        />
       )}
 
       {/* Aviso Legal */}
