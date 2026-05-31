@@ -1880,6 +1880,72 @@ export type Database = {
           },
         ]
       }
+      partner_network_exits: {
+        Row: {
+          cancelled_pending_count: number
+          cancelled_pending_total: number
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          new_sponsor_contract_id: string | null
+          new_sponsor_user_id: string | null
+          old_binary_parent_contract_id: string | null
+          old_binary_position: string | null
+          old_sponsor_contract_id: string | null
+          old_sponsor_user_id: string | null
+          partner_contract_id: string
+          partner_user_id: string
+          reason: string | null
+          resolved_at: string | null
+          reversed_available_count: number
+          reversed_available_total: number
+          status: string
+        }
+        Insert: {
+          cancelled_pending_count?: number
+          cancelled_pending_total?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          new_sponsor_contract_id?: string | null
+          new_sponsor_user_id?: string | null
+          old_binary_parent_contract_id?: string | null
+          old_binary_position?: string | null
+          old_sponsor_contract_id?: string | null
+          old_sponsor_user_id?: string | null
+          partner_contract_id: string
+          partner_user_id: string
+          reason?: string | null
+          resolved_at?: string | null
+          reversed_available_count?: number
+          reversed_available_total?: number
+          status?: string
+        }
+        Update: {
+          cancelled_pending_count?: number
+          cancelled_pending_total?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          new_sponsor_contract_id?: string | null
+          new_sponsor_user_id?: string | null
+          old_binary_parent_contract_id?: string | null
+          old_binary_position?: string | null
+          old_sponsor_contract_id?: string | null
+          old_sponsor_user_id?: string | null
+          partner_contract_id?: string
+          partner_user_id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          reversed_available_count?: number
+          reversed_available_total?: number
+          status?: string
+        }
+        Relationships: []
+      }
       partner_payment_intents: {
         Row: {
           aporte_value: number
@@ -2941,6 +3007,39 @@ export type Database = {
           p_target_type: string
         }
         Returns: undefined
+      }
+      partner_check_leave_eligibility: {
+        Args: { p_contract_id: string }
+        Returns: Json
+      }
+      partner_choose_new_sponsor: {
+        Args: { p_contract_id: string; p_new_sponsor_user_id: string }
+        Returns: Json
+      }
+      partner_get_binary_downline: {
+        Args: { p_contract_id: string }
+        Returns: {
+          contract_id: string
+        }[]
+      }
+      partner_leave_sponsor_network: {
+        Args: { p_contract_id: string; p_ip?: string; p_reason?: string }
+        Returns: Json
+      }
+      partner_preview_leave_network: {
+        Args: { p_contract_id: string }
+        Returns: Json
+      }
+      partner_process_expired_network_exits: { Args: never; Returns: Json }
+      partner_search_eligible_sponsors: {
+        Args: { p_contract_id: string; p_term: string }
+        Returns: {
+          contract_id: string
+          email: string
+          full_name: string
+          plan_name: string
+          user_id: string
+        }[]
       }
       place_bid: {
         Args: { p_auction_id: string; p_user_id: string }
