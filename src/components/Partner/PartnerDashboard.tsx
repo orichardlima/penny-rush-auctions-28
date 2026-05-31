@@ -48,6 +48,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import BinaryNetworkTree from './BinaryNetworkTree';
 import BinaryBonusHistory from './BinaryBonusHistory';
 import DailyRevenueBars from './DailyRevenueBars';
+import LeaveSponsorNetwork from './LeaveSponsorNetwork';
 import AdCenterDashboard from './AdCenterDashboard';
 import { useAdCenter } from '@/hooks/useAdCenter';
 import { Separator } from '@/components/ui/separator';
