@@ -706,7 +706,12 @@ const AdminPartnerManagement = () => {
             <Gift className="h-4 w-4 mr-1" />
             Bônus
           </TabsTrigger>
+          <TabsTrigger value="transfer-sponsor" className="shrink-0">
+            <Users className="h-4 w-4 mr-1" />
+            Transferir Patrocinador
+          </TabsTrigger>
         </TabsList>
+
 
         {/* Níveis de Indicação Tab */}
         <TabsContent value="levels">
