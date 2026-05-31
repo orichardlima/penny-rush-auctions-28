@@ -1443,6 +1443,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          link: string | null
+          message: string | null
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           auction_id: string
@@ -1897,6 +1933,7 @@ export type Database = {
           partner_contract_id: string
           partner_user_id: string
           reason: string | null
+          reminders_sent: Json
           resolved_at: string | null
           reversed_available_count: number
           reversed_available_total: number
@@ -1918,6 +1955,7 @@ export type Database = {
           partner_contract_id: string
           partner_user_id: string
           reason?: string | null
+          reminders_sent?: Json
           resolved_at?: string | null
           reversed_available_count?: number
           reversed_available_total?: number
@@ -1939,6 +1977,7 @@ export type Database = {
           partner_contract_id?: string
           partner_user_id?: string
           reason?: string | null
+          reminders_sent?: Json
           resolved_at?: string | null
           reversed_available_count?: number
           reversed_available_total?: number
@@ -3008,6 +3047,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      notify_user: {
+        Args: {
+          p_email_data?: Json
+          p_email_type?: string
+          p_link?: string
+          p_message?: string
+          p_metadata?: Json
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       partner_check_leave_eligibility: {
         Args: { p_contract_id: string }
         Returns: Json
@@ -3041,6 +3093,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      partner_send_network_exit_reminders: { Args: never; Returns: Json }
       place_bid: {
         Args: { p_auction_id: string; p_user_id: string }
         Returns: undefined
