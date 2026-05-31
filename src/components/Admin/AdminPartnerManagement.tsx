@@ -761,6 +761,17 @@ const AdminPartnerManagement = () => {
           <TransferSponsorManager />
         </TabsContent>
 
+        {/* Saídas de Rede Tab */}
+        <TabsContent value="network-exits">
+          <AdminNetworkExitsTab />
+        </TabsContent>
+
+        {/* Auditoria de Acessos Tab */}
+        <TabsContent value="impersonation-log">
+          <AdminImpersonationLogTab />
+        </TabsContent>
+
+
 
         {/* Projeções Tab */}
         <TabsContent value="projections">
