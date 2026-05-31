@@ -6,6 +6,11 @@ import { WelcomeEmail } from "./_templates/welcome-email.tsx";
 import { AuctionWinEmail } from "./_templates/auction-win-email.tsx";
 import { OrderStatusEmail } from "./_templates/order-status-email.tsx";
 import { PaymentReminderEmail } from "./_templates/payment-reminder-email.tsx";
+import { NetworkExitPartnerEmail } from "./_templates/network-exit-partner.tsx";
+import { NetworkExitOldSponsorEmail } from "./_templates/network-exit-old-sponsor.tsx";
+import { NetworkExitReminderEmail } from "./_templates/network-exit-reminder.tsx";
+import { NetworkExitNewSponsorEmail } from "./_templates/network-exit-new-sponsor.tsx";
+import { NetworkExitRevertedEmail } from "./_templates/network-exit-reverted.tsx";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -15,7 +20,10 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  type: 'welcome' | 'auction_win' | 'order_status' | 'payment_reminder';
+  type: 'welcome' | 'auction_win' | 'order_status' | 'payment_reminder'
+      | 'network_exit_partner' | 'network_exit_old_sponsor'
+      | 'network_exit_reminder' | 'network_exit_new_sponsor'
+      | 'network_exit_reverted';
   to: string;
   data: any;
 }
