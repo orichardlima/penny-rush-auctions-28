@@ -21,6 +21,7 @@ import DailyRevenueConfigManager from './DailyRevenueConfigManager';
 import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
+import TransferSponsorManager from './TransferSponsorManager';
 import { Textarea } from '@/components/ui/textarea';
 import { 
   Users, 
