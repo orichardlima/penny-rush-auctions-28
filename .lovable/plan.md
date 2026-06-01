@@ -1,52 +1,36 @@
+
+# Estornar payouts de bônus de indicação pré-corte (todos os parceiros)
+
 ## Contexto
+Na migração anterior, 75 registros em `partner_referral_bonuses` criados antes de **11/05/2026 14:22:36** (cadastro da Géssica) foram marcados como `CANCELLED`. Porém, os `partner_payouts` correspondentes (que efetivamente compõem o saldo sacável via fórmula `Σ payouts PAID − Σ saques`) continuam `PAID` e seguem inflando o `available_balance` de vários parceiros — exatamente como no caso do Mariano (R$ 1.924,80 indevidos).
 
-A última manutenção recalculou retroativamente o b\u00f4nus de indica\u00e7\u00e3o de TODO o hist\u00f3rico, recriando como AVAILABLE valores que j\u00e1 haviam sido sacados ou compensados de forma indireta. Resultado: **R$ 62.074,44 em 69 b\u00f4nus** apareceram indevidamente no saldo de v\u00e1rios parceiros.
+## Escopo confirmado
+- **69 payouts** com `source='referral_bonus'` e `status='PAID'` referenciam bônus já `CANCELLED`.
+- **Total a estornar: R$ 62.074,44**
+- **15 contratos de parceiros afetados** (inclui Mariano).
+- Critério: `partner_referral_bonuses.status = 'CANCELLED'` (já filtrado pela data de corte da Géssica via trigger e migração anterior).
 
-## Data de corte
+## Ações da migração
 
-Cadastro da parceira **Géssica Teixeira Ramos** — contrato criado em **11/05/2026 14:22 (BRT)**. Tudo anterior a esse instante deve sair do saldo.
+1. **Marcar payouts pré-corte como CANCELLED**
+   - `UPDATE partner_payouts` para todos os `id` em que `source='referral_bonus'`, `status='PAID'` e `referral_bonus_id` aponta para um bônus `CANCELLED`.
+   - Novo status: `CANCELLED`.
+   - Não tocar em `paid_at` (preservar histórico).
 
-## Estado atual no banco
+2. **Recalcular `total_received` dos contratos afetados**
+   - Para cada `partner_contract_id` na lista, atualizar `partner_contracts.total_received = SUM(amount) WHERE status='PAID'` para refletir só payouts ainda válidos.
 
-| status | qtd | total |
-|---|---|---|
-| AVAILABLE antes do corte | 69 | R$ 62.074,44 |
-| CANCELLED antes do corte | 6 | R$ 5.175,12 |
-| AVAILABLE/CANCELLED após o corte | mantém | — |
+3. **Não mexer em saques já realizados**
+   - Saques `PAID`, `APPROVED` ou `PENDING` permanecem inalterados — o saldo recalculado vai naturalmente cair, e em alguns casos pode ficar zerado ou indicar que o parceiro sacou mais do que tinha direito (ficará registrado no histórico para análise admin posterior).
 
-Nenhum b\u00f4nus est\u00e1 em status PAID, ent\u00e3o n\u00e3o h\u00e1 risco de mexer em registros j\u00e1 quitados pela plataforma.
+4. **Salvaguarda futura**
+   - Criar trigger `BEFORE INSERT` em `partner_payouts`: se `source='referral_bonus'` e o `referral_bonus_id` referenciado tiver `status='CANCELLED'`, força `NEW.status='CANCELLED'`. Evita que recálculos futuros "ressuscitem" o valor.
 
-## O que fazer
+## Validação pós-migração
+- `SUM(amount) FROM partner_payouts WHERE source='referral_bonus' AND status='PAID' AND referral_bonus_id IN (CANCELLED)` deve retornar 0.
+- Saldo do Mariano (`contrato 879cbe85…`) deve cair de R$ 2.154,77 para ~R$ 229,98 (somente weekly_aporte − saques).
+- Conferir os outros 14 contratos no painel admin.
 
-### 1. Migração: cancelar b\u00f4nus pré-corte
-
-Atualizar os 69 b\u00f4nus `AVAILABLE` criados antes de `2026-05-11 14:22:36+00` para status `CANCELLED`, preenchendo:
-- `cancellation_reason` (ou campo equivalente existente; se n\u00e3o existir, usar `notes`/`source_event`) com `"Cancelado por corte de recálculo - vigência a partir de 11/05/2026"`
-- mantém `bonus_value`, `created_at`, refer\u00eancias e demais campos para hist\u00f3rico/auditoria.
-
-Isso faz com que sumam imediatamente do `available_balance` e da listagem "Disponível" do escrit\u00f3rio virtual, mas continuem vis\u00edveis no hist\u00f3rico.
-
-### 2. Trava de seguran\u00e7a contra novos recálculos
-
-Inserir registro em `system_settings`:
-- `referral_bonus_cutoff_date = 2026-05-11T14:22:36-03:00`
-
-E criar trigger `BEFORE INSERT` em `partner_referral_bonuses` que:
-- l\u00ea esse setting;
-- se `NEW.created_at < cutoff` **ou** o contrato indicado (`referred_contract_id`) foi criado antes do cutoff, marca `NEW.status = 'CANCELLED'` e `source_event = 'pre_cutoff_skip'`, evitando que qualquer futura rotina de recálculo volte a "ressuscitar" valores antigos.
-
-### 3. Sem mudan\u00e7as de UI/fluxo
-
-Nenhuma altera\u00e7\u00e3o no frontend, no escrit\u00f3rio virtual, no fluxo de saque ou em outros b\u00f4nus (bin\u00e1rio, fast start, etc.). Os hooks `useReferralBonuses` e `usePartnerCashflow` j\u00e1 filtram corretamente por status — CANCELLED j\u00e1 n\u00e3o entra como dispon\u00edvel.
-
-## Detalhes técnicos
-
-- 1 migração SQL contendo: `UPDATE partner_referral_bonuses ...`, `INSERT INTO system_settings ...`, `CREATE OR REPLACE FUNCTION enforce_referral_bonus_cutoff()` + `CREATE TRIGGER`.
-- Antes de aplicar o UPDATE, conferir se a tabela tem coluna `cancellation_reason`. Se n\u00e3o tiver, usar `source_event` (j\u00e1 existe nos inserts vistos).
-- Salvar memória do projeto registrando a data de corte e o motivo.
-
-## Como validar após aplicar
-
-1. `SELECT SUM(bonus_value) FROM partner_referral_bonuses WHERE status='AVAILABLE' AND created_at < '2026-05-11 14:22:36+00'` → deve retornar 0.
-2. Abrir o escrit\u00f3rio virtual de um parceiro afetado → saldo "Bônus disponível" reduz no valor cancelado.
-3. Tentar reexecutar uma rotina de recálculo de teste → novos registros pré-corte j\u00e1 nascem CANCELLED.
+## Observações
+- Nada de UI muda — `useReferralBonuses`, `usePartnerCashflow` e `calculateAvailableBalance` já filtram por status corretamente.
+- Saques já pagos (PAID) não são revertidos — admin pode analisar caso a caso depois.
