@@ -10,6 +10,7 @@ import { AuctionRealtimeProvider } from "@/contexts/AuctionRealtimeContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
 import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
+import { useProfileCompleteGuard } from "@/hooks/useProfileCompleteGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { logChunkError, markReloadAttempted, wasReloadRecent } from "@/utils/chunkErrorTelemetry";
