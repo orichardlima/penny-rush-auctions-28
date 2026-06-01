@@ -41,6 +41,7 @@ interface Profile {
   signup_bonus_received?: boolean;
   signup_bonus_amount?: number;
   signup_bonus_date?: string;
+  profile_complete?: boolean;
 }
 
 interface AuthContextType {
@@ -50,6 +51,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signUp: (email: string, password: string, userData: SignUpData) => Promise<{ error?: any }>;
+  signInWithGoogle: () => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -147,6 +149,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    return { error };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -199,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     updateProfile,
     refreshProfile,

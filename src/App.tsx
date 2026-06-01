@@ -10,6 +10,7 @@ import { AuctionRealtimeProvider } from "@/contexts/AuctionRealtimeContext";
 import { useReferralTracking } from "@/hooks/useReferralTracking";
 import { usePartnerReferralTracking } from "@/hooks/usePartnerReferralTracking";
 import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
+import { useProfileCompleteGuard } from "@/hooks/useProfileCompleteGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { logChunkError, markReloadAttempted, wasReloadRecent } from "@/utils/chunkErrorTelemetry";
@@ -138,6 +139,8 @@ const HowItWorksPage = lazyWithRetry(() => import("./pages/HowItWorks"));
 const BidPackagesPage = lazyWithRetry(() => import("./pages/BidPackages"));
 const Winners = lazyWithRetry(() => import("./pages/Winners"));
 const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
+const CompleteProfile = lazyWithRetry(() => import("./pages/CompleteProfile"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
@@ -163,6 +166,7 @@ const AppContent = () => {
   useReferralTracking();
   usePartnerReferralTracking();
   useRealTimeProtection();
+  useProfileCompleteGuard();
   
   return (
     <Routes>
@@ -172,6 +176,8 @@ const AppContent = () => {
       <Route path="/pacotes" element={<LazyRoute><BidPackagesPage /></LazyRoute>} />
       <Route path="/vencedores" element={<LazyRoute><Winners /></LazyRoute>} />
       <Route path="/auth" element={<LazyRoute><Auth /></LazyRoute>} />
+      <Route path="/auth/callback" element={<LazyRoute><AuthCallback /></LazyRoute>} />
+      <Route path="/complete-profile" element={<LazyRoute><CompleteProfile /></LazyRoute>} />
       <Route path="/dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
       <Route path="/afiliado" element={<LazyRoute><AffiliateDashboard /></LazyRoute>} />
       <Route path="/parceiro" element={<LazyRoute><PartnerLanding /></LazyRoute>} />
