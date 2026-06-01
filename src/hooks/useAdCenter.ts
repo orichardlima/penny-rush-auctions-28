@@ -41,9 +41,9 @@ export interface WeekProgress {
   canConfirmToday: boolean;
 }
 
-const REQUIRED_DAYS = 5;
-const BASE_PERCENTAGE = 70;
-const BONUS_PERCENTAGE = 30;
+const REQUIRED_DAYS = 7;
+const FULL_PERCENTAGE = 100;
+const PENALTY_PERCENTAGE = 40;
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
