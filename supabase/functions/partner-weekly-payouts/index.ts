@@ -87,9 +87,10 @@ interface ProcessResult {
 }
 
 // Constantes da Central de Anúncios
-const AD_CENTER_REQUIRED_DAYS = 5
-const AD_CENTER_BASE_PERCENTAGE = 70
-const AD_CENTER_BONUS_PERCENTAGE = 30
+// Regra: 7/7 dias confirmados = 100%; qualquer falta = 40%
+const AD_CENTER_REQUIRED_DAYS = 7
+const AD_CENTER_FULL_PERCENTAGE = 100
+const AD_CENTER_PENALTY_PERCENTAGE = 40
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -309,16 +310,17 @@ Deno.serve(async (req) => {
           // Continua sem aplicar desconto da central de anúncios
         }
 
-        // 8. Calcular multiplicador de desbloqueio da Central de Anúncios
+        // 8. Calcular multiplicador da Central de Anúncios (tudo ou quase nada)
         const completedAdDays = adCenterCompletions || 0
-        const effectiveAdDays = Math.min(completedAdDays, AD_CENTER_REQUIRED_DAYS)
-        const adCenterUnlockPercentage = AD_CENTER_BASE_PERCENTAGE + (AD_CENTER_BONUS_PERCENTAGE * effectiveAdDays / AD_CENTER_REQUIRED_DAYS)
+        const adCenterUnlockPercentage = completedAdDays >= AD_CENTER_REQUIRED_DAYS
+          ? AD_CENTER_FULL_PERCENTAGE
+          : AD_CENTER_PENALTY_PERCENTAGE
         const adCenterMultiplier = adCenterUnlockPercentage / 100
 
         // 9. Aplicar multiplicador da Central de Anúncios
         const finalAmount = Math.round(amountAfterCaps * adCenterMultiplier * 100) / 100
 
-        console.log(`[partner-weekly-payouts] Contrato ${contract.id}: Calculado=${calculatedAmount.toFixed(2)}, AposCaps=${amountAfterCaps.toFixed(2)}, AdCenter=${completedAdDays}/${AD_CENTER_REQUIRED_DAYS} dias (${adCenterUnlockPercentage.toFixed(0)}%), Final=${finalAmount.toFixed(2)}`)
+        console.log(`[partner-weekly-payouts] Contrato ${contract.id}: Calculado=${calculatedAmount.toFixed(2)}, AposCaps=${amountAfterCaps.toFixed(2)}, AdCenter=${completedAdDays}/${AD_CENTER_REQUIRED_DAYS} dias (${adCenterUnlockPercentage}%), Final=${finalAmount.toFixed(2)}`)
 
         if (finalAmount <= 0) {
           console.log(`[partner-weekly-payouts] Contrato ${contract.id} já atingiu teto total. Fechando.`)

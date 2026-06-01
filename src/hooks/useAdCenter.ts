@@ -41,9 +41,9 @@ export interface WeekProgress {
   canConfirmToday: boolean;
 }
 
-const REQUIRED_DAYS = 5;
-const BASE_PERCENTAGE = 70;
-const BONUS_PERCENTAGE = 30;
+const REQUIRED_DAYS = 7;
+const FULL_PERCENTAGE = 100;
+const PENALTY_PERCENTAGE = 40;
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -174,10 +174,10 @@ export const useAdCenter = (partnerContractId?: string) => {
     }
 
     const completedDays = completions.length;
-    const effectiveDays = Math.min(completedDays, REQUIRED_DAYS);
-    const bonusPercentage = (BONUS_PERCENTAGE * effectiveDays) / REQUIRED_DAYS;
-    const unlockPercentage = BASE_PERCENTAGE + bonusPercentage;
-    
+    const goalReached = completedDays >= REQUIRED_DAYS;
+    const unlockPercentage = goalReached ? FULL_PERCENTAGE : PENALTY_PERCENTAGE;
+    const bonusPercentage = goalReached ? FULL_PERCENTAGE - PENALTY_PERCENTAGE : 0;
+
     // Verificar se já confirmou hoje
     const canConfirmToday = !completions.some(c => c.completion_date === today);
 

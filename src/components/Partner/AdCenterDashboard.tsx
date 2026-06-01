@@ -111,8 +111,8 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
       <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
         <Megaphone className="h-4 w-4 text-amber-600" />
         <AlertDescription className="text-sm">
-          <strong>Central de Anúncios:</strong> Divulgue a plataforma diariamente para desbloquear até 100% 
-          do seu repasse semanal. Complete pelo menos {weekProgress.requiredDays} dias para liberar o bônus total!
+          <strong>Central de Anúncios:</strong> Confirme a divulgação <strong>todos os 7 dias da semana</strong> para
+          receber <strong>100%</strong> do seu repasse semanal. Faltou algum dia? Você recebe apenas <strong>40%</strong> do repasse.
         </AlertDescription>
       </Alert>
 
@@ -137,27 +137,22 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
                   : 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
               )}
             >
-              {weekProgress.unlockPercentage.toFixed(0)}% desbloqueado
+              {weekProgress.unlockPercentage.toFixed(0)}% do repasse
             </Badge>
           </div>
           
           <Progress value={(weekProgress.completedDays / weekProgress.requiredDays) * 100} className="h-3" />
-          
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>70% base</span>
-            <span>+ {weekProgress.bonusPercentage.toFixed(0)}% bônus</span>
-            <span>= {weekProgress.unlockPercentage.toFixed(0)}% total</span>
-          </div>
 
           {!isGoalReached && (
             <p className="text-sm text-center text-muted-foreground">
-              Complete mais <strong className="text-primary">{daysRemaining}</strong> dia{daysRemaining > 1 ? 's' : ''} para desbloquear 100%!
+              Faltam <strong className="text-primary">{daysRemaining}</strong> dia{daysRemaining > 1 ? 's' : ''} para liberar 100% do repasse.
+              Sem os 7 dias, o repasse fica em <strong>40%</strong>.
             </p>
           )}
           
           {isGoalReached && (
             <p className="text-sm text-center text-green-600 font-medium">
-              🎉 Parabéns! Você atingiu a meta semanal!
+              🎉 Meta cumprida! Você vai receber 100% do repasse desta semana.
             </p>
           )}
         </CardContent>

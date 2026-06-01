@@ -1,36 +1,47 @@
 
-# Estornar payouts de bônus de indicação pré-corte (todos os parceiros)
+# Nova regra do repasse semanal — Central de Anúncios
 
-## Contexto
-Na migração anterior, 75 registros em `partner_referral_bonuses` criados antes de **11/05/2026 14:22:36** (cadastro da Géssica) foram marcados como `CANCELLED`. Porém, os `partner_payouts` correspondentes (que efetivamente compõem o saldo sacável via fórmula `Σ payouts PAID − Σ saques`) continuam `PAID` e seguem inflando o `available_balance` de vários parceiros — exatamente como no caso do Mariano (R$ 1.924,80 indevidos).
+## Regra
+- Confirmou os **7 dias** da semana (seg–dom) → recebe **100%** do repasse semanal.
+- Faltou **qualquer dia** → recebe apenas **40%** do repasse semanal.
+- Não há mais escala intermediária (hoje é 70% base + 6% por dia).
 
-## Escopo confirmado
-- **69 payouts** com `source='referral_bonus'` e `status='PAID'` referenciam bônus já `CANCELLED`.
-- **Total a estornar: R$ 62.074,44**
-- **15 contratos de parceiros afetados** (inclui Mariano).
-- Critério: `partner_referral_bonuses.status = 'CANCELLED'` (já filtrado pela data de corte da Géssica via trigger e migração anterior).
+## Alterações
 
-## Ações da migração
+### 1. Backend — `supabase/functions/partner-weekly-payouts/index.ts`
+Substituir a lógica atual (linhas ~85–321):
+- `AD_CENTER_REQUIRED_DAYS = 7` (era 5)
+- Remover `AD_CENTER_BASE_PERCENTAGE` / `AD_CENTER_BONUS_PERCENTAGE`
+- Novo cálculo:
+  ```ts
+  const adCenterUnlockPercentage = completedAdDays >= 7 ? 100 : 40
+  ```
+- Manter o log e o campo `ad_center_multiplier` (vai ficar 1.0 ou 0.4).
 
-1. **Marcar payouts pré-corte como CANCELLED**
-   - `UPDATE partner_payouts` para todos os `id` em que `source='referral_bonus'`, `status='PAID'` e `referral_bonus_id` aponta para um bônus `CANCELLED`.
-   - Novo status: `CANCELLED`.
-   - Não tocar em `paid_at` (preservar histórico).
+### 2. Frontend — `src/hooks/useAdCenter.ts`
+Atualizar constantes e cálculo do `weekProgress`:
+- `REQUIRED_DAYS = 7`
+- Remover `BASE_PERCENTAGE` / `BONUS_PERCENTAGE`
+- `unlockPercentage = completedDays >= 7 ? 100 : 40`
+- `bonusPercentage` deixa de fazer sentido — remover do retorno (ou fixar em 0).
 
-2. **Recalcular `total_received` dos contratos afetados**
-   - Para cada `partner_contract_id` na lista, atualizar `partner_contracts.total_received = SUM(amount) WHERE status='PAID'` para refletir só payouts ainda válidos.
+### 3. UI — `src/components/Partner/AdCenterDashboard.tsx`
+Ajustar textos/explicações para refletir a nova regra:
+- "Confirme TODOS os 7 dias da semana para receber 100% do repasse."
+- "Faltou algum dia? Você receberá apenas 40% do repasse desta semana."
+- Barra de progresso: meta 7/7 (em vez de 5/5).
+- Remover qualquer menção a "70% base + 30% variável".
 
-3. **Não mexer em saques já realizados**
-   - Saques `PAID`, `APPROVED` ou `PENDING` permanecem inalterados — o saldo recalculado vai naturalmente cair, e em alguns casos pode ficar zerado ou indicar que o parceiro sacou mais do que tinha direito (ficará registrado no histórico para análise admin posterior).
+### 4. Memória do projeto
+Atualizar `mem://business-rules/partner-payout-system-consolidated`:
+- De "70% base + 30% condicional a 5 dias" → "100% com 7/7 dias confirmados, senão 40%".
 
-4. **Salvaguarda futura**
-   - Criar trigger `BEFORE INSERT` em `partner_payouts`: se `source='referral_bonus'` e o `referral_bonus_id` referenciado tiver `status='CANCELLED'`, força `NEW.status='CANCELLED'`. Evita que recálculos futuros "ressuscitem" o valor.
+## Quando aplica
+A partir da semana **atual** — assim que o código for publicado, o próximo processamento de `partner-weekly-payouts` já usa a nova regra. Quem não confirmou todos os 7 dias desta semana cairá para 40%.
 
-## Validação pós-migração
-- `SUM(amount) FROM partner_payouts WHERE source='referral_bonus' AND status='PAID' AND referral_bonus_id IN (CANCELLED)` deve retornar 0.
-- Saldo do Mariano (`contrato 879cbe85…`) deve cair de R$ 2.154,77 para ~R$ 229,98 (somente weekly_aporte − saques).
-- Conferir os outros 14 contratos no painel admin.
+Se você preferir aplicar só a partir da **próxima segunda (08/06)**, me avise antes de implementar que eu adiciono um gate por data.
 
-## Observações
-- Nada de UI muda — `useReferralBonuses`, `usePartnerCashflow` e `calculateAvailableBalance` já filtram por status corretamente.
-- Saques já pagos (PAID) não são revertidos — admin pode analisar caso a caso depois.
+## Fora do escopo
+- Não mexer em `partner_payouts` já processados.
+- Não alterar caps semanais/totais nem fórmula base do repasse — só o multiplicador final do Central.
+- Não mudar UI de admin do Central nem o limite de 1 confirmação por dia.
