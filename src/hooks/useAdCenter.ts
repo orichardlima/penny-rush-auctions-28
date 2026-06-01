@@ -174,10 +174,10 @@ export const useAdCenter = (partnerContractId?: string) => {
     }
 
     const completedDays = completions.length;
-    const effectiveDays = Math.min(completedDays, REQUIRED_DAYS);
-    const bonusPercentage = (BONUS_PERCENTAGE * effectiveDays) / REQUIRED_DAYS;
-    const unlockPercentage = BASE_PERCENTAGE + bonusPercentage;
-    
+    const goalReached = completedDays >= REQUIRED_DAYS;
+    const unlockPercentage = goalReached ? FULL_PERCENTAGE : PENALTY_PERCENTAGE;
+    const bonusPercentage = goalReached ? FULL_PERCENTAGE - PENALTY_PERCENTAGE : 0;
+
     // Verificar se já confirmou hoje
     const canConfirmToday = !completions.some(c => c.completion_date === today);
 
