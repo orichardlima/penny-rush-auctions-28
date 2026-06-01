@@ -1,91 +1,52 @@
-## Objetivo
+## Contexto
 
-Permitir login/cadastro via Google em `/auth`, preservando todas as regras do projeto: CPF obrigatório, endereço, código de indicação de parceiro (`partner_referral_code`) e código de afiliado (`referral_code`).
+A última manutenção recalculou retroativamente o b\u00f4nus de indica\u00e7\u00e3o de TODO o hist\u00f3rico, recriando como AVAILABLE valores que j\u00e1 haviam sido sacados ou compensados de forma indireta. Resultado: **R$ 62.074,44 em 69 b\u00f4nus** apareceram indevidamente no saldo de v\u00e1rios parceiros.
 
----
+## Data de corte
 
-## Configuração externa (você faz — manual)
+Cadastro da parceira **Géssica Teixeira Ramos** — contrato criado em **11/05/2026 14:22 (BRT)**. Tudo anterior a esse instante deve sair do saldo.
 
-Sem essas duas etapas o botão não funciona:
+## Estado atual no banco
 
-1. **Google Cloud Console** → criar OAuth Client ID (Web application)
-   - Authorized JavaScript origins: `https://testeleilao.site`, `https://showdelances.com`, `https://penny-rush-auctions-28.lovable.app`, `https://id-preview--a9bdfc06-a96f-4acd-9270-1da71c1988cb.lovable.app`, `http://localhost:3000`
-   - Authorized redirect URI: `https://tlcdidkkxigofdhxnzzo.supabase.co/auth/v1/callback`
-2. **Supabase Dashboard** → Authentication → Providers → Google → habilitar e colar Client ID + Client Secret. Em URL Configuration, garantir Site URL e Redirect URLs com os domínios acima.
+| status | qtd | total |
+|---|---|---|
+| AVAILABLE antes do corte | 69 | R$ 62.074,44 |
+| CANCELLED antes do corte | 6 | R$ 5.175,12 |
+| AVAILABLE/CANCELLED após o corte | mantém | — |
 
-Eu te entrego um passo a passo printável quando você for executar.
+Nenhum b\u00f4nus est\u00e1 em status PAID, ent\u00e3o n\u00e3o h\u00e1 risco de mexer em registros j\u00e1 quitados pela plataforma.
 
----
+## O que fazer
 
-## Mudanças no app
+### 1. Migração: cancelar b\u00f4nus pré-corte
 
-### 1. Banco de dados (1 migration)
+Atualizar os 69 b\u00f4nus `AVAILABLE` criados antes de `2026-05-11 14:22:36+00` para status `CANCELLED`, preenchendo:
+- `cancellation_reason` (ou campo equivalente existente; se n\u00e3o existir, usar `notes`/`source_event`) com `"Cancelado por corte de recálculo - vigência a partir de 11/05/2026"`
+- mantém `bonus_value`, `created_at`, refer\u00eancias e demais campos para hist\u00f3rico/auditoria.
 
-- Adicionar coluna `profile_complete BOOLEAN DEFAULT false` em `public.profiles` (já marcamos como `true` para todos os registros existentes para não afetar usuários atuais).
-- Ajustar `handle_new_user()`:
-  - Detectar provider Google via `NEW.raw_app_meta_data->>'provider' = 'google'`.
-  - Quando vier do Google: criar profile mínimo (email, full_name do Google), CPF/telefone/endereço ficam nulos, `profile_complete = false`.
-  - Quando vier do cadastro tradicional (email/senha): comportamento atual + `profile_complete = true`.
-  - Continuar processando `partner_referral_code` e `referral_code` (afiliado) que vierem via `raw_user_meta_data` — funcionará tanto no fluxo email quanto Google (vamos enviar via `queryParams`/metadata antes do redirect).
+Isso faz com que sumam imediatamente do `available_balance` e da listagem "Disponível" do escrit\u00f3rio virtual, mas continuem vis\u00edveis no hist\u00f3rico.
 
-### 2. Frontend — `/auth` (`src/pages/Auth.tsx`)
+### 2. Trava de seguran\u00e7a contra novos recálculos
 
-- Adicionar botão **"Continuar com Google"** acima do formulário, em ambas as abas (Login e Cadastro), com divisor "ou".
-- Antes do redirect, salvar no `localStorage`:
-  - `pending_partner_ref` (se houver `?ref=` ou `?partner_ref=` na URL ou já em cache)
-  - `pending_affiliate_ref` (se houver código de afiliado ativo na URL)
-- Chamar:
-  ```
-  supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
-      queryParams: { prompt: 'select_account' },
-    },
-  })
-  ```
+Inserir registro em `system_settings`:
+- `referral_bonus_cutoff_date = 2026-05-11T14:22:36-03:00`
 
-### 3. Nova rota `/auth/callback` (`src/pages/AuthCallback.tsx`)
+E criar trigger `BEFORE INSERT` em `partner_referral_bonuses` que:
+- l\u00ea esse setting;
+- se `NEW.created_at < cutoff` **ou** o contrato indicado (`referred_contract_id`) foi criado antes do cutoff, marca `NEW.status = 'CANCELLED'` e `source_event = 'pre_cutoff_skip'`, evitando que qualquer futura rotina de recálculo volte a "ressuscitar" valores antigos.
 
-- Recebe o retorno do Google, aguarda a sessão pelo `onAuthStateChange`.
-- Lê códigos de indicação do `localStorage` e, se existirem, faz `supabase.auth.updateUser({ data: { partner_referral_code, referral_code } })` e dispara uma RPC `apply_pending_referrals_to_profile()` (criada na mesma migration) que reaproveita a lógica de validação/processamento de indicação para usuários Google.
-- Limpa `localStorage` e redireciona para `/complete-profile` se `profile_complete = false`; senão para `/dashboard`.
+### 3. Sem mudan\u00e7as de UI/fluxo
 
-### 4. Nova rota `/complete-profile` (`src/pages/CompleteProfile.tsx`)
+Nenhuma altera\u00e7\u00e3o no frontend, no escrit\u00f3rio virtual, no fluxo de saque ou em outros b\u00f4nus (bin\u00e1rio, fast start, etc.). Os hooks `useReferralBonuses` e `usePartnerCashflow` j\u00e1 filtram corretamente por status — CANCELLED j\u00e1 n\u00e3o entra como dispon\u00edvel.
 
-- Form obrigatório com: CPF (validado e único), telefone, data de nascimento, CEP + autopreenchimento, número, complemento, código de indicação (pré-preenchido do localStorage, editável).
-- Reusa os mesmos validators (`formatCPF`, `formatPhone`, `formatCEP`, `fetchAddressByCEP`) e o `useFieldValidation` (checa CPF duplicado).
-- Ao salvar: `UPDATE profiles SET ..., profile_complete = true` e, se preencheram `partner_referral_code`, reusa a mesma validação do trigger via RPC.
+## Detalhes técnicos
 
-### 5. Guard global de perfil incompleto
+- 1 migração SQL contendo: `UPDATE partner_referral_bonuses ...`, `INSERT INTO system_settings ...`, `CREATE OR REPLACE FUNCTION enforce_referral_bonus_cutoff()` + `CREATE TRIGGER`.
+- Antes de aplicar o UPDATE, conferir se a tabela tem coluna `cancellation_reason`. Se n\u00e3o tiver, usar `source_event` (j\u00e1 existe nos inserts vistos).
+- Salvar memória do projeto registrando a data de corte e o motivo.
 
-- No `AuthContext`/wrapper de rotas autenticadas: se `profile_complete = false` e a rota atual não for `/complete-profile`, `/auth/callback` ou logout, redirecionar para `/complete-profile`. Bloqueia acesso a Dashboard, leilões, checkout, parceiro, etc., até o usuário completar.
+## Como validar após aplicar
 
-### 6. Reaproveitamento do código de indicação
-
-- O hook que hoje lê `?ref=` da URL e guarda no `localStorage` (já existe para o checkout) é o mesmo a ser usado antes do redirect Google — sem nova lógica de tracking.
-
----
-
-## Pontos técnicos importantes
-
-- **Sem nova tabela.** Apenas uma coluna em `profiles`.
-- **Sem mudança em pagamentos, leilões, rede binária ou parceria.** Toda a regra existente (`payer_cannot_be_referrer`, validação do `partner_referral_code`, bônus de cadastro) continua igual; ela é executada via `handle_new_user` ou via RPC pós-complete-profile.
-- **Backfill seguro:** todos os profiles atuais recebem `profile_complete = true`, ninguém é forçado para `/complete-profile` indevidamente.
-- **Conflito de e-mail:** se um e-mail já existe com cadastro por senha e o usuário entra com Google do mesmo e-mail, o Supabase associa as identidades automaticamente (mesmo `user_id`), e o `profile_complete` continuará `true` — sem duplicidade.
-- **Risco de abuso:** como o usuário só consegue dar lance / contratar plano / sacar após preencher CPF, não há janela para fraude com conta Google "vazia".
-
----
-
-## Entregáveis
-
-```text
-supabase/migrations/<timestamp>_google_oauth_profile_complete.sql
-src/pages/Auth.tsx                  (adicionar botão Google)
-src/pages/AuthCallback.tsx          (novo)
-src/pages/CompleteProfile.tsx       (novo)
-src/contexts/AuthContext.tsx        (expor profile_complete + guard)
-src/App.tsx                         (registrar rotas /auth/callback e /complete-profile)
-```
-
-Quando aprovar, eu implemento e te mando junto o passo a passo do Google Cloud + Supabase.
+1. `SELECT SUM(bonus_value) FROM partner_referral_bonuses WHERE status='AVAILABLE' AND created_at < '2026-05-11 14:22:36+00'` → deve retornar 0.
+2. Abrir o escrit\u00f3rio virtual de um parceiro afetado → saldo "Bônus disponível" reduz no valor cancelado.
+3. Tentar reexecutar uma rotina de recálculo de teste → novos registros pré-corte j\u00e1 nascem CANCELLED.
