@@ -509,6 +509,7 @@ const Auth = () => {
             <TabsContent value="signin">
               {!showForgotPassword ? (
                 <form onSubmit={handleSignIn} className="space-y-4">
+                  <GoogleButton />
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
