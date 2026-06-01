@@ -87,9 +87,10 @@ interface ProcessResult {
 }
 
 // Constantes da Central de Anúncios
-const AD_CENTER_REQUIRED_DAYS = 5
-const AD_CENTER_BASE_PERCENTAGE = 70
-const AD_CENTER_BONUS_PERCENTAGE = 30
+// Regra: 7/7 dias confirmados = 100%; qualquer falta = 40%
+const AD_CENTER_REQUIRED_DAYS = 7
+const AD_CENTER_FULL_PERCENTAGE = 100
+const AD_CENTER_PENALTY_PERCENTAGE = 40
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
