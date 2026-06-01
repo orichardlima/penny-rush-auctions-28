@@ -174,6 +174,8 @@ const AppContent = () => {
       <Route path="/pacotes" element={<LazyRoute><BidPackagesPage /></LazyRoute>} />
       <Route path="/vencedores" element={<LazyRoute><Winners /></LazyRoute>} />
       <Route path="/auth" element={<LazyRoute><Auth /></LazyRoute>} />
+      <Route path="/auth/callback" element={<LazyRoute><AuthCallback /></LazyRoute>} />
+      <Route path="/complete-profile" element={<LazyRoute><CompleteProfile /></LazyRoute>} />
       <Route path="/dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
       <Route path="/afiliado" element={<LazyRoute><AffiliateDashboard /></LazyRoute>} />
       <Route path="/parceiro" element={<LazyRoute><PartnerLanding /></LazyRoute>} />
