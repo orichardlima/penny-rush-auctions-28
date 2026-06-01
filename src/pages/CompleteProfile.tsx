@@ -131,10 +131,10 @@ const CompleteProfile = () => {
     if (address) {
       setForm((f) => ({
         ...f,
-        street: address.street || f.street,
-        neighborhood: address.neighborhood || f.neighborhood,
-        city: address.city || f.city,
-        state: address.state || f.state,
+        street: address.logradouro || f.street,
+        neighborhood: address.bairro || f.neighborhood,
+        city: address.localidade || f.city,
+        state: address.uf || f.state,
       }));
     }
   };
