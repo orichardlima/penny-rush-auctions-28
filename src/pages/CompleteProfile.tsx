@@ -78,10 +78,9 @@ const CompleteProfile = () => {
       navigate('/dashboard', { replace: true });
     }
     if (profile?.full_name && !form.fullName) {
-      setForm((f) => ({ ...f, full_name: profile.full_name ?? '' } as any));
       setForm((f) => ({ ...f, fullName: profile.full_name ?? '' }));
     }
-  }, [user, profile, authLoading, navigate]);
+  }, [user, profile, authLoading, navigate, form.fullName]);
 
   // Buscar nome do parceiro indicador
   useEffect(() => {
