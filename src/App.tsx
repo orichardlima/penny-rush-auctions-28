@@ -138,6 +138,8 @@ const HowItWorksPage = lazyWithRetry(() => import("./pages/HowItWorks"));
 const BidPackagesPage = lazyWithRetry(() => import("./pages/BidPackages"));
 const Winners = lazyWithRetry(() => import("./pages/Winners"));
 const Auth = lazyWithRetry(() => import("./pages/Auth"));
+const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
+const CompleteProfile = lazyWithRetry(() => import("./pages/CompleteProfile"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
