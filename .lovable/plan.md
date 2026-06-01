@@ -1,47 +1,46 @@
 
-# Nova regra do repasse semanal — Central de Anúncios
+# Por que a Sabriny só tem R$ 575 disponível
 
-## Regra
-- Confirmou os **7 dias** da semana (seg–dom) → recebe **100%** do repasse semanal.
-- Faltou **qualquer dia** → recebe apenas **40%** do repasse semanal.
-- Não há mais escala intermediária (hoje é 70% base + 6% por dia).
+## Diagnóstico
+Investiguei o contrato da **Sabriny Amorim** (Diamond, aporte R$ 25.000, contrato `abd3ffff…`). Saldo correto deveria estar maior. O que aconteceu:
 
-## Alterações
+1. Em **13/05/2026** a indicada dela **Maria Marta Silva Pacheco** ativou um Diamond → gerou bônus de **R$ 4.000** (16% nível 1) para Sabriny. Bônus liberado, payout `PAID`.
+2. Em **31/05/2026 14:23**, **a própria Sabriny** acionou "Sair da rede do patrocinador" (motivo: "Motivo pessoal!").
+3. A função `partner_request_leave_sponsor` reverteu **todos** os bônus cujo `referred_contract_id` está dentro da subárvore que está saindo — incluindo o bônus de R$ 4.000 que a **própria Sabriny** havia ganhado da Maria Marta (downline dela).
 
-### 1. Backend — `supabase/functions/partner-weekly-payouts/index.ts`
-Substituir a lógica atual (linhas ~85–321):
-- `AD_CENTER_REQUIRED_DAYS = 7` (era 5)
-- Remover `AD_CENTER_BASE_PERCENTAGE` / `AD_CENTER_BONUS_PERCENTAGE`
-- Novo cálculo:
-  ```ts
-  const adCenterUnlockPercentage = completedAdDays >= 7 ? 100 : 40
-  ```
-- Manter o log e o campo `ad_center_multiplier` (vai ficar 1.0 ou 0.4).
+Esse cancelamento está incorreto. A intenção da função é cancelar bônus que iriam para o **patrocinador antigo** (acima da Sabriny). Mas o `WHERE` atual não filtra por quem é o **recebedor** (`referrer_contract_id`), só pelo `referred_contract_id`, então também derrubou bônus internos da própria subárvore.
 
-### 2. Frontend — `src/hooks/useAdCenter.ts`
-Atualizar constantes e cálculo do `weekProgress`:
-- `REQUIRED_DAYS = 7`
-- Remover `BASE_PERCENTAGE` / `BONUS_PERCENTAGE`
-- `unlockPercentage = completedDays >= 7 ? 100 : 40`
-- `bonusPercentage` deixa de fazer sentido — remover do retorno (ou fixar em 0).
+Comprovação no log:
+- `admin_audit_log` → `PARTNER_SELF_LEAVE_NETWORK` com `reversed_available_total: 4000`.
+- `partner_referral_bonuses` `7385cfe2…` (referrer = Sabriny, referred = Maria Marta) virou `CANCELLED`.
+- `partner_payouts` `84e1d48d…` (R$ 4.000) ficou `CANCELLED`.
 
-### 3. UI — `src/components/Partner/AdCenterDashboard.tsx`
-Ajustar textos/explicações para refletir a nova regra:
-- "Confirme TODOS os 7 dias da semana para receber 100% do repasse."
-- "Faltou algum dia? Você receberá apenas 40% do repasse desta semana."
-- Barra de progresso: meta 7/7 (em vez de 5/5).
-- Remover qualquer menção a "70% base + 30% variável".
+Os outros R$ 4.000 + R$ 500 cancelados (bônus que a antiga upline **Géssica** receberia da Sabriny e da Maria Marta) estão corretamente cancelados — esses sim deveriam sair quando a Sabriny pediu saída.
 
-### 4. Memória do projeto
-Atualizar `mem://business-rules/partner-payout-system-consolidated`:
-- De "70% base + 30% condicional a 5 dias" → "100% com 7/7 dias confirmados, senão 40%".
+## O que vou fazer
 
-## Quando aplica
-A partir da semana **atual** — assim que o código for publicado, o próximo processamento de `partner-weekly-payouts` já usa a nova regra. Quem não confirmou todos os 7 dias desta semana cairá para 40%.
+### 1. Corrigir a função `partner_request_leave_sponsor`
+Ajustar o `WHERE` dos blocos de cancelamento (PENDING e AVAILABLE) para também exigir que o **recebedor** do bônus esteja **fora** da subárvore que está saindo. Ou seja: só cancelar bônus que sobem para uplines antigas, nunca bônus internos do próprio grupo.
 
-Se você preferir aplicar só a partir da **próxima segunda (08/06)**, me avise antes de implementar que eu adiciono um gate por data.
+```sql
+WHERE b.referred_contract_id IN (SELECT id FROM descendants)
+  AND b.referrer_contract_id NOT IN (SELECT id FROM descendants)
+```
+
+Aplicar o mesmo ajuste em `admin_transfer_partner_sponsor` (mesma lógica clonada).
+
+### 2. Restaurar o bônus indevidamente cancelado da Sabriny
+Migration data-fix:
+- `partner_referral_bonuses 7385cfe2…` → `status='AVAILABLE'` (remover sufixo do `source_event` se houver marcação de leave).
+- `partner_payouts 84e1d48d…` → `status='PAID'`.
+- Recalcular `partner_contracts.total_received` da Sabriny via `SUM(amount) FROM partner_payouts WHERE status='PAID'`.
+- Saldo disponível volta a refletir o real (575 + 4.000 = ~R$ 4.575 menos taxas se houver).
+
+### 3. Validação pós-migration
+- Conferir o saldo da Sabriny no painel (`/dashboard` → Minha Parceria → Saques) — esperado ~R$ 4.575.
+- Rodar busca por outros parceiros que também tenham sofrido a mesma reversão indevida (qualquer `PARTNER_SELF_LEAVE_NETWORK` ou `ADMIN_TRANSFER_SPONSOR` com `reversed_available_total > 0` onde o bônus revertido tem `referrer` dentro da própria subárvore). Se aparecer mais alguém, restauro junto.
 
 ## Fora do escopo
-- Não mexer em `partner_payouts` já processados.
-- Não alterar caps semanais/totais nem fórmula base do repasse — só o multiplicador final do Central.
-- Não mudar UI de admin do Central nem o limite de 1 confirmação por dia.
+- Não mexer na regra do cutoff Géssica (continua valendo).
+- Não tocar nos R$ 4.000 + R$ 500 da Géssica (cancelamento correto).
+- Sem mudanças de UI.
