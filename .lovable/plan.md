@@ -1,44 +1,91 @@
-## Problema
+## Objetivo
 
-Quando a Sabriny saiu da rede da Géssica, a função `partner_request_leave_sponsor` reverteu apenas os bônus **diretamente gerados pelo contrato da Sabriny** (nível 1). Mas a Maria (indicada pela Sabriny) gerou bônus de nível 2 para a Géssica — esses R$ 500 continuam `AVAILABLE` no painel da Géssica.
+Permitir login/cadastro via Google em `/auth`, preservando todas as regras do projeto: CPF obrigatório, endereço, código de indicação de parceiro (`partner_referral_code`) e código de afiliado (`referral_code`).
 
-Regra correta: quando um parceiro sai da rede, **toda a sub-rede que pendurava nele deixa de contar para a antiga upline**. Todos os bônus L1/L2/L3 que a antiga upline recebeu por causa de contratos descendentes da Sabriny precisam ser cancelados.
+---
 
-Exemplo confirmado no banco:
-- Bônus L2 `dcbf3747...` — R$ 500, Géssica recebeu por aporte da Maria (indicada da Sabriny) — está `AVAILABLE` (deveria estar `CANCELLED`).
+## Configuração externa (você faz — manual)
 
-## Solução
+Sem essas duas etapas o botão não funciona:
 
-### 1. Migration — corrigir funções de saída + backfill
+1. **Google Cloud Console** → criar OAuth Client ID (Web application)
+   - Authorized JavaScript origins: `https://testeleilao.site`, `https://showdelances.com`, `https://penny-rush-auctions-28.lovable.app`, `https://id-preview--a9bdfc06-a96f-4acd-9270-1da71c1988cb.lovable.app`, `http://localhost:3000`
+   - Authorized redirect URI: `https://tlcdidkkxigofdhxnzzo.supabase.co/auth/v1/callback`
+2. **Supabase Dashboard** → Authentication → Providers → Google → habilitar e colar Client ID + Client Secret. Em URL Configuration, garantir Site URL e Redirect URLs com os domínios acima.
 
-Atualizar as três funções de saída (`partner_request_leave_sponsor`, `partner_leave_sponsor_network`, `admin_transfer_partner_sponsor`) para expandir o escopo da reversão:
+Eu te entrego um passo a passo printável quando você for executar.
 
-Em vez de filtrar somente `referred_contract_id = p_contract_id`, usar uma CTE recursiva que monta o conjunto **{contrato que está saindo} ∪ {todos os descendentes via `referred_by_user_id`}**, e cancelar todos os bônus onde:
-- `referred_contract_id IN (esse conjunto)`
-- `referrer_contract_id` pertence a um contrato da antiga upline (sponsor antigo + 2 níveis acima, ou seja, qualquer contrato cujo `user_id` esteja na cadeia upline antiga até L3)
+---
 
-Para cada bônus `AVAILABLE` cancelado:
-- decrementar `partner_contracts.available_balance` do referrer
-- marcar `partner_payouts` vinculados (`referral_bonus_id`) como `CANCELLED`
+## Mudanças no app
 
-Bônus `PENDING` no mesmo escopo também viram `CANCELLED` (sem mexer em saldo).
+### 1. Banco de dados (1 migration)
 
-Atualizar `partner_network_exits.reversed_available_count/total` e `cancelled_pending_count/total` para refletir o escopo expandido.
+- Adicionar coluna `profile_complete BOOLEAN DEFAULT false` em `public.profiles` (já marcamos como `true` para todos os registros existentes para não afetar usuários atuais).
+- Ajustar `handle_new_user()`:
+  - Detectar provider Google via `NEW.raw_app_meta_data->>'provider' = 'google'`.
+  - Quando vier do Google: criar profile mínimo (email, full_name do Google), CPF/telefone/endereço ficam nulos, `profile_complete = false`.
+  - Quando vier do cadastro tradicional (email/senha): comportamento atual + `profile_complete = true`.
+  - Continuar processando `partner_referral_code` e `referral_code` (afiliado) que vierem via `raw_user_meta_data` — funcionará tanto no fluxo email quanto Google (vamos enviar via `queryParams`/metadata antes do redirect).
 
-### 2. Backfill pontual
+### 2. Frontend — `/auth` (`src/pages/Auth.tsx`)
 
-Aplicar a mesma lógica para a saída já processada da Sabriny:
-- Cancelar bônus `dcbf3747...` (R$ 500 L2 da Géssica).
-- Decrementar R$ 500 do `available_balance` da Géssica (cai de R$ 4.500 → R$ 4.000).
-- Cancelar `partner_payouts` correspondentes (se existirem) ao bônus L2.
-- Repetir para qualquer outro bônus L2/L3 cujo `referred` esteja na sub-rede da Sabriny e cujo `referrer` esteja na upline antiga (Géssica e até 2 níveis acima).
+- Adicionar botão **"Continuar com Google"** acima do formulário, em ambas as abas (Login e Cadastro), com divisor "ou".
+- Antes do redirect, salvar no `localStorage`:
+  - `pending_partner_ref` (se houver `?ref=` ou `?partner_ref=` na URL ou já em cache)
+  - `pending_affiliate_ref` (se houver código de afiliado ativo na URL)
+- Chamar:
+  ```
+  supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      queryParams: { prompt: 'select_account' },
+    },
+  })
+  ```
 
-## Verificação
+### 3. Nova rota `/auth/callback` (`src/pages/AuthCallback.tsx`)
 
-- Após migration: o bônus L2 de R$ 500 da Maria → Géssica fica `CANCELLED`.
-- Saldo de saque da Géssica passa de R$ 4.500 para R$ 4.000.
-- Painel "Indique Parceiros" da Géssica não conta mais o bônus da Maria (o hook já exclui `CANCELLED` dos totais agregados; só precisa do banco corrigido).
+- Recebe o retorno do Google, aguarda a sessão pelo `onAuthStateChange`.
+- Lê códigos de indicação do `localStorage` e, se existirem, faz `supabase.auth.updateUser({ data: { partner_referral_code, referral_code } })` e dispara uma RPC `apply_pending_referrals_to_profile()` (criada na mesma migration) que reaproveita a lógica de validação/processamento de indicação para usuários Google.
+- Limpa `localStorage` e redireciona para `/complete-profile` se `profile_complete = false`; senão para `/dashboard`.
 
-## Escopo
+### 4. Nova rota `/complete-profile` (`src/pages/CompleteProfile.tsx`)
 
-Apenas o backend das três funções de saída e backfill. Nenhuma alteração de UI, workflow novo ou outras regras de negócio.
+- Form obrigatório com: CPF (validado e único), telefone, data de nascimento, CEP + autopreenchimento, número, complemento, código de indicação (pré-preenchido do localStorage, editável).
+- Reusa os mesmos validators (`formatCPF`, `formatPhone`, `formatCEP`, `fetchAddressByCEP`) e o `useFieldValidation` (checa CPF duplicado).
+- Ao salvar: `UPDATE profiles SET ..., profile_complete = true` e, se preencheram `partner_referral_code`, reusa a mesma validação do trigger via RPC.
+
+### 5. Guard global de perfil incompleto
+
+- No `AuthContext`/wrapper de rotas autenticadas: se `profile_complete = false` e a rota atual não for `/complete-profile`, `/auth/callback` ou logout, redirecionar para `/complete-profile`. Bloqueia acesso a Dashboard, leilões, checkout, parceiro, etc., até o usuário completar.
+
+### 6. Reaproveitamento do código de indicação
+
+- O hook que hoje lê `?ref=` da URL e guarda no `localStorage` (já existe para o checkout) é o mesmo a ser usado antes do redirect Google — sem nova lógica de tracking.
+
+---
+
+## Pontos técnicos importantes
+
+- **Sem nova tabela.** Apenas uma coluna em `profiles`.
+- **Sem mudança em pagamentos, leilões, rede binária ou parceria.** Toda a regra existente (`payer_cannot_be_referrer`, validação do `partner_referral_code`, bônus de cadastro) continua igual; ela é executada via `handle_new_user` ou via RPC pós-complete-profile.
+- **Backfill seguro:** todos os profiles atuais recebem `profile_complete = true`, ninguém é forçado para `/complete-profile` indevidamente.
+- **Conflito de e-mail:** se um e-mail já existe com cadastro por senha e o usuário entra com Google do mesmo e-mail, o Supabase associa as identidades automaticamente (mesmo `user_id`), e o `profile_complete` continuará `true` — sem duplicidade.
+- **Risco de abuso:** como o usuário só consegue dar lance / contratar plano / sacar após preencher CPF, não há janela para fraude com conta Google "vazia".
+
+---
+
+## Entregáveis
+
+```text
+supabase/migrations/<timestamp>_google_oauth_profile_complete.sql
+src/pages/Auth.tsx                  (adicionar botão Google)
+src/pages/AuthCallback.tsx          (novo)
+src/pages/CompleteProfile.tsx       (novo)
+src/contexts/AuthContext.tsx        (expor profile_complete + guard)
+src/App.tsx                         (registrar rotas /auth/callback e /complete-profile)
+```
+
+Quando aprovar, eu implemento e te mando junto o passo a passo do Google Cloud + Supabase.
