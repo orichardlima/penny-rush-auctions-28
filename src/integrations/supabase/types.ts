@@ -2484,6 +2484,7 @@ export type Database = {
           neighborhood: string | null
           number: string | null
           phone: string | null
+          profile_complete: boolean
           referred_by_partner_code: string | null
           signup_bonus_amount: number | null
           signup_bonus_date: string | null
@@ -2514,6 +2515,7 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          profile_complete?: boolean
           referred_by_partner_code?: string | null
           signup_bonus_amount?: number | null
           signup_bonus_date?: string | null
@@ -2544,6 +2546,7 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          profile_complete?: boolean
           referred_by_partner_code?: string | null
           signup_bonus_amount?: number | null
           signup_bonus_date?: string | null
@@ -2784,6 +2787,24 @@ export type Database = {
       }
       close_binary_cycle: {
         Args: { p_admin_id: string; p_notes?: string }
+        Returns: Json
+      }
+      complete_oauth_profile: {
+        Args: {
+          p_affiliate_referral_code?: string
+          p_birth_date: string
+          p_cep: string
+          p_city: string
+          p_complement: string
+          p_cpf: string
+          p_full_name: string
+          p_neighborhood: string
+          p_number: string
+          p_partner_referral_code?: string
+          p_phone: string
+          p_state: string
+          p_street: string
+        }
         Returns: Json
       }
       current_server_time: { Args: never; Returns: string }
