@@ -91,22 +91,24 @@ const CompleteProfile = () => {
       return;
     }
     setLoadingSponsor(true);
-    supabase
-      .rpc('get_contract_by_referral_code', { code })
-      .then(async ({ data: contracts }) => {
+    (async () => {
+      try {
+        const { data: contracts } = await supabase.rpc('get_contract_by_referral_code', { code });
         const contract = contracts?.[0];
         if (contract) {
           const { data: profiles } = await supabase.rpc('get_public_profiles', {
             user_ids: [contract.user_id],
           });
-          if (profiles?.[0]?.full_name) setSponsorName(profiles[0].full_name);
-          else setSponsorName(null);
+          setSponsorName(profiles?.[0]?.full_name ?? null);
         } else {
           setSponsorName(null);
         }
-      })
-      .catch(() => setSponsorName(null))
-      .finally(() => setLoadingSponsor(false));
+      } catch {
+        setSponsorName(null);
+      } finally {
+        setLoadingSponsor(false);
+      }
+    })();
   }, [form.partnerReferralCode]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
