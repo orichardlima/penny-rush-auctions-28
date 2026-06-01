@@ -166,6 +166,7 @@ const AppContent = () => {
   useReferralTracking();
   usePartnerReferralTracking();
   useRealTimeProtection();
+  useProfileCompleteGuard();
   
   return (
     <Routes>
