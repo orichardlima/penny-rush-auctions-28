@@ -41,6 +41,7 @@ interface Profile {
   signup_bonus_received?: boolean;
   signup_bonus_amount?: number;
   signup_bonus_date?: string;
+  profile_complete?: boolean;
 }
 
 interface AuthContextType {
@@ -50,6 +51,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signUp: (email: string, password: string, userData: SignUpData) => Promise<{ error?: any }>;
+  signInWithGoogle: () => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
