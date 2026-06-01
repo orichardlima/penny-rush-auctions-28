@@ -50,7 +50,7 @@ const Auth = () => {
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
   
-  const { signIn, signUp, user, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, resetPassword } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
