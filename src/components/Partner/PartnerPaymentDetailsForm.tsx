@@ -30,7 +30,7 @@ const PartnerPaymentDetailsForm: React.FC<PartnerPaymentDetailsFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!pixKey.trim()) {
+    if (!pixKey.trim() || !holderName.trim()) {
       return;
     }
 
@@ -86,16 +86,17 @@ const PartnerPaymentDetailsForm: React.FC<PartnerPaymentDetailsFormProps> = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="holderName">Nome do Titular (opcional)</Label>
+        <Label htmlFor="holderName">Nome completo do Titular (obrigatório, não pode ser de terceiros)</Label>
         <Input
           id="holderName"
           value={holderName}
           onChange={(e) => setHolderName(e.target.value)}
           placeholder="Nome completo do titular"
+          required
         />
       </div>
 
-      <Button type="submit" disabled={loading || saving || !pixKey.trim()} className="w-full">
+      <Button type="submit" disabled={loading || saving || !pixKey.trim() || !holderName.trim()} className="w-full">
         <Save className="h-4 w-4 mr-2" />
         {saving ? 'Salvando...' : 'Salvar Dados de Pagamento'}
       </Button>
