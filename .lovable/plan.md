@@ -1,46 +1,26 @@
-
-# Por que a Sabriny só tem R$ 575 disponível
-
 ## Diagnóstico
-Investiguei o contrato da **Sabriny Amorim** (Diamond, aporte R$ 25.000, contrato `abd3ffff…`). Saldo correto deveria estar maior. O que aconteceu:
 
-1. Em **13/05/2026** a indicada dela **Maria Marta Silva Pacheco** ativou um Diamond → gerou bônus de **R$ 4.000** (16% nível 1) para Sabriny. Bônus liberado, payout `PAID`.
-2. Em **31/05/2026 14:23**, **a própria Sabriny** acionou "Sair da rede do patrocinador" (motivo: "Motivo pessoal!").
-3. A função `partner_request_leave_sponsor` reverteu **todos** os bônus cujo `referred_contract_id` está dentro da subárvore que está saindo — incluindo o bônus de R$ 4.000 que a **própria Sabriny** havia ganhado da Maria Marta (downline dela).
+O erro `Edge Function returned a non-2xx status code` aconteceu porque o e-mail `pejigan.henrique@gmail.com` **já está cadastrado em outro usuário** (id `16f4accb-4686-4cc7-aac1-c9f4ddf50194`) no `auth.users`. O GoTrue rejeita a troca com erro genérico 500 (`unexpected_failure`) e a função `admin-update-user-email` repassa essa mensagem opaca para o frontend.
 
-Esse cancelamento está incorreto. A intenção da função é cancelar bônus que iriam para o **patrocinador antigo** (acima da Sabriny). Mas o `WHERE` atual não filtra por quem é o **recebedor** (`referrer_contract_id`), só pelo `referred_contract_id`, então também derrubou bônus internos da própria subárvore.
+Ou seja: não é bug do sistema, é conflito de e-mail. Mas a mensagem precisa ser clara para o admin entender.
 
-Comprovação no log:
-- `admin_audit_log` → `PARTNER_SELF_LEAVE_NETWORK` com `reversed_available_total: 4000`.
-- `partner_referral_bonuses` `7385cfe2…` (referrer = Sabriny, referred = Maria Marta) virou `CANCELLED`.
-- `partner_payouts` `84e1d48d…` (R$ 4.000) ficou `CANCELLED`.
+## O que será feito
 
-Os outros R$ 4.000 + R$ 500 cancelados (bônus que a antiga upline **Géssica** receberia da Sabriny e da Maria Marta) estão corretamente cancelados — esses sim deveriam sair quando a Sabriny pediu saída.
+1. **`supabase/functions/admin-update-user-email/index.ts`**
+   - Antes de chamar `auth.admin.updateUserById`, verificar via `auth.admin.listUsers` (ou consulta a `profiles.email`) se já existe outro usuário com o e-mail informado.
+   - Se existir e for um `userId` diferente do alvo → retornar `409` com mensagem: `"Este e-mail já está cadastrado para outro usuário."`
+   - Manter todo o resto do fluxo intacto (validações, log, update de profile).
 
-## O que vou fazer
+2. **`src/components/Admin/AdminEditProfileDialog.tsx`**
+   - No `catch` do `invoke`, ler `emailResult?.error` e exibir a mensagem amigável quando vier do backend (já lê, mas garantir que o status 409 seja capturado — `supabase.functions.invoke` joga em `error` quando não é 2xx; o `data` pode vir vazio).
+   - Ajustar para tentar ler o corpo do erro via `error.context?.body` quando `data` for `null`, mostrando a mensagem real ao invés do genérico.
 
-### 1. Corrigir a função `partner_request_leave_sponsor`
-Ajustar o `WHERE` dos blocos de cancelamento (PENDING e AVAILABLE) para também exigir que o **recebedor** do bônus esteja **fora** da subárvore que está saindo. Ou seja: só cancelar bônus que sobem para uplines antigas, nunca bônus internos do próprio grupo.
+## Como o admin resolve o caso atual
 
-```sql
-WHERE b.referred_contract_id IN (SELECT id FROM descendants)
-  AND b.referrer_contract_id NOT IN (SELECT id FROM descendants)
-```
+Para o Josué costa Andrade, o e-mail `pejigan.henrique@gmail.com` pertence a outro usuário. O admin precisa:
+- Usar outro e-mail, **ou**
+- Primeiro liberar o e-mail do outro usuário (16f4accb) trocando para outro valor, e depois aplicar aqui.
 
-Aplicar o mesmo ajuste em `admin_transfer_partner_sponsor` (mesma lógica clonada).
+## Nada além disso será alterado
 
-### 2. Restaurar o bônus indevidamente cancelado da Sabriny
-Migration data-fix:
-- `partner_referral_bonuses 7385cfe2…` → `status='AVAILABLE'` (remover sufixo do `source_event` se houver marcação de leave).
-- `partner_payouts 84e1d48d…` → `status='PAID'`.
-- Recalcular `partner_contracts.total_received` da Sabriny via `SUM(amount) FROM partner_payouts WHERE status='PAID'`.
-- Saldo disponível volta a refletir o real (575 + 4.000 = ~R$ 4.575 menos taxas se houver).
-
-### 3. Validação pós-migration
-- Conferir o saldo da Sabriny no painel (`/dashboard` → Minha Parceria → Saques) — esperado ~R$ 4.575.
-- Rodar busca por outros parceiros que também tenham sofrido a mesma reversão indevida (qualquer `PARTNER_SELF_LEAVE_NETWORK` ou `ADMIN_TRANSFER_SPONSOR` com `reversed_available_total > 0` onde o bônus revertido tem `referrer` dentro da própria subárvore). Se aparecer mais alguém, restauro junto.
-
-## Fora do escopo
-- Não mexer na regra do cutoff Géssica (continua valendo).
-- Não tocar nos R$ 4.000 + R$ 500 da Géssica (cancelamento correto).
-- Sem mudanças de UI.
+UI, layout, demais campos do dialog, e fluxo geral de edição permanecem idênticos.
