@@ -73,6 +73,20 @@ serve(async (req) => {
       );
     }
 
+    // Check if email is already in use by another user
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('user_id')
+      .ilike('email', newEmail)
+      .maybeSingle();
+
+    if (existingProfile && existingProfile.user_id !== userId) {
+      return new Response(
+        JSON.stringify({ error: 'Este e-mail já está cadastrado para outro usuário.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Update auth.users
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
@@ -81,9 +95,13 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('[ADMIN-EMAIL] Error updating auth email:', updateError);
+      const dup = /already|exists|duplicate|registered|unique/i.test(updateError.message || '');
+      const msg = dup
+        ? 'Este e-mail já está cadastrado para outro usuário.'
+        : `Falha ao atualizar e-mail: ${updateError.message}`;
       return new Response(
-        JSON.stringify({ error: `Failed to update email: ${updateError.message}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: msg }),
+        { status: dup ? 409 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

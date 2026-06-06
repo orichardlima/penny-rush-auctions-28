@@ -138,8 +138,16 @@ export const AdminEditProfileDialog: React.FC<Props> = ({
           body: { userId, newEmail: email.trim().toLowerCase() }
         });
 
-        if (emailError || (emailResult && emailResult.error)) {
-          const msg = emailResult?.error || emailError?.message || 'Erro ao atualizar e-mail';
+        let backendMsg: string | null = emailResult?.error || null;
+        if (!backendMsg && emailError) {
+          try {
+            const body = await (emailError as any).context?.json?.();
+            backendMsg = body?.error || null;
+          } catch { /* ignore */ }
+        }
+
+        if (emailError || backendMsg) {
+          const msg = backendMsg || emailError?.message || 'Erro ao atualizar e-mail';
           toast({ title: 'Erro', description: msg, variant: 'destructive' });
           setSaving(false);
           return;
