@@ -1538,37 +1538,26 @@ export const useAdminPartners = () => {
 
       if (error) throw error;
 
-      // Propagate extra binary points for the additional cotas
-      const extraCotas = newCotas - currentCotas;
-      if (extraCotas > 0) {
-        // Get points per cota from partner_level_points
-        const { data: levelPointsData } = await supabase
-          .from('partner_level_points')
-          .select('points')
-          .eq('plan_name', contract.plan_name)
-          .single();
+      // Record cotas upgrade in partner_upgrades.
+      // The DB trigger trg_upgrade_propagate_binary automatically propagates
+      // the binary points delta (plan.binary_points * (newCotas - currentCotas))
+      // to the correct side of every upline. Do NOT call propagate_binary_points
+      // here — that would double-count points.
+      await supabase.from('partner_upgrades').insert({
+        partner_contract_id: contractId,
+        previous_plan_name: contract.plan_name,
+        new_plan_name: contract.plan_name,
+        previous_aporte_value: contract.aporte_value,
+        new_aporte_value: newAporte,
+        previous_weekly_cap: contract.weekly_cap,
+        new_weekly_cap: newWeeklyCap,
+        previous_total_cap: contract.total_cap,
+        new_total_cap: newTotalCap,
+        difference_paid: 0,
+        total_received_at_upgrade: contract.total_received,
+        notes: `Upgrade administrativo de cotas (${currentCotas} → ${newCotas}, sem pagamento PIX)`
+      });
 
-        const pointsPerCota = levelPointsData?.points || 0;
-        const extraPoints = extraCotas * pointsPerCota;
-
-        if (extraPoints > 0) {
-          // Get sponsor contract id from binary position
-          const { data: binaryPos } = await supabase
-            .from('partner_binary_positions')
-            .select('sponsor_contract_id')
-            .eq('partner_contract_id', contractId)
-            .single();
-
-          const sponsorId = binaryPos?.sponsor_contract_id || null;
-
-          await supabase.rpc('propagate_binary_points', {
-            p_source_contract_id: contractId,
-            p_points: extraPoints,
-            p_reason: 'cotas_upgrade',
-            p_sponsor_contract_id: sponsorId ?? null
-          });
-        }
-      }
 
       // Recalculate referral bonuses proportional to new cotas
       const { data: existingBonuses } = await supabase
