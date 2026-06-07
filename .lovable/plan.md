@@ -1,80 +1,55 @@
+## Auditoria
 
-## Conclusão da Investigação
+Mapeei todos os caminhos que fazem upgrade de plano/cotas no projeto:
 
-As entradas `reason='plan_upgrade'` em `binary_points_log` existem (dias 06/06, 14/04, 11/04, 07/04), mas **nenhum código** (edge function, trigger, função SQL armazenada ou frontend) chama `propagate_binary_points(..., 'plan_upgrade')`. As 10 entradas mais recentes têm `created_at` idênticos por lote (mesmo timestamp ao milissegundo), o que é assinatura de execução manual via SQL Editor.
+| Fluxo | Arquivo | Insere em `partner_upgrades`? | Propaga binário manualmente? |
+|---|---|---|---|
+| Webhook VeoPag (plano) | `veopag-webhook` linha 380 | Sim | Não |
+| Webhook VeoPag (cotas) | `veopag-webhook` linha 516 | Sim | Não |
+| Webhook Magen (plano) | `magen-webhook` / `magen-check-status` | Sim | Não |
+| Webhook Asaas legacy | `partner-payment-webhook` | Sim | Não |
+| **Admin: upgrade de plano** | `useAdminPartners.upgradeContractPlan` (1623+) | **Sim (linha 1687)** | **Sim (linha 1719+)** |
+| **Admin: upgrade de cotas** | `useAdminPartners.upgradeContractCotas` (1506+) | **Não** | **Sim (linha 1564)** |
 
-**Veredito:** a propagação que você lembrava foi feita **manualmente via SQL pelo admin** após cada upgrade — não é automática. Upgrades em que isso foi esquecido (ex.: contrato `c42ad205` em 01/06, 21/01, 16/01) ficaram sem propagação e os uplines nunca receberam os pontos da diferença.
+### Problemas detectados
 
-## Plano de Correção
+**Problema 1 — Dupla propagação no upgrade admin de plano**
+Agora que o trigger `trg_upgrade_propagate_binary` propaga automaticamente em todo INSERT em `partner_upgrades`, o código admin que também chama `propagate_binary_points` manualmente vai **dobrar os pontos** enviados aos uplines em todo upgrade de plano feito pelo admin.
 
-Tornar a propagação automática e atômica para 100% dos upgrades futuros, com opção de backfill para upgrades já realizados.
+**Problema 2 — Inconsistência no upgrade admin de cotas**
+Esse fluxo nunca inseriu em `partner_upgrades` — só chamava `propagate_binary_points` diretamente. Resultado:
+- A propagação até funciona (manual), mas usa `partner_level_points.points` em vez de `partner_plans.binary_points` (fonte que o trigger usa). Se os dois valores divergirem, o resultado é diferente do webhook PIX.
+- Não fica registro em `partner_upgrades` → histórico do parceiro fica incompleto, relatórios de cashflow/cotas não enxergam o upgrade, `useCurrentWeekRevenue` e `useDailyPayoutPreview` ignoram esses upgrades.
 
-### 1. Trigger no `partner_upgrades` (AFTER INSERT)
+## Correções
 
-Nova função `trigger_propagate_upgrade_binary_points()` que dispara em todo INSERT na tabela `partner_upgrades` e:
+### 1. `upgradeContractPlan` (admin)
+Remover o bloco de propagação manual (linhas ~1702–1740, tudo após o `INSERT INTO partner_upgrades`). O trigger faz isso sozinho com o cálculo correto (`(novo_plano.binary_points − antigo_plano.binary_points) × cotas`).
 
-- Lê o registro de upgrade (campos: `partner_contract_id`, `previous_plan_name`, `new_plan_name`, `previous_aporte_value`, `new_aporte_value`, `previous_cotas`, `new_cotas`, `upgrade_type`).
-- Busca `binary_points` dos planos antigo e novo em `partner_plans`.
-- Calcula:
-  - **Upgrade de plano:** `delta = (novo_plano.binary_points × cotas_atual) − (antigo_plano.binary_points × cotas_atual)`
-  - **Upgrade de cotas:** `delta = plano.binary_points × (novas_cotas − cotas_antigas)`
-- Se `delta > 0`: chama `propagate_binary_points(partner_contract_id, delta, 'plan_upgrade')`.
-- Loga em `binary_points_log` (já feito dentro da função `propagate_binary_points`).
-- Respeita a flag `is_demo` (já tratada dentro de `propagate_binary_points`).
+Manter:
+- update do `partner_contracts`
+- crédito de bônus de lances extras
+- `INSERT INTO partner_upgrades` (já dispara o trigger)
+- audit log
 
-### 2. Garantir que o webhook crie o registro em `partner_upgrades`
+### 2. `upgradeContractCotas` (admin)
+- Adicionar `INSERT INTO partner_upgrades` com `previous_plan_name = new_plan_name = contract.plan_name`, `previous_aporte_value = contract.aporte_value`, `new_aporte_value = newAporte`, demais campos `previous_*`/`new_*` preenchidos, `difference_paid = 0`, `notes = 'Upgrade administrativo de cotas (sem pagamento PIX)'`.
+- Remover o bloco de propagação manual (linhas ~1541–1571). O trigger calcula `plano.binary_points × (newCotas − previousCotas)` automaticamente, lendo `previous_aporte_value`/`new_aporte_value` da linha inserida.
 
-Verificar `partner-payment-webhook` (handlers `processUpgradePayment` e `processCotasUpgrade`) e confirmar que **antes** de retornar 200 ele faz `INSERT INTO partner_upgrades(...)` com `previous_*` e `new_*` preenchidos. Se não fizer, adicionar esse insert — assim o trigger acima dispara automaticamente sem precisar editar a lógica de propagação no webhook.
+Manter: update do contrato, recálculo dos bônus de indicação, audit log.
 
-### 3. Backfill opcional (decisão sua)
+### 3. Garantia adicional
+Após as duas mudanças, todos os 6 caminhos de upgrade do projeto passarão obrigatoriamente por `INSERT INTO partner_upgrades` → trigger → propagação única e consistente, sem possibilidade de dupla contagem nem de upgrade "invisível".
 
-Script SQL único para identificar upgrades históricos cuja propagação não consta em `binary_points_log` com `reason='plan_upgrade'` e:
-- Calcular o delta retroativo.
-- Executar `propagate_binary_points(contract_id, delta, 'plan_upgrade_backfill')`.
-- Listar em tela antes de aplicar (dry-run primeiro).
+## Validação
 
-Casos detectados como pendentes:
-- `c42ad205` Start→Elite (16/01) e Elite→Legend (21/01)
-- `c42ad205` Legend→Diamond (01/06)
-- Qualquer outro upgrade fora dos 4 lotes manuais já feitos
+- Após aplicar, simular um upgrade admin de plano e um de cotas em um contrato de teste e conferir em `binary_points_log` que existe exatamente **um** lote de entradas `reason='plan_upgrade'` por upgrade (não dois).
+- Conferir que o delta nas linhas de `binary_points_log` bate com `(novo − antigo) × cotas` para plano e `pts × Δcotas` para cotas.
 
-### 4. Validação
+## Detalhes técnicos
 
-Após criar o trigger:
-- Inserir manualmente um `partner_upgrades` de teste em ambiente controlado e verificar que `binary_points_log` recebe as entradas `plan_upgrade` em todos os uplines.
-- Comparar `left_points` / `right_points` em `partner_binary_positions` antes e depois.
+Nenhuma migração SQL necessária — o trigger já está ativo. Mudanças exclusivamente em `src/hooks/useAdminPartners.ts`:
+- Remover ~40 linhas do bloco de propagação manual em `upgradeContractPlan`.
+- Em `upgradeContractCotas`: substituir o bloco de propagação manual (~30 linhas) por um `INSERT` enxuto em `partner_upgrades`.
 
-### Detalhes Técnicos
-
-```sql
--- Pseudocódigo do trigger
-CREATE FUNCTION trigger_propagate_upgrade_binary_points() RETURNS TRIGGER AS $$
-DECLARE
-  v_old_pts INT; v_new_pts INT; v_delta INT;
-  v_old_cotas INT; v_new_cotas INT;
-BEGIN
-  IF NEW.upgrade_type = 'cotas' THEN
-    SELECT binary_points INTO v_new_pts FROM partner_plans WHERE name = NEW.new_plan_name;
-    v_delta := v_new_pts * (NEW.new_cotas - NEW.previous_cotas);
-  ELSE -- plan upgrade
-    SELECT binary_points INTO v_old_pts FROM partner_plans WHERE name = NEW.previous_plan_name;
-    SELECT binary_points INTO v_new_pts FROM partner_plans WHERE name = NEW.new_plan_name;
-    SELECT cotas INTO v_old_cotas FROM partner_contracts WHERE id = NEW.partner_contract_id;
-    v_delta := (v_new_pts - v_old_pts) * v_old_cotas;
-  END IF;
-
-  IF v_delta > 0 THEN
-    PERFORM propagate_binary_points(NEW.partner_contract_id, v_delta, 'plan_upgrade');
-  END IF;
-  RETURN NEW;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-CREATE TRIGGER trg_upgrade_propagate_binary
-AFTER INSERT ON partner_upgrades
-FOR EACH ROW EXECUTE FUNCTION trigger_propagate_upgrade_binary_points();
-```
-
-### Perguntas antes de executar
-
-1. Confirma que o webhook **já insere** em `partner_upgrades` em ambos os fluxos (plano e cotas)? Posso verificar e adicionar o INSERT se faltar.
-2. Quer incluir o **backfill retroativo** dos upgrades sem propagação (item 3) nesta mesma rodada, ou fazer só a automação daqui pra frente?
+Posso aplicar?
