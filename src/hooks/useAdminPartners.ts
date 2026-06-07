@@ -1688,37 +1688,11 @@ export const useAdminPartners = () => {
         notes: 'Upgrade administrativo (sem pagamento PIX)'
       });
 
-      // Propagate extra binary points (difference between new and old plan)
-      const { data: oldLevelPoints } = await supabase
-        .from('partner_level_points')
-        .select('points')
-        .eq('plan_name', oldPlanName)
-        .maybeSingle();
+      // Binary points propagation is handled automatically by the DB trigger
+      // trg_upgrade_propagate_binary on partner_upgrades INSERT.
+      // Do NOT call propagate_binary_points here — that would double-count points.
 
-      const { data: newLevelPoints } = await supabase
-        .from('partner_level_points')
-        .select('points')
-        .eq('plan_name', newPlan.name)
-        .maybeSingle();
 
-      const oldPoints = (oldLevelPoints?.points || 0) * ((contract as any).cotas || 1);
-      const newPoints = newLevelPoints?.points || 0;
-      const extraPoints = newPoints - oldPoints;
-
-      if (extraPoints > 0) {
-        const { data: binaryPos } = await supabase
-          .from('partner_binary_positions')
-          .select('sponsor_contract_id')
-          .eq('partner_contract_id', contractId)
-          .maybeSingle();
-
-        await supabase.rpc('propagate_binary_points', {
-          p_source_contract_id: contractId,
-          p_points: extraPoints,
-          p_reason: 'plan_upgrade',
-          p_sponsor_contract_id: binaryPos?.sponsor_contract_id ?? null
-        });
-      }
 
       // Generate upgrade referral bonuses (difference-based)
       const aporteDiff = newAporte - oldAporte;
