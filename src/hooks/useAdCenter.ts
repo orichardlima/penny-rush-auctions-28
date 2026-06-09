@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { formatDateBrazil, getWeekStart, getWeekEnd, DAY_NAMES_SHORT as DAY_NAMES } from '@/utils/weekHelpers';
 
 export interface AdCenterMaterial {
   id: string;
@@ -45,34 +46,7 @@ const REQUIRED_DAYS = 7;
 const FULL_PERCENTAGE = 100;
 const PENALTY_PERCENTAGE = 40;
 
-const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-// Helper para obter data no formato YYYY-MM-DD (timezone Brasil)
-const formatDateBrazil = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Helper para obter início da semana (segunda-feira)
-const getWeekStart = (date: Date): Date => {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-
-// Helper para obter fim da semana (domingo)
-const getWeekEnd = (date: Date): Date => {
-  const start = getWeekStart(date);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-  return end;
-};
+// helpers de semana/data importados de @/utils/weekHelpers
 
 export const useAdCenter = (partnerContractId?: string) => {
   const { user } = useAuth();
