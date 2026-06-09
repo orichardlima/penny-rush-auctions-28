@@ -67,6 +67,7 @@ import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
+import AdminWeeklyAdsTab from './AdminWeeklyAdsTab';
 import FastStartTiersManager from './FastStartTiersManager';
 import AdminReferralBonusesTab from './AdminReferralBonusesTab';
 import { supabase } from '@/integrations/supabase/client';
@@ -702,6 +703,10 @@ const AdminPartnerManagement = () => {
             <Megaphone className="h-4 w-4 mr-1" />
             Anúncios
           </TabsTrigger>
+          <TabsTrigger value="weekly-ads" className="shrink-0">
+            <Megaphone className="h-4 w-4 mr-1" />
+            Divulgação Semanal
+          </TabsTrigger>
           <TabsTrigger value="faststart" className="shrink-0">
             <Rocket className="h-4 w-4 mr-1" />
             Início Rápido
@@ -744,6 +749,11 @@ const AdminPartnerManagement = () => {
         {/* Central de Anúncios Tab */}
         <TabsContent value="adcenter">
           <AdCenterMaterialsManager />
+        </TabsContent>
+
+        {/* Divulgação Semanal Tab */}
+        <TabsContent value="weekly-ads">
+          <AdminWeeklyAdsTab />
         </TabsContent>
 
         {/* Início Rápido Tab */}
