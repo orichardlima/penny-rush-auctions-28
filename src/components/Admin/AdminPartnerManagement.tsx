@@ -67,6 +67,7 @@ import { toast } from '@/hooks/use-toast';
 import BinaryNetworkManager from './BinaryNetworkManager';
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
+import AdminWeeklyAdsTab from './AdminWeeklyAdsTab';
 import FastStartTiersManager from './FastStartTiersManager';
 import AdminReferralBonusesTab from './AdminReferralBonusesTab';
 import { supabase } from '@/integrations/supabase/client';
@@ -743,7 +744,18 @@ const AdminPartnerManagement = () => {
 
         {/* Central de Anúncios Tab */}
         <TabsContent value="adcenter">
-          <AdCenterMaterialsManager />
+          <Tabs defaultValue="materials" className="w-full">
+            <TabsList>
+              <TabsTrigger value="materials">Materiais</TabsTrigger>
+              <TabsTrigger value="weekly">Divulgação Semanal</TabsTrigger>
+            </TabsList>
+            <TabsContent value="materials" className="mt-4">
+              <AdCenterMaterialsManager />
+            </TabsContent>
+            <TabsContent value="weekly" className="mt-4">
+              <AdminWeeklyAdsTab />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* Início Rápido Tab */}
