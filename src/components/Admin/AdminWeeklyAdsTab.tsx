@@ -3,321 +3,322 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
-import { CheckCircle2, Minus, Download, RefreshCw, Search, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
-  useAdminWeeklyAds, useAdminPartnerAdHistory,
-  REQUIRED_DAYS, PartnerWeekRow,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  RefreshCw,
+  Search,
+  CheckCircle2,
+  History,
+} from 'lucide-react';
+import {
+  useAdminWeeklyAds,
+  fetchContractHistory,
+  WeeklyAdsStatus,
 } from '@/hooks/useAdminWeeklyAds';
-import { WEEK_DAY_LABELS } from '@/utils/weekHelpers';
+import { formatWeekRangeLabel } from '@/utils/weekHelpers';
 
-const PAGE_SIZE = 50;
-
-const statusBadge = (s: PartnerWeekRow['status']) => {
-  switch (s) {
+const statusBadge = (status: WeeklyAdsStatus) => {
+  switch (status) {
     case 'META':
-      return <Badge className="bg-emerald-600 hover:bg-emerald-600">Meta cumprida (100%)</Badge>;
+      return <Badge className="bg-emerald-600 hover:bg-emerald-600">META 7/7</Badge>;
     case 'PENALIDADE':
-      return <Badge className="bg-amber-500 hover:bg-amber-500">Penalidade (40%)</Badge>;
+      return <Badge className="bg-amber-600 hover:bg-amber-600">PENALIDADE 40%</Badge>;
     case 'ZERADO':
-      return <Badge variant="secondary">Zerado</Badge>;
+      return <Badge variant="destructive">ZERADO 0%</Badge>;
     case 'EM_ANDAMENTO':
-      return <Badge className="bg-blue-600 hover:bg-blue-600">Em andamento</Badge>;
+      return <Badge variant="secondary">EM ANDAMENTO</Badge>;
   }
-};
-
-const formatBR = (iso: string) => {
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
-};
-
-const DayCell: React.FC<{ d: PartnerWeekRow['days'][number] }> = ({ d }) => {
-  if (d.completed) {
-    return (
-      <div className={`w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center mx-auto ${d.isToday ? 'ring-2 ring-blue-500' : ''}`}>
-        <CheckCircle2 className="w-4 h-4" />
-      </div>
-    );
-  }
-  if (d.isFuture) {
-    return <div className={`w-7 h-7 rounded-full bg-muted/30 mx-auto ${d.isToday ? 'ring-2 ring-blue-500' : ''}`} />;
-  }
-  return (
-    <div className={`w-7 h-7 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto ${d.isToday ? 'ring-2 ring-blue-500' : ''}`}>
-      <Minus className="w-4 h-4" />
-    </div>
-  );
 };
 
 const AdminWeeklyAdsTab: React.FC = () => {
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = atual, -1 = anterior
-  const referenceDate = useMemo(() => {
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = atual, -1 = anterior, etc
+  const anchor = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + weekOffset * 7);
     return d;
   }, [weekOffset]);
 
-  const { loading, rows, weekStart, weekEnd, isCurrentWeek, refresh } = useAdminWeeklyAds(referenceDate);
+  const { rows, summary, loading, weekDays, isCurrentWeek, refresh } =
+    useAdminWeeklyAds(anchor);
 
-  const [scope, setScope] = useState<'ALL' | 'WITH_CONFIRM'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | PartnerWeekRow['status']>('ALL');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
-  const [historyContract, setHistoryContract] = useState<PartnerWeekRow | null>(null);
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | WeeklyAdsStatus>('all');
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRow, setHistoryRow] = useState<{ name: string; id: string } | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const filtered = useMemo(() => {
-    let r = rows;
-    if (scope === 'WITH_CONFIRM') r = r.filter((x) => x.completedCount > 0);
-    if (statusFilter !== 'ALL') r = r.filter((x) => x.status === statusFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      r = r.filter(
-        (x) =>
-          x.fullName.toLowerCase().includes(q) ||
-          x.email.toLowerCase().includes(q) ||
-          (x.phone || '').toLowerCase().includes(q),
+    const term = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (scopeFilter === 'with' && r.completedCount < 1) return false;
+      if (scopeFilter === 'without' && r.completedCount > 0) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (term) {
+        const hay = `${r.user_name} ${r.user_email} ${r.user_phone || ''}`.toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [rows, search, scopeFilter, statusFilter]);
+
+  const openHistory = async (contractId: string, name: string) => {
+    setHistoryRow({ id: contractId, name });
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    const data = await fetchContractHistory(contractId, 4);
+    setHistory(data);
+    setHistoryLoading(false);
+  };
+
+  const exportCsv = () => {
+    const header = ['Parceiro', 'Email', 'Telefone', 'Plano', 'Confirmações', 'Status', '% Payout', ...weekDays.map((d) => `${d.label} ${d.dayNumber}`)];
+    const lines = [header.join(';')];
+    filtered.forEach((r) => {
+      const dayCells = weekDays.map((d) => (r.completedDates.includes(d.date) ? 'X' : ''));
+      lines.push(
+        [
+          r.user_name,
+          r.user_email,
+          r.user_phone || '',
+          r.plan_name,
+          r.completedCount,
+          r.status,
+          r.payoutPercentage + '%',
+          ...dayCells,
+        ]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(';')
       );
-    }
-    return r;
-  }, [rows, scope, statusFilter, search]);
-
-  const totals = useMemo(() => {
-    const total = rows.length;
-    const withAny = rows.filter((r) => r.completedCount > 0).length;
-    const meta = rows.filter((r) => r.status === 'META').length;
-    const penal = rows.filter((r) => r.status === 'PENALIDADE').length;
-    const zero = rows.filter((r) => r.status === 'ZERADO').length;
-    const andamento = rows.filter((r) => r.status === 'EM_ANDAMENTO').length;
-    return { total, withAny, meta, penal, zero, andamento };
-  }, [rows]);
-
-  const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-
-  const exportCSV = () => {
-    const header = ['Nome', 'Email', 'Telefone', 'Plano', 'Cotas', ...WEEK_DAY_LABELS.map((_, i) => `D${i + 1}`), 'Total', 'Status'];
-    const lines = filtered.map((r) => [
-      `"${r.fullName.replace(/"/g, '""')}"`,
-      r.email,
-      r.phone || '',
-      r.planName,
-      r.cotas,
-      ...r.days.map((d) => (d.completed ? '1' : '0')),
-      r.completedCount,
-      r.status,
-    ].join(','));
-    const csv = [header.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    });
+    const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `divulgacao-semanal_${weekStart.toISOString().slice(0, 10)}.csv`;
+    a.download = `divulgacao-semanal-${formatWeekRangeLabel(anchor).replace(/[\/\s–]/g, '_')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-4">
-      {/* Cabeçalho */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setWeekOffset((w) => w - 1); setPage(0); }}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="text-sm font-medium px-2">
-            Semana {formatBR(weekStart.toISOString().slice(0, 10))} – {formatBR(weekEnd.toISOString().slice(0, 10))}
-            {isCurrentWeek && <span className="ml-2 text-xs text-blue-600">(atual)</span>}
+      {/* Controles de semana */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWeekOffset(weekOffset - 1)}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+              </Button>
+              <div className="text-sm font-medium px-2">
+                {isCurrentWeek ? 'Semana atual · ' : ''}
+                {formatWeekRangeLabel(anchor)}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWeekOffset(weekOffset + 1)}
+                disabled={weekOffset >= 0}
+              >
+                Próxima <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+              {weekOffset !== 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>
+                  Voltar para atual
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportCsv}>
+                <Download className="h-4 w-4 mr-1" />
+                CSV
+              </Button>
+            </div>
           </div>
-          <Button
-            variant="outline" size="sm"
-            onClick={() => { setWeekOffset((w) => Math.min(0, w + 1)); setPage(0); }}
-            disabled={weekOffset >= 0}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-          {weekOffset !== 0 && (
-            <Button variant="ghost" size="sm" onClick={() => { setWeekOffset(0); setPage(0); }}>
-              Voltar para atual
-            </Button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw className="w-4 h-4 mr-1" /> Atualizar
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!filtered.length}>
-            <Download className="w-4 h-4 mr-1" /> CSV
-          </Button>
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
 
-      {/* Cards resumo */}
+      {/* Cards-resumo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Parceiros ativos</div><div className="text-2xl font-semibold">{totals.total}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Com ≥1 confirmação</div><div className="text-2xl font-semibold">{totals.withAny}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Meta 7/7 (100%)</div><div className="text-2xl font-semibold text-emerald-600">{totals.meta}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Penalidade (40%)</div><div className="text-2xl font-semibold text-amber-600">{totals.penal}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Zerados</div><div className="text-2xl font-semibold text-muted-foreground">{totals.zero}</div></CardContent></Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Parceiros ativos</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{summary.total}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">≥ 1 confirmação</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{summary.withAtLeastOne}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-emerald-600">Meta (100%)</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-emerald-600">{summary.meta}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-amber-600">Penalidade (40%)</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-amber-600">{summary.penalty}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-destructive">Zerado (0%)</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-destructive">{summary.zero}</div></CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
       <Card>
-        <CardContent className="p-4 flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome, e-mail ou telefone…"
+                placeholder="Buscar nome, email ou telefone..."
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-8"
               />
             </div>
-          </div>
-          <div className="min-w-[180px]">
-            <Select value={scope} onValueChange={(v: any) => { setScope(v); setPage(0); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select value={scopeFilter} onValueChange={(v: any) => setScopeFilter(v)}>
+              <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todos os ativos</SelectItem>
-                <SelectItem value="WITH_CONFIRM">Apenas com ≥1 confirmação</SelectItem>
+                <SelectItem value="all">Todos os parceiros</SelectItem>
+                <SelectItem value="with">Com ≥ 1 confirmação</SelectItem>
+                <SelectItem value="without">Sem confirmações</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="min-w-[180px]">
-            <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(0); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todos os status</SelectItem>
-                <SelectItem value="META">Meta cumprida</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="META">Meta 7/7</SelectItem>
                 <SelectItem value="PENALIDADE">Penalidade</SelectItem>
+                <SelectItem value="ZERADO">Zerado</SelectItem>
                 <SelectItem value="EM_ANDAMENTO">Em andamento</SelectItem>
-                <SelectItem value="ZERADO">Zerados</SelectItem>
               </SelectContent>
             </Select>
+            <div className="text-sm text-muted-foreground ml-auto">
+              {filtered.length} de {rows.length}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Tabela */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Parceiros ({filtered.length})
-          </CardTitle>
-        </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Carregando…</div>
-          ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">Nenhum parceiro encontrado com os filtros atuais.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Parceiro</TableHead>
-                    <TableHead>Plano</TableHead>
-                    {WEEK_DAY_LABELS.map((l, i) => (
-                      <TableHead key={i} className="text-center w-10">{l}</TableHead>
-                    ))}
-                    <TableHead className="text-center">Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pageRows.map((r) => (
-                    <TableRow key={r.contractId}>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Parceiro</TableHead>
+                  <TableHead>Plano</TableHead>
+                  {weekDays.map((d) => (
+                    <TableHead key={d.date} className="text-center w-10">
+                      <div className={`text-xs ${d.isToday ? 'text-primary font-bold' : ''}`}>
+                        {d.label}
+                        <div className="text-[10px] text-muted-foreground">{d.dayNumber}</div>
+                      </div>
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-center">Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Nenhum parceiro encontrado.</TableCell></TableRow>
+                ) : (
+                  filtered.map((r) => (
+                    <TableRow key={r.contract_id}>
                       <TableCell>
-                        <div className="font-medium">{r.fullName}</div>
-                        <div className="text-xs text-muted-foreground">{r.email}</div>
+                        <div className="font-medium">{r.user_name}</div>
+                        <div className="text-xs text-muted-foreground">{r.user_email}</div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{r.planName}</div>
-                        <div className="text-xs text-muted-foreground">{r.cotas} cota{r.cotas > 1 ? 's' : ''}</div>
-                      </TableCell>
-                      {r.days.map((d, i) => (
-                        <TableCell key={i} className="text-center"><DayCell d={d} /></TableCell>
-                      ))}
-                      <TableCell className="text-center font-medium">
-                        {r.completedCount}/{REQUIRED_DAYS}
-                      </TableCell>
+                      <TableCell><Badge variant="outline">{r.plan_name}</Badge></TableCell>
+                      {weekDays.map((d) => {
+                        const done = r.completedDates.includes(d.date);
+                        return (
+                          <TableCell key={d.date} className="text-center">
+                            {done ? (
+                              <CheckCircle2 className={`h-5 w-5 mx-auto text-emerald-600 ${d.isToday ? 'ring-2 ring-primary rounded-full' : ''}`} />
+                            ) : (
+                              <span className={`text-muted-foreground ${d.isToday ? 'font-bold text-primary' : ''}`}>—</span>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center font-medium">{r.completedCount}/7</TableCell>
                       <TableCell>{statusBadge(r.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => setHistoryContract(r)}>
-                          <History className="w-4 h-4 mr-1" /> Histórico
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => openHistory(r.contract_id, r.user_name)}>
+                          <History className="h-4 w-4 mr-1" /> Histórico
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Paginação */}
-      {pageCount > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
-            Anterior
-          </Button>
-          <span className="text-sm text-muted-foreground">Página {page + 1} de {pageCount}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}>
-            Próxima
-          </Button>
-        </div>
-      )}
-
-      {/* Modal de histórico */}
-      <Dialog open={!!historyContract} onOpenChange={(o) => !o && setHistoryContract(null)}>
-        <DialogContent className="max-w-2xl">
+      {/* Histórico Modal */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Histórico — {historyContract?.fullName}
-            </DialogTitle>
+            <DialogTitle>Histórico — {historyRow?.name}</DialogTitle>
           </DialogHeader>
-          {historyContract && <HistoryContent contractId={historyContract.contractId} />}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-const HistoryContent: React.FC<{ contractId: string }> = ({ contractId }) => {
-  const { loading, history } = useAdminPartnerAdHistory(contractId, 4);
-  if (loading) return <div className="text-sm text-muted-foreground py-4">Carregando…</div>;
-  if (!history.length) return <div className="text-sm text-muted-foreground py-4">Sem dados.</div>;
-  return (
-    <div className="space-y-3">
-      {history.map((w) => (
-        <Card key={w.weekStart}>
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium">
-                {formatBR(w.weekStart)} – {formatBR(w.weekEnd)}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{w.completedCount}/{REQUIRED_DAYS}</span>
-                {statusBadge(w.status)}
-              </div>
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {w.days.map((d, i) => (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <div className="text-[10px] text-muted-foreground">{WEEK_DAY_LABELS[i]}</div>
-                  <DayCell d={d} />
+          {historyLoading ? (
+            <div className="text-center py-6 text-muted-foreground">Carregando...</div>
+          ) : (
+            <div className="space-y-2">
+              {history.map((h, i) => (
+                <div key={i} className="flex items-center justify-between border rounded p-3">
+                  <div>
+                    <div className="font-medium">{formatWeekRangeLabel(h.weekStart)}</div>
+                    <div className="text-xs text-muted-foreground">{h.count}/7 confirmações</div>
+                  </div>
+                  {statusBadge(h.status)}
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,4 +1,9 @@
-// Helpers compartilhados de semana (Seg-Dom) usados em AdCenter (parceiro e admin)
+// Helpers compartilhados de semana (segunda 00:00 -> domingo 23:59, horário Brasil)
+// Espelham as regras usadas em src/hooks/useAdCenter.ts
+
+export const DAY_NAMES_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+// Ordem da semana segunda -> domingo
+export const WEEK_HEADER = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 
 export const formatDateBrazil = (date: Date): string => {
   const year = date.getFullYear();
@@ -24,6 +29,29 @@ export const getWeekEnd = (date: Date): Date => {
   return end;
 };
 
-export const DAY_NAMES_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-// Ordem visual Seg..Dom
-export const WEEK_DAY_LABELS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+export const getWeekDays = (anchor: Date): { date: string; label: string; dayNumber: number; isToday: boolean; isFuture: boolean }[] => {
+  const today = formatDateBrazil(new Date());
+  const start = getWeekStart(anchor);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateStr = formatDateBrazil(d);
+    days.push({
+      date: dateStr,
+      label: WEEK_HEADER[i],
+      dayNumber: d.getDate(),
+      isToday: dateStr === today,
+      isFuture: dateStr > today,
+    });
+  }
+  return days;
+};
+
+export const formatWeekRangeLabel = (anchor: Date): string => {
+  const s = getWeekStart(anchor);
+  const e = getWeekEnd(anchor);
+  const fmt = (d: Date) =>
+    `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${fmt(s)} – ${fmt(e)}`;
+};
