@@ -66,12 +66,12 @@ export const useAdminWeeklyAds = (anchorDate: Date) => {
       // Profiles
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
-        .select('id, full_name, email, phone')
-        .in('id', userIds);
+        .select('user_id, full_name, email, phone')
+        .in('user_id', userIds);
       if (pErr) throw pErr;
 
       const profileMap = new Map<string, any>();
-      (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
+      (profiles || []).forEach((p: any) => profileMap.set(p.user_id, p));
 
       const completionMap = new Map<string, Set<string>>();
       (completions || []).forEach((c: any) => {
