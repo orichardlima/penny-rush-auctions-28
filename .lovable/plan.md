@@ -1,48 +1,72 @@
-## Problema
+## Diagnóstico
 
-Hoje o cálculo do estorno desconta tudo que foi **creditado** como payout (saldo disponível), mesmo que o parceiro nunca tenha sacado para a conta bancária. Isso pune o parceiro descontando dinheiro que a empresa nunca pagou de fato.
+O leilão **Tablet Galaxy Tab A9+** está recebendo **exatamente 1 lance de bot por minuto** (sempre nos segundos `:00`), enquanto Xbox e Smart TV parecem "saudáveis" só porque têm 30+ lances reais a cada 8 min mantendo o timer vivo. Quando o leilão depende só do bot (caso do Tablet), aparece travado em "Verificando lances válidos" por ~45s a cada minuto.
 
-Exemplo atual da Sabriny:
-- Total recebido em payouts: R$ 5.612,50 (saldo creditado)
-- Mas se ela só sacou R$ 1.000 via PIX, os outros R$ 4.612,50 ainda estão na plataforma — não saíram do caixa da empresa.
+### Causa raiz: `now()` está congelado dentro de cada execução do cron
 
-## Mudança
+Há 12 jobs `bot-tick-XX` rodando como:
 
-Trocar a fonte do "Total já recebido em payouts" no detalhamento financeiro do encerramento:
+```sql
+SELECT pg_sleep(N); SELECT public.bot_tick_safe();
+```
 
-- **Antes:** soma de `partner_payouts` com `status = 'PAID'` (= valor creditado no saldo do parceiro)
-- **Depois:** soma de `partner_withdrawals` com `status = 'PAID'` (= PIX efetivamente enviado para a conta bancária)
+Cada job roda **em uma única transação**. O `pg_sleep` atrasa o relógio real, mas em PostgreSQL `now()` (= `transaction_timestamp()`) retorna o **início da transação** — não o tempo real. Logo, os 12 jobs por minuto enxergam `now() = HH:MM:00.xxx`, mesmo executando em `:05`, `:10`, … `:55` no relógio real.
 
-O saldo creditado mas não sacado fica como "crédito interno" do parceiro e **não** reduz o estorno.
+Os logs confirmam isso: todas as 12 mensagens `🔄 [BOT-LOOP] Passagem` por minuto mostram timestamp `17:36:00.1xx`, `17:35:00.1xx`, etc. — nunca aparecem em `:05`, `:15`, etc.
 
-## Onde aplicar
+### Cascata de efeitos
 
-1. **`src/components/Partner/EncerramentoDashboard.tsx`** — bloco "Detalhamento Financeiro":
-   - Renomear a linha de "Total já recebido em payouts" para **"Total já pago via PIX (saques)"**
-   - Usar `totalWithdrawnPix` (soma de `partner_withdrawals.status = 'PAID'`) em vez de `contract.total_received`
-   - Recalcular "Saldo restante do teto" e "Valor final do estorno" com esse novo valor:
-     - `valorFinalEstorno = max(0, aporte × (1 − deságio%) − totalWithdrawnPix)`
-   - Adicionar linha informativa logo abaixo: **"Saldo creditado não sacado: R$ X,XX"** (apenas exibição, não desconta do estorno) para deixar transparente.
+1. Tick `:00` insere o lance de bot agendado.
+2. Trigger `update_auction_on_bid` faz `last_bid_at = NOW()` → também recebe `HH:MM:00`.
+3. Ticks `:05`, `:10`, …, `:55` rodam, mas para o Tablet vêem:
+   - `last_bid_at = HH:MM:00`
+   - `now() = HH:MM:00` (transaction start)
+   - `v_seconds_since_last_bid = 0`
+   - FASE B exige `secs >= 5` → **nunca agenda** novo lance.
+4. Só no `:00` da próxima janela (transação nova, `now()` avança 1 minuto) o ciclo se repete.
 
-2. **`src/hooks/useTerminationDetails.ts`** — buscar adicionalmente os saques PAID:
-   - Nova query em `partner_withdrawals` (`status = 'PAID'`, `partner_contract_id`)
-   - Expor `totalWithdrawnPix` e `totalCreditedNotWithdrawn` no retorno
+Para Xbox/Smart TV o defeito existe igual, mas é mascarado porque lances reais chegando a todo momento (cada um em sua própria transação, com seu próprio `now()` real) mantêm o `last_bid_at` atualizado.
 
-3. **`src/hooks/usePartnerEarlyTermination.ts`** — `calculateLiquidationProposal`:
-   - Aceitar parâmetro opcional `totalWithdrawnPix`; quando informado, usar no lugar de `contract.total_received` na fórmula do `proposedValue`
-   - Mantém compatibilidade com chamadas existentes (dialog de solicitação continua funcionando)
+## Correção
 
-4. **`src/components/Partner/PartnerEarlyTerminationDialog.tsx`** (verificar): se o dialog de solicitação também mostra a prévia, passar `totalWithdrawnPix` para o cálculo para alinhar o que o parceiro vê antes/depois de solicitar.
+Trocar `now()` / `NOW()` por `clock_timestamp()` (que retorna o **tempo real**, não o início da transação) nos pontos críticos da orquestração de bots e no trigger que persiste `last_bid_at`.
 
-## Sem mudanças
+### 1. Migração SQL — alterar 3 funções
 
-- Nenhuma alteração de schema (tabelas, RLS, triggers).
-- Nenhuma mudança no fluxo do admin (aprovar/marcar como pago continua igual).
-- Nenhuma mudança no cálculo de saldo disponível para saque normal (`usePartnerWithdrawals.calculateAvailableBalance`) — ele continua usando payouts PAID, pois o parceiro pode sacar tudo que foi creditado.
-- UI do restante do dashboard permanece intacta.
+**`public.update_auction_on_bid()`** (trigger AFTER INSERT em `bids`):
+- `last_bid_at = clock_timestamp()`
+- `updated_at = clock_timestamp()`
 
-## Edge cases tratados
+**`public.bot_protection_loop()`**:
+- `v_current_time := clock_timestamp();` (em vez de `now()`)
+- `UPDATE auctions SET ... last_bid_at = clock_timestamp(), updated_at = clock_timestamp() WHERE status='waiting' ...` (FASE 0)
+- Manter o resto da lógica intacta (já usa `v_current_time` localmente).
 
-- Parceiro sem nenhum saque PAID → `totalWithdrawnPix = 0` → estorno = aporte × 70%.
-- Parceiro com saques PENDING/APPROVED mas não PAID → ainda **não** descontam (consistente com a regra: só conta o que saiu do caixa).
-- Se `totalWithdrawnPix > aporte × 70%` → estorno = R$ 0,00 (já tratado pelo `Math.max(0, …)`).
+**`public.execute_overdue_bot_bids()`**:
+- Trocar as comparações `<= now()`, `>= now() - interval '5 seconds'` e `>= now() - interval '3 seconds'` por `clock_timestamp()` equivalentes.
+- Trocar o `UPDATE ... WHERE ends_at < now() - interval '5 seconds'` por `clock_timestamp()`.
+
+### 2. Nenhuma mudança em UI, RLS, cron, hooks de frontend, ou outras funções
+
+- O `EncerramentoDashboard`, hooks de leilão, edge functions e cron permanecem idênticos.
+- Não mexer em `bot_tick`, `bot_tick_safe`, `get_random_bot`, `block_bot_bid_when_target_leading`, nem nas demais triggers (`fury_vault_on_bid`, `bids_refresh_last_bidders`, etc.).
+- A semântica de negócio (intervalo de 5–14s entre lances de bot, safety net de 90s, finalização) fica exatamente igual — só passa a respeitar o tempo real.
+
+### 3. Validação após aplicar a migração
+
+Após a migração, esperar 2 minutos e rodar:
+
+```sql
+SELECT date_trunc('minute', b.created_at) AS minute, a.title, COUNT(*) AS bot_bids
+FROM bids b JOIN auctions a ON a.id=b.auction_id
+WHERE b.cost_paid = 0 AND b.created_at > now() - interval '5 minutes' AND a.status='active'
+GROUP BY 1, a.title ORDER BY 1 DESC;
+```
+
+Esperado: cada leilão ativo "morno" deve passar a receber **4–6 lances de bot por minuto** (a cada 10–15s), em vez de exatamente 1 no segundo `:00`. O badge "Verificando lances válidos" só deve aparecer por 1–2s entre lances.
+
+### Riscos
+
+- Baixíssimos. `clock_timestamp()` é a função padrão do PostgreSQL para "agora de verdade" e é o que o pg_cron + `pg_sleep` exige para funcionar corretamente.
+- Nenhuma alteração de schema, RLS, ou contratos externos.
+- A finalização de leilão por `safety net` (≥90s sem lance) continua valendo — ainda mais corretamente, porque agora o cálculo de `secs_since_last_bid` reflete o relógio real.
