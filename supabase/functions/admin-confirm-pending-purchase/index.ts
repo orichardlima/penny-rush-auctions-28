@@ -73,7 +73,7 @@ serve(async (req) => {
       .update({ payment_status: 'completed' })
       .eq('id', purchase_id)
 
-    // Credit bids
+    // Credit bids (com validade de 30 dias)
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('bids_balance, full_name')
@@ -83,10 +83,13 @@ serve(async (req) => {
     const oldBalance = userProfile?.bids_balance || 0
     const newBalance = oldBalance + purchase.bids_purchased
 
-    await supabase
-      .from('profiles')
-      .update({ bids_balance: newBalance })
-      .eq('user_id', purchase.user_id)
+    const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
+      p_user_id: purchase.user_id,
+      p_amount: purchase.bids_purchased,
+      p_purchase_id: purchase_id,
+    })
+    if (creditErr) console.error('❌ credit_purchase_bids failed:', creditErr)
+
 
     // Approve pending commissions
     const { data: commissions } = await supabase
