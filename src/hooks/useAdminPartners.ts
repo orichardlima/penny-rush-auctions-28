@@ -1360,6 +1360,28 @@ export const useAdminPartners = () => {
         })
         .eq('id', terminationId);
       if (error) throw error;
+
+      // Auditoria
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        await supabase.from('admin_audit_log').insert({
+          admin_user_id: user?.id,
+          admin_name: prof?.full_name || 'Admin',
+          action_type: 'TERMINATION_PAID',
+          target_type: 'partner_early_termination',
+          target_id: terminationId,
+          description: `Estorno marcado como pago${payoutReference ? ' (ref: ' + payoutReference + ')' : ''}`,
+          new_values: { paid_at: nowIso, payout_reference: payoutReference || null },
+        });
+      } catch (e) {
+        console.warn('audit log falhou:', e);
+      }
+
       toast({ title: 'Estorno marcado como pago' });
       await fetchTerminations();
     } catch (error: any) {
