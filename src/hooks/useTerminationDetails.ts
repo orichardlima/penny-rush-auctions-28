@@ -65,6 +65,8 @@ export interface TerminationDetails {
   payouts: TerminationPayoutItem[];
   referralBonuses: TerminationReferralBonus[];
   slaDays: number;
+  totalWithdrawnPix: number;
+  totalCreditedNotWithdrawn: number;
   loading: boolean;
   refetch: () => Promise<void>;
 }
