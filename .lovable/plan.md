@@ -1,91 +1,65 @@
+# Controles Admin para Encerramento de Parceiros
 
-# Página de Acompanhamento do Encerramento (Ex-Parceiro)
+## Contexto
+A tela de acompanhamento do ex-parceiro já está funcionando e mostra o prazo de **7 dias corridos** para pagamento do estorno após aprovação. Esse número vem da configuração `termination_refund_sla_days` no `system_settings`, inserida com valor padrão `7` pela última migração. Porém, **o admin ainda não tem interface para alterar esse prazo** nem para registrar o pagamento do estorno quando a liquidação for em PIX (PARTIAL_REFUND).
 
 ## Objetivo
-Dar transparência e profissionalismo ao parceiro que solicitou encerramento antecipado: ele precisa ver claramente **o que pediu, o que vai receber, quando vai receber e tudo que já recebeu antes** — em vez de simplesmente "sumir" do status de Parceiro.
+Dar ao admin controle total sobre o fluxo de encerramento antecipado diretamente no painel já existente (`/admin/parceiros`), sem precisar editar banco de dados manualmente.
 
-## Onde aparece
+## Escopo
+1. Configurar o prazo de estorno (SLA em dias corridos).
+2. Na lista de encerramentos, indicar a data limite de pagamento para pedidos aprovados.
+3. Adicionar ação "Marcar estorno como pago" para pedidos `APPROVED` com liquidação `PARTIAL_REFUND`, exigindo a referência do PIX.
+4. Registrar auditoria das ações admin (mudança de prazo e confirmação de pagamento).
 
-1. **Nova rota** `/minha-parceria/encerramento` (ou aba dentro de `/minha-parceria` quando o contrato mais recente está `CLOSED` via `partner_early_terminations`).
-2. **CTA no Dashboard** (`/dashboard`): quando o usuário é ex-parceiro (tem `partner_early_terminations.status` em `PENDING`/`APPROVED`/`COMPLETED` e nenhum contrato `ACTIVE`), substituir o card roxo "Seja um Parceiro Investidor!" por um card "Acompanhar meu encerramento" + link para a página nova. Abaixo, manter um CTA secundário "Contratar novo plano".
-3. **Badge** no topo do perfil: "Contrato Encerrado em DD/MM/AAAA" (cinza, discreto).
+## O que será alterado
 
-## Conteúdo da página
+### 1. `src/components/Admin/AdminPartnerManagement.tsx`
+Nova seção de configuração dentro da aba `process` ou próximo às configurações de fundo de parceiros:
 
-### Seção 1 — Status do Encerramento (hero)
-- Status grande com cor semântica:
-  - `PENDING` → amarelo: "Em análise pela equipe"
-  - `APPROVED` → azul: "Aprovado — aguardando pagamento"
-  - `COMPLETED` → verde: "Estorno concluído"
-  - `REJECTED` → vermelho: "Recusado" + motivo (`admin_notes`)
-- Timeline horizontal com 4 marcos:
-  1. **Solicitado** — `requested_at`
-  2. **Aprovado** — `processed_at` (quando status virou APPROVED)
-  3. **Pago** — data do PIX de estorno
-  4. **Concluído** — `processed_at` final
-- Card "Prazo estimado para recebimento": `processed_at (aprovação) + N dias úteis` (N vindo de `system_settings.termination_refund_sla_days`, default 7). Mostrar contador "Faltam X dias úteis" ou "Atrasado há X dias" se passou do SLA.
+- Campo numérico: **"Prazo para pagamento do estorno (dias corridos)"**.
+- Botão **Salvar** que chama `updateSetting('termination_refund_sla_days', valor)`.
+- Valor inicial vindo de `getSettingValue('termination_refund_sla_days', 7)`.
 
-### Seção 2 — Detalhamento Financeiro (transparência total)
-Tabela limpa, sem jargão:
+A aba `terminations` será aprimorada:
+- Nova coluna ou linha de detalhe mostrando a **data limite de pagamento** para pedidos `APPROVED` (calculada como `approved_at + slaDays`).
+- Quando `status === 'APPROVED'` e `liquidation_type === 'PARTIAL_REFUND'`, exibir botão **"Marcar como pago"**.
+- Ao clicar, abrir um pequeno diálogo solicitando a **referência do pagamento PIX** (campo `payout_reference`) e confirmar.
+- Ação chama `markTerminationPaid(term.id, payoutReference)` já existente em `useAdminPartners`.
+- Pedidos `COMPLETED` exibem a data de pagamento e a referência, quando houver.
 
-| Item | Valor |
-|---|---|
-| Aporte original | R$ `aporte_original` |
-| Teto total do contrato (2x aporte) | R$ `aporte_original * 2` |
-| Total já recebido em payouts semanais | R$ `total_received` |
-| Saldo restante do teto (que você abriria mão) | R$ `remaining_cap` |
-| Deságio aplicado sobre o aporte | `discount_percentage`% |
-| Cálculo: (Aporte × (1 - deságio%)) − Total recebido | R$ `proposed_value` |
-| **Valor final do estorno** | **R$ `final_value`** (ou `proposed_value` se ainda pendente) |
-| Forma de liquidação | PIX / Créditos / Lances (`liquidation_type`) |
+### 2. `src/hooks/useAdminPartners.ts`
+A função `markTerminationPaid` já existe. Será ajustada para:
+- Inserir registro em `admin_audit_log` com ação `TERMINATION_PAID`, registrando admin, ID do pedido, referência e valor final.
+- Garantir que `processed_at` seja atualizado junto com `paid_at` e `status = 'COMPLETED'`.
 
-Com tooltip "Como calculamos?" abrindo um modal com a fórmula completa e exemplo numérico.
+A função `processTermination` será ajustada para:
+- Inserir registro em `admin_audit_log` com ação `TERMINATION_APPROVED` ou `TERMINATION_REJECTED`, incluindo o valor final e tipo de liquidação.
 
-### Seção 3 — Histórico de Payouts Recebidos
-Lista cronológica de todos os `partner_payouts` do contrato encerrado:
-- Data, semana de referência, valor base, valor de ads, total pago, status.
-- Total acumulado no rodapé (deve bater com `total_received`).
+### 3. Auditoria
+Novos registros em `admin_audit_log`:
+- `TERMINATION_APPROVED`: quando admin aprova encerramento.
+- `TERMINATION_REJECTED`: quando admin recusa encerramento.
+- `TERMINATION_PAID`: quando admin confirma pagamento do estorno.
+- `UPDATE_TERMINATION_SLA`: quando admin altera o prazo de pagamento.
 
-### Seção 4 — Histórico de Bônus de Indicação
-Tabela de `partner_referral_bonuses` ligados a este contrato (indicações que ele patrocinou e que geraram bônus pré-encerramento).
+## Não está no escopo (v1)
+- Envio automático de e-mail ao alterar prazo ou confirmar pagamento.
+- Geração de PDF/recibo pelo admin (o próprio parceiro já pode imprimir a tela).
+- Reabertura de pedido rejeitado ou cancelamento de pedido aprovado pelo parceiro.
 
-### Seção 5 — Dados do Contrato Encerrado
-Card resumo: plano contratado, data de ativação, data de encerramento, número de quotas, sponsor, posição binária (ainda preservada — explicar que continua na árvore para não quebrar uplines/downlines).
+## Fluxo esperado para o admin
+```text
+1. Admin acessa /admin/parceiros → aba "Encerramentos".
+2. Vê solicitação PENDING de Sabriny → clica em aprovar.
+3. Contrato é fechado, status vira APPROVED, sistema calcula data limite = approved_at + 7 dias.
+4. Admin faz o PIX manualmente fora da plataforma.
+5. Retorna à lista, clica "Marcar como pago" e informa a referência do PIX.
+6. Status vira COMPLETED, parceiro vê "Pago em DD/MM/YYYY" e a referência na tela de acompanhamento.
+```
 
-### Seção 6 — Próximos Passos
-Três cards lado a lado:
-1. **"Contratar novo plano"** → leva a `/minha-parceria` na aba de planos (contrato novo, separado, com novo cap).
-2. **"Falar com suporte"** → link de contato/WhatsApp (caso o estorno atrase).
-3. **"Baixar comprovante"** → PDF com todo o detalhamento acima (pode ser fase 2; v1 = botão "Imprimir" via `window.print()` com CSS de impressão).
-
-## Mudanças técnicas
-
-### Banco de dados
-1. **`system_settings`** — adicionar chave `termination_refund_sla_days` (default `7`) para parametrizar o prazo.
-2. **`partner_early_terminations`** — adicionar colunas:
-   - `approved_at TIMESTAMPTZ` (separar do `processed_at` que hoje é usado para ambos)
-   - `paid_at TIMESTAMPTZ` (quando o PIX de estorno saiu)
-   - `payout_reference TEXT` (id da transação Veopag, para auditoria)
-3. **Backfill**: para registros `COMPLETED` existentes, copiar `processed_at` para `paid_at` e `approved_at`.
-
-### RLS
-A política existente de `partner_early_terminations` já permite o owner ler. Verificar/garantir SELECT para o próprio usuário. Sem mudança de grants.
-
-### Frontend
-- Nova rota em `src/App.tsx`: `/minha-parceria/encerramento`.
-- Novo componente `src/components/Partner/EncerramentoDashboard.tsx` com as 6 seções.
-- Hook `useTerminationDetails(contractId)` reaproveitando `usePartnerEarlyTermination` + queries de `partner_payouts` e `partner_referral_bonuses`.
-- Ajuste no `UserDashboard.tsx`: detectar ex-parceiro e renderizar card "Acompanhar encerramento" no lugar do CTA atual.
-- Sem mexer no fluxo de criação/aprovação do encerramento (já existe e funciona).
-
-### Admin
-Adicionar ao painel admin (`AdminPartnerManagement`) campos para preencher `paid_at` e `payout_reference` ao confirmar o pagamento do estorno. Sem isso a timeline da seção 1 fica incompleta.
-
-## Fora do escopo (deixar para depois)
-- Geração de PDF server-side (v1 usa print do browser).
-- Notificação automática por e-mail quando passa de um marco para outro (pode ser fase 2 usando o sistema de e-mail já existente).
-- Reabertura/cancelamento de pedido de encerramento pelo próprio usuário (já existe `cancelRequest` para `PENDING`; manter como está).
-
-## Resumo do que muda na experiência da Sabriny (caso de uso real)
-- Hoje: vê dashboard de usuário comum + CTA "Seja Parceiro". Não tem nenhuma informação sobre o encerramento.
-- Depois: vê card "Seu estorno de R$ 11.887,50 está aprovado — previsão de pagamento até DD/MM" com link direto. Na página, vê toda a conta detalhada: aporte R$ 25.000, recebido R$ 5.612,50, deságio 30%, valor final R$ 11.887,50, lista dos payouts que recebeu, e botão para contratar um plano novo se quiser voltar.
+## Técnico
+- Sem migração de banco: colunas `approved_at`, `paid_at` e `payout_reference` já existem em `partner_early_terminations`; `termination_refund_sla_days` já existe em `system_settings`.
+- Reutilizar o hook `useSystemSettings` (já importado em `AdminPartnerManagement.tsx`).
+- Reutilizar os componentes de UI já usados no arquivo (Card, Input, Button, Dialog, Table, Badge).
+- Seguir padrão de cores semânticas do projeto (Tailwind tokens), sem cores hexadecimais inseridas manualmente.
