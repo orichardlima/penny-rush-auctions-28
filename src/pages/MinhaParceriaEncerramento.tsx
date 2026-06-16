@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SEOHead } from '@/components/SEOHead';
+import { Button } from '@/components/ui/button';
+import { FileText } from 'lucide-react';
 import EncerramentoDashboard from '@/components/Partner/EncerramentoDashboard';
 
 const MinhaParceriaEncerramento = () => {
