@@ -1,52 +1,68 @@
-## Problema
+# Problema
 
-Bots demoram 15-17s entre lances, ultrapassando a janela de 15s e fazendo o card piscar "Verificando lances válidos" constantemente. Confirmado nos logs (gaps de 15,69s e 16,02s em sequência).
+Os cards continuam em "Verificando lances válidos" porque, na verdade, **os bots pararam de dar lance**:
 
-## Causa raiz
+- Leilão "Galaxy Watch 6": **0 lances** desde que abriu
+- Leilão "Micro-ondas 32L": último lance há **6 minutos**
 
-Duas latências somadas:
-1. **Tick a cada 10s** (cron `bot-tick-00…50`): qualquer `scheduled_bot_bid_at` espera até 10s para ser executado.
-2. **Bandas de delay vão até 14s** (`sniper` 13-14s, `late` 10-12s), com regra de agendar só após `secondsSinceLastBid >= 5`.
+Ou seja: o ajuste de tick/delay anterior não resolve nada se o `bot_tick` em si está falhando.
 
-Fluxo: lance em T=0 → tick T≈5-10s agenda com delay 2-14s → tick seguinte T≈15-20s executa. Bot bida quase sempre entre T+15s e T+20s.
+# Causa raiz (confirmada nos logs do cron)
 
-## Solução
+O `bot_tick_safe()` está caindo com `statement timeout` dentro de um trigger:
 
-Duas mudanças coordenadas, ambas focadas em garantir bid antes de T=15s sem mexer no comportamento "natural" dos bots (continuam variando timing).
+```
+canceling statement due to statement timeout
+PL/pgSQL function rebuild_auction_last_bidders(uuid) line 5
+trigger trg_refresh_last_bidders
+INSERT INTO bids (...)  -- bot bid
+execute_overdue_bot_bids() → bot_tick() → bot_tick_safe()
+```
 
-### 1. Aumentar frequência do tick para 5 segundos
-Adicionar 6 cron jobs intermediários (`bot-tick-05`, `15`, `25`, `35`, `45`, `55`) que chamam `bot_tick_safe()` com `pg_sleep` de 5/15/25/35/45/55 segundos. Cobre todos os 5 segundos do minuto. Reduz latência máxima do execute de 10s para 5s.
+A função `rebuild_auction_last_bidders` roda em **todo INSERT em `bids`** e executa:
 
-### 2. Reduzir teto das bandas de delay
-Em `supabase/functions/sync-timers-and-protection/index.ts`, ajustar `selectBotBand`:
-- `early`: 2-4s (mantém)
-- `middle`: 5-7s (era 6-9s)
-- `late`: 8-10s (era 10-12s)
-- remover banda `sniper` (13-14s)
+```sql
+SELECT ... FROM bids b LEFT JOIN profiles p ...
+WHERE b.auction_id = X
+ORDER BY b.created_at DESC
+LIMIT 3
+```
 
-Distribuição nova: 25% early / 45% middle / 30% late. Mantém variedade de timing percebida, mas garante target ≤ T+10s. Somado ao tick de 5s, o bot bida no máximo em T+15s real.
+A tabela `bids` tem **2.203.891 linhas**. Os índices existentes:
 
-### 3. Reduzir janela mínima para agendar
-Mudar `if (secondsSinceLastBid >= 5)` para `if (secondsSinceLastBid >= 2)`. Permite agendar mais cedo, dando folga para o próximo tick executar dentro da janela.
+- `idx_bids_auction_id` (auction_id)
+- `idx_bids_created_at` (created_at)
+- `idx_bids_created_at_user` (created_at DESC, user_id)
 
-## Validação
+**Não existe** índice composto `(auction_id, created_at DESC)`. Para um leilão popular, o Postgres lê todos os bids daquele leilão e ordena em memória, o que estoura o `statement_timeout`. O trigger faz rollback do INSERT do bot → bot nunca dá lance → contador zera → card mostra "Verificando".
 
-Após deploy, observar por ~5 minutos:
-- Logs do `sync-timers-and-protection`: campo `bot_bids_executed` por tick.
-- Query no banco: `SELECT auction_id, EXTRACT(EPOCH FROM (created_at - LAG(created_at) OVER (PARTITION BY auction_id ORDER BY created_at))) FROM bids WHERE created_at > now() - interval '5 minutes'` — todos os gaps consecutivos devem ficar ≤ 14s.
-- UI: card não deve mais mostrar "Verificando lances válidos" durante leilões ativos saudáveis.
+Também observado: várias execuções do tick demoram 20-30s (acima da janela de 15s), reforçando que o gargalo é I/O do trigger, não a frequência do cron.
 
-## Detalhes técnicos
+# Plano
 
-**Arquivos alterados**:
-- `supabase/functions/sync-timers-and-protection/index.ts` — ajustar `selectBotBand` e o threshold de scheduling.
-- Migração SQL — `cron.schedule` para 6 novos jobs (`bot-tick-05/15/25/35/45/55`) usando `bot_tick_safe()` com `pg_sleep` apropriado.
+## 1. Criar índice composto em `bids` (correção principal)
 
-**Sem impacto em**:
-- Lógica de finalização (`finalize`, `getEligibleRealLeader`, predefined_winner, open_win_mode).
-- Receita, fury vault, ordens, qualquer outro fluxo.
-- UI/UX dos leilões (somente reduz o flicker de "Verificando").
+Migração SQL:
 
-**Custo**: dobra o número de invocações da edge `sync-timers-and-protection` (de ~6/min para ~12/min). Cada execução é leve (~200-400ms), aceitável para o plano Supabase atual.
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bids_auction_created_desc
+  ON public.bids (auction_id, created_at DESC);
+```
 
-**Rollback**: simples — remover os novos cron jobs e reverter o arquivo da edge function.
+Isso transforma o `WHERE auction_id=X ORDER BY created_at DESC LIMIT 3` num index scan O(log n) + 3 fetches, eliminando o timeout do trigger.
+
+Observação: `CREATE INDEX CONCURRENTLY` não pode rodar dentro de transação. A migração vai usar esse modo para não travar inserts em produção.
+
+## 2. Verificação pós-deploy
+
+Após aplicar:
+
+- Conferir `cron.job_run_details` por 5 min — não deve haver mais `status='failed'` por timeout no `bot_tick_safe`.
+- Conferir se os 2 leilões ativos voltam a receber lances de bot.
+- O card "Verificando lances válidos" deve desaparecer naturalmente.
+
+# Escopo
+
+- **Não mexe** em UI, lógica de leilão, fórmulas de delay, cron jobs ou edge functions.
+- **Não altera** o trigger nem a função `rebuild_auction_last_bidders` — apenas dá a ela o índice que faltava.
+- Mudança é puramente de infraestrutura de banco. Rollback = `DROP INDEX idx_bids_auction_created_desc;`.
