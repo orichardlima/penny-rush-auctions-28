@@ -184,20 +184,14 @@ async function processPartnerIntent(supabase: any, intentId: string, txId: strin
 
   // Credit bonus bids if applicable
   if (intent.bonus_bids && intent.bonus_bids > 0) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('bids_balance')
-      .eq('user_id', intent.user_id)
-      .single()
+    const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
+      p_user_id: intent.user_id,
+      p_amount: intent.bonus_bids,
+      p_purchase_id: null,
+    })
+    if (creditErr) console.error('❌ credit_purchase_bids (intent bonus) failed:', creditErr)
+    else console.log(`✅ Credited ${intent.bonus_bids} bonus bids (30d validity)`)
 
-    if (profile) {
-      const newBalance = (profile.bids_balance || 0) + intent.bonus_bids
-      await supabase
-        .from('profiles')
-        .update({ bids_balance: newBalance })
-        .eq('user_id', intent.user_id)
-      console.log(`✅ Credited ${intent.bonus_bids} bonus bids. New balance: ${newBalance}`)
-    }
   }
 
   console.log('✅ Partner contract activation completed via check-status')
