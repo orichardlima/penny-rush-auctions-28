@@ -73,7 +73,7 @@ export const AuctionCard = ({
   displayStatus === 'active' ? contextTimer : 0 :
   initialTimeLeft;
   const displayParticipants = contextAuction?.participants ?? participants;
-  const displayRecentBidders = contextAuction?.recentBidders?.length ? contextAuction.recentBidders : recentBidders;
+  const displayRecentBidders = contextAuction ? (contextAuction.recentBidders ?? []) : recentBidders;
   const lastBidAt = contextAuction?.last_bid_at ?? null;
 
   // Debounced activity indicator

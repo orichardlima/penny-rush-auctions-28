@@ -1,45 +1,34 @@
-## Objetivo
+## Diagnóstico
 
-Garantir que o card **nunca** mostre "Verificando lances válidos" durante a disputa normal — só no encerramento real. O lance do bot precisa cair **antes** do timer de 15s zerar, com margem ≥ 2s.
+Confirmei via banco que o trigger `bids_refresh_last_bidders` atualiza corretamente `auctions.last_bidders` a cada novo lance (bot ou real). Por exemplo, no leilão "Smart TV 43" 4K UHD" o último lance do Richard Lima foi às 18:16:07, e `last_bidders` já está `[Vanessa Machado, Emerson Vasconcelos, Luna Paiva]` com `last_bid_at = 18:20:45`. Ou seja, o banco está correto.
 
-## Causa raiz
+O problema é puramente no cliente: depois que o usuário real (Richard Lima) dá lance, a UI fica "presa" exibindo o nome dele no topo mesmo quando bots já bateram lances depois. Isso acontece porque:
 
-- Faixas de delay atuais vão até 14s (banda `sniper`), com `bot_protection_loop` e `selectBotBand` (edge function) usando 5–14s e 2–10s respectivamente.
-- Ticks de execução rodam a cada 5s. Pior caso: `delay = 14s` + 5s de espera do tick = lance em `last_bid + 19s`, com timer já em zero por 4s.
+1. O `AuctionRealtimeContext` depende exclusivamente de eventos `postgres_changes UPDATE` na tabela `auctions` para atualizar `recentBidders`.
+2. Cada lance dispara DOIS UPDATEs na mesma transação (trigger `bids_refresh_last_bidders` + trigger `update_auction_on_bid`). Em alguns cenários (perda momentânea de evento, reconexão silenciosa do canal, throttle do Realtime, ou o segundo evento chegando primeiro com payload em ordem invertida) a UI processa um payload que já tem `current_price`/`last_bid_at` novos mas `recentBidders` correspondente ao estado pré-trigger, e como o estado seguinte não muda mais aquela linha por alguns segundos, o nome do Richard "trava" no topo.
+3. O `displayRecentBidders` no `AuctionCard` cai no fallback para a prop (`recentBidders`) quando `contextAuction.recentBidders` está vazio — mas a prop nunca muda depois do mount, então também pode amplificar a sensação de "travado".
 
-## Mudanças (somente motor de bots)
+## Mudanças (somente nessa parte da UI/realtime — sem mexer em motor de bots, finalização, pagamentos, parceiros, fury vault, RLS, regras de negócio)
 
-### 1. SQL — `public.bot_protection_loop()`
+### 1. `src/contexts/AuctionRealtimeContext.tsx`
 
-Atualizar via **migração** o bloco de seleção de banda (linhas 99–107 da migração `20260421173211...`) e o gate mínimo:
+- **Re-sync forçado após qualquer lance**: assinar também `INSERT` em `public.bids` no mesmo canal Realtime. Em cada INSERT, chamar `fetchSingleAuction(payload.new.auction_id, 500)` (throttle curto de 500ms) para garantir que `last_bidders` é re-lido direto do banco logo após o trigger commitar. Isso resolve qualquer caso de evento perdido/fora de ordem na tabela `auctions`.
+- **Preservar `recentBidders` quando payload vier vazio**: em `updateAuction`, se `newData.last_bidders` for `null`/`[]` mantenha o `recentBidders` atual do estado em vez de zerar (evita o piscar para a prop estática).
 
-- early: 2–4s (40%)
-- middle: 4–6s (35%)
-- late: 6–8s (25%)
-- **remover** a banda `sniper` (14s)
-- gate: `v_seconds_since_last_bid >= 2` (era `>= 5`)
-- ajustar o fallback de anti-repetição (linhas 110–113) para manter valores ≤ 8s
-- **Regra de segurança extra (panic bid)**: antes do bloco de agendamento, se o leilão estiver ativo, sem agendamento pendente (ou com agendamento que cairia depois de `last_bid + 13s`), e `time_left_calc = 15 - v_seconds_since_last_bid <= 6`, executar lance **imediatamente** (mesma rotina que `execute_overdue_bot_bids` usa para inserir um bid + atualizar `last_bid_at`), sem agendar. Isso garante que mesmo se um tick anterior falhar ou houver atraso, o card nunca aparece como "Verificando" durante a disputa.
+### 2. `src/components/AuctionCard.tsx`
 
-### 2. Edge function `sync-timers-and-protection`
+- Remover o fallback para a prop estática: usar diretamente `contextAuction?.recentBidders ?? recentBidders`. A prop só vale como valor inicial enquanto o contexto não tem o leilão; depois que o contexto preenche, manda sempre o array do contexto (mesmo se temporariamente curto), evitando "congelar" um snapshot antigo.
 
-Atualizar `selectBotBand()` para as mesmas faixas (2–4 / 4–6 / 6–8) e remover qualquer caminho com delay > 8s. Manter `secondsSinceLastBid >= 2` que já existe na fase 7.
+### 3. (Opcional, defensivo) `rebuild_auction_last_bidders`
 
-Adicionar a mesma **regra de panic bid** na Fase 3 do `Deno.serve`: para cada leilão ativo, antes do `continue` que ignora quando `scheduled_bot_bid_at` existe, calcular `timeLeft = 15 - secondsSinceLastBid`. Se `timeLeft <= 6` e não há líder real elegível (predefined/open_win), forçar execução imediata via `execute_overdue_bot_bids` (já é atômico) ou limpar `scheduled_bot_bid_at` e reagendar para `now()`.
+Já está correto. Sem alteração.
 
-### Pior caso após mudanças
+## Validação
 
-- Agendamento normal: alvo ≤ `last_bid + 8s`, tick em até 5s ⇒ execução ≤ `last_bid + 13s` (margem 2s antes do timer expirar).
-- Caminho `panic bid`: executa instantaneamente quando `timeLeft <= 6s`, eliminando qualquer chance de chegar a 0s.
-
-## Validação (≥ 30 min em 3–5 leilões)
-
-1. Logs `[BOT-SCHED]` e `[BOT-EXEC]` com `delay_sec ≤ 8` em 100% dos casos.
-2. Logs do panic bid (vou adicionar `RAISE LOG '⚠️ [PANIC-BID]'`) só disparam em situações de borda, não em fluxo padrão.
-3. Inspeção visual: nenhum leilão exibe "Verificando lances válidos" durante a disputa.
-4. `supabase--slow_queries` antes/depois para confirmar que `bids` e `bot_protection_loop` continuam estáveis.
-5. Saúde do projeto Supabase Healthy.
+- Logar no console quando o INSERT em `bids` chega e quando `fetchSingleAuction` re-sincroniza.
+- Em um leilão ativo: dar um lance como Richard Lima, observar o nome subir ao topo, esperar 2–8s, confirmar que assim que o bot bate o lance o nome do bot aparece no topo e o Richard desce ou sai dos 3.
+- Verificar via Supabase logs que não há aumento significativo de chamadas (throttle de 500ms já protege).
 
 ## Fora de escopo
 
-UI, finalização, fury vault, vencedor predefinido/open_win, pagamentos, parceiros, RLS, regras externas. Apenas motor de agendamento e execução de bots.
+UI fora do card de últimos lances, motor de bots, finalização, vencedor, fury vault, pagamentos, parceiros, RLS, contagem de participantes.
