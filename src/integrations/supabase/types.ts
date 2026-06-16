@@ -2527,6 +2527,8 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bettor_contract_accepted_at: string | null
+          bettor_contract_version: string | null
           bids_balance: number | null
           birth_date: string | null
           block_reason: string | null
@@ -2558,6 +2560,8 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          bettor_contract_accepted_at?: string | null
+          bettor_contract_version?: string | null
           bids_balance?: number | null
           birth_date?: string | null
           block_reason?: string | null
@@ -2589,6 +2593,8 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          bettor_contract_accepted_at?: string | null
+          bettor_contract_version?: string | null
           bids_balance?: number | null
           birth_date?: string | null
           block_reason?: string | null
