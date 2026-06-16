@@ -123,34 +123,36 @@ export const useTerminationDetails = (): TerminationDetails => {
         .order('period_start', { ascending: false });
       setPayouts((payoutsData as TerminationPayoutItem[]) || []);
 
-      // Bônus de indicação onde este usuário foi o RECEBEDOR
+      // Bônus de indicação onde este contrato foi o RECEBEDOR (referrer)
       const { data: bonusesData } = await supabase
         .from('partner_referral_bonuses')
-        .select('id, bonus_amount, level, status, created_at, source_user_id')
-        .eq('beneficiary_user_id', profile.user_id)
+        .select('id, bonus_value, referral_level, status, created_at, referred_user_id')
+        .eq('referrer_contract_id', contractData.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      const bonusList: TerminationReferralBonus[] = (bonusesData || []).map((b: any) => ({
+      const rawBonuses: any[] = bonusesData || [];
+      const bonusList: TerminationReferralBonus[] = rawBonuses.map((b) => ({
         id: b.id,
-        bonus_amount: Number(b.bonus_amount || 0),
-        level: b.level,
+        bonus_amount: Number(b.bonus_value || 0),
+        level: b.referral_level,
         status: b.status,
         created_at: b.created_at,
         source_user_name: null,
       }));
 
-      // Buscar nomes dos usuários origem
-      const sourceIds = Array.from(new Set((bonusesData || []).map((b: any) => b.source_user_id).filter(Boolean)));
+      // Buscar nomes dos usuários indicados
+      const sourceIds = Array.from(new Set(rawBonuses.map((b) => b.referred_user_id).filter(Boolean))) as string[];
       if (sourceIds.length > 0) {
         const { data: profiles } = await supabase.rpc('get_public_profiles', { user_ids: sourceIds });
-        const nameMap = new Map<string, string>((profiles || []).map((p: any) => [p.user_id, p.full_name]));
+        const nameMap = new Map<string, string>(((profiles as any[]) || []).map((p) => [p.user_id, p.full_name]));
         bonusList.forEach((b, idx) => {
-          const sourceId = (bonusesData as any[])[idx]?.source_user_id;
+          const sourceId = rawBonuses[idx]?.referred_user_id;
           b.source_user_name = sourceId ? nameMap.get(sourceId) || null : null;
         });
       }
       setReferralBonuses(bonusList);
+
 
       // SLA do estorno
       const { data: setting } = await supabase
