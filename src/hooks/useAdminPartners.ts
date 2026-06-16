@@ -1918,6 +1918,8 @@ export const useAdminPartners = () => {
     processWeeklyPayouts,
     markPayoutAsPaid,
     processTermination,
+    markTerminationPaid,
+
     rejectWithdrawal,
     markWithdrawalAsPaid,
     markWithdrawalAsPaidManually,
