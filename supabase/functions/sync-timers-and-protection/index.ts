@@ -43,34 +43,32 @@ function getBotDisplayName(bot: any): string {
   return parts[0];
 }
 
-// Sorteia faixa de timing com anti-repetição (distribuição ampla 2-13s)
-function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number } {
-  const pickBand = (): { band: string; delaySec: number } => {
-    const rand = Math.random();
-    let band: string;
-    let baseMin: number;
-    let baseMax: number;
-    if (rand < 0.25) {
-      band = 'rush'; baseMin = 2; baseMax = 4;
-    } else if (rand < 0.55) {
-      band = 'early'; baseMin = 5; baseMax = 7;
-    } else if (rand < 0.85) {
-      band = 'middle'; baseMin = 8; baseMax = 10;
-    } else {
-      band = 'late'; baseMin = 11; baseMax = 13;
-    }
-    // delay contínuo com jitter ±0.3s, garante segundos não-redondos
-    const raw = baseMin + Math.random() * (baseMax - baseMin);
-    const jitter = (Math.random() - 0.5) * 0.6;
-    const delaySec = Math.max(2, Math.min(13.5, raw + jitter));
-    return { band, delaySec };
+// Sorteia o ALVO em "time_left restante" (3s a 13s), não em delay após last_bid_at.
+// Naturalidade real: bots às vezes entram faltando 12s, às vezes 3s.
+// Margem de segurança: alvo nunca < 3s restantes (delay máx ~12s) + executor de 1s
+// garante que o lance entra antes do timer zerar.
+function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number; targetTimeLeft: number } {
+  const TIMER = 15;
+  const bands = [
+    { band: 'late',   weight: 20, tlMin: 11, tlMax: 13 },  // delay ~2-4s
+    { band: 'middle', weight: 20, tlMin: 8,  tlMax: 10 },  // delay ~5-7s
+    { band: 'extra',  weight: 15, tlMin: 7,  tlMax: 9  },  // delay ~6-8s
+    { band: 'early',  weight: 25, tlMin: 5,  tlMax: 7  },  // delay ~8-10s
+    { band: 'rush',   weight: 20, tlMin: 3,  tlMax: 4.5 }, // delay ~10.5-12s
+  ];
+  const pick = () => {
+    const total = bands.reduce((a, b) => a + b.weight, 0);
+    let r = Math.random() * total;
+    for (const b of bands) { r -= b.weight; if (r <= 0) return b; }
+    return bands[bands.length - 1];
   };
-
-  let result = pickBand();
-  if (result.band === lastBotBand) {
-    result = pickBand();
-  }
-  return result;
+  let chosen = pick();
+  if (chosen.band === lastBotBand) chosen = pick();
+  const rawTl = chosen.tlMin + Math.random() * (chosen.tlMax - chosen.tlMin);
+  const jitter = (Math.random() - 0.5) * 0.3;
+  const targetTimeLeft = Math.max(3, Math.min(13.5, rawTl + jitter));
+  const delaySec = TIMER - targetTimeLeft;
+  return { band: chosen.band, delaySec, targetTimeLeft };
 }
 
 // Helper: retorna o user_id do líder real ELEGÍVEL (predefinido OU open_win_mode), ou null
@@ -386,22 +384,30 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 6. PANIC BID: rede de segurança. Só dispara quando o timer está realmente curto (<=3s)
-        // E não há agendamento válido dentro da janela do timer. Evita virar caminho dominante.
+        // 6. PANIC BID: apenas exceção. Só dispara quando time_left <= 2 E não há agendamento válido dentro da janela.
         const timeLeft = 15 - secondsSinceLastBid;
         const scheduledAtMs = auction.scheduled_bot_bid_at ? new Date(auction.scheduled_bot_bid_at).getTime() : null;
-        // "Fora da janela" = agendado para depois do fim real do timer (lastBidTime + 14s)
         const scheduledOutOfWindow = scheduledAtMs !== null && scheduledAtMs > lastBidTime + 14000;
-        const panicThreshold = 2 + Math.floor(Math.random() * 2); // 2 ou 3
-        if (timeLeft <= panicThreshold && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
-          // Pequeno atraso humano (200-900ms) em vez de "agora exato"
-          const humanDelayMs = 200 + Math.floor(Math.random() * 700);
+        if (timeLeft <= 2 && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
+          const humanDelayMs = 200 + Math.floor(Math.random() * 600);
+          const target = new Date(currentTime + humanDelayMs);
           await supabase
             .from('auctions')
-            .update({ scheduled_bot_bid_at: new Date(currentTime + humanDelayMs).toISOString(), scheduled_bot_band: 'panic' })
+            .update({ scheduled_bot_bid_at: target.toISOString(), scheduled_bot_band: 'panic' })
             .eq('id', auction.id);
           const { data: panicResult } = await supabase.rpc('execute_overdue_bot_bids');
-          console.log(`⚠️ [PANIC-BID] "${auction.title}" | time_left=${timeLeft}s | delay=${humanDelayMs}ms | executed=${panicResult?.executed ?? 0}`);
+          console.log(JSON.stringify({
+            tag: 'BOT-BID',
+            path: 'PANIC',
+            auction_id: auction.id,
+            title: auction.title,
+            band: 'panic',
+            scheduled_delay_after_last_bid: Number(((target.getTime() - lastBidTime) / 1000).toFixed(2)),
+            scheduled_target_time: target.toISOString(),
+            time_left_at_schedule: timeLeft,
+            human_delay_ms: humanDelayMs,
+            executed: panicResult?.executed ?? 0,
+          }));
           continue;
         }
 
@@ -412,8 +418,10 @@ Deno.serve(async (req) => {
 
         // 8. Agendar novo lance (sem agendamento pendente)
         if (secondsSinceLastBid >= 1) {
-          const { band, delaySec } = selectBotBand(auction.last_bot_band);
-          const targetTime = new Date(lastBidTime + Math.round(delaySec * 1000)).toISOString();
+          const { band, delaySec, targetTimeLeft } = selectBotBand(auction.last_bot_band);
+          const delayMs = Math.round(delaySec * 1000);
+          const target = new Date(lastBidTime + delayMs);
+          const targetTime = target.toISOString();
 
           const { data: scheduleResult } = await supabase
             .from('auctions')
@@ -427,7 +435,16 @@ Deno.serve(async (req) => {
 
           if (scheduleResult && scheduleResult.length > 0) {
             botBidsScheduled++;
-            console.log(`🤖 [BOT-SCHEDULE] "${auction.title}" | band=${band} | delay=${delaySec.toFixed(2)}s | target=${targetTime}`);
+            console.log(JSON.stringify({
+              tag: 'BOT-SCHEDULE',
+              path: 'NORMAL',
+              auction_id: auction.id,
+              title: auction.title,
+              band,
+              scheduled_delay_after_last_bid: Number(delaySec.toFixed(2)),
+              scheduled_target_time: targetTime,
+              target_time_left: Number(targetTimeLeft.toFixed(2)),
+            }));
           }
         }
       }
