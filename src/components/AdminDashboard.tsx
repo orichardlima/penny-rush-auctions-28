@@ -9,8 +9,9 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart
+  Handshake, LayoutTemplate, ShoppingCart, Gauge
 } from 'lucide-react';
+import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
@@ -225,6 +226,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="my-history" title="Histórico" className="flex items-center gap-2 shrink-0">
               <Target className="h-4 w-4" /><span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
+            <TabsTrigger value="bot-monitor" title="Monitor Bots" className="flex items-center gap-2 shrink-0">
+              <Gauge className="h-4 w-4" /><span className="hidden sm:inline">Monitor Bots</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="auction-details">
@@ -326,6 +330,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="vault-config" className="space-y-6">
             {mountedTabs.has('vault-config') && <FuryVaultConfigManager />}
+          </TabsContent>
+
+          <TabsContent value="bot-monitor" className="space-y-6">
+            {mountedTabs.has('bot-monitor') && <BotMonitorDashboard />}
           </TabsContent>
 
           <TabsContent value="my-history" className="space-y-6">
