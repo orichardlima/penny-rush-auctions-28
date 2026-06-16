@@ -43,20 +43,17 @@ function getBotDisplayName(bot: any): string {
   return parts[0];
 }
 
-// Sorteia o ALVO em "time_left restante" (3s a 13s), não em delay após last_bid_at.
-// Naturalidade real: bots às vezes entram faltando 12s, às vezes 3s.
-// Margem de segurança: alvo nunca < 3s restantes (delay máx ~12s) + executor de 1s
-// garante que o lance entra antes do timer zerar.
+// Distribui o alvo do bot naturalmente entre 2s e 13s de delay após o último lance
+// (time_left restante entre 2s e 13s). Janela total do timer = 15s.
+// Executor roda a cada 1s e bloqueia execução se time_left<=0, então delay máx 13s é seguro.
 function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number; targetTimeLeft: number } {
   const TIMER = 15;
-  // Faixas em "time_left restante". Mínimo de 4s para dar margem real ao executor (1s)
-  // + latência Supabase, evitando que o lance caia depois do timer zerar.
   const bands = [
-    { band: 'late',   weight: 20, tlMin: 11, tlMax: 13 },  // delay ~2-4s
-    { band: 'middle', weight: 20, tlMin: 8,  tlMax: 10 },  // delay ~5-7s
-    { band: 'extra',  weight: 15, tlMin: 7,  tlMax: 9  },  // delay ~6-8s
-    { band: 'early',  weight: 25, tlMin: 5,  tlMax: 7  },  // delay ~8-10s
-    { band: 'rush',   weight: 20, tlMin: 4,  tlMax: 5  },  // delay ~10-11s
+    { band: 'early',   weight: 18, dMin: 2,  dMax: 4  },  // tl 11-13
+    { band: 'mid-low', weight: 22, dMin: 4,  dMax: 6  },  // tl 9-11
+    { band: 'middle',  weight: 22, dMin: 6,  dMax: 8  },  // tl 7-9
+    { band: 'late',    weight: 20, dMin: 8,  dMax: 10 },  // tl 5-7
+    { band: 'rush',    weight: 18, dMin: 10, dMax: 13 },  // tl 2-5
   ];
   const pick = () => {
     const total = bands.reduce((a, b) => a + b.weight, 0);
@@ -66,11 +63,10 @@ function selectBotBand(lastBotBand: string | null): { band: string; delaySec: nu
   };
   let chosen = pick();
   if (chosen.band === lastBotBand) chosen = pick();
-  const rawTl = chosen.tlMin + Math.random() * (chosen.tlMax - chosen.tlMin);
-  const jitter = (Math.random() - 0.5) * 0.3;
-  // Piso 4s garante margem; teto 13.5s mantém naturalidade.
-  const targetTimeLeft = Math.max(4, Math.min(13.5, rawTl + jitter));
-  const delaySec = TIMER - targetTimeLeft;
+  const rawDelay = chosen.dMin + Math.random() * (chosen.dMax - chosen.dMin);
+  const jitter = (Math.random() - 0.5) * 0.4;
+  const delaySec = Math.max(2, Math.min(13, rawDelay + jitter));
+  const targetTimeLeft = TIMER - delaySec;
   return { band: chosen.band, delaySec, targetTimeLeft };
 }
 
@@ -388,11 +384,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 6. PANIC BID: apenas exceção. Só dispara quando time_left <= 2 E não há agendamento válido dentro da janela.
+        // 6. PANIC BID: exceção. Dispara quando time_left <= 1.5s E não há agendamento válido na janela.
         const timeLeft = 15 - secondsSinceLastBid;
         const scheduledAtMs = auction.scheduled_bot_bid_at ? new Date(auction.scheduled_bot_bid_at).getTime() : null;
         const scheduledOutOfWindow = scheduledAtMs !== null && scheduledAtMs > lastBidTime + 14000;
-        if (timeLeft <= 2 && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
+        if (timeLeft <= 1.5 && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
           const humanDelayMs = 200 + Math.floor(Math.random() * 600);
           const target = new Date(currentTime + humanDelayMs);
           await supabase
