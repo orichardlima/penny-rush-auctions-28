@@ -43,17 +43,27 @@ function getBotDisplayName(bot: any): string {
   return parts[0];
 }
 
-// Sorteia faixa de timing com anti-repetição
+// Sorteia faixa de timing com anti-repetição (distribuição ampla 2-13s)
 function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number } {
   const pickBand = (): { band: string; delaySec: number } => {
     const rand = Math.random();
-    if (rand < 0.40) {
-      return { band: 'early', delaySec: 2 + Math.floor(Math.random() * 3) }; // 2-4s
-    } else if (rand < 0.75) {
-      return { band: 'middle', delaySec: 4 + Math.floor(Math.random() * 3) }; // 4-6s
+    let band: string;
+    let baseMin: number;
+    let baseMax: number;
+    if (rand < 0.25) {
+      band = 'rush'; baseMin = 2; baseMax = 4;
+    } else if (rand < 0.55) {
+      band = 'early'; baseMin = 5; baseMax = 7;
+    } else if (rand < 0.85) {
+      band = 'middle'; baseMin = 8; baseMax = 10;
     } else {
-      return { band: 'late', delaySec: 6 + Math.floor(Math.random() * 3) }; // 6-8s
+      band = 'late'; baseMin = 11; baseMax = 13;
     }
+    // delay contínuo com jitter ±0.3s, garante segundos não-redondos
+    const raw = baseMin + Math.random() * (baseMax - baseMin);
+    const jitter = (Math.random() - 0.5) * 0.6;
+    const delaySec = Math.max(2, Math.min(13.5, raw + jitter));
+    return { band, delaySec };
   };
 
   let result = pickBand();
