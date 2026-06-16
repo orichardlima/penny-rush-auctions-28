@@ -384,11 +384,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 6. PANIC BID: apenas exceção. Só dispara quando time_left <= 2 E não há agendamento válido dentro da janela.
+        // 6. PANIC BID: exceção. Dispara quando time_left <= 1.5s E não há agendamento válido na janela.
         const timeLeft = 15 - secondsSinceLastBid;
         const scheduledAtMs = auction.scheduled_bot_bid_at ? new Date(auction.scheduled_bot_bid_at).getTime() : null;
         const scheduledOutOfWindow = scheduledAtMs !== null && scheduledAtMs > lastBidTime + 14000;
-        if (timeLeft <= 2 && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
+        if (timeLeft <= 1.5 && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
           const humanDelayMs = 200 + Math.floor(Math.random() * 600);
           const target = new Date(currentTime + humanDelayMs);
           await supabase
