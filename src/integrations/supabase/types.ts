@@ -1769,6 +1769,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           aporte_original: number
+          approved_at: string | null
           bids_amount: number | null
           created_at: string
           credits_amount: number | null
@@ -1776,7 +1777,9 @@ export type Database = {
           final_value: number | null
           id: string
           liquidation_type: string
+          paid_at: string | null
           partner_contract_id: string
+          payout_reference: string | null
           processed_at: string | null
           processed_by: string | null
           proposed_value: number
@@ -1789,6 +1792,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           aporte_original: number
+          approved_at?: string | null
           bids_amount?: number | null
           created_at?: string
           credits_amount?: number | null
@@ -1796,7 +1800,9 @@ export type Database = {
           final_value?: number | null
           id?: string
           liquidation_type: string
+          paid_at?: string | null
           partner_contract_id: string
+          payout_reference?: string | null
           processed_at?: string | null
           processed_by?: string | null
           proposed_value: number
@@ -1809,6 +1815,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           aporte_original?: number
+          approved_at?: string | null
           bids_amount?: number | null
           created_at?: string
           credits_amount?: number | null
@@ -1816,7 +1823,9 @@ export type Database = {
           final_value?: number | null
           id?: string
           liquidation_type?: string
+          paid_at?: string | null
           partner_contract_id?: string
+          payout_reference?: string | null
           processed_at?: string | null
           processed_by?: string | null
           proposed_value?: number

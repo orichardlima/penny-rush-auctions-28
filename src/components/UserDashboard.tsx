@@ -76,8 +76,10 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isAffiliate, setIsAffiliate] = useState<boolean | null>(null);
   const [hasPartnerContract, setHasPartnerContract] = useState<boolean | null>(null);
+  const [hasTermination, setHasTermination] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [winsCount, setWinsCount] = useState(0);
+
 
   useEffect(() => {
     if (profile?.user_id) {
@@ -131,6 +133,15 @@ const UserDashboard = () => {
         .in('status', ['ACTIVE', 'PENDING'])
         .maybeSingle();
 
+      // Verificar se tem pedido de encerramento (qualquer status não-cancelado)
+      const { data: termData } = await supabase
+        .from('partner_early_terminations')
+        .select('id')
+        .in('status', ['PENDING', 'APPROVED', 'COMPLETED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       // Buscar contagem de vitórias reais via tabela orders
       const { count: ordersCount } = await supabase
         .from('orders')
@@ -140,7 +151,9 @@ const UserDashboard = () => {
 
       setIsAffiliate(!!affiliateData);
       setHasPartnerContract(!!partnerData);
+      setHasTermination(!!termData);
       setWinsCount(ordersCount || 0);
+
       setBids(bidsData || []);
       setPurchases(purchasesData || []);
     } catch (error) {
@@ -312,8 +325,36 @@ const UserDashboard = () => {
           </Card>
         )}
 
-        {/* CTA Parceiros - Mostrar para usuários que NÃO são parceiros */}
-        {!loading && hasPartnerContract === false && (
+        {/* CTA Ex-Parceiro - encerramento em andamento ou concluído */}
+
+        {!loading && hasPartnerContract === false && hasTermination && (
+          <Card className="bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 border-sky-500/30">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-sky-500/20 rounded-full">
+                    <Briefcase className="h-6 w-6 text-sky-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">📄 Acompanhe seu encerramento</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Veja o status do estorno, prazos e o detalhamento completo do seu contrato encerrado.
+                    </p>
+                  </div>
+                </div>
+                <Link to="/minha-parceria/encerramento">
+                  <Button size="lg" className="whitespace-nowrap bg-sky-600 hover:bg-sky-700">
+                    Ver detalhes
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* CTA Parceiros - Mostrar para usuários que NÃO são parceiros e NÃO têm encerramento */}
+        {!loading && hasPartnerContract === false && !hasTermination && (
           <Card className="bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-blue-500/10 border-purple-500/20">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -341,6 +382,7 @@ const UserDashboard = () => {
             </CardContent>
           </Card>
         )}
+
 
         {/* Atalho para Dashboard de Parceiro - Mostrar para usuários que SÃO parceiros */}
         {!loading && hasPartnerContract === true && (
