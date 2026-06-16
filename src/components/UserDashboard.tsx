@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { usePurchaseProcessor } from '@/hooks/usePurchaseProcessor';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Link } from 'react-router-dom';
+import { MyBidLotsCard } from '@/components/MyBidLotsCard';
+
 import { 
   User, 
   CreditCard, 
@@ -270,6 +272,10 @@ const UserDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <MyBidLotsCard />
+
+
 
         {/* CTA Afiliados - Só aparece para Parceiros (que viram Manager) */}
         {!loading && isAffiliate === false && hasPartnerContract && (
