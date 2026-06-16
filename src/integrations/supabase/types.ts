@@ -2888,6 +2888,10 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
       }
+      credit_purchase_bids: {
+        Args: { p_amount: number; p_purchase_id?: string; p_user_id: string }
+        Returns: number
+      }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
       ensure_partner_referral_bonuses: {

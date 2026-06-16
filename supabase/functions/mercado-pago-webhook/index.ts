@@ -141,29 +141,16 @@ serve(async (req) => {
         return new Response('Update failed', { status: 500, headers: corsHeaders })
       }
 
-      // Atualizar saldo do usuário
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('bids_balance')
-        .eq('user_id', purchase.user_id)
-        .single()
-
-      if (profileError) {
-        console.error('❌ Failed to get user profile:', profileError)
-        return new Response('Profile fetch failed', { status: 500, headers: corsHeaders })
-      }
-
-      const newBalance = (profile.bids_balance || 0) + purchase.bids_purchased
-      
-      const { error: balanceError } = await supabase
-        .from('profiles')
-        .update({ bids_balance: newBalance })
-        .eq('user_id', purchase.user_id)
-
-      if (balanceError) {
-        console.error('❌ Failed to update user balance:', balanceError)
+      const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
+        p_user_id: purchase.user_id,
+        p_amount: purchase.bids_purchased,
+        p_purchase_id: purchase.id,
+      })
+      if (creditErr) {
+        console.error('❌ credit_purchase_bids failed:', creditErr)
         return new Response('Balance update failed', { status: 500, headers: corsHeaders })
       }
+
 
       console.log('✅ Purchase completed successfully')
 

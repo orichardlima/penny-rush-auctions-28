@@ -209,19 +209,15 @@ async function processBidPurchase(supabase: any, isApproved: boolean, isRejected
       .update({ payment_status: 'completed' })
       .eq('id', purchase.id)
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('bids_balance')
-      .eq('user_id', purchase.user_id)
-      .single()
-
-    if (profile) {
-      const newBalance = (profile.bids_balance || 0) + purchase.bids_purchased
-      await supabase
-        .from('profiles')
-        .update({ bids_balance: newBalance })
-        .eq('user_id', purchase.user_id)
+    const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
+      p_user_id: purchase.user_id,
+      p_amount: purchase.bids_purchased,
+      p_purchase_id: purchase.id,
+    })
+    if (creditErr) {
+      console.error('❌ credit_purchase_bids failed:', creditErr)
     }
+
 
     console.log('✅ Bid purchase completed: +' + purchase.bids_purchased + ' lances')
 
