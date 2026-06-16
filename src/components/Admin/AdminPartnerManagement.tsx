@@ -491,6 +491,26 @@ const AdminPartnerManagement = () => {
     await updateSetting('partner_fund_percentage', fundPercentage.toString());
   };
 
+  const handleSaveTerminationSla = async () => {
+    const v = Math.max(1, Math.floor(Number(terminationSlaDays) || 7));
+    await updateSetting('termination_refund_sla_days', String(v));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: prof } = await supabase.from('profiles').select('full_name').eq('user_id', user?.id).maybeSingle();
+      await supabase.from('admin_audit_log').insert({
+        admin_user_id: user?.id,
+        admin_name: prof?.full_name || 'Admin',
+        action_type: 'UPDATE_TERMINATION_SLA',
+        target_type: 'system_setting',
+        target_id: 'termination_refund_sla_days',
+        description: `Prazo de estorno alterado para ${v} dias corridos`,
+        new_values: { termination_refund_sla_days: v },
+      });
+    } catch (e) {
+      console.warn('audit log falhou:', e);
+    }
+  };
+
   const handleCreatePlan = async () => {
     if (!newPlan.name || !newPlan.display_name || newPlan.aporte_value <= 0) return;
     
