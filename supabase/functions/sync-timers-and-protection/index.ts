@@ -384,22 +384,30 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 6. PANIC BID: rede de segurança. Só dispara quando o timer está realmente curto (<=3s)
-        // E não há agendamento válido dentro da janela do timer. Evita virar caminho dominante.
+        // 6. PANIC BID: apenas exceção. Só dispara quando time_left <= 2 E não há agendamento válido dentro da janela.
         const timeLeft = 15 - secondsSinceLastBid;
         const scheduledAtMs = auction.scheduled_bot_bid_at ? new Date(auction.scheduled_bot_bid_at).getTime() : null;
-        // "Fora da janela" = agendado para depois do fim real do timer (lastBidTime + 14s)
         const scheduledOutOfWindow = scheduledAtMs !== null && scheduledAtMs > lastBidTime + 14000;
-        const panicThreshold = 2 + Math.floor(Math.random() * 2); // 2 ou 3
-        if (timeLeft <= panicThreshold && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
-          // Pequeno atraso humano (200-900ms) em vez de "agora exato"
-          const humanDelayMs = 200 + Math.floor(Math.random() * 700);
+        if (timeLeft <= 2 && (auction.scheduled_bot_bid_at === null || scheduledOutOfWindow)) {
+          const humanDelayMs = 200 + Math.floor(Math.random() * 600);
+          const target = new Date(currentTime + humanDelayMs);
           await supabase
             .from('auctions')
-            .update({ scheduled_bot_bid_at: new Date(currentTime + humanDelayMs).toISOString(), scheduled_bot_band: 'panic' })
+            .update({ scheduled_bot_bid_at: target.toISOString(), scheduled_bot_band: 'panic' })
             .eq('id', auction.id);
           const { data: panicResult } = await supabase.rpc('execute_overdue_bot_bids');
-          console.log(`⚠️ [PANIC-BID] "${auction.title}" | time_left=${timeLeft}s | delay=${humanDelayMs}ms | executed=${panicResult?.executed ?? 0}`);
+          console.log(JSON.stringify({
+            tag: 'BOT-BID',
+            path: 'PANIC',
+            auction_id: auction.id,
+            title: auction.title,
+            band: 'panic',
+            scheduled_delay_after_last_bid: Number(((target.getTime() - lastBidTime) / 1000).toFixed(2)),
+            scheduled_target_time: target.toISOString(),
+            time_left_at_schedule: timeLeft,
+            human_delay_ms: humanDelayMs,
+            executed: panicResult?.executed ?? 0,
+          }));
           continue;
         }
 
@@ -410,8 +418,10 @@ Deno.serve(async (req) => {
 
         // 8. Agendar novo lance (sem agendamento pendente)
         if (secondsSinceLastBid >= 1) {
-          const { band, delaySec } = selectBotBand(auction.last_bot_band);
-          const targetTime = new Date(lastBidTime + Math.round(delaySec * 1000)).toISOString();
+          const { band, delaySec, targetTimeLeft } = selectBotBand(auction.last_bot_band);
+          const delayMs = Math.round(delaySec * 1000);
+          const target = new Date(lastBidTime + delayMs);
+          const targetTime = target.toISOString();
 
           const { data: scheduleResult } = await supabase
             .from('auctions')
@@ -425,7 +435,16 @@ Deno.serve(async (req) => {
 
           if (scheduleResult && scheduleResult.length > 0) {
             botBidsScheduled++;
-            console.log(`🤖 [BOT-SCHEDULE] "${auction.title}" | band=${band} | delay=${delaySec.toFixed(2)}s | target=${targetTime}`);
+            console.log(JSON.stringify({
+              tag: 'BOT-SCHEDULE',
+              path: 'NORMAL',
+              auction_id: auction.id,
+              title: auction.title,
+              band,
+              scheduled_delay_after_last_bid: Number(delaySec.toFixed(2)),
+              scheduled_target_time: targetTime,
+              target_time_left: Number(targetTimeLeft.toFixed(2)),
+            }));
           }
         }
       }
