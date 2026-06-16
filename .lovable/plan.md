@@ -1,55 +1,45 @@
 ## Diagnóstico
 
-`supabase--slow_queries` aponta um único ofensor dominante consumindo ~7 min de tempo total de execução do banco:
+O erro **"Ops! Algo deu errado"** ao dar lance é causado por um deadlock lógico no bot worker:
 
-```sql
-SELECT user_id, created_at FROM bids
-WHERE auction_id = $1
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3
+### A cadeia de falha
+
+1. Os leilões `Galaxy Watch 6 44mm` e `Micro-ondas 32L Inox` (e provavelmente outros) estão com `status='active'` mas `ends_at` no passado (várias horas atrás). Ficaram "presos".
+2. O trigger `prevent_bids_on_inactive_auctions` rejeita qualquer INSERT em `bids` quando `ends_at < now() - 5s` → erro `Cannot place bids on inactive or finished auctions`.
+3. Esse erro atinge tanto usuários reais quanto bots.
+4. **O que mantém os leilões presos:** `bot_tick()` chama `execute_overdue_bot_bids()` **antes** de `bot_protection_loop()` (que é quem finaliza leilões expirados). Quando `execute_overdue_bot_bids` tenta inserir um lance agendado num leilão com `ends_at` vencido, o trigger rejeita, a exceção propaga, `bot_tick_safe` aborta — e o `bot_protection_loop` nunca executa. Loop infinito.
+
+Logs confirmam (todos os crons `bot-tick-*` falhando):
+
 ```
-
-- 1.420 chamadas, média 280–380 ms, pico de 6,5 s
-- É a query que alimenta `useAuctionParticipants` (lista de últimos lances por leilão)
-- Total combinado: ~426 segundos de CPU/IO — responsável pela saturação sinalizada no painel Supabase
-
-### Por que está lenta
-
-Os índices atuais em `bids` são:
-- `idx_bids_auction_id` — só por auction_id
-- `idx_bids_created_at` — só por created_at
-- `idx_bids_user_id` — só por user_id
-
-Nenhum cobre o padrão `WHERE auction_id=? ORDER BY created_at DESC`. O Postgres filtra pelo índice de `auction_id`, depois precisa carregar e ordenar milhares de linhas no heap (a tabela `bids` é a maior do banco). Em leilões quentes com 5–20k lances, isso vira leitura sequencial pesada.
+ERROR: Cannot place bids on inactive or finished auctions
+CONTEXT: prevent_bids_on_inactive_auctions
+  ← execute_overdue_bot_bids line 49 (INSERT INTO bids)
+  ← bot_tick line 4 (PERFORM)
+  ← bot_tick_safe line 9
+```
 
 ## Solução
 
-Criar um índice composto que sirva exatamente esse padrão:
+### 1. Corrigir `execute_overdue_bot_bids()` para pular leilões expirados
 
-```sql
-CREATE INDEX idx_bids_auction_created_desc
-  ON public.bids (auction_id, created_at DESC);
-```
+Adicionar filtro `AND (ends_at IS NULL OR ends_at >= now() - interval '5 seconds')` no SELECT principal, e limpar o agendamento desses leilões. Assim a função nunca tenta inserir em leilão que o trigger rejeitaria, e a execução de `bot_tick` chega até `bot_protection_loop` que finaliza o leilão normalmente.
 
-Com esse índice:
-- A query vira um simples range scan + LIMIT — leitura de poucas páginas em vez de milhares
-- Tempo médio esperado: <5 ms (vs 280 ms atual)
-- Reduz I/O drasticamente — deve eliminar o alerta do Supabase sem precisar de upgrade de compute
+### 2. Cleanup imediato dos leilões presos
+
+Forçar finalização de todos os leilões `status='active' AND ends_at < now() - 1 minute AND finished_at IS NULL` via `_bot_finalize_auction(..., 'time_limit', ...)`. Isso destrava o sistema na hora, sem precisar esperar o próximo ciclo de cron.
 
 ## Detalhes técnicos
 
-Migration única adicionando o índice. Não há mudança de schema, RLS, triggers, código frontend ou edge functions. Tudo continua funcionando idêntico — só fica mais rápido.
+Uma única migration com:
+- `CREATE OR REPLACE FUNCTION public.execute_overdue_bot_bids()` com o filtro adicional e `UPDATE auctions SET scheduled_bot_bid_at=NULL` para leilões expirados encontrados
+- Loop `DO $$` chamando `_bot_finalize_auction` para cada leilão preso (cleanup)
 
-Após aplicar:
-1. Aguardar 5–10 min para queries voltarem a rodar
-2. Rerodar `slow_queries` para confirmar que o ofensor saiu do topo
-3. Verificar no painel Supabase se o alerta de consumo sumiu
-
-Se ainda houver saturação após esse índice, partimos para o próximo ofensor (próximas queries da lista são bem menores — `auctions` por status, `profiles` por user_id, `system_settings` por key, todas já indexadas e com tempo médio <5 ms).
+Nada muda na UI, hooks, RLS, schema, ou em qualquer outra função. O comportamento esperado dos bots, do trigger de bloqueio, da função `place_bid` e do botão "DAR LANCE" permanece idêntico — apenas para de travar quando bots tropeçam em leilões expirados.
 
 ## Fora de escopo
 
-- Mudanças de UI, hooks, lógica de negócio
-- Triggers, RLS, schema
-- Upgrade de compute (só se otimização não bastar)
-- Remoção dos índices redundantes (`idx_bids_created_at` sozinho fica obsoleto, mas remoção fica para outra rodada para minimizar risco)
+- Mudanças no frontend
+- Alteração do trigger `prevent_bids_on_inactive_auctions`
+- Alteração da ordem `execute_overdue_bot_bids → bot_protection_loop` (mantida)
+- Otimizações de cron / compute (já tratadas em rodada anterior)
