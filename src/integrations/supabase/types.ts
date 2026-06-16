@@ -3218,6 +3218,7 @@ export type Database = {
         Args: { _ref_code: string }
         Returns: string
       }
+      tick_bot_executor: { Args: never; Returns: undefined }
       try_protection_lock: { Args: never; Returns: boolean }
     }
     Enums: {
