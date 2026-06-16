@@ -325,17 +325,8 @@ const UserDashboard = () => {
           </Card>
         )}
 
-        {/* CTA Parceiros - Mostrar para usuários que NÃO são parceiros */}
-        {!loading && hasPartnerContract === false && (
-          <Card className="bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-blue-500/10 border-purple-500/20">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-purple-500/20 rounded-full">
-                    <Briefcase className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
         {/* CTA Ex-Parceiro - encerramento em andamento ou concluído */}
+
         {!loading && hasPartnerContract === false && hasTermination && (
           <Card className="bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-indigo-500/10 border-sky-500/30">
             <CardContent className="p-6">
