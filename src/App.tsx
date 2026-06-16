@@ -147,6 +147,8 @@ const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const AffiliateDashboard = lazyWithRetry(() => import("./pages/AffiliateDashboard"));
 const PartnerLanding = lazyWithRetry(() => import("./pages/PartnerLanding"));
 const MinhaParceria = lazyWithRetry(() => import("./pages/MinhaParceria"));
+const MinhaParceriaEncerramento = lazyWithRetry(() => import("./pages/MinhaParceriaEncerramento"));
+
 const AdminParceiros = lazyWithRetry(() => import("./pages/AdminParceiros"));
 const TermosDeUso = lazyWithRetry(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacidade"));
