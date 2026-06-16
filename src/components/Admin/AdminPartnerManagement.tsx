@@ -110,6 +110,15 @@ const AdminPartnerManagement = () => {
   const [selectedWeek, setSelectedWeek] = useState(() => allWeeks[0]?.value || '');
   const [fundPercentage, setFundPercentage] = useState(getSettingValue('partner_fund_percentage', 20));
   const paymentDay = getSettingValue('partner_payment_day', 20);
+  const [terminationSlaDays, setTerminationSlaDays] = useState<number>(getSettingValue('termination_refund_sla_days', 7));
+  const [payTermDialog, setPayTermDialog] = useState<any>(null);
+  const [payTermReference, setPayTermReference] = useState('');
+
+  // Sync SLA setting when system_settings load
+  useEffect(() => {
+    const v = getSettingValue('termination_refund_sla_days', 7);
+    if (v) setTerminationSlaDays(Number(v));
+  }, [getSettingValue]);
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [suspendReason, setSuspendReason] = useState('');
   const [cancelReason, setCancelReason] = useState('');
