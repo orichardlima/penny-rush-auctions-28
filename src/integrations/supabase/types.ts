@@ -2785,6 +2785,7 @@ export type Database = {
         Args: { code_to_check: string }
         Returns: boolean
       }
+      cleanup_old_bids_batch: { Args: never; Returns: undefined }
       close_binary_cycle: {
         Args: { p_admin_id: string; p_notes?: string }
         Returns: Json
