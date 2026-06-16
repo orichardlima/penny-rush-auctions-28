@@ -1290,18 +1290,31 @@ export const useAdminPartners = () => {
           .update({ bids_balance: newBalance })
           .eq('user_id', contract.user_id);
 
-        // Atualizar status da solicitação de encerramento
+        const nowIso = new Date().toISOString();
+        // BIDS e CREDITS são liquidados imediatamente. PARTIAL_REFUND fica APPROVED
+        // aguardando o admin marcar o PIX como pago.
+        const isImmediate = termination.liquidation_type === 'BIDS' || termination.liquidation_type === 'CREDITS';
+        const finalStatus = isImmediate ? 'COMPLETED' : 'APPROVED';
+
         await supabase
           .from('partner_early_terminations')
-          .update({ status: 'COMPLETED', admin_notes: notes, processed_at: new Date().toISOString(), final_value: termination.proposed_value })
+          .update({
+            status: finalStatus,
+            admin_notes: notes,
+            processed_at: nowIso,
+            approved_at: nowIso,
+            paid_at: isImmediate ? nowIso : null,
+            final_value: termination.proposed_value,
+          })
           .eq('id', terminationId);
 
         // Encerrar contrato
         await supabase
           .from('partner_contracts')
-          .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_reason: 'Encerramento antecipado' })
+          .update({ status: 'CLOSED', closed_at: nowIso, closed_reason: 'Encerramento antecipado' })
           .eq('id', termination.partner_contract_id);
       }
+
 
       toast({ title: action === 'approve' ? 'Encerramento aprovado' : 'Encerramento rejeitado' });
       await Promise.all([fetchContracts(), fetchTerminations()]);
