@@ -369,15 +369,31 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 5. Se já tem agendamento pendente (não vencido), skip
-        if (auction.scheduled_bot_bid_at) {
-          continue;
-        }
-
-        // 6. PAUSAR bots se houver líder real elegível (predefinido OU open_win)
+        // 5. PAUSAR bots se houver líder real elegível (predefinido OU open_win)
         const eligibleRealLeader = await getEligibleRealLeader(supabase, auction);
         if (eligibleRealLeader) {
           console.log(`🎯 [REAL-LEADING] "${auction.title}" - real elegível lidera, bots pausados`);
+          continue;
+        }
+
+        // 6. PANIC BID: timer (15s) com <= 6s restantes e nenhum lance vai chegar a tempo.
+        // Força execução imediata via RPC atômico para o card NUNCA exibir "Verificando" na disputa.
+        const timeLeft = 15 - secondsSinceLastBid;
+        const scheduledAtMs = auction.scheduled_bot_bid_at ? new Date(auction.scheduled_bot_bid_at).getTime() : null;
+        const scheduledTooLate = scheduledAtMs !== null && scheduledAtMs > currentTime + 1000;
+        if (timeLeft <= 6 && (auction.scheduled_bot_bid_at === null || scheduledTooLate)) {
+          // Reagenda para agora-mesmo e dispara o executor atômico
+          await supabase
+            .from('auctions')
+            .update({ scheduled_bot_bid_at: new Date(currentTime - 100).toISOString(), scheduled_bot_band: 'panic' })
+            .eq('id', auction.id);
+          const { data: panicResult } = await supabase.rpc('execute_overdue_bot_bids');
+          console.log(`⚠️ [PANIC-BID] "${auction.title}" | time_left=${timeLeft}s | executed=${panicResult?.executed ?? 0}`);
+          continue;
+        }
+
+        // 7. Se já tem agendamento pendente (não vencido), skip
+        if (auction.scheduled_bot_bid_at) {
           continue;
         }
 
