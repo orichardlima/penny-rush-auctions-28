@@ -86,6 +86,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
   const resyncIntervalRef = useRef<NodeJS.Timeout>();
   const emergencyPollRef = useRef<NodeJS.Timeout>();
   const lastCriticalSyncRef = useRef<Map<string, number>>(new Map());
+  const auctionsRef = useRef<AuctionData[]>([]);
+  useEffect(() => { auctionsRef.current = auctions; }, [auctions]);
 
   // Calcular tempo restante a partir de timestamp absoluto (usando helper)
   const calculateTimeLeft = useCallback((auction: AuctionData): number => {
