@@ -420,9 +420,14 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     console.log(`🎯 [${auctionId}] UPDATE | last_bid_at: ${newData.last_bid_at} | timeLeft calc: ${calculatedTimeLeft}s`);
     
     // Ler last_bidders direto do payload Realtime (0 SELECTs)
-    const recentBidders = Array.isArray(newData.last_bidders) 
+    // Se payload vier sem last_bidders (null/[]), preservar o array atual em memória
+    const payloadBidders = Array.isArray(newData.last_bidders) 
       ? newData.last_bidders as string[]
-      : [];
+      : null;
+    const existing = auctionsRef.current.find(a => a.id === auctionId);
+    const recentBidders = (payloadBidders && payloadBidders.length > 0)
+      ? payloadBidders
+      : (existing?.recentBidders ?? []);
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
     
     setAuctions(prev => {
