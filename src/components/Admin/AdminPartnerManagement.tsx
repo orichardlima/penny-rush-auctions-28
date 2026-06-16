@@ -2096,6 +2096,37 @@ const AdminPartnerManagement = () => {
 
         {/* Encerramentos Tab */}
         <TabsContent value="terminations" className="space-y-4">
+          {/* Configuração do prazo de estorno */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Encerramento</CardTitle>
+              <CardDescription>
+                Prazo divulgado ao parceiro na tela de acompanhamento do estorno.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row sm:items-end gap-3 max-w-md">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="term-sla">Prazo para pagamento do estorno (dias corridos)</Label>
+                  <Input
+                    id="term-sla"
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={terminationSlaDays}
+                    onChange={(e) => setTerminationSlaDays(Number(e.target.value))}
+                  />
+                </div>
+                <Button variant="outline" onClick={handleSaveTerminationSla} disabled={processing}>
+                  Salvar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Contado a partir da aprovação do encerramento até a confirmação do PIX.
+              </p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Solicitações de Encerramento Antecipado</CardTitle>
@@ -2109,31 +2140,49 @@ const AdminPartnerManagement = () => {
                     <TableHead>Tipo</TableHead>
                     <TableHead>Valor Proposto</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead>Data / Prazo</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {terminations.map((term) => {
                     const contract = contracts.find(c => c.id === term.partner_contract_id);
+                    const approvedAt = term.approved_at || (term.status !== 'PENDING' ? term.processed_at : null);
+                    let dueDateStr: string | null = null;
+                    if (approvedAt && term.status === 'APPROVED') {
+                      const due = new Date(approvedAt);
+                      due.setDate(due.getDate() + Number(terminationSlaDays || 7));
+                      dueDateStr = due.toLocaleDateString('pt-BR');
+                    }
                     return (
                       <TableRow key={term.id}>
                         <TableCell className="font-medium">{contract?.user_name || 'N/A'}</TableCell>
                         <TableCell>
                           {term.liquidation_type === 'CREDITS' && 'Créditos'}
                           {term.liquidation_type === 'BIDS' && `${term.bids_amount} Lances`}
-                          {term.liquidation_type === 'PARTIAL_REFUND' && 'Reembolso'}
+                          {term.liquidation_type === 'PARTIAL_REFUND' && 'Reembolso PIX'}
                         </TableCell>
-                        <TableCell>{formatPrice(term.proposed_value)}</TableCell>
+                        <TableCell>{formatPrice(term.final_value ?? term.proposed_value)}</TableCell>
                         <TableCell>
-                          <Badge variant={term.status === 'PENDING' ? 'secondary' : term.status === 'COMPLETED' ? 'default' : 'destructive'}>
+                          <Badge variant={term.status === 'PENDING' ? 'secondary' : term.status === 'COMPLETED' ? 'default' : term.status === 'APPROVED' ? 'outline' : 'destructive'}>
                             {term.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDate(term.created_at)}</TableCell>
+                        <TableCell className="text-sm">
+                          <div>Solicitado: {formatDate(term.created_at)}</div>
+                          {dueDateStr && (
+                            <div className="text-xs text-amber-600 font-medium">Pagar até: {dueDateStr}</div>
+                          )}
+                          {term.status === 'COMPLETED' && term.paid_at && (
+                            <div className="text-xs text-emerald-600">Pago em: {formatDate(term.paid_at)}</div>
+                          )}
+                          {term.payout_reference && (
+                            <div className="text-[11px] text-muted-foreground font-mono">ref: {term.payout_reference}</div>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {term.status === 'PENDING' && contract?.status !== 'CLOSED' && (
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <Button size="sm" onClick={() => processTermination(term.id, 'approve')} disabled={processing}>
                                 <CheckCircle className="h-4 w-4" />
                               </Button>
@@ -2144,6 +2193,16 @@ const AdminPartnerManagement = () => {
                           )}
                           {term.status === 'PENDING' && contract?.status === 'CLOSED' && (
                             <span className="text-muted-foreground text-sm">Contrato já encerrado</span>
+                          )}
+                          {term.status === 'APPROVED' && term.liquidation_type === 'PARTIAL_REFUND' && (
+                            <Button
+                              size="sm"
+                              onClick={() => { setPayTermDialog(term); setPayTermReference(''); }}
+                              disabled={processing}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Marcar como pago
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
