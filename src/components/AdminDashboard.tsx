@@ -226,6 +226,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="my-history" title="Histórico" className="flex items-center gap-2 shrink-0">
               <Target className="h-4 w-4" /><span className="hidden sm:inline">Histórico</span>
             </TabsTrigger>
+            <TabsTrigger value="bot-monitor" title="Monitor Bots" className="flex items-center gap-2 shrink-0">
+              <Gauge className="h-4 w-4" /><span className="hidden sm:inline">Monitor Bots</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="auction-details">
