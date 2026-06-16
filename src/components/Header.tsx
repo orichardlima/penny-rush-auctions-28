@@ -288,6 +288,13 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         Meu Dashboard
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/meus-contratos" className="w-full cursor-pointer">
+                        <FileText className="w-4 h-4 mr-2" aria-hidden="true" />
+                        Meus Contratos
+                      </Link>
+                    </DropdownMenuItem>
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive focus:text-destructive">
                       <LogOut className="w-4 h-4 mr-2" aria-hidden="true" />
