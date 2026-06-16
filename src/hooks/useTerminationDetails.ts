@@ -127,6 +127,22 @@ export const useTerminationDetails = (): TerminationDetails => {
         .order('period_start', { ascending: false });
       setPayouts((payoutsData as TerminationPayoutItem[]) || []);
 
+      // Saques PIX efetivamente pagos (saiu do caixa da empresa)
+      const { data: withdrawalsData } = await supabase
+        .from('partner_withdrawals')
+        .select('amount, status')
+        .eq('partner_contract_id', contractData.id);
+      const paidPix = (withdrawalsData || [])
+        .filter((w: any) => w.status === 'PAID')
+        .reduce((sum: number, w: any) => sum + Number(w.amount || 0), 0);
+      const totalCreditedPaid = (payoutsData || [])
+        .filter((p: any) => p.status === 'PAID')
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      setTotalWithdrawnPix(paidPix);
+      setTotalCreditedNotWithdrawn(Math.max(0, totalCreditedPaid - paidPix));
+
+
+
       // Bônus de indicação onde este contrato foi o RECEBEDOR (referrer)
       const { data: bonusesData } = await supabase
         .from('partner_referral_bonuses')
