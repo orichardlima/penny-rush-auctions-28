@@ -36,6 +36,14 @@ const MinhaParceriaEncerramento = () => {
       />
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       <div className="container mx-auto px-4 py-8 flex-1">
+        <div className="flex justify-end mb-4">
+          <Link to="/meus-contratos">
+            <Button variant="outline" size="sm">
+              <FileText className="h-4 w-4 mr-2" />
+              Meus Contratos
+            </Button>
+          </Link>
+        </div>
         <EncerramentoDashboard />
       </div>
       <Footer />
