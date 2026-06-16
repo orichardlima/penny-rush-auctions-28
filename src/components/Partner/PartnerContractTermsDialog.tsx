@@ -64,9 +64,11 @@ Ao aceitar este contrato, o PARCEIRO declara ter lido, compreendido e concordado
 interface PartnerContractTermsDialogProps {
   open: boolean;
   onClose: () => void;
-  onAccept: () => void;
+  onAccept?: () => void;
   plan: PartnerPlan;
   loading?: boolean;
+  readOnly?: boolean;
+  acceptedAt?: string | null;
 }
 
 const formatCurrency = (value: number) =>
@@ -82,6 +84,8 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
   onAccept,
   plan,
   loading = false,
+  readOnly = false,
+  acceptedAt = null,
 }) => {
   const [accepted, setAccepted] = useState(false);
   const { getSettingValue } = useSystemSettings();
@@ -94,10 +98,14 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
   };
 
   const handleAccept = () => {
-    if (!accepted) return;
+    if (!accepted || !onAccept) return;
     setAccepted(false);
     onAccept();
   };
+
+  const acceptedLabel = acceptedAt
+    ? new Date(acceptedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -108,7 +116,11 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
             Contrato de Participação — Plano {plan.display_name}
           </DialogTitle>
           <DialogDescription>
-            Leia atentamente o contrato abaixo antes de prosseguir.
+            {readOnly
+              ? acceptedLabel
+                ? `Contrato aceito em ${acceptedLabel}.`
+                : 'Contrato aceito no momento da adesão.'
+              : 'Leia atentamente o contrato abaixo antes de prosseguir.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -131,25 +143,35 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
         </ScrollArea>
 
         <div className="border-t pt-4 space-y-4">
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <Checkbox
-              checked={accepted}
-              onCheckedChange={(v) => setAccepted(v === true)}
-              className="mt-0.5"
-            />
-            <span className="text-sm">
-              Li e aceito integralmente os termos do contrato de participação acima.
-            </span>
-          </label>
+          {readOnly ? (
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          ) : (
+            <>
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <Checkbox
+                  checked={accepted}
+                  onCheckedChange={(v) => setAccepted(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm">
+                  Li e aceito integralmente os termos do contrato de participação acima.
+                </span>
+              </label>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAccept} disabled={!accepted || loading}>
-              {loading ? 'Processando...' : 'Aceitar e Continuar'}
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleClose} disabled={loading}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAccept} disabled={!accepted || loading}>
+                  {loading ? 'Processando...' : 'Aceitar e Continuar'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
