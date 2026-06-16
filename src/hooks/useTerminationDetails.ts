@@ -78,6 +78,8 @@ export const useTerminationDetails = (): TerminationDetails => {
   const [payouts, setPayouts] = useState<TerminationPayoutItem[]>([]);
   const [referralBonuses, setReferralBonuses] = useState<TerminationReferralBonus[]>([]);
   const [slaDays, setSlaDays] = useState<number>(7);
+  const [totalWithdrawnPix, setTotalWithdrawnPix] = useState<number>(0);
+  const [totalCreditedNotWithdrawn, setTotalCreditedNotWithdrawn] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
