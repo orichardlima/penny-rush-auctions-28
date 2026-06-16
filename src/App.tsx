@@ -186,6 +186,8 @@ const AppContent = () => {
       <Route path="/investir" element={<Navigate to="/parceiro" replace />} />
       <Route path="/minha-parceria" element={<LazyRoute><MinhaParceria /></LazyRoute>} />
       <Route path="/minha-parceria/encerramento" element={<LazyRoute><MinhaParceriaEncerramento /></LazyRoute>} />
+      <Route path="/meus-contratos" element={<LazyRoute><MeusContratos /></LazyRoute>} />
+
 
       <Route path="/admin/parceiros" element={<LazyRoute><AdminParceiros /></LazyRoute>} />
       <Route path="/reset-password" element={<LazyRoute><ResetPassword /></LazyRoute>} />

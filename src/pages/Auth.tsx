@@ -331,7 +331,10 @@ const Auth = () => {
         state: formData.state,
         referral_code: finalReferralCode,
         partner_referral_code: finalPartnerReferralCode,
+        bettor_contract_accepted: true,
+        bettor_contract_version: 'v1',
       };
+
 
       const { error } = await signUp(formData.email, formData.password, userData);
 

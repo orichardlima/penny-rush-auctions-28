@@ -16,7 +16,10 @@ interface SignUpData {
   state: string;
   referral_code?: string | null;
   partner_referral_code?: string | null;
+  bettor_contract_accepted?: boolean;
+  bettor_contract_version?: string;
 }
+
 
 interface Profile {
   id: string;
@@ -143,7 +146,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           state: userData.state,
           referral_code: userData.referral_code || null,
           partner_referral_code: userData.partner_referral_code || null,
+          bettor_contract_accepted: userData.bettor_contract_accepted ? 'true' : 'false',
+          bettor_contract_version: userData.bettor_contract_version || 'v1',
         },
+
       },
     });
     return { error };
