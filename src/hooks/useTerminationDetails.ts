@@ -193,5 +193,5 @@ export const useTerminationDetails = (): TerminationDetails => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  return { termination, contract, payouts, referralBonuses, slaDays, loading, refetch: fetchAll };
+  return { termination, contract, payouts, referralBonuses, slaDays, totalWithdrawnPix, totalCreditedNotWithdrawn, loading, refetch: fetchAll };
 };
