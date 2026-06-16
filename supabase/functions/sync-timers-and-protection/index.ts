@@ -382,7 +382,7 @@ Deno.serve(async (req) => {
         }
 
         // 7. Agendar novo lance (sem agendamento pendente, inatividade >= 5s)
-        if (secondsSinceLastBid >= 5) {
+        if (secondsSinceLastBid >= 2) {
           const { band, delaySec } = selectBotBand(auction.last_bot_band);
           const targetTime = new Date(lastBidTime + delaySec * 1000).toISOString();
 
