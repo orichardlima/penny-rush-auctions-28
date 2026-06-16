@@ -1325,6 +1325,30 @@ export const useAdminPartners = () => {
     }
   };
 
+  // Marcar pagamento PIX do estorno como concluído
+  const markTerminationPaid = async (terminationId: string, payoutReference?: string) => {
+    setProcessing(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from('partner_early_terminations')
+        .update({
+          status: 'COMPLETED',
+          paid_at: nowIso,
+          payout_reference: payoutReference || null,
+          processed_at: nowIso,
+        })
+        .eq('id', terminationId);
+      if (error) throw error;
+      toast({ title: 'Estorno marcado como pago' });
+      await fetchTerminations();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: error.message });
+    } finally {
+      setProcessing(false);
+    }
+
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
