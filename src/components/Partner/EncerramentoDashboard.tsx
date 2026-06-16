@@ -103,7 +103,7 @@ const TimelineStep: React.FC<{
 );
 
 const EncerramentoDashboard: React.FC = () => {
-  const { termination, contract, payouts, referralBonuses, slaDays, loading } = useTerminationDetails();
+  const { termination, contract, payouts, referralBonuses, slaDays, totalWithdrawnPix, totalCreditedNotWithdrawn, loading } = useTerminationDetails();
 
   if (loading) {
     return (
