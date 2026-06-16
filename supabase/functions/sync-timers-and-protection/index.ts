@@ -47,12 +47,12 @@ function getBotDisplayName(bot: any): string {
 function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number } {
   const pickBand = (): { band: string; delaySec: number } => {
     const rand = Math.random();
-    if (rand < 0.25) {
+    if (rand < 0.40) {
       return { band: 'early', delaySec: 2 + Math.floor(Math.random() * 3) }; // 2-4s
-    } else if (rand < 0.70) {
-      return { band: 'middle', delaySec: 5 + Math.floor(Math.random() * 3) }; // 5-7s
+    } else if (rand < 0.75) {
+      return { band: 'middle', delaySec: 4 + Math.floor(Math.random() * 3) }; // 4-6s
     } else {
-      return { band: 'late', delaySec: 8 + Math.floor(Math.random() * 3) }; // 8-10s
+      return { band: 'late', delaySec: 6 + Math.floor(Math.random() * 3) }; // 6-8s
     }
   };
 
@@ -369,15 +369,31 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // 5. Se já tem agendamento pendente (não vencido), skip
-        if (auction.scheduled_bot_bid_at) {
-          continue;
-        }
-
-        // 6. PAUSAR bots se houver líder real elegível (predefinido OU open_win)
+        // 5. PAUSAR bots se houver líder real elegível (predefinido OU open_win)
         const eligibleRealLeader = await getEligibleRealLeader(supabase, auction);
         if (eligibleRealLeader) {
           console.log(`🎯 [REAL-LEADING] "${auction.title}" - real elegível lidera, bots pausados`);
+          continue;
+        }
+
+        // 6. PANIC BID: timer (15s) com <= 6s restantes e nenhum lance vai chegar a tempo.
+        // Força execução imediata via RPC atômico para o card NUNCA exibir "Verificando" na disputa.
+        const timeLeft = 15 - secondsSinceLastBid;
+        const scheduledAtMs = auction.scheduled_bot_bid_at ? new Date(auction.scheduled_bot_bid_at).getTime() : null;
+        const scheduledTooLate = scheduledAtMs !== null && scheduledAtMs > currentTime + 1000;
+        if (timeLeft <= 6 && (auction.scheduled_bot_bid_at === null || scheduledTooLate)) {
+          // Reagenda para agora-mesmo e dispara o executor atômico
+          await supabase
+            .from('auctions')
+            .update({ scheduled_bot_bid_at: new Date(currentTime - 100).toISOString(), scheduled_bot_band: 'panic' })
+            .eq('id', auction.id);
+          const { data: panicResult } = await supabase.rpc('execute_overdue_bot_bids');
+          console.log(`⚠️ [PANIC-BID] "${auction.title}" | time_left=${timeLeft}s | executed=${panicResult?.executed ?? 0}`);
+          continue;
+        }
+
+        // 7. Se já tem agendamento pendente (não vencido), skip
+        if (auction.scheduled_bot_bid_at) {
           continue;
         }
 
