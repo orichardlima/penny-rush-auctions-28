@@ -58,14 +58,14 @@ const MeusContratos: React.FC = () => {
       />
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
 
-      <main className="container mx-auto px-4 py-8 flex-1">
+      <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-1 overflow-x-hidden">
         <div className="max-w-3xl mx-auto space-y-6">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <FileText className="h-7 w-7 text-primary" />
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <FileText className="h-6 w-6 sm:h-7 sm:w-7 text-primary shrink-0" />
               Meus Contratos
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Aqui você pode revisar a qualquer momento os termos que aceitou.
             </p>
           </div>
@@ -79,27 +79,34 @@ const MeusContratos: React.FC = () => {
               {/* Contrato do Apostador */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-lg">Contrato do Apostador</CardTitle>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    <div className="min-w-0">
+                      <CardTitle className="text-base sm:text-lg break-words">Contrato do Apostador</CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
                         Termos e condições de uso da plataforma.
                       </p>
                     </div>
-                    <Badge variant="default">Aceito</Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white">Assinado</Badge>
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="text-sm text-muted-foreground">
-                    Aceito em{' '}
-                    <span className="font-medium text-foreground">
+                    Assinado em{' '}
+                    <span className="font-semibold text-foreground">
                       {formatDate(bettor?.accepted_at || bettor?.fallback_date || null)}
                     </span>
                     {bettor?.version && (
                       <span className="ml-2 text-xs">(versão {bettor.version})</span>
                     )}
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setBettorOpen(true)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    onClick={() => setBettorOpen(true)}
+                  >
                     <Eye className="h-4 w-4 mr-2" />
                     Ver contrato
                   </Button>
@@ -117,28 +124,40 @@ const MeusContratos: React.FC = () => {
                 partnerContracts.map((c) => (
                   <Card key={c.id}>
                     <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <CardTitle className="text-lg">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base sm:text-lg break-words">
                             Contrato de Parceiro — Plano {c.plan_name}
                           </CardTitle>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground mt-1 break-words">
                             Aporte: {formatCurrency(c.aporte_value)} · Cotas: {c.cotas} · Teto total:{' '}
                             {formatCurrency(c.total_cap)}
                           </p>
                         </div>
-                        {statusBadge(c.status)}
+                        <div className="flex flex-wrap gap-2">
+                          <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white">Assinado</Badge>
+                          {statusBadge(c.status)}
+                        </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-sm text-muted-foreground">
-                        Aceito em{' '}
-                        <span className="font-medium text-foreground">{formatDate(c.created_at)}</span>
+                    <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="text-sm text-muted-foreground space-y-0.5">
+                        <div>
+                          Assinado em{' '}
+                          <span className="font-semibold text-foreground">{formatDate(c.created_at)}</span>
+                        </div>
                         {c.closed_at && (
-                          <span className="ml-2">· Encerrado em {formatDate(c.closed_at)}</span>
+                          <div className="text-xs">
+                            Encerrado em <span className="font-medium">{formatDate(c.closed_at)}</span>
+                          </div>
                         )}
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedPartner(c)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => setSelectedPartner(c)}
+                      >
                         <Eye className="h-4 w-4 mr-2" />
                         Ver contrato
                       </Button>
