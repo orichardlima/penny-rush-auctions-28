@@ -2770,6 +2770,20 @@ export type Database = {
         }
         Returns: number
       }
+      admin_get_cron_jobs_status: {
+        Args: never
+        Returns: {
+          active: boolean
+          duration_ms: number
+          jobid: number
+          jobname: string
+          last_end: string
+          last_return_message: string
+          last_start: string
+          last_status: string
+          schedule: string
+        }[]
+      }
       admin_preview_partner_sponsor_transfer: {
         Args: { p_contract_id: string }
         Returns: Json
