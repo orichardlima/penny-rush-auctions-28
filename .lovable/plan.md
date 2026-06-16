@@ -1,68 +1,77 @@
-# Problema
 
-Os cards continuam em "Verificando lances válidos" porque, na verdade, **os bots pararam de dar lance**:
+## Diagnóstico real
 
-- Leilão "Galaxy Watch 6": **0 lances** desde que abriu
-- Leilão "Micro-ondas 32L": último lance há **6 minutos**
+Conectando os pontos:
 
-Ou seja: o ajuste de tick/delay anterior não resolve nada se o `bot_tick` em si está falhando.
+1. **Aviso do Supabase**: o projeto está esgotando o orçamento de **Disk I/O**. Quando isso acontece, queries ficam lentas → timeout → PostgREST não consegue recarregar o schema cache → erro `PGRST002` em tudo (leilões, pacotes, vencedores).
+2. **Conexão `pg_net` zumbi (PID 5104)** travada desde 05/05 + worker `realtime_replication_connection` aguardando `Lock / transactionid` há 7+ min são **sintomas**, não causa raiz — é a sobrecarga de I/O fazendo background workers ficarem presos.
+3. **`pg_stat_statements`** confirma quem está consumindo I/O:
 
-# Causa raiz (confirmada nos logs do cron)
+   | Query                                          | Chamadas | Total ms      |
+   |------------------------------------------------|----------|---------------|
+   | INSERT em `bids` (lances)                      | 731.265  | 9.765.633 ms  |
+   | UPDATE em `auctions` (após cada lance)         | 733.895  | 2.660.432 ms  |
+   | SELECT `profiles` por user_id                  | 325.542  | 804.358 ms    |
+   | SELECT últimos lances por auction              | 112      | 285.524 ms    |
 
-O `bot_tick_safe()` está caindo com `statement timeout` dentro de um trigger:
+4. **Tabela `bids` já tem 605 MB** (218 MB de dados + 387 MB de índices), e está recebendo lances dos bots ininterruptamente. Cada INSERT dispara o trigger `rebuild_auction_last_bidders` + UPDATE em `auctions` + replicação para realtime — tudo isso multiplica I/O.
 
-```
-canceling statement due to statement timeout
-PL/pgSQL function rebuild_auction_last_bidders(uuid) line 5
-trigger trg_refresh_last_bidders
-INSERT INTO bids (...)  -- bot bid
-execute_overdue_bot_bids() → bot_tick() → bot_tick_safe()
-```
+## Plano de ação (2 frentes)
 
-A função `rebuild_auction_last_bidders` roda em **todo INSERT em `bids`** e executa:
+### Frente 1 — Desbloqueio imediato (urgência: site fora do ar)
 
-```sql
-SELECT ... FROM bids b LEFT JOIN profiles p ...
-WHERE b.auction_id = X
-ORDER BY b.created_at DESC
-LIMIT 3
-```
-
-A tabela `bids` tem **2.203.891 linhas**. Os índices existentes:
-
-- `idx_bids_auction_id` (auction_id)
-- `idx_bids_created_at` (created_at)
-- `idx_bids_created_at_user` (created_at DESC, user_id)
-
-**Não existe** índice composto `(auction_id, created_at DESC)`. Para um leilão popular, o Postgres lê todos os bids daquele leilão e ordena em memória, o que estoura o `statement_timeout`. O trigger faz rollback do INSERT do bot → bot nunca dá lance → contador zera → card mostra "Verificando".
-
-Também observado: várias execuções do tick demoram 20-30s (acima da janela de 15s), reforçando que o gargalo é I/O do trigger, não a frequência do cron.
-
-# Plano
-
-## 1. Criar índice composto em `bids` (correção principal)
-
-Migração SQL:
+Migration única para liberar locks travados:
 
 ```sql
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bids_auction_created_desc
-  ON public.bids (auction_id, created_at DESC);
+-- Termina conexão zumbi do pg_net (>1h ociosa) — pg_net reinicia sozinho
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE application_name LIKE 'pg_net%'
+  AND state = 'idle'
+  AND backend_start < now() - interval '1 hour';
+
+-- Termina chamadas longas de bot_tick que estão em pg_sleep
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE query ILIKE '%bot_tick%pg_sleep%'
+  AND now() - query_start > interval '60 seconds';
 ```
 
-Isso transforma o `WHERE auction_id=X ORDER BY created_at DESC LIMIT 3` num index scan O(log n) + 3 fetches, eliminando o timeout do trigger.
+Após isso, o PostgREST recarrega o schema cache e o site volta a responder.
 
-Observação: `CREATE INDEX CONCURRENTLY` não pode rodar dentro de transação. A migração vai usar esse modo para não travar inserts em produção.
+### Frente 2 — Reduzir consumo de I/O (urgência: evitar reincidência)
 
-## 2. Verificação pós-deploy
+**Limpeza histórica de `bids` antigos** — a tabela acumula bids de leilões finalizados há semanas/meses. Esses dados não são necessários para o funcionamento do site (apenas estatísticas), e podem ser arquivados/agregados.
 
-Após aplicar:
+Proposta:
+```sql
+-- Arquivar bids de leilões finalizados há mais de 30 dias
+-- (mantém apenas contagens agregadas em auctions.total_bids)
+DELETE FROM public.bids
+WHERE auction_id IN (
+  SELECT id FROM public.auctions
+  WHERE status = 'finished'
+    AND finished_at < now() - interval '30 days'
+);
 
-- Conferir `cron.job_run_details` por 5 min — não deve haver mais `status='failed'` por timeout no `bot_tick_safe`.
-- Conferir se os 2 leilões ativos voltam a receber lances de bot.
-- O card "Verificando lances válidos" deve desaparecer naturalmente.
+VACUUM (ANALYZE) public.bids;
+```
 
-# Escopo
+Isso pode liberar a maior parte dos 605 MB e reduzir drasticamente o tempo dos triggers (menos páginas para escanear).
 
-- **Não mexe** em UI, lógica de leilão, fórmulas de delay, cron jobs ou edge functions.
-- **Não altera** o trigger nem a função `rebuild_auction_last_bidders` — apenas dá a ela o índice que faltava.
-- Mudança é puramente de infraestrutura de banco. Rollback = `DROP INDEX idx_bids_auction_created_desc;`.
+**⚠️ Confirmar com você antes**: você tem alguma feature de admin/relatório que dependa de bids antigos individuais (histórico detalhado de lance por usuário em leilões antigos)? Se sim, ajusto a janela para 90 dias ou movemos para uma tabela `bids_archive` em vez de deletar.
+
+### Frente 3 — Upgrade de compute (recomendação ao usuário, não código)
+
+Mesmo com a limpeza, o volume contínuo de bots vai continuar gerando I/O alto. O Supabase recomenda upgrade do compute add-on. Isso é decisão sua no painel: https://supabase.com/dashboard/project/tlcdidkkxigofdhxnzzo/settings/compute-and-disk
+
+## Escopo intocado
+
+- Nenhuma mudança em UI, edge functions, hooks, ou lógica de leilões/bots.
+- Nenhuma mudança em triggers, RLS, schema de tabelas.
+- Trabalho é 100% manutenção de banco.
+
+## Perguntas antes de executar
+
+1. Posso deletar bids de leilões finalizados há **+30 dias**? Ou prefere janela maior (90 dias) ou mover para tabela de arquivo?
+2. Sigo direto com a Frente 1 (desbloqueio) agora e a Frente 2 (limpeza) na sequência?
