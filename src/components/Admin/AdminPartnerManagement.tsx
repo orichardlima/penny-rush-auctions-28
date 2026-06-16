@@ -2215,6 +2215,54 @@ const AdminPartnerManagement = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Diálogo: Marcar estorno como pago */}
+          <Dialog open={!!payTermDialog} onOpenChange={(open) => { if (!open) setPayTermDialog(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Marcar estorno como pago</DialogTitle>
+                <DialogDescription>
+                  Confirme o pagamento PIX do estorno. O parceiro verá o status como "Estorno concluído".
+                </DialogDescription>
+              </DialogHeader>
+              {payTermDialog && (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-muted-foreground">Valor a pagar:</span>
+                    <span className="font-bold">{formatPrice(payTermDialog.final_value ?? payTermDialog.proposed_value)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-ref">Referência da transação PIX (opcional)</Label>
+                    <Input
+                      id="pay-ref"
+                      placeholder="Ex.: E12345678..."
+                      value={payTermReference}
+                      onChange={(e) => setPayTermReference(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Identificador do PIX para o parceiro consultar no extrato.
+                    </p>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPayTermDialog(null)} disabled={processing}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!payTermDialog) return;
+                    await markTerminationPaid(payTermDialog.id, payTermReference.trim() || undefined);
+                    setPayTermDialog(null);
+                    setPayTermReference('');
+                  }}
+                  disabled={processing}
+                >
+                  Confirmar pagamento
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Relatórios Tab */}
