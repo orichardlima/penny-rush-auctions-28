@@ -149,11 +149,19 @@ const EncerramentoDashboard: React.FC = () => {
     sla === 0 ? `Previsão para hoje (${formatDate(dueDate!.toISOString())})` :
     `Atrasado há ${Math.abs(sla)} dia${Math.abs(sla) > 1 ? 's' : ''} — entre em contato com o suporte.`;
 
-  const finalValue = termination.final_value ?? termination.proposed_value;
   const totalCap = Number(contract.total_cap || 0);
   const aporte = Number(termination.aporte_original || contract.aporte_value || 0);
-  const totalReceived = Number(termination.total_received || 0);
-  const aporteAfterDiscount = aporte * (1 - Number(termination.discount_percentage || 0) / 100);
+  const discountPct = Number(termination.discount_percentage || 0);
+  const aporteAfterDiscount = aporte * (1 - discountPct / 100);
+
+  // Apenas o que SAIU do caixa (PIX pago ao parceiro) desconta do estorno.
+  // Saldo creditado mas não sacado fica como crédito interno e NÃO reduz o estorno.
+  const finalValueLive = Math.max(0, aporteAfterDiscount - totalWithdrawnPix);
+  const remainingCapLive = Math.max(0, totalCap - totalWithdrawnPix);
+  // Mantém o valor armazenado caso o estorno já tenha sido concluído (snapshot histórico).
+  const finalValue = termination.status === 'COMPLETED'
+    ? (termination.final_value ?? termination.proposed_value)
+    : finalValueLive;
 
   const totalPayoutsPaid = payouts
     .filter((p) => p.status === 'PAID')
