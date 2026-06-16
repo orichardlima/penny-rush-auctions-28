@@ -1347,6 +1347,9 @@ export const useAdminPartners = () => {
     } finally {
       setProcessing(false);
     }
+  };
+
+
 
 
   useEffect(() => {
