@@ -273,6 +273,10 @@ const UserDashboard = () => {
           </Card>
         </div>
 
+        <MyBidLotsCard />
+
+
+
         {/* CTA Afiliados - Só aparece para Parceiros (que viram Manager) */}
         {!loading && isAffiliate === false && hasPartnerContract && (
           <Card className="bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 border-primary/20">
