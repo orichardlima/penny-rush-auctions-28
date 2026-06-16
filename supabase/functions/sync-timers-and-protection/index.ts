@@ -43,34 +43,32 @@ function getBotDisplayName(bot: any): string {
   return parts[0];
 }
 
-// Sorteia faixa de timing com anti-repetição (distribuição ampla 2-13s)
-function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number } {
-  const pickBand = (): { band: string; delaySec: number } => {
-    const rand = Math.random();
-    let band: string;
-    let baseMin: number;
-    let baseMax: number;
-    if (rand < 0.25) {
-      band = 'rush'; baseMin = 2; baseMax = 4;
-    } else if (rand < 0.55) {
-      band = 'early'; baseMin = 5; baseMax = 7;
-    } else if (rand < 0.85) {
-      band = 'middle'; baseMin = 8; baseMax = 10;
-    } else {
-      band = 'late'; baseMin = 11; baseMax = 13;
-    }
-    // delay contínuo com jitter ±0.3s, garante segundos não-redondos
-    const raw = baseMin + Math.random() * (baseMax - baseMin);
-    const jitter = (Math.random() - 0.5) * 0.6;
-    const delaySec = Math.max(2, Math.min(13.5, raw + jitter));
-    return { band, delaySec };
+// Sorteia o ALVO em "time_left restante" (3s a 13s), não em delay após last_bid_at.
+// Naturalidade real: bots às vezes entram faltando 12s, às vezes 3s.
+// Margem de segurança: alvo nunca < 3s restantes (delay máx ~12s) + executor de 1s
+// garante que o lance entra antes do timer zerar.
+function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number; targetTimeLeft: number } {
+  const TIMER = 15;
+  const bands = [
+    { band: 'late',   weight: 20, tlMin: 11, tlMax: 13 },  // delay ~2-4s
+    { band: 'middle', weight: 20, tlMin: 8,  tlMax: 10 },  // delay ~5-7s
+    { band: 'extra',  weight: 15, tlMin: 7,  tlMax: 9  },  // delay ~6-8s
+    { band: 'early',  weight: 25, tlMin: 5,  tlMax: 7  },  // delay ~8-10s
+    { band: 'rush',   weight: 20, tlMin: 3,  tlMax: 4.5 }, // delay ~10.5-12s
+  ];
+  const pick = () => {
+    const total = bands.reduce((a, b) => a + b.weight, 0);
+    let r = Math.random() * total;
+    for (const b of bands) { r -= b.weight; if (r <= 0) return b; }
+    return bands[bands.length - 1];
   };
-
-  let result = pickBand();
-  if (result.band === lastBotBand) {
-    result = pickBand();
-  }
-  return result;
+  let chosen = pick();
+  if (chosen.band === lastBotBand) chosen = pick();
+  const rawTl = chosen.tlMin + Math.random() * (chosen.tlMax - chosen.tlMin);
+  const jitter = (Math.random() - 0.5) * 0.3;
+  const targetTimeLeft = Math.max(3, Math.min(13.5, rawTl + jitter));
+  const delaySec = TIMER - targetTimeLeft;
+  return { band: chosen.band, delaySec, targetTimeLeft };
 }
 
 // Helper: retorna o user_id do líder real ELEGÍVEL (predefinido OU open_win_mode), ou null
