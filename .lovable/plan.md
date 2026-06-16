@@ -1,60 +1,32 @@
 ## Objetivo
 
-Permitir que qualquer usuário (apostador) e parceiro revisitem na tela os contratos que aceitaram, com data/hora do aceite e dados do plano (no caso do parceiro). Apenas visualização — sem PDF/download.
+Na página `/meus-contratos`, deixar explícito que o contrato foi **aceito/assinado** mesmo quando ele já está encerrado, e garantir boa responsividade no mobile.
 
-## O que será criado
+## O que muda em `src/pages/MeusContratos.tsx`
 
-### 1. Nova página `/meus-contratos`
-Rota acessível a qualquer usuário autenticado. Lista todos os contratos aceitos pelo usuário, ordenados por data (mais recente primeiro):
+### 1. Mostrar status duplo nos contratos de Parceiro encerrados
 
-- **Contrato do Apostador** (sempre presente após cadastro)
-  - Data/hora do aceite
-  - Versão dos termos aceita
-  - Botão "Ver contrato" → abre o mesmo conteúdo de `BettorContractTermsDialog` em modo somente-leitura (sem botões de aceite)
+Hoje, contratos com `status = CLOSED` mostram apenas o badge cinza "Encerrado", o que dá a impressão de que o contrato não foi assinado. Vamos:
 
-- **Contrato(s) de Participação de Parceiro** (um por `partner_contracts` do usuário)
-  - Plano, valor, cotas, data do aceite, status (ativo/encerrado/inadimplente)
-  - Botão "Ver contrato" → abre `PartnerContractTermsDialog` em modo somente-leitura, já preenchido com o plano daquele contrato
+- Manter o badge de status atual (Ativo / Encerrado / Pendente / Inadimplente) no canto superior direito.
+- Adicionar **sempre** um segundo badge verde "Assinado" ao lado, deixando claro que o contrato foi aceito.
+- Reforçar o texto da data trocando "Aceito em" por **"Assinado em DD/MM/AAAA, HH:MM"** em destaque (negrito), com a linha de "Encerrado em ..." aparecendo abaixo (não mais na mesma linha) para não competir visualmente.
 
-### 2. Pontos de acesso (2 entradas, conforme pedido)
-- **Em `MinhaParceria`**: nova aba/seção "Contratos" no topo da página, listando os contratos de parceiro do usuário + link "Ver contrato do apostador".
-- **No menu do usuário** (dropdown do avatar no `Header`): novo item **"Meus contratos"** → navega para `/meus-contratos`. Visível para todo usuário autenticado.
+### 2. Melhorar responsividade mobile
 
-### 3. Registro do aceite do apostador
-Hoje o aceite do contrato do apostador no `Auth.tsx` não é persistido com data/versão. Para conseguir mostrar "aceito em DD/MM/AAAA":
-- Adicionar duas colunas em `profiles`: `bettor_contract_accepted_at timestamptz` e `bettor_contract_version text`.
-- Preencher no momento do signup (após aceite no dialog).
-- Backfill: para usuários antigos sem registro, exibir "Aceito no cadastro" usando `profiles.created_at` como fallback.
+Ajustes apenas de layout (sem mexer em lógica):
 
-### 4. Modo somente-leitura dos diálogos
-Adicionar prop opcional `readOnly?: boolean` em `BettorContractTermsDialog` e `PartnerContractTermsDialog`:
-- Esconde checkboxes de aceite e botões "Aceitar/Recusar".
-- Mostra apenas botão "Fechar".
-- Exibe banner no topo: "Contrato aceito em DD/MM/AAAA às HH:MM".
+- Cabeçalho dos cards: trocar `flex-wrap` por `flex-col sm:flex-row` para que o título e os badges não fiquem espremidos em telas pequenas.
+- Rodapé dos cards (data + botão "Ver contrato"): empilhar em mobile (`flex-col items-start sm:flex-row sm:items-center sm:justify-between`) e fazer o botão ocupar `w-full sm:w-auto`.
+- Título "Meus Contratos": reduzir para `text-2xl sm:text-3xl` e o ícone para `h-6 w-6 sm:h-7 sm:w-7`.
+- Container principal: garantir `px-4 sm:px-6` e remover qualquer overflow horizontal.
+- Aplicar o mesmo tratamento ao card do "Contrato do Apostador" para consistência.
 
-Nenhuma mudança no fluxo de aceite atual (cadastro / adesão de plano).
+### 3. Verificação
 
-## Detalhes técnicos
+- Testar visualmente em viewport mobile (375px) e desktop, conferindo o caso da Sabriny (contrato Diamond encerrado): deve aparecer claramente "Assinado em 12/05/2026, 08:58" + badge "Assinado" + badge "Encerrado".
 
-**Arquivos novos**
-- `src/pages/MeusContratos.tsx` — página com listagem.
-- `src/components/Contratos/ContratoCard.tsx` — card por contrato.
-- `src/hooks/useMeusContratos.ts` — busca `profiles` (bettor) + `partner_contracts` do usuário logado.
+## Fora do escopo
 
-**Arquivos alterados**
-- `src/App.tsx` — registra rota `/meus-contratos`.
-- `src/components/Header.tsx` — item "Meus contratos" no menu do usuário.
-- `src/pages/MinhaParceria.tsx` — seção/aba "Contratos".
-- `src/components/BettorContractTermsDialog.tsx` — prop `readOnly` + banner.
-- `src/components/Partner/PartnerContractTermsDialog.tsx` — prop `readOnly` + banner.
-- `src/pages/Auth.tsx` — gravar `bettor_contract_accepted_at` / `bettor_contract_version` no signup.
-
-**Migração (schema)**
-- `ALTER TABLE public.profiles ADD COLUMN bettor_contract_accepted_at timestamptz, ADD COLUMN bettor_contract_version text;`
-- RLS já cobre `profiles` (usuário lê o próprio); nenhuma policy nova.
-- `partner_contracts` já tem policy de leitura própria — sem mudança.
-
-## Fora de escopo
-- Geração/download de PDF.
-- Assinatura digital com hash.
-- Versionamento histórico do texto do contrato (mantemos apenas a versão string; o texto exibido é sempre o atual do componente — se mudar no futuro, decidiremos como versionar).
+- Nenhuma mudança em hooks, banco, dialogs, autenticação ou outras telas.
+- Sem alteração de textos legais ou fluxo de aceite.
