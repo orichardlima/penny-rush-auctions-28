@@ -9,8 +9,9 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart
+  Handshake, LayoutTemplate, ShoppingCart, Gauge
 } from 'lucide-react';
+import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
