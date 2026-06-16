@@ -1315,6 +1315,26 @@ export const useAdminPartners = () => {
           .eq('id', termination.partner_contract_id);
       }
 
+      // Auditoria
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        await supabase.from('admin_audit_log').insert({
+          admin_user_id: user?.id,
+          admin_name: prof?.full_name || 'Admin',
+          action_type: action === 'approve' ? 'TERMINATION_APPROVED' : 'TERMINATION_REJECTED',
+          target_type: 'partner_early_termination',
+          target_id: terminationId,
+          description: `Encerramento ${action === 'approve' ? 'aprovado' : 'rejeitado'}${notes ? ': ' + notes : ''}`,
+          new_values: { action, notes: notes || null },
+        });
+      } catch (e) {
+        console.warn('audit log falhou:', e);
+      }
 
       toast({ title: action === 'approve' ? 'Encerramento aprovado' : 'Encerramento rejeitado' });
       await Promise.all([fetchContracts(), fetchTerminations()]);
