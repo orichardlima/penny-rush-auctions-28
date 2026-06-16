@@ -86,6 +86,8 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
   const resyncIntervalRef = useRef<NodeJS.Timeout>();
   const emergencyPollRef = useRef<NodeJS.Timeout>();
   const lastCriticalSyncRef = useRef<Map<string, number>>(new Map());
+  const auctionsRef = useRef<AuctionData[]>([]);
+  useEffect(() => { auctionsRef.current = auctions; }, [auctions]);
 
   // Calcular tempo restante a partir de timestamp absoluto (usando helper)
   const calculateTimeLeft = useCallback((auction: AuctionData): number => {
@@ -420,9 +422,14 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
     console.log(`🎯 [${auctionId}] UPDATE | last_bid_at: ${newData.last_bid_at} | timeLeft calc: ${calculatedTimeLeft}s`);
     
     // Ler last_bidders direto do payload Realtime (0 SELECTs)
-    const recentBidders = Array.isArray(newData.last_bidders) 
+    // Se payload vier sem last_bidders (null/[]), preservar o array atual em memória
+    const payloadBidders = Array.isArray(newData.last_bidders) 
       ? newData.last_bidders as string[]
-      : [];
+      : null;
+    const existing = auctionsRef.current.find(a => a.id === auctionId);
+    const recentBidders = (payloadBidders && payloadBidders.length > 0)
+      ? payloadBidders
+      : (existing?.recentBidders ?? []);
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
     
     setAuctions(prev => {
@@ -547,6 +554,16 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
               description: `${newAuction.title} foi adicionado aos leilões ativos.`,
             });
           }
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bids' },
+        async (payload) => {
+          const auctionId = (payload.new as any).auction_id;
+          if (!auctionId) return;
+          console.log(`📡 [REALTIME] BID INSERT: ${auctionId} → resync recentBidders`);
+          // Throttle curto: garante leitura fresca de last_bidders após trigger commitar
+          await fetchSingleAuction(auctionId, 500);
         }
       )
       .subscribe((status) => {
