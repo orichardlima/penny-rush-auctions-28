@@ -1,37 +1,52 @@
-# Plano: Sub-aba "Divulgação Semanal" dentro de Anúncios
+## Problema
 
-## Objetivo
-Permitir que o ADM veja quais parceiros cumpriram (ou não) a tarefa diária da Central de Anúncios na semana, sem alterar nenhum fluxo existente.
+Bots demoram 15-17s entre lances, ultrapassando a janela de 15s e fazendo o card piscar "Verificando lances válidos" constantemente. Confirmado nos logs (gaps de 15,69s e 16,02s em sequência).
 
-## Onde
-Dentro da aba **Anúncios** em `Gestão de Parceiros`, transformar o conteúdo atual em duas sub-abas:
-- **Materiais** → componente atual `AdCenterMaterialsManager`
-- **Divulgação Semanal** → nova visão de cumprimento
+## Causa raiz
 
-Nada fora da aba Anúncios é tocado.
+Duas latências somadas:
+1. **Tick a cada 10s** (cron `bot-tick-00…50`): qualquer `scheduled_bot_bid_at` espera até 10s para ser executado.
+2. **Bandas de delay vão até 14s** (`sniper` 13-14s, `late` 10-12s), com regra de agendar só após `secondsSinceLastBid >= 5`.
 
-## Arquivos a criar
-1. `src/utils/weekHelpers.ts` — helpers compartilhados (semana segunda→domingo, formatação BR), espelhando a regra já usada em `useAdCenter`.
-2. `src/hooks/useAdminWeeklyAds.ts` — busca `partner_contracts` (status=ACTIVE) + `ad_center_completions` da semana selecionada + `profiles`, agrega por parceiro e calcula status: META (7/7), PENALIDADE (1–6/7), ZERADO (0/7), EM ANDAMENTO (semana atual ainda em curso).
-3. `src/components/Admin/AdminWeeklyAdsTab.tsx` — UI da sub-aba:
-   - Cards-resumo: total de parceiros ativos, ≥1 confirmação, META, PENALIDADE, ZERADO
-   - Tabela com colunas S T Q Q S S D (✓/—), badge de status, ações
-   - Controles: navegação Atual/Anterior, filtros (escopo, status, busca), modal "Histórico" (últimas 4 semanas) e exportar CSV
-   - Sem mutações: 100% leitura
+Fluxo: lance em T=0 → tick T≈5-10s agenda com delay 2-14s → tick seguinte T≈15-20s executa. Bot bida quase sempre entre T+15s e T+20s.
 
-## Arquivos a editar
-- `src/components/Admin/AdminPartnerManagement.tsx`
-  - Substituir o conteúdo de `<TabsContent value="adcenter">` por um `<Tabs>` interno com duas sub-abas (`materials` | `weekly`).
-  - Sem alterar nenhuma outra aba, hook ou lógica.
-- `src/hooks/useAdCenter.ts` *(opcional, somente se reaproveitar helpers)*: refatorar para importar de `weekHelpers.ts` mantendo 100% do comportamento atual.
+## Solução
 
-## Regras de negócio (espelham o Dashboard do Parceiro)
-- Semana = segunda 00:00 → domingo 23:59 (horário Brasil)
-- Meta: 7/7 confirmações → payout 100%
-- 1–6/7 → penalidade (40%)
-- 0/7 → zerado
-- Fonte: `ad_center_completions.partner_contract_id` + `partner_contracts.status='ACTIVE'`
+Duas mudanças coordenadas, ambas focadas em garantir bid antes de T=15s sem mexer no comportamento "natural" dos bots (continuam variando timing).
 
-## Fora de escopo
-- Nenhuma mudança em UI/fluxo do parceiro, payouts, materiais, ou demais abas.
-- Sem notificações automáticas nem marcação manual (podem ser propostas depois).
+### 1. Aumentar frequência do tick para 5 segundos
+Adicionar 6 cron jobs intermediários (`bot-tick-05`, `15`, `25`, `35`, `45`, `55`) que chamam `bot_tick_safe()` com `pg_sleep` de 5/15/25/35/45/55 segundos. Cobre todos os 5 segundos do minuto. Reduz latência máxima do execute de 10s para 5s.
+
+### 2. Reduzir teto das bandas de delay
+Em `supabase/functions/sync-timers-and-protection/index.ts`, ajustar `selectBotBand`:
+- `early`: 2-4s (mantém)
+- `middle`: 5-7s (era 6-9s)
+- `late`: 8-10s (era 10-12s)
+- remover banda `sniper` (13-14s)
+
+Distribuição nova: 25% early / 45% middle / 30% late. Mantém variedade de timing percebida, mas garante target ≤ T+10s. Somado ao tick de 5s, o bot bida no máximo em T+15s real.
+
+### 3. Reduzir janela mínima para agendar
+Mudar `if (secondsSinceLastBid >= 5)` para `if (secondsSinceLastBid >= 2)`. Permite agendar mais cedo, dando folga para o próximo tick executar dentro da janela.
+
+## Validação
+
+Após deploy, observar por ~5 minutos:
+- Logs do `sync-timers-and-protection`: campo `bot_bids_executed` por tick.
+- Query no banco: `SELECT auction_id, EXTRACT(EPOCH FROM (created_at - LAG(created_at) OVER (PARTITION BY auction_id ORDER BY created_at))) FROM bids WHERE created_at > now() - interval '5 minutes'` — todos os gaps consecutivos devem ficar ≤ 14s.
+- UI: card não deve mais mostrar "Verificando lances válidos" durante leilões ativos saudáveis.
+
+## Detalhes técnicos
+
+**Arquivos alterados**:
+- `supabase/functions/sync-timers-and-protection/index.ts` — ajustar `selectBotBand` e o threshold de scheduling.
+- Migração SQL — `cron.schedule` para 6 novos jobs (`bot-tick-05/15/25/35/45/55`) usando `bot_tick_safe()` com `pg_sleep` apropriado.
+
+**Sem impacto em**:
+- Lógica de finalização (`finalize`, `getEligibleRealLeader`, predefined_winner, open_win_mode).
+- Receita, fury vault, ordens, qualquer outro fluxo.
+- UI/UX dos leilões (somente reduz o flicker de "Verificando").
+
+**Custo**: dobra o número de invocações da edge `sync-timers-and-protection` (de ~6/min para ~12/min). Cada execução é leve (~200-400ms), aceitável para o plano Supabase atual.
+
+**Rollback**: simples — remover os novos cron jobs e reverter o arquivo da edge function.
