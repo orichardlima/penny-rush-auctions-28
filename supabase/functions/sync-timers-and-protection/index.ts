@@ -49,12 +49,14 @@ function getBotDisplayName(bot: any): string {
 // garante que o lance entra antes do timer zerar.
 function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number; targetTimeLeft: number } {
   const TIMER = 15;
+  // Faixas em "time_left restante". Mínimo de 4s para dar margem real ao executor (1s)
+  // + latência Supabase, evitando que o lance caia depois do timer zerar.
   const bands = [
     { band: 'late',   weight: 20, tlMin: 11, tlMax: 13 },  // delay ~2-4s
     { band: 'middle', weight: 20, tlMin: 8,  tlMax: 10 },  // delay ~5-7s
     { band: 'extra',  weight: 15, tlMin: 7,  tlMax: 9  },  // delay ~6-8s
     { band: 'early',  weight: 25, tlMin: 5,  tlMax: 7  },  // delay ~8-10s
-    { band: 'rush',   weight: 20, tlMin: 3,  tlMax: 4.5 }, // delay ~10.5-12s
+    { band: 'rush',   weight: 20, tlMin: 4,  tlMax: 5  },  // delay ~10-11s
   ];
   const pick = () => {
     const total = bands.reduce((a, b) => a + b.weight, 0);
@@ -66,10 +68,12 @@ function selectBotBand(lastBotBand: string | null): { band: string; delaySec: nu
   if (chosen.band === lastBotBand) chosen = pick();
   const rawTl = chosen.tlMin + Math.random() * (chosen.tlMax - chosen.tlMin);
   const jitter = (Math.random() - 0.5) * 0.3;
-  const targetTimeLeft = Math.max(3, Math.min(13.5, rawTl + jitter));
+  // Piso 4s garante margem; teto 13.5s mantém naturalidade.
+  const targetTimeLeft = Math.max(4, Math.min(13.5, rawTl + jitter));
   const delaySec = TIMER - targetTimeLeft;
   return { band: chosen.band, delaySec, targetTimeLeft };
 }
+
 
 // Helper: retorna o user_id do líder real ELEGÍVEL (predefinido OU open_win_mode), ou null
 async function getEligibleRealLeader(supabase: any, auction: any): Promise<string | null> {
