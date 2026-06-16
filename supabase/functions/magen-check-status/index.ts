@@ -424,21 +424,15 @@ async function processBidPurchase(supabase: any, purchaseId: string) {
 
   console.log('✅ bid_purchases updated to completed')
 
-  // 2. Credit bids to user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('bids_balance')
-    .eq('user_id', purchase.user_id)
-    .single()
+  // 2. Credit bids to user profile (com validade de 30 dias)
+  const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
+    p_user_id: purchase.user_id,
+    p_amount: purchase.bids_purchased,
+    p_purchase_id: purchase.id,
+  })
+  if (creditErr) console.error('❌ credit_purchase_bids failed:', creditErr)
+  else console.log(`✅ Credited ${purchase.bids_purchased} bids (30d validity)`)
 
-  if (profile) {
-    const newBalance = (profile.bids_balance || 0) + purchase.bids_purchased
-    await supabase
-      .from('profiles')
-      .update({ bids_balance: newBalance })
-      .eq('user_id', purchase.user_id)
-    console.log(`✅ Credited ${purchase.bids_purchased} bids. New balance: ${newBalance}`)
-  }
 
   // 3. Approve affiliate commissions
   const { data: commissions } = await supabase
