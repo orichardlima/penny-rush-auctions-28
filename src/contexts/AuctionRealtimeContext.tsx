@@ -556,6 +556,16 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
           }
         }
       )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'bids' },
+        async (payload) => {
+          const auctionId = (payload.new as any).auction_id;
+          if (!auctionId) return;
+          console.log(`📡 [REALTIME] BID INSERT: ${auctionId} → resync recentBidders`);
+          // Throttle curto: garante leitura fresca de last_bidders após trigger commitar
+          await fetchSingleAuction(auctionId, 500);
+        }
+      )
       .subscribe((status) => {
         console.log('🔌 [REALTIME-CONTEXT] Status:', status);
         setIsConnected(status === 'SUBSCRIBED');
