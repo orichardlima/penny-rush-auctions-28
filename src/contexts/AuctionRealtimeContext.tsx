@@ -412,26 +412,35 @@ export const AuctionRealtimeProvider: React.FC<AuctionRealtimeProviderProps> = (
 
   // Atualizar um leilão específico (usa payload.new diretamente para evitar race condition)
   const updateAuction = useCallback(async (auctionId: string, newData: any) => {
-    // Calcular timeLeft diretamente do payload para evitar state stale
+    const existing = auctionsRef.current.find(a => a.id === auctionId);
+
+    // Proteção anti-regressão: descartar UPDATE atrasado cujo last_bid_at é mais antigo
+    // que o que já temos em memória. Evita que um nome antigo volte ao topo.
+    const incomingTs = newData.last_bid_at ? new Date(newData.last_bid_at).getTime() : 0;
+    const existingTs = existing?.last_bid_at ? new Date(existing.last_bid_at).getTime() : 0;
+    if (existing && incomingTs > 0 && existingTs > 0 && incomingTs < existingTs) {
+      console.log(`⏪ [${auctionId}] UPDATE descartado (last_bid_at ${newData.last_bid_at} mais antigo que ${existing.last_bid_at})`);
+      return;
+    }
+
     const calculatedTimeLeft = calculateTimeLeftFromFields(
       newData.status,
       newData.last_bid_at,
       newData.ends_at
     );
-    
+
     console.log(`🎯 [${auctionId}] UPDATE | last_bid_at: ${newData.last_bid_at} | timeLeft calc: ${calculatedTimeLeft}s`);
-    
+
     // Ler last_bidders direto do payload Realtime (0 SELECTs)
     // Se payload vier sem last_bidders (null/[]), preservar o array atual em memória
-    const payloadBidders = Array.isArray(newData.last_bidders) 
+    const payloadBidders = Array.isArray(newData.last_bidders)
       ? newData.last_bidders as string[]
       : null;
-    const existing = auctionsRef.current.find(a => a.id === auctionId);
     const recentBidders = (payloadBidders && payloadBidders.length > 0)
       ? payloadBidders
       : (existing?.recentBidders ?? []);
     const updatedAuction = await transformAuctionData({ ...newData, recentBidders });
-    
+
     setAuctions(prev => {
       const shouldHide = updatedAuction.auctionStatus === 'finished' && (updatedAuction.totalBids ?? 0) <= 0;
       if (shouldHide) return prev.filter(a => a.id !== updatedAuction.id);
