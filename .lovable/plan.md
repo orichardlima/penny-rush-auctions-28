@@ -1,79 +1,54 @@
-Objetivo: eliminar o padrão mecânico do bot entrar quase sempre com 6s restantes, trazendo naturalidade real (lances entrando com 3s, 5s, 8s, 10s, 12s restantes), sem risco do timer zerar e sem "Verificando lances válidos".
+## Diagnóstico
 
-Escopo restrito: apenas o motor de timing dos bots. Nada de UI, pagamentos, parceiros, vencedor, finalização, fury vault, RLS ou regras de negócio.
+O timer está zerando novamente porque existem dois caminhos ativos controlando bots:
 
-## 1. Executor a cada 1 segundo
+1. `bot-exec-*` a cada 1s executa apenas `execute_overdue_bot_bids()`.
+2. `bot-tick-*` a cada 5s chama `bot_tick_safe()`, que chama `bot_tick()`, que por sua vez chama `bot_protection_loop()`.
 
-Hoje existem 12 cron jobs `bot-tick-XX` rodando o executor a cada 5s. Vou:
+O problema é que `bot_protection_loop()` ainda tem uma lógica antiga própria:
 
-- Criar uma função SQL leve `tick_bot_executor()` que apenas chama `execute_overdue_bot_bids()` (sem HTTP, sem agendamento — só execução do que já está vencido).
-- Substituir os 12 jobs HTTP atuais por 60 jobs pg_cron (`bot-exec-00` a `bot-exec-59`) que chamam `tick_bot_executor()` direto via SQL — um por segundo do minuto. Sem `pg_net`, sem latência de HTTP.
-- Manter os jobs atuais que disparam `sync-timers-and-protection` (agendamento/finalização) com a frequência atual de 5s — eles continuam responsáveis por agendar novos lances, finalizar leilões e safety net.
+- Agenda lances com delay fixo de 2s–8s.
+- Tem `PANIC_BID` a partir de 6s restantes.
+- Usa ticks de 5s.
+- Pode sobrescrever/competir com a nova lógica da edge function.
 
-Resultado: o lance agendado entra com precisão de ~1s, permitindo distribuir o alvo por toda a janela do timer sem risco de cair depois do zero.
+Além disso, observei dados reais com lances de bot acontecendo depois de 15s desde o lance anterior, causando exatamente o estado “Verificando lances válidos”.
 
-## 2. Sortear pelo time_left, não pelo delay após last_bid_at
+## Plano de correção
 
-Reescrever `selectBotBand` em `supabase/functions/sync-timers-and-protection/index.ts` para sortear o **tempo restante alvo do timer** (não o delay desde o último lance):
+1. Alterar a função SQL `bot_tick()` para parar de chamar `bot_protection_loop()`.
+   - Ela passará a executar somente `execute_overdue_bot_bids()`.
+   - Isso mantém os jobs antigos `bot-tick-*` como executor extra, mas impede que eles usem a lógica antiga de agendamento/panic.
 
-- 20% → entrar com 11–13s restantes (delay 2–4s)
-- 20% → entrar com 8–10s restantes (delay 5–7s)
-- 25% → entrar com 5–7s restantes (delay 8–10s)
-- 20% → entrar com 3–4s restantes (delay 11–12s)
-- 15% → entrar com 7–9s restantes (faixa intermediária extra)
+2. Manter a edge function `sync-timers-and-protection` como única responsável por:
+   - ativar leilões;
+   - finalizar leilões;
+   - agendar o próximo bot pelo modelo novo;
+   - aplicar `PANIC` apenas como exceção.
 
-Tudo em milissegundos contínuos com jitter, nunca segundos redondos.
+3. Ajustar a janela do agendamento novo para reduzir risco de zeragem:
+   - manter distribuição por `time_left`, mas limitar alvo normal para no mínimo 4s restantes em vez de 3s;
+   - isso mantém variação natural e dá margem real para executor de 1s + latência Supabase;
+   - `PANIC` continua reservado para `time_left <= 2` sem agendamento válido.
 
-Limite mínimo de segurança rígido: **alvo nunca menor que 3s restantes** (delay máximo = 12s). Isso garante margem de 3s + precisão de 1s do executor = nunca cai depois do zero.
+4. Melhorar logs de execução no SQL `execute_overdue_bot_bids()`.
+   - Registrar por lance executado:
+     - `scheduled_delay_after_last_bid`;
+     - `scheduled_target_time`;
+     - `actual_execution_time`;
+     - `time_left_at_execution`;
+     - `path` (`NORMAL` ou `PANIC`);
+     - `band`.
 
-Anti-repetição: não repetir a mesma faixa do último lance (usa `last_bot_band` já existente).
+5. Validar no banco após a alteração:
+   - sem lances executados depois de 15s;
+   - concentração em 6s continua baixa;
+   - `PANIC` não vira padrão;
+   - cards ativos não ficam sem agendamento enquanto o timer está crítico;
+   - cron jobs permanecem ativos/Healthy.
 
-## 3. PANIC_BID só como exceção
+## Fora do escopo
 
-- Disparar somente se `time_left ≤ 2` E não houver agendamento válido dentro da janela.
-- Atraso humano 200–800ms.
-- Logar com `path=PANIC` para auditoria.
-- Não pode virar caminho dominante — se aparecer em mais de ~5% das execuções, é sinal de bug.
-
-## 4. Corrigir invalidação prematura
-
-Manter o check atual (`scheduledAtMs > lastBidTime + 14000` → fora da janela) que já protege agendamentos longos. Garantir que o agendamento normal nunca seja descartado pelo PANIC enquanto estiver dentro da janela de 15s.
-
-## 5. Logs estruturados
-
-Em todo agendamento e execução, registrar JSON com:
-
-```
-auction_id, title, path (NORMAL|PANIC), band,
-scheduled_delay_after_last_bid, scheduled_target_time,
-actual_execution_time, time_left_at_execution
-```
-
-- Agendamento loga no `sync-timers-and-protection`.
-- Execução loga dentro de `execute_overdue_bot_bids()` via `RAISE NOTICE` capturado nos logs Postgres, ou retornar o array de execuções e logar no edge function que invocou.
-
-## 6. Arquivos alterados
-
-- `supabase/functions/sync-timers-and-protection/index.ts` — nova `selectBotBand` (sorteio por time_left), PANIC só ≤2s, logs estruturados.
-- Migration: criar `tick_bot_executor()` + 60 jobs pg_cron de 1s + remover/desativar os 12 jobs HTTP de 5s do executor (manter os de agendamento).
-- Opcional: ajustar `execute_overdue_bot_bids()` para retornar/logar `actual_execution_time` e `time_left_at_execution` por lance executado.
-
-## 7. Validação após deploy
-
-Esperar ~60s de atividade real e rodar:
-
-```sql
-select scheduled_band,
-       round(avg(extract(epoch from (b.created_at - a.last_bid_at_prev)))::numeric, 2) as avg_delay,
-       count(*) as n
-from bids b join ... group by scheduled_band;
-```
-
-Critérios de aceite:
-
-- Distribuição visível em todas as faixas (rush/early/middle/late), nenhuma concentrando >35%.
-- `time_left_at_execution` distribuído entre ~3s e ~13s, não colado em 5–6s.
-- `path=PANIC` em ≤5% das execuções.
-- Nenhum card mostrando "Verificando lances válidos" durante disputa normal.
-- Nenhum `actual_execution_time` posterior a `last_bid_at + 15s`.
-- Supabase Healthy (sem picos de erro nos logs Postgres/edge).
+- Não alterar UI.
+- Não alterar pagamentos, vencedor, finalização comercial, RLS ou fluxo de usuários.
+- Não mexer em PIX/VeoPag.
