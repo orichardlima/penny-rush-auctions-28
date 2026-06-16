@@ -133,6 +133,15 @@ const UserDashboard = () => {
         .in('status', ['ACTIVE', 'PENDING'])
         .maybeSingle();
 
+      // Verificar se tem pedido de encerramento (qualquer status não-cancelado)
+      const { data: termData } = await supabase
+        .from('partner_early_terminations')
+        .select('id')
+        .in('status', ['PENDING', 'APPROVED', 'COMPLETED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       // Buscar contagem de vitórias reais via tabela orders
       const { count: ordersCount } = await supabase
         .from('orders')
@@ -142,7 +151,9 @@ const UserDashboard = () => {
 
       setIsAffiliate(!!affiliateData);
       setHasPartnerContract(!!partnerData);
+      setHasTermination(!!termData);
       setWinsCount(ordersCount || 0);
+
       setBids(bidsData || []);
       setPurchases(purchasesData || []);
     } catch (error) {
