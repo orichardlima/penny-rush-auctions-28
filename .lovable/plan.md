@@ -1,26 +1,59 @@
-## Diagnóstico
+# Painel de Monitoramento de Bots e Cron Jobs
 
-Os bots pararam porque nada está chamando a edge function que agenda os lances. Quando removi a lógica antiga de `bot_protection_loop()`, ela deixou de agendar bots — e a nova lógica (na edge function `sync-timers-and-protection`) só roda quando algo a chama. Verifiquei: não existe nenhum cron HTTP apontando para ela. Por isso `scheduled_bot_bid_at` está nulo em todos os leilões há ~4 min.
+Nova aba no Painel Administrativo ("Monitor Bots") com 3 seções em tempo real para acompanhar a saúde do sistema de lances automatizados.
 
-## Plano de correção
+## O que será exibido
 
-1. Criar 12 cron jobs HTTP que chamam `sync-timers-and-protection` a cada 5s (jobs com offset 0,5,10,…,55) usando o anon key. Isso devolve o agendamento.
+### 1. Status dos Cron Jobs
+Card no topo mostrando os 12 jobs `sync-timers-protection-XX`:
+- Nome do job, agendamento (`* * * * *`), última execução
+- Status da última run (success/failed) com badge colorido
+- Duração e mensagem de retorno
+- Indicador geral verde/vermelho ("Sistema saudável" / "Atenção")
+- Botão "Disparar agora" (invoca `sync-timers-and-protection` manualmente)
 
-2. Ajustar a função `selectBotBand` na edge para distribuir o alvo do lance naturalmente entre 2s e 13s restantes:
-   - faixas com pesos: `late` (10–13s), `middle` (7–10s), `mid-low` (5–7s), `early` (3–5s), `rush` (2–3s);
-   - jitter contínuo em ms;
-   - anti-repetição da última banda.
+### 2. Leilões Ativos — Timing dos Bots
+Tabela live (atualiza a cada 2s via realtime + polling) com uma linha por leilão ativo:
+- Título do leilão
+- `time_left` atual (countdown visual)
+- `last_bid_at` + segundos desde último lance
+- `scheduled_bot_band` (early / mid-low / middle / late / rush / PANIC)
+- `scheduled_bot_bid_at` (horário previsto do próximo lance bot) + countdown
+- Estado: "Aguardando bot", "PANIC armado", "Pausado (vencedor real)", "Open-win ativo"
+- Último bot que deu lance (nome)
 
-3. Ativar PANIC apenas quando `time_left <= 1.5s` e não houver agendamento válido na janela. PANIC fica como exceção; humano-delay 100–500 ms.
+### 3. Logs de Execução por Leilão
+Painel inferior com:
+- Seletor de leilão (dropdown dos ativos + busca por ID)
+- Stream dos últimos 50 lances (`bids` filtrada) com timestamp, bot/real, valor, band usada
+- Eventos de `bot_webhook_logs` recentes
+- Histórico de bandas escolhidas (mostra distribuição visual 2–13s)
+- Auto-scroll com pausa ao hover
 
-4. Manter o executor de 1s (`bot-exec-*`) e a regra que bloqueia execução com `time_left <= 0` para não bidar depois do timer.
+## Detalhes técnicos
 
-5. Validar:
-   - bots voltam a bidar nos 3 leilões ativos;
-   - distribuição cobre toda a janela 2–13s;
-   - PANIC só aparece esporadicamente;
-   - card não fica preso em “Verificando lances válidos”.
+**Arquivos novos:**
+- `src/components/Admin/BotMonitorDashboard.tsx` — componente principal
+- `src/components/Admin/BotMonitor/CronJobsStatus.tsx`
+- `src/components/Admin/BotMonitor/ActiveAuctionsTiming.tsx`
+- `src/components/Admin/BotMonitor/AuctionBotLogs.tsx`
+- `src/hooks/useBotMonitor.ts` — agrega queries e realtime
+- `supabase/functions/admin-bot-monitor/index.ts` — edge function que retorna estado dos cron jobs (lê `cron.job` + `cron.job_run_details` via service role, restrito a admins)
+
+**Arquivos editados:**
+- `src/components/AdminDashboard.tsx` — adicionar `TabsTrigger` "Monitor Bots" (ícone `Gauge`) e `TabsContent` correspondente
+
+**Fontes de dados:**
+- Cron: edge function `admin-bot-monitor` consultando `cron.job` e `cron.job_run_details` (últimas 20 runs por job)
+- Leilões: query em `auctions` (status='active') com colunas `scheduled_bot_band`, `scheduled_bot_bid_at`, `last_bid_at`, `time_left`, `predefined_winner_id`, `open_win_*`
+- Realtime: subscribe em `auctions` (UPDATE) e `bids` (INSERT) com cleanup adequado em `useEffect`
+- Logs: `bids` (últimos N por `auction_id`) + `bot_webhook_logs`
+
+**Sem migrações de schema.** Apenas uma edge function read-only com verificação `is_admin`. Sem alterações no comportamento dos bots, sem mudanças em UI/funcionalidades existentes — apenas adição de uma nova aba.
 
 ## Fora do escopo
+- Editar parâmetros de bots pelo painel (apenas leitura/observabilidade)
+- Alertas por email/push
+- Histórico persistido de longo prazo (usa apenas dados atuais do banco)
 
-Sem mudanças de UI, pagamentos, vencedor, finalização comercial ou RLS.
+Confirma que posso seguir com essa estrutura?
