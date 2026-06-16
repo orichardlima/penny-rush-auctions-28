@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_bids_auction_created_desc ON public.bids (auction_id, created_at DESC);
