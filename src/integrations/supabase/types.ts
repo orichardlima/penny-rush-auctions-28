@@ -750,6 +750,59 @@ export type Database = {
         }
         Relationships: []
       }
+      bid_lots: {
+        Row: {
+          created_at: string
+          expired_amount: number
+          expires_at: string | null
+          id: string
+          initial_amount: number
+          notified_1d_at: string | null
+          notified_7d_at: string | null
+          remaining_amount: number
+          source: string
+          source_ref: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expired_amount?: number
+          expires_at?: string | null
+          id?: string
+          initial_amount: number
+          notified_1d_at?: string | null
+          notified_7d_at?: string | null
+          remaining_amount: number
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expired_amount?: number
+          expires_at?: string | null
+          id?: string
+          initial_amount?: number
+          notified_1d_at?: string | null
+          notified_7d_at?: string | null
+          remaining_amount?: number
+          source?: string
+          source_ref?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_lots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       bid_packages: {
         Row: {
           bids_count: number
@@ -2831,6 +2884,10 @@ export type Database = {
         }
         Returns: Json
       }
+      consume_bid_lots: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
       ensure_partner_referral_bonuses: {
@@ -2839,6 +2896,13 @@ export type Database = {
       }
       execute_overdue_bot_bids: { Args: never; Returns: Json }
       execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
+      expire_bid_lots: {
+        Args: never
+        Returns: {
+          expired_lots: number
+          expired_total: number
+        }[]
+      }
       expire_suspended_bonuses: { Args: never; Returns: undefined }
       fix_partner_referral: {
         Args: { p_referral_code: string; p_referred_contract_id: string }
@@ -3131,6 +3195,13 @@ export type Database = {
           p_target_type: string
         }
         Returns: undefined
+      }
+      notify_bid_expirations: {
+        Args: never
+        Returns: {
+          users_notified: number
+          window_label: string
+        }[]
       }
       notify_user: {
         Args: {
