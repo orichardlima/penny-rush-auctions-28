@@ -91,6 +91,7 @@ const AdminPartnerManagement = () => {
     processWeeklyPayouts,
     markPayoutAsPaid,
     processTermination,
+    markTerminationPaid,
     rejectWithdrawal,
     markWithdrawalAsPaid,
     markWithdrawalAsPaidManually,
