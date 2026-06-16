@@ -1,72 +1,45 @@
-## Diagnóstico
+## Objetivo
 
-O leilão **Tablet Galaxy Tab A9+** está recebendo **exatamente 1 lance de bot por minuto** (sempre nos segundos `:00`), enquanto Xbox e Smart TV parecem "saudáveis" só porque têm 30+ lances reais a cada 8 min mantendo o timer vivo. Quando o leilão depende só do bot (caso do Tablet), aparece travado em "Verificando lances válidos" por ~45s a cada minuto.
+Garantir que o card **nunca** mostre "Verificando lances válidos" durante a disputa normal — só no encerramento real. O lance do bot precisa cair **antes** do timer de 15s zerar, com margem ≥ 2s.
 
-### Causa raiz: `now()` está congelado dentro de cada execução do cron
+## Causa raiz
 
-Há 12 jobs `bot-tick-XX` rodando como:
+- Faixas de delay atuais vão até 14s (banda `sniper`), com `bot_protection_loop` e `selectBotBand` (edge function) usando 5–14s e 2–10s respectivamente.
+- Ticks de execução rodam a cada 5s. Pior caso: `delay = 14s` + 5s de espera do tick = lance em `last_bid + 19s`, com timer já em zero por 4s.
 
-```sql
-SELECT pg_sleep(N); SELECT public.bot_tick_safe();
-```
+## Mudanças (somente motor de bots)
 
-Cada job roda **em uma única transação**. O `pg_sleep` atrasa o relógio real, mas em PostgreSQL `now()` (= `transaction_timestamp()`) retorna o **início da transação** — não o tempo real. Logo, os 12 jobs por minuto enxergam `now() = HH:MM:00.xxx`, mesmo executando em `:05`, `:10`, … `:55` no relógio real.
+### 1. SQL — `public.bot_protection_loop()`
 
-Os logs confirmam isso: todas as 12 mensagens `🔄 [BOT-LOOP] Passagem` por minuto mostram timestamp `17:36:00.1xx`, `17:35:00.1xx`, etc. — nunca aparecem em `:05`, `:15`, etc.
+Atualizar via **migração** o bloco de seleção de banda (linhas 99–107 da migração `20260421173211...`) e o gate mínimo:
 
-### Cascata de efeitos
+- early: 2–4s (40%)
+- middle: 4–6s (35%)
+- late: 6–8s (25%)
+- **remover** a banda `sniper` (14s)
+- gate: `v_seconds_since_last_bid >= 2` (era `>= 5`)
+- ajustar o fallback de anti-repetição (linhas 110–113) para manter valores ≤ 8s
+- **Regra de segurança extra (panic bid)**: antes do bloco de agendamento, se o leilão estiver ativo, sem agendamento pendente (ou com agendamento que cairia depois de `last_bid + 13s`), e `time_left_calc = 15 - v_seconds_since_last_bid <= 6`, executar lance **imediatamente** (mesma rotina que `execute_overdue_bot_bids` usa para inserir um bid + atualizar `last_bid_at`), sem agendar. Isso garante que mesmo se um tick anterior falhar ou houver atraso, o card nunca aparece como "Verificando" durante a disputa.
 
-1. Tick `:00` insere o lance de bot agendado.
-2. Trigger `update_auction_on_bid` faz `last_bid_at = NOW()` → também recebe `HH:MM:00`.
-3. Ticks `:05`, `:10`, …, `:55` rodam, mas para o Tablet vêem:
-   - `last_bid_at = HH:MM:00`
-   - `now() = HH:MM:00` (transaction start)
-   - `v_seconds_since_last_bid = 0`
-   - FASE B exige `secs >= 5` → **nunca agenda** novo lance.
-4. Só no `:00` da próxima janela (transação nova, `now()` avança 1 minuto) o ciclo se repete.
+### 2. Edge function `sync-timers-and-protection`
 
-Para Xbox/Smart TV o defeito existe igual, mas é mascarado porque lances reais chegando a todo momento (cada um em sua própria transação, com seu próprio `now()` real) mantêm o `last_bid_at` atualizado.
+Atualizar `selectBotBand()` para as mesmas faixas (2–4 / 4–6 / 6–8) e remover qualquer caminho com delay > 8s. Manter `secondsSinceLastBid >= 2` que já existe na fase 7.
 
-## Correção
+Adicionar a mesma **regra de panic bid** na Fase 3 do `Deno.serve`: para cada leilão ativo, antes do `continue` que ignora quando `scheduled_bot_bid_at` existe, calcular `timeLeft = 15 - secondsSinceLastBid`. Se `timeLeft <= 6` e não há líder real elegível (predefined/open_win), forçar execução imediata via `execute_overdue_bot_bids` (já é atômico) ou limpar `scheduled_bot_bid_at` e reagendar para `now()`.
 
-Trocar `now()` / `NOW()` por `clock_timestamp()` (que retorna o **tempo real**, não o início da transação) nos pontos críticos da orquestração de bots e no trigger que persiste `last_bid_at`.
+### Pior caso após mudanças
 
-### 1. Migração SQL — alterar 3 funções
+- Agendamento normal: alvo ≤ `last_bid + 8s`, tick em até 5s ⇒ execução ≤ `last_bid + 13s` (margem 2s antes do timer expirar).
+- Caminho `panic bid`: executa instantaneamente quando `timeLeft <= 6s`, eliminando qualquer chance de chegar a 0s.
 
-**`public.update_auction_on_bid()`** (trigger AFTER INSERT em `bids`):
-- `last_bid_at = clock_timestamp()`
-- `updated_at = clock_timestamp()`
+## Validação (≥ 30 min em 3–5 leilões)
 
-**`public.bot_protection_loop()`**:
-- `v_current_time := clock_timestamp();` (em vez de `now()`)
-- `UPDATE auctions SET ... last_bid_at = clock_timestamp(), updated_at = clock_timestamp() WHERE status='waiting' ...` (FASE 0)
-- Manter o resto da lógica intacta (já usa `v_current_time` localmente).
+1. Logs `[BOT-SCHED]` e `[BOT-EXEC]` com `delay_sec ≤ 8` em 100% dos casos.
+2. Logs do panic bid (vou adicionar `RAISE LOG '⚠️ [PANIC-BID]'`) só disparam em situações de borda, não em fluxo padrão.
+3. Inspeção visual: nenhum leilão exibe "Verificando lances válidos" durante a disputa.
+4. `supabase--slow_queries` antes/depois para confirmar que `bids` e `bot_protection_loop` continuam estáveis.
+5. Saúde do projeto Supabase Healthy.
 
-**`public.execute_overdue_bot_bids()`**:
-- Trocar as comparações `<= now()`, `>= now() - interval '5 seconds'` e `>= now() - interval '3 seconds'` por `clock_timestamp()` equivalentes.
-- Trocar o `UPDATE ... WHERE ends_at < now() - interval '5 seconds'` por `clock_timestamp()`.
+## Fora de escopo
 
-### 2. Nenhuma mudança em UI, RLS, cron, hooks de frontend, ou outras funções
-
-- O `EncerramentoDashboard`, hooks de leilão, edge functions e cron permanecem idênticos.
-- Não mexer em `bot_tick`, `bot_tick_safe`, `get_random_bot`, `block_bot_bid_when_target_leading`, nem nas demais triggers (`fury_vault_on_bid`, `bids_refresh_last_bidders`, etc.).
-- A semântica de negócio (intervalo de 5–14s entre lances de bot, safety net de 90s, finalização) fica exatamente igual — só passa a respeitar o tempo real.
-
-### 3. Validação após aplicar a migração
-
-Após a migração, esperar 2 minutos e rodar:
-
-```sql
-SELECT date_trunc('minute', b.created_at) AS minute, a.title, COUNT(*) AS bot_bids
-FROM bids b JOIN auctions a ON a.id=b.auction_id
-WHERE b.cost_paid = 0 AND b.created_at > now() - interval '5 minutes' AND a.status='active'
-GROUP BY 1, a.title ORDER BY 1 DESC;
-```
-
-Esperado: cada leilão ativo "morno" deve passar a receber **4–6 lances de bot por minuto** (a cada 10–15s), em vez de exatamente 1 no segundo `:00`. O badge "Verificando lances válidos" só deve aparecer por 1–2s entre lances.
-
-### Riscos
-
-- Baixíssimos. `clock_timestamp()` é a função padrão do PostgreSQL para "agora de verdade" e é o que o pg_cron + `pg_sleep` exige para funcionar corretamente.
-- Nenhuma alteração de schema, RLS, ou contratos externos.
-- A finalização de leilão por `safety net` (≥90s sem lance) continua valendo — ainda mais corretamente, porque agora o cálculo de `secs_since_last_bid` reflete o relógio real.
+UI, finalização, fury vault, vencedor predefinido/open_win, pagamentos, parceiros, RLS, regras externas. Apenas motor de agendamento e execução de bots.
