@@ -1,65 +1,48 @@
-# Controles Admin para Encerramento de Parceiros
+## Problema
 
-## Contexto
-A tela de acompanhamento do ex-parceiro já está funcionando e mostra o prazo de **7 dias corridos** para pagamento do estorno após aprovação. Esse número vem da configuração `termination_refund_sla_days` no `system_settings`, inserida com valor padrão `7` pela última migração. Porém, **o admin ainda não tem interface para alterar esse prazo** nem para registrar o pagamento do estorno quando a liquidação for em PIX (PARTIAL_REFUND).
+Hoje o cálculo do estorno desconta tudo que foi **creditado** como payout (saldo disponível), mesmo que o parceiro nunca tenha sacado para a conta bancária. Isso pune o parceiro descontando dinheiro que a empresa nunca pagou de fato.
 
-## Objetivo
-Dar ao admin controle total sobre o fluxo de encerramento antecipado diretamente no painel já existente (`/admin/parceiros`), sem precisar editar banco de dados manualmente.
+Exemplo atual da Sabriny:
+- Total recebido em payouts: R$ 5.612,50 (saldo creditado)
+- Mas se ela só sacou R$ 1.000 via PIX, os outros R$ 4.612,50 ainda estão na plataforma — não saíram do caixa da empresa.
 
-## Escopo
-1. Configurar o prazo de estorno (SLA em dias corridos).
-2. Na lista de encerramentos, indicar a data limite de pagamento para pedidos aprovados.
-3. Adicionar ação "Marcar estorno como pago" para pedidos `APPROVED` com liquidação `PARTIAL_REFUND`, exigindo a referência do PIX.
-4. Registrar auditoria das ações admin (mudança de prazo e confirmação de pagamento).
+## Mudança
 
-## O que será alterado
+Trocar a fonte do "Total já recebido em payouts" no detalhamento financeiro do encerramento:
 
-### 1. `src/components/Admin/AdminPartnerManagement.tsx`
-Nova seção de configuração dentro da aba `process` ou próximo às configurações de fundo de parceiros:
+- **Antes:** soma de `partner_payouts` com `status = 'PAID'` (= valor creditado no saldo do parceiro)
+- **Depois:** soma de `partner_withdrawals` com `status = 'PAID'` (= PIX efetivamente enviado para a conta bancária)
 
-- Campo numérico: **"Prazo para pagamento do estorno (dias corridos)"**.
-- Botão **Salvar** que chama `updateSetting('termination_refund_sla_days', valor)`.
-- Valor inicial vindo de `getSettingValue('termination_refund_sla_days', 7)`.
+O saldo creditado mas não sacado fica como "crédito interno" do parceiro e **não** reduz o estorno.
 
-A aba `terminations` será aprimorada:
-- Nova coluna ou linha de detalhe mostrando a **data limite de pagamento** para pedidos `APPROVED` (calculada como `approved_at + slaDays`).
-- Quando `status === 'APPROVED'` e `liquidation_type === 'PARTIAL_REFUND'`, exibir botão **"Marcar como pago"**.
-- Ao clicar, abrir um pequeno diálogo solicitando a **referência do pagamento PIX** (campo `payout_reference`) e confirmar.
-- Ação chama `markTerminationPaid(term.id, payoutReference)` já existente em `useAdminPartners`.
-- Pedidos `COMPLETED` exibem a data de pagamento e a referência, quando houver.
+## Onde aplicar
 
-### 2. `src/hooks/useAdminPartners.ts`
-A função `markTerminationPaid` já existe. Será ajustada para:
-- Inserir registro em `admin_audit_log` com ação `TERMINATION_PAID`, registrando admin, ID do pedido, referência e valor final.
-- Garantir que `processed_at` seja atualizado junto com `paid_at` e `status = 'COMPLETED'`.
+1. **`src/components/Partner/EncerramentoDashboard.tsx`** — bloco "Detalhamento Financeiro":
+   - Renomear a linha de "Total já recebido em payouts" para **"Total já pago via PIX (saques)"**
+   - Usar `totalWithdrawnPix` (soma de `partner_withdrawals.status = 'PAID'`) em vez de `contract.total_received`
+   - Recalcular "Saldo restante do teto" e "Valor final do estorno" com esse novo valor:
+     - `valorFinalEstorno = max(0, aporte × (1 − deságio%) − totalWithdrawnPix)`
+   - Adicionar linha informativa logo abaixo: **"Saldo creditado não sacado: R$ X,XX"** (apenas exibição, não desconta do estorno) para deixar transparente.
 
-A função `processTermination` será ajustada para:
-- Inserir registro em `admin_audit_log` com ação `TERMINATION_APPROVED` ou `TERMINATION_REJECTED`, incluindo o valor final e tipo de liquidação.
+2. **`src/hooks/useTerminationDetails.ts`** — buscar adicionalmente os saques PAID:
+   - Nova query em `partner_withdrawals` (`status = 'PAID'`, `partner_contract_id`)
+   - Expor `totalWithdrawnPix` e `totalCreditedNotWithdrawn` no retorno
 
-### 3. Auditoria
-Novos registros em `admin_audit_log`:
-- `TERMINATION_APPROVED`: quando admin aprova encerramento.
-- `TERMINATION_REJECTED`: quando admin recusa encerramento.
-- `TERMINATION_PAID`: quando admin confirma pagamento do estorno.
-- `UPDATE_TERMINATION_SLA`: quando admin altera o prazo de pagamento.
+3. **`src/hooks/usePartnerEarlyTermination.ts`** — `calculateLiquidationProposal`:
+   - Aceitar parâmetro opcional `totalWithdrawnPix`; quando informado, usar no lugar de `contract.total_received` na fórmula do `proposedValue`
+   - Mantém compatibilidade com chamadas existentes (dialog de solicitação continua funcionando)
 
-## Não está no escopo (v1)
-- Envio automático de e-mail ao alterar prazo ou confirmar pagamento.
-- Geração de PDF/recibo pelo admin (o próprio parceiro já pode imprimir a tela).
-- Reabertura de pedido rejeitado ou cancelamento de pedido aprovado pelo parceiro.
+4. **`src/components/Partner/PartnerEarlyTerminationDialog.tsx`** (verificar): se o dialog de solicitação também mostra a prévia, passar `totalWithdrawnPix` para o cálculo para alinhar o que o parceiro vê antes/depois de solicitar.
 
-## Fluxo esperado para o admin
-```text
-1. Admin acessa /admin/parceiros → aba "Encerramentos".
-2. Vê solicitação PENDING de Sabriny → clica em aprovar.
-3. Contrato é fechado, status vira APPROVED, sistema calcula data limite = approved_at + 7 dias.
-4. Admin faz o PIX manualmente fora da plataforma.
-5. Retorna à lista, clica "Marcar como pago" e informa a referência do PIX.
-6. Status vira COMPLETED, parceiro vê "Pago em DD/MM/YYYY" e a referência na tela de acompanhamento.
-```
+## Sem mudanças
 
-## Técnico
-- Sem migração de banco: colunas `approved_at`, `paid_at` e `payout_reference` já existem em `partner_early_terminations`; `termination_refund_sla_days` já existe em `system_settings`.
-- Reutilizar o hook `useSystemSettings` (já importado em `AdminPartnerManagement.tsx`).
-- Reutilizar os componentes de UI já usados no arquivo (Card, Input, Button, Dialog, Table, Badge).
-- Seguir padrão de cores semânticas do projeto (Tailwind tokens), sem cores hexadecimais inseridas manualmente.
+- Nenhuma alteração de schema (tabelas, RLS, triggers).
+- Nenhuma mudança no fluxo do admin (aprovar/marcar como pago continua igual).
+- Nenhuma mudança no cálculo de saldo disponível para saque normal (`usePartnerWithdrawals.calculateAvailableBalance`) — ele continua usando payouts PAID, pois o parceiro pode sacar tudo que foi creditado.
+- UI do restante do dashboard permanece intacta.
+
+## Edge cases tratados
+
+- Parceiro sem nenhum saque PAID → `totalWithdrawnPix = 0` → estorno = aporte × 70%.
+- Parceiro com saques PENDING/APPROVED mas não PAID → ainda **não** descontam (consistente com a regra: só conta o que saiu do caixa).
+- Se `totalWithdrawnPix > aporte × 70%` → estorno = R$ 0,00 (já tratado pelo `Math.max(0, …)`).

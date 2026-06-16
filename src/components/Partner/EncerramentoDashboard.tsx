@@ -103,7 +103,7 @@ const TimelineStep: React.FC<{
 );
 
 const EncerramentoDashboard: React.FC = () => {
-  const { termination, contract, payouts, referralBonuses, slaDays, loading } = useTerminationDetails();
+  const { termination, contract, payouts, referralBonuses, slaDays, totalWithdrawnPix, totalCreditedNotWithdrawn, loading } = useTerminationDetails();
 
   if (loading) {
     return (
@@ -149,11 +149,19 @@ const EncerramentoDashboard: React.FC = () => {
     sla === 0 ? `Previsão para hoje (${formatDate(dueDate!.toISOString())})` :
     `Atrasado há ${Math.abs(sla)} dia${Math.abs(sla) > 1 ? 's' : ''} — entre em contato com o suporte.`;
 
-  const finalValue = termination.final_value ?? termination.proposed_value;
   const totalCap = Number(contract.total_cap || 0);
   const aporte = Number(termination.aporte_original || contract.aporte_value || 0);
-  const totalReceived = Number(termination.total_received || 0);
-  const aporteAfterDiscount = aporte * (1 - Number(termination.discount_percentage || 0) / 100);
+  const discountPct = Number(termination.discount_percentage || 0);
+  const aporteAfterDiscount = aporte * (1 - discountPct / 100);
+
+  // Apenas o que SAIU do caixa (PIX pago ao parceiro) desconta do estorno.
+  // Saldo creditado mas não sacado fica como crédito interno e NÃO reduz o estorno.
+  const finalValueLive = Math.max(0, aporteAfterDiscount - totalWithdrawnPix);
+  const remainingCapLive = Math.max(0, totalCap - totalWithdrawnPix);
+  // Mantém o valor armazenado caso o estorno já tenha sido concluído (snapshot histórico).
+  const finalValue = termination.status === 'COMPLETED'
+    ? (termination.final_value ?? termination.proposed_value)
+    : finalValueLive;
 
   const totalPayoutsPaid = payouts
     .filter((p) => p.status === 'PAID')
@@ -241,8 +249,9 @@ const EncerramentoDashboard: React.FC = () => {
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-xs">
-                    <strong>Fórmula:</strong> (Aporte × (1 − deságio%)) − Total já recebido em payouts = Valor do estorno.
-                    O deságio recai sobre o aporte, não sobre o teto total.
+                    <strong>Fórmula:</strong> (Aporte × (1 − deságio%)) − Total já pago via PIX (saques) = Valor do estorno.
+                    Apenas valores efetivamente sacados pelo parceiro (que saíram do caixa da empresa) descontam do estorno.
+                    Saldo creditado mas não sacado fica como crédito interno e não reduz o estorno.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -260,18 +269,43 @@ const EncerramentoDashboard: React.FC = () => {
                   <TableCell className="text-right">{formatBRL(totalCap)}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium">Total já recebido em payouts</TableCell>
+                  <TableCell className="font-medium">
+                    Total já pago via PIX (saques)
+                  </TableCell>
                   <TableCell className="text-right text-emerald-600 dark:text-emerald-400">
-                    − {formatBRL(totalReceived)}
+                    − {formatBRL(totalWithdrawnPix)}
                   </TableCell>
                 </TableRow>
+                {totalCreditedNotWithdrawn > 0 && (
+                  <TableRow>
+                    <TableCell className="font-medium text-muted-foreground text-sm pl-6">
+                      <span className="inline-flex items-center gap-1">
+                        Saldo creditado não sacado
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3 w-3" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="text-xs">
+                              Valor que foi creditado em payouts semanais mas que o parceiro não sacou.
+                              Como a empresa ainda não pagou via PIX, não é descontado do estorno.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground text-sm">
+                      {formatBRL(totalCreditedNotWithdrawn)} (não desconta)
+                    </TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
                   <TableCell className="font-medium">Saldo restante do teto (abre mão)</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{formatBRL(termination.remaining_cap)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{formatBRL(remainingCapLive)}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Deságio aplicado sobre o aporte</TableCell>
-                  <TableCell className="text-right">{Number(termination.discount_percentage).toFixed(0)}%</TableCell>
+                  <TableCell className="text-right">{discountPct.toFixed(0)}%</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Aporte com deságio</TableCell>

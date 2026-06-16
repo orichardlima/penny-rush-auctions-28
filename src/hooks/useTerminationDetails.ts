@@ -65,6 +65,8 @@ export interface TerminationDetails {
   payouts: TerminationPayoutItem[];
   referralBonuses: TerminationReferralBonus[];
   slaDays: number;
+  totalWithdrawnPix: number;
+  totalCreditedNotWithdrawn: number;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -76,6 +78,8 @@ export const useTerminationDetails = (): TerminationDetails => {
   const [payouts, setPayouts] = useState<TerminationPayoutItem[]>([]);
   const [referralBonuses, setReferralBonuses] = useState<TerminationReferralBonus[]>([]);
   const [slaDays, setSlaDays] = useState<number>(7);
+  const [totalWithdrawnPix, setTotalWithdrawnPix] = useState<number>(0);
+  const [totalCreditedNotWithdrawn, setTotalCreditedNotWithdrawn] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
@@ -122,6 +126,22 @@ export const useTerminationDetails = (): TerminationDetails => {
         .eq('partner_contract_id', contractData.id)
         .order('period_start', { ascending: false });
       setPayouts((payoutsData as TerminationPayoutItem[]) || []);
+
+      // Saques PIX efetivamente pagos (saiu do caixa da empresa)
+      const { data: withdrawalsData } = await supabase
+        .from('partner_withdrawals')
+        .select('amount, status')
+        .eq('partner_contract_id', contractData.id);
+      const paidPix = (withdrawalsData || [])
+        .filter((w: any) => w.status === 'PAID')
+        .reduce((sum: number, w: any) => sum + Number(w.amount || 0), 0);
+      const totalCreditedPaid = (payoutsData || [])
+        .filter((p: any) => p.status === 'PAID')
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      setTotalWithdrawnPix(paidPix);
+      setTotalCreditedNotWithdrawn(Math.max(0, totalCreditedPaid - paidPix));
+
+
 
       // Bônus de indicação onde este contrato foi o RECEBEDOR (referrer)
       const { data: bonusesData } = await supabase
@@ -173,5 +193,5 @@ export const useTerminationDetails = (): TerminationDetails => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  return { termination, contract, payouts, referralBonuses, slaDays, loading, refetch: fetchAll };
+  return { termination, contract, payouts, referralBonuses, slaDays, totalWithdrawnPix, totalCreditedNotWithdrawn, loading, refetch: fetchAll };
 };
