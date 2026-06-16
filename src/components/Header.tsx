@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Coins, ShoppingCart, User, Menu, Gavel, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X } from "lucide-react";
+import { Coins, ShoppingCart, User, Menu, Gavel, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -288,6 +288,13 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         Meu Dashboard
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/meus-contratos" className="w-full cursor-pointer">
+                        <FileText className="w-4 h-4 mr-2" aria-hidden="true" />
+                        Meus Contratos
+                      </Link>
+                    </DropdownMenuItem>
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive focus:text-destructive">
                       <LogOut className="w-4 h-4 mr-2" aria-hidden="true" />

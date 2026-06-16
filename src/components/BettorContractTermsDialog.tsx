@@ -71,8 +71,10 @@ Caso um usuário arremate um produto utilizando exclusivamente lances de bônus 
 interface BettorContractTermsDialogProps {
   open: boolean;
   onClose: () => void;
-  onAccept: () => void;
+  onAccept?: () => void;
   loading?: boolean;
+  readOnly?: boolean;
+  acceptedAt?: string | null;
 }
 
 export const BettorContractTermsDialog: React.FC<BettorContractTermsDialogProps> = ({
@@ -80,6 +82,8 @@ export const BettorContractTermsDialog: React.FC<BettorContractTermsDialogProps>
   onClose,
   onAccept,
   loading = false,
+  readOnly = false,
+  acceptedAt = null,
 }) => {
   const [accepted, setAccepted] = useState(false);
   const { getSettingValue } = useSystemSettings();
@@ -92,10 +96,14 @@ export const BettorContractTermsDialog: React.FC<BettorContractTermsDialogProps>
   };
 
   const handleAccept = () => {
-    if (!accepted) return;
+    if (!accepted || !onAccept) return;
     setAccepted(false);
     onAccept();
   };
+
+  const acceptedLabel = acceptedAt
+    ? new Date(acceptedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -106,7 +114,11 @@ export const BettorContractTermsDialog: React.FC<BettorContractTermsDialogProps>
             Contrato do Apostador — Show de Lances
           </DialogTitle>
           <DialogDescription>
-            Leia atentamente os termos abaixo antes de prosseguir com o cadastro.
+            {readOnly
+              ? acceptedLabel
+                ? `Contrato aceito em ${acceptedLabel}.`
+                : 'Contrato aceito no momento do cadastro.'
+              : 'Leia atentamente os termos abaixo antes de prosseguir com o cadastro.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -117,25 +129,35 @@ export const BettorContractTermsDialog: React.FC<BettorContractTermsDialogProps>
         </ScrollArea>
 
         <div className="border-t pt-4 space-y-4">
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <Checkbox
-              checked={accepted}
-              onCheckedChange={(v) => setAccepted(v === true)}
-              className="mt-0.5"
-            />
-            <span className="text-sm">
-              Li e aceito integralmente os termos e condições de uso da plataforma Show de Lances.
-            </span>
-          </label>
+          {readOnly ? (
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          ) : (
+            <>
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <Checkbox
+                  checked={accepted}
+                  onCheckedChange={(v) => setAccepted(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm">
+                  Li e aceito integralmente os termos e condições de uso da plataforma Show de Lances.
+                </span>
+              </label>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAccept} disabled={!accepted || loading}>
-              {loading ? 'Processando...' : 'Aceitar e Cadastrar'}
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleClose} disabled={loading}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAccept} disabled={!accepted || loading}>
+                  {loading ? 'Processando...' : 'Aceitar e Cadastrar'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

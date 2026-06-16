@@ -1,12 +1,15 @@
 import React, { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SEOHead } from '@/components/SEOHead';
+import { Button } from '@/components/ui/button';
+import { FileText } from 'lucide-react';
 import PartnerDashboard from '@/components/Partner/PartnerDashboard';
 import { getPartnerReferralCode } from '@/hooks/usePartnerReferralTracking';
+
 
 const MinhaParceria = () => {
   const { user, profile, loading: authLoading } = useAuth();
@@ -62,8 +65,17 @@ const MinhaParceria = () => {
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       
       <div className="container mx-auto px-4 py-8 flex-1">
+        <div className="flex justify-end mb-4">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/meus-contratos">
+              <FileText className="h-4 w-4 mr-2" />
+              Meus Contratos
+            </Link>
+          </Button>
+        </div>
         <PartnerDashboard preselectedPlanId={preselectedPlanId} />
       </div>
+
       
       <Footer />
     </div>
