@@ -47,12 +47,12 @@ function getBotDisplayName(bot: any): string {
 function selectBotBand(lastBotBand: string | null): { band: string; delaySec: number } {
   const pickBand = (): { band: string; delaySec: number } => {
     const rand = Math.random();
-    if (rand < 0.25) {
+    if (rand < 0.40) {
       return { band: 'early', delaySec: 2 + Math.floor(Math.random() * 3) }; // 2-4s
-    } else if (rand < 0.70) {
-      return { band: 'middle', delaySec: 5 + Math.floor(Math.random() * 3) }; // 5-7s
+    } else if (rand < 0.75) {
+      return { band: 'middle', delaySec: 4 + Math.floor(Math.random() * 3) }; // 4-6s
     } else {
-      return { band: 'late', delaySec: 8 + Math.floor(Math.random() * 3) }; // 8-10s
+      return { band: 'late', delaySec: 6 + Math.floor(Math.random() * 3) }; // 6-8s
     }
   };
 
