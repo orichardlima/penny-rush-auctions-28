@@ -19,6 +19,8 @@ interface HeaderProps {
 
 export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   let displayBids = userBids ?? 0;
+  const formatBids = (n: number) =>
+    new Intl.NumberFormat('pt-BR').format(Math.floor(Number(n) || 0));
   let user = null;
   let profile = null;
   let signOut = null;
