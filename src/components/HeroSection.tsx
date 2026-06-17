@@ -64,8 +64,7 @@ export const HeroSection = () => {
             <Link to="/leiloes" className="w-full sm:w-auto">
               <Button 
                 size="xl" 
-                variant="accent" 
-                className="shadow-glow w-full text-base sm:text-lg py-4 sm:py-3"
+                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-glow font-semibold"
                 aria-label="Ver todos os leilões ativos"
               >
                 <TrendingUp className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
