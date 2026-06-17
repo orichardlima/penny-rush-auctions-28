@@ -10,9 +10,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText } from 'lucide-react';
+import { FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { registerContractAcceptance, PARTNER_DECLARATION_TEXT } from '@/utils/contractAcceptance';
+import { toast } from 'sonner';
 
 const FALLBACK_TEXT = `CONTRATO DE PARTICIPAÇÃO NO PROGRAMA DE PARCEIROS
 
