@@ -526,6 +526,10 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                   </Table>
                 </div>
               </TabsContent>
+
+              <TabsContent value="evidence">
+                {contract?.id && <PartnerEvidencePanel partnerContractId={contract.id} />}
+              </TabsContent>
             </Tabs>
           </div>
         )}
