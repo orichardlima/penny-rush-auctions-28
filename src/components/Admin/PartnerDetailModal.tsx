@@ -347,6 +347,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                 <TabsTrigger value="binary" className="text-xs">Equipe ({binaryBonuses.length})</TabsTrigger>
                 <TabsTrigger value="credits" className="text-xs">Créditos ({manualCredits.length})</TabsTrigger>
                 <TabsTrigger value="withdrawals" className="text-xs">Saques ({withdrawals.length})</TabsTrigger>
+                <TabsTrigger value="evidence" className="text-xs">Evidências</TabsTrigger>
               </TabsList>
 
               {/* Payouts Tab */}
