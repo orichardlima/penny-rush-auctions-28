@@ -229,11 +229,11 @@ const Index = () => {
         <HowItWorks />
 
         {/* Partner Program Section */}
-        <section className="py-12 lg:py-16 bg-gradient-to-br from-purple-500/5 via-background to-indigo-500/5">
+        <section className="py-12 lg:py-16 bg-gradient-to-br from-accent/5 via-background to-primary/5">
           <div className="container mx-auto px-4">
             <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
               <div className="flex-1 text-center lg:text-left">
-                <Badge className="bg-purple-500 text-white mb-4">Exclusivo</Badge>
+                <Badge className="bg-accent text-accent-foreground mb-4">Exclusivo</Badge>
                 <h2 className="text-3xl font-bold mb-4">
                   Seja um Parceiro Investidor
                 </h2>
@@ -260,38 +260,38 @@ const Index = () => {
                   </div>
                 </div>
                 <Link to="/parceiro">
-                  <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
+                  <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                     Conhecer Programa de Parceiros
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
               </div>
               <div className="flex-1 max-w-md w-full">
-                <Card className="bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-purple-500/20">
+                <Card className="bg-gradient-to-br from-accent/10 to-primary/10 border-accent/20">
                   <CardContent className="p-6 space-y-4">
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">A partir de</p>
-                      <p className="text-4xl font-bold text-purple-600">R$ 1.000</p>
+                      <p className="text-4xl font-bold text-primary">R$ 1.000</p>
                       <p className="text-sm text-muted-foreground">de aporte</p>
                     </div>
                     <div className="space-y-3 pt-4 border-t border-border">
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-purple-500" />
+                          <DollarSign className="h-4 w-4 text-primary" />
                           <span>Repasses semanais</span>
                         </div>
                         <span className="font-medium">Toda semana</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-purple-500" />
+                          <TrendingUp className="h-4 w-4 text-primary" />
                           <span>Retorno potencial</span>
                         </div>
                         <span className="font-medium">Até 200% do aporte</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-purple-500" />
+                          <Target className="h-4 w-4 text-primary" />
                           <span>Transparência</span>
                         </div>
                         <span className="font-medium">Dashboard ao vivo</span>

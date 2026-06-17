@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Coins, ShoppingCart, User, Menu, Gavel, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText } from "lucide-react";
+import { Coins, ShoppingCart, User, Menu, TimerReset, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,7 +69,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
       case '/':
         return { title: 'Início', icon: Home };
       case '/leiloes':
-        return { title: 'Leilões', icon: Gavel };
+        return { title: 'Leilões', icon: TimerReset };
       case '/vencedores':
         return { title: 'Vencedores', icon: Trophy };
       case '/como-funciona':
@@ -79,7 +79,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
       case '/minha-parceria':
         return { title: 'Minha Parceria', icon: Briefcase };
       default:
-        return { title: 'Show de Lances', icon: Gavel };
+        return { title: 'Show de Lances', icon: TimerReset };
     }
   };
 
@@ -120,7 +120,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
               aria-label="Ir para página inicial - Show de Lances"
             >
               <div className="p-1.5 sm:p-2 bg-gradient-primary rounded-lg shadow-elegant">
-                <Gavel className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" aria-hidden="true" />
+                <TimerReset className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" aria-hidden="true" />
               </div>
               <div className="hidden xs:block">
                 <h1 className="text-lg sm:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
@@ -412,7 +412,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/leiloes') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
                         aria-current={isCurrentPage('/leiloes') ? 'page' : undefined}
                       >
-                        <Gavel className="w-5 h-5" aria-hidden="true" />
+                        <TimerReset className="w-5 h-5" aria-hidden="true" />
                         <span>Leilões Ativos</span>
                       </Link>
                       <Link 

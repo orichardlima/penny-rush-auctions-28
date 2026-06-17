@@ -51,7 +51,7 @@ export const HeroSection = () => {
             className="text-3xl sm:text-4xl lg:text-6xl font-bold mb-4 sm:mb-6 text-white leading-tight"
           >
             Ganhe Produtos Incríveis por
-            <span className="block text-accent-glow mt-1 sm:mt-2">Centavos!</span>
+            <span className="block bg-gradient-primary bg-clip-text text-transparent mt-1 sm:mt-2">Centavos!</span>
           </h1>
           
           <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
@@ -64,8 +64,7 @@ export const HeroSection = () => {
             <Link to="/leiloes" className="w-full sm:w-auto">
               <Button 
                 size="xl" 
-                variant="accent" 
-                className="shadow-glow w-full text-base sm:text-lg py-4 sm:py-3"
+                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-glow font-semibold"
                 aria-label="Ver todos os leilões ativos"
               >
                 <TrendingUp className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
@@ -75,7 +74,7 @@ export const HeroSection = () => {
             <Link to={hasPartnerContract ? "/minha-parceria" : "/investir"} className="w-full sm:w-auto">
               <Button 
                 size="xl" 
-                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0"
+                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-accent hover:bg-accent/90 text-accent-foreground border-0"
                 aria-label={hasPartnerContract ? "Acessar minha parceria" : "Conheça o programa de parceiros"}
               >
                 <Briefcase className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
