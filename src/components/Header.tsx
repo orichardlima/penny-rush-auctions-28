@@ -19,6 +19,8 @@ interface HeaderProps {
 
 export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   let displayBids = userBids ?? 0;
+  const formatBids = (n: number) =>
+    new Intl.NumberFormat('pt-BR').format(Math.floor(Number(n) || 0));
   let user = null;
   let profile = null;
   let signOut = null;
@@ -165,18 +167,18 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
             </Link>
             <Link 
               to={partnerLink} 
-              className={`relative transition-colors ${isCurrentPage(partnerLink) ? 'text-amber-600 font-medium' : 'text-foreground hover:text-amber-500'}`}
+              className={`relative transition-colors ${isCurrentPage(partnerLink) ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
               aria-current={isCurrentPage(partnerLink) ? 'page' : undefined}
             >
               <span className="flex items-center gap-1.5">
                 <span className="relative">
                   {partnerLabel}
                   {!hasPartnerContract && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" aria-hidden="true" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" aria-hidden="true" />
                   )}
                 </span>
                 {!hasPartnerContract && (
-                  <Badge className="bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">
+                  <Badge className="bg-gradient-primary text-primary-foreground text-[10px] px-1.5 py-0 font-bold">
                     NOVO
                   </Badge>
                 )}
@@ -219,10 +221,10 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                     </span>
                     <div 
                       className="flex items-center space-x-1 bg-secondary/80 border border-border/50 rounded-md px-2 py-1"
-                      aria-label={`Saldo: ${displayBids} lances`}
+                      aria-label={`Saldo: ${formatBids(displayBids)} lances`}
                     >
                       <Coins className="w-3 h-3 text-foreground" aria-hidden="true" />
-                      <span className="text-xs font-semibold text-foreground">{displayBids}</span>
+                      <span className="text-xs font-semibold text-foreground">{formatBids(displayBids)}</span>
                     </div>
                   </div>
                 </div>
@@ -230,17 +232,17 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                 {/* User Bids Display - Desktop */}
                 <div 
                   className="hidden sm:flex items-center bg-secondary border border-border rounded-lg px-3 py-2 shadow-sm"
-                  aria-label={`Saldo: ${displayBids} lances disponíveis`}
+                  aria-label={`Saldo: ${formatBids(displayBids)} lances disponíveis`}
                 >
                   <Coins className="w-4 h-4 text-accent mr-2" aria-hidden="true" />
-                  <span className="font-semibold text-secondary-foreground text-base">{displayBids}</span>
+                  <span className="font-semibold text-secondary-foreground text-base">{formatBids(displayBids)}</span>
                   <span className="text-xs text-muted-foreground ml-1">lances</span>
                 </div>
 
                 {/* Buy Bids Button - Mobile optimized */}
                 <Button 
                   onClick={onBuyBids} 
-                  variant="accent" 
+                  variant="default" 
                   size="sm" 
                   className="px-2 sm:px-4"
                   aria-label="Comprar mais lances"
@@ -352,7 +354,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                           <div className="flex items-center space-x-2">
                             <Badge variant="secondary" className="text-xs px-2 py-0.5">
                               <Coins className="w-3 h-3 mr-1" aria-hidden="true" />
-                              {displayBids} lances
+                              {formatBids(displayBids)} lances
                             </Badge>
                           </div>
                         </div>
@@ -433,13 +435,13 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                       </Link>
                       <Link 
                         to={partnerLink} 
-                        className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/minha-parceria') || isCurrentPage('/parceiro') || isCurrentPage('/investir') ? 'bg-amber-500/10 text-amber-600' : 'text-foreground hover:text-amber-600 hover:bg-amber-500/5'}`}
+                        className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/minha-parceria') || isCurrentPage('/parceiro') || isCurrentPage('/investir') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-primary/5'}`}
                         aria-current={isCurrentPage(partnerLink) ? 'page' : undefined}
                       >
                         <Briefcase className="w-5 h-5" aria-hidden="true" />
                         <span>{partnerLabel}</span>
                         {!hasPartnerContract && (
-                          <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
+                          <Badge className="ml-auto bg-gradient-primary text-primary-foreground text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
                         )}
                       </Link>
                       <Link 

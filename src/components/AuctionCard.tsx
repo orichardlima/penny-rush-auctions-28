@@ -216,7 +216,7 @@ export const AuctionCard = ({
 
   return (
     <Card
-      className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full"
+      className="overflow-hidden border border-border/60 hover:border-primary/40 shadow-card hover:shadow-elegant transition-all duration-300 group h-full"
       role="article"
       aria-labelledby={`auction-title-${id}`}>
 
@@ -330,7 +330,7 @@ export const AuctionCard = ({
               👥 {displayParticipants >= 100 ? `+${Math.floor(displayParticipants / 100) * 100}` : displayParticipants} participantes
             </span>
             <span className="text-muted-foreground">·</span>
-            <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
+            <span className="font-semibold text-success">Preço reduzido</span>
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
               <>
                 <span className="text-muted-foreground">·</span>
