@@ -216,7 +216,7 @@ export const AuctionCard = ({
 
   return (
     <Card
-      className="overflow-hidden shadow-card hover:shadow-elegant transition-all duration-300 group h-full"
+      className="overflow-hidden border border-border/60 hover:border-primary/40 shadow-card hover:shadow-elegant transition-all duration-300 group h-full"
       role="article"
       aria-labelledby={`auction-title-${id}`}>
 
