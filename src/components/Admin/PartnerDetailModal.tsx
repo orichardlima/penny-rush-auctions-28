@@ -10,6 +10,7 @@ import { useCurrentWeekRevenue } from '@/hooks/useCurrentWeekRevenue';
 import DailyRevenueBars from '@/components/Partner/DailyRevenueBars';
 import { Button } from '@/components/ui/button';
 import EmergencyWithdrawalDialog from '@/components/Admin/EmergencyWithdrawalDialog';
+import { PartnerEvidencePanel } from '@/components/Admin/PartnerEvidencePanel';
 
 interface PartnerDetailModalProps {
   contract: any;
@@ -346,6 +347,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                 <TabsTrigger value="binary" className="text-xs">Equipe ({binaryBonuses.length})</TabsTrigger>
                 <TabsTrigger value="credits" className="text-xs">Créditos ({manualCredits.length})</TabsTrigger>
                 <TabsTrigger value="withdrawals" className="text-xs">Saques ({withdrawals.length})</TabsTrigger>
+                <TabsTrigger value="evidence" className="text-xs">Evidências</TabsTrigger>
               </TabsList>
 
               {/* Payouts Tab */}
@@ -523,6 +525,10 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                     </TableBody>
                   </Table>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="evidence">
+                {contract?.id && <PartnerEvidencePanel partnerContractId={contract.id} />}
               </TabsContent>
             </Tabs>
           </div>

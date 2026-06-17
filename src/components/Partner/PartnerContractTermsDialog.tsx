@@ -10,9 +10,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText } from 'lucide-react';
+import { FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { registerContractAcceptance, PARTNER_DECLARATION_TEXT } from '@/utils/contractAcceptance';
+import { toast } from 'sonner';
 
 const FALLBACK_TEXT = `CONTRATO DE PARTICIPAÇÃO NO PROGRAMA DE PARCEIROS
 
@@ -88,6 +90,7 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
   acceptedAt = null,
 }) => {
   const [accepted, setAccepted] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const { getSettingValue } = useSystemSettings();
 
   const contractText = getSettingValue('contract_partner_text', '') || FALLBACK_TEXT;
@@ -97,10 +100,39 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
     onClose();
   };
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (!accepted || !onAccept) return;
-    setAccepted(false);
-    onAccept();
+    setRegistering(true);
+    try {
+      const acceptanceId = await registerContractAcceptance({
+        contract_type: 'partner',
+        origin: 'partner_adhesion',
+        declaration_text: PARTNER_DECLARATION_TEXT,
+        plan_name: plan.display_name,
+        plan_value: plan.aporte_value,
+        extra: { plan_id: plan.id },
+      });
+      if (!acceptanceId) {
+        toast.error('Não foi possível registrar o aceite eletrônico. Tente novamente.');
+        setRegistering(false);
+        return;
+      }
+      setAccepted(false);
+      setRegistering(false);
+      onAccept();
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao registrar aceite eletrônico.');
+      setRegistering(false);
+    }
+  };
+
+  const openContractInNewTab = () => {
+    const w = window.open('', '_blank', 'noopener,noreferrer');
+    if (!w) return;
+    const safe = contractText.replace(/</g, '&lt;');
+    w.document.write(`<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Contrato de Adesão ao Programa de Parceiros</title><style>body{font-family:system-ui,sans-serif;max-width:780px;margin:32px auto;padding:0 16px;line-height:1.6;color:#111}h1{font-size:20px}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}</style></head><body><h1>Contrato de Adesão ao Programa de Parceiros</h1><pre>${safe}</pre></body></html>`);
+    w.document.close();
   };
 
   const acceptedLabel = acceptedAt
@@ -126,7 +158,6 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
 
         <ScrollArea className="h-[50vh] pr-4">
           <div className="space-y-4 text-sm leading-relaxed text-foreground">
-            {/* Plan-specific summary */}
             <div className="bg-muted/50 rounded-lg p-3 space-y-1">
               <p><strong>Plano:</strong> {plan.display_name}</p>
               <p><strong>Aporte:</strong> {formatCurrency(plan.aporte_value)}</p>
@@ -136,8 +167,6 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
                 <p><strong>Bônus de lances:</strong> {plan.bonus_bids} lances</p>
               )}
             </div>
-
-            {/* Dynamic contract text */}
             <div className="whitespace-pre-wrap">{contractText}</div>
           </div>
         </ScrollArea>
@@ -145,34 +174,41 @@ export const PartnerContractTermsDialog: React.FC<PartnerContractTermsDialogProp
         <div className="border-t pt-4 space-y-4">
           {readOnly ? (
             <DialogFooter>
-              <Button variant="outline" onClick={handleClose}>
-                Fechar
-              </Button>
+              <Button variant="outline" onClick={handleClose}>Fechar</Button>
             </DialogFooter>
           ) : (
             <>
-              <label className="flex items-start gap-3 cursor-pointer select-none">
+              <button
+                type="button"
+                onClick={openContractInNewTab}
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ler Contrato de Adesão ao Programa de Parceiros
+              </button>
+
+              <label className="flex items-start gap-3 cursor-pointer select-none rounded-md border border-border bg-muted/30 p-3">
                 <Checkbox
                   checked={accepted}
                   onCheckedChange={(v) => setAccepted(v === true)}
                   className="mt-0.5"
                 />
-                <span className="text-sm">
-                  Li e aceito integralmente os termos do contrato de participação acima.
-                </span>
+                <span className="text-sm leading-relaxed">{PARTNER_DECLARATION_TEXT}</span>
               </label>
 
               <DialogFooter>
-                <Button variant="outline" onClick={handleClose} disabled={loading}>
+                <Button variant="outline" onClick={handleClose} disabled={loading || registering}>
                   Cancelar
                 </Button>
-                <Button onClick={handleAccept} disabled={!accepted || loading}>
-                  {loading ? 'Processando...' : 'Aceitar e Continuar'}
+                <Button onClick={handleAccept} disabled={!accepted || loading || registering}>
+                  {(loading || registering) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {registering ? 'Registrando aceite...' : loading ? 'Processando...' : 'Aceitar e Continuar'}
                 </Button>
               </DialogFooter>
             </>
           )}
         </div>
+
       </DialogContent>
     </Dialog>
   );
