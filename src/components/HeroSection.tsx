@@ -75,7 +75,7 @@ export const HeroSection = () => {
             <Link to={hasPartnerContract ? "/minha-parceria" : "/investir"} className="w-full sm:w-auto">
               <Button 
                 size="xl" 
-                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0"
+                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-accent hover:bg-accent/90 text-accent-foreground border-0"
                 aria-label={hasPartnerContract ? "Acessar minha parceria" : "Conheça o programa de parceiros"}
               >
                 <Briefcase className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
