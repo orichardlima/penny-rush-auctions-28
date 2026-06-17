@@ -100,14 +100,14 @@ export const PartnerEvidencePanel: React.FC<Props> = ({ partnerContractId }) => 
     const lines: string[] = [];
     lines.push('Categoria,Descricao,Valor,Status,Data');
     (report.financeiro.repasses ?? []).forEach((r: any) =>
-      lines.push(`Repasse,Semana ${r.week_start} a ${r.week_end},${r.amount},${r.status},${r.paid_at ?? r.created_at ?? ''}`));
+      lines.push(`Repasse,Período ${r.period_start ?? ''} a ${r.period_end ?? ''},${r.amount},${r.status},${r.paid_at ?? r.created_at ?? ''}`));
     (report.financeiro.saques ?? []).forEach((r: any) =>
-      lines.push(`Saque,Saque PIX,${r.amount},${r.status},${r.paid_at ?? r.created_at ?? ''}`));
+      lines.push(`Saque,Saque PIX,${r.amount},${r.status},${r.paid_at ?? r.requested_at ?? ''}`));
     (report.financeiro.bonus_indicacao ?? []).forEach((r: any) =>
-      lines.push(`Bonus Indicacao,Nivel ${r.level},${r.amount},${r.status},${r.created_at}`));
+      lines.push(`Bonus Indicacao,Nivel ${r.level ?? ''},${r.bonus_value},${r.status},${r.created_at}`));
     (report.financeiro.compras_lances ?? []).forEach((r: any) =>
-      lines.push(`Compra Lances,${r.bids_amount} lances,${r.price},${r.status},${r.created_at}`));
-    lines.push(`Lances Utilizados,Total,,,${report.financeiro.lances_utilizados?.total_lances ?? 0}`);
+      lines.push(`Compra Lances,${r.bids_purchased} lances,${r.amount_paid},${r.payment_status},${r.created_at}`));
+    lines.push(`Lances Utilizados,Total,${report.financeiro.lances_utilizados?.total_lances ?? 0},,`);
 
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
