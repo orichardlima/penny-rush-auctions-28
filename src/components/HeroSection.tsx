@@ -51,7 +51,7 @@ export const HeroSection = () => {
             className="text-3xl sm:text-4xl lg:text-6xl font-bold mb-4 sm:mb-6 text-white leading-tight"
           >
             Ganhe Produtos Incríveis por
-            <span className="block text-accent-glow mt-1 sm:mt-2">Centavos!</span>
+            <span className="block bg-gradient-primary bg-clip-text text-transparent mt-1 sm:mt-2">Centavos!</span>
           </h1>
           
           <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
