@@ -132,7 +132,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
         {/* Promotional Banner */}
         {promoData?.isValid && (
           <div 
-            className="mb-8 p-6 rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-center shadow-lg animate-pulse-slow relative overflow-hidden"
+            className="mb-8 p-6 rounded-xl bg-gradient-primary text-white text-center shadow-lg animate-pulse-slow relative overflow-hidden"
             role="alert"
             aria-live="polite"
           >
@@ -189,13 +189,13 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                 key={pkg.id} 
                 className={`relative overflow-hidden transition-all duration-300 hover:shadow-elegant hover:-translate-y-1 ${
                   pkg.is_popular ? 'ring-2 ring-primary shadow-glow' : ''
-                } ${hasPromo ? 'ring-2 ring-orange-500' : ''}`}
+                } ${hasPromo ? 'ring-2 ring-primary' : ''}`}
                 role="listitem"
               >
                 {/* Promo multiplier badge */}
                 {hasPromo && (
                   <div className="absolute -top-1 -right-1 z-20" aria-hidden="true">
-                    <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-bl-lg rounded-tr-md shadow-lg animate-bounce">
+                    <div className="bg-gradient-primary text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-bl-lg rounded-tr-md shadow-lg animate-bounce">
                       {promoData?.multiplier}X
                     </div>
                   </div>
@@ -227,10 +227,10 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                     {/* Bids display with promotion */}
                     {hasPromo ? (
                       <div className="space-y-1">
-                        <Badge className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
+                        <Badge className="text-xs bg-gradient-primary text-primary-foreground border-0">
                           🔥 {pkg.bids_count} → {promotedBids} lances!
                         </Badge>
-                        <p className="text-xs text-orange-600 font-medium">
+                        <p className="text-xs text-primary font-medium">
                           +{promotedBids - pkg.bids_count} lances GRÁTIS!
                         </p>
                       </div>
@@ -252,7 +252,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                       </li>
                     ))}
                     {hasPromo && (
-                      <li className="flex items-center text-sm text-orange-600 font-medium">
+                      <li className="flex items-center text-sm text-primary font-medium">
                         <Sparkles className="w-4 h-4 mr-2" aria-hidden="true" />
                         {promoData?.multiplier}x mais lances na promoção!
                       </li>
@@ -263,7 +263,7 @@ export const BidPackages = ({ onPurchase }: BidPackagesProps) => {
                     onClick={() => onPurchase(pkg.id, promotedBids, pkg.price, pkg.name)}
                     variant={pkg.is_popular ? "default" : "outline"}
                     size="lg"
-                    className={`w-full ${hasPromo ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0' : ''}`}
+                    className={`w-full ${hasPromo ? 'bg-gradient-primary hover:opacity-90 text-primary-foreground border-0' : ''}`}
                     aria-label={`Comprar pacote ${pkg.name} com ${promotedBids} lances por ${formatPrice(pkg.price)}`}
                   >
                     {hasPromo ? '🔥 Comprar com Bônus!' : 'Comprar Agora'}
