@@ -1110,6 +1110,198 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_acceptances: {
+        Row: {
+          accepted_at_client: string | null
+          browser: string | null
+          content_hash: string
+          contract_type: string
+          contract_version_id: string
+          cpf: string | null
+          created_at: string
+          declaration_text: string
+          device: string | null
+          email: string | null
+          extra: Json | null
+          full_name: string | null
+          id: string
+          ip_address: unknown
+          origin: string
+          os: string | null
+          partner_contract_id: string | null
+          payment_reference: string | null
+          phone: string | null
+          plan_name: string | null
+          plan_value: number | null
+          route: string | null
+          server_timestamp: string
+          user_agent: string | null
+          user_id: string
+          version_label: string
+        }
+        Insert: {
+          accepted_at_client?: string | null
+          browser?: string | null
+          content_hash: string
+          contract_type: string
+          contract_version_id: string
+          cpf?: string | null
+          created_at?: string
+          declaration_text: string
+          device?: string | null
+          email?: string | null
+          extra?: Json | null
+          full_name?: string | null
+          id?: string
+          ip_address?: unknown
+          origin: string
+          os?: string | null
+          partner_contract_id?: string | null
+          payment_reference?: string | null
+          phone?: string | null
+          plan_name?: string | null
+          plan_value?: number | null
+          route?: string | null
+          server_timestamp?: string
+          user_agent?: string | null
+          user_id: string
+          version_label: string
+        }
+        Update: {
+          accepted_at_client?: string | null
+          browser?: string | null
+          content_hash?: string
+          contract_type?: string
+          contract_version_id?: string
+          cpf?: string | null
+          created_at?: string
+          declaration_text?: string
+          device?: string | null
+          email?: string | null
+          extra?: Json | null
+          full_name?: string | null
+          id?: string
+          ip_address?: unknown
+          origin?: string
+          os?: string | null
+          partner_contract_id?: string | null
+          payment_reference?: string | null
+          phone?: string | null
+          plan_name?: string | null
+          plan_value?: number | null
+          route?: string | null
+          server_timestamp?: string
+          user_agent?: string | null
+          user_id?: string
+          version_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_acceptances_contract_version_id_fkey"
+            columns: ["contract_version_id"]
+            isOneToOne: false
+            referencedRelation: "contract_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_acceptances_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_evidence_access_log: {
+        Row: {
+          acceptance_id: string | null
+          accessed_at: string
+          action: string
+          admin_user_id: string
+          extra: Json | null
+          id: string
+          ip_address: unknown
+          partner_contract_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          acceptance_id?: string | null
+          accessed_at?: string
+          action: string
+          admin_user_id: string
+          extra?: Json | null
+          id?: string
+          ip_address?: unknown
+          partner_contract_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          acceptance_id?: string | null
+          accessed_at?: string
+          action?: string
+          admin_user_id?: string
+          extra?: Json | null
+          id?: string
+          ip_address?: unknown
+          partner_contract_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_evidence_access_log_acceptance_id_fkey"
+            columns: ["acceptance_id"]
+            isOneToOne: false
+            referencedRelation: "contract_acceptances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_evidence_access_log_partner_contract_id_fkey"
+            columns: ["partner_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_versions: {
+        Row: {
+          content: string
+          content_hash: string
+          contract_type: string
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          id: string
+          is_active: boolean
+          title: string
+          version: string
+        }
+        Insert: {
+          content: string
+          content_hash: string
+          contract_type: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          is_active?: boolean
+          title: string
+          version: string
+        }
+        Update: {
+          content?: string
+          content_hash?: string
+          contract_type?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          is_active?: boolean
+          title?: string
+          version?: string
+        }
+        Relationships: []
+      }
       daily_revenue_config: {
         Row: {
           calculation_base: string
@@ -2863,6 +3055,10 @@ export type Database = {
       bot_protection_loop_safe: { Args: never; Returns: undefined }
       bot_tick: { Args: never; Returns: undefined }
       bot_tick_safe: { Args: never; Returns: undefined }
+      calculate_early_termination: {
+        Args: { p_partner_contract_id: string }
+        Returns: Json
+      }
       check_affiliate_code_availability: {
         Args: { code_to_check: string }
         Returns: boolean
@@ -2925,6 +3121,10 @@ export type Database = {
       fury_vault_on_bid: {
         Args: { p_auction_id: string; p_bid_number: number }
         Returns: undefined
+      }
+      generate_partner_evidence_report: {
+        Args: { p_partner_contract_id: string }
+        Returns: Json
       }
       get_admin_audit_log: {
         Args: { limit_count?: number }
@@ -3206,6 +3406,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_evidence_access: {
+        Args: {
+          p_acceptance_id: string
+          p_action: string
+          p_ip?: string
+          p_partner_contract_id: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       notify_bid_expirations: {
         Args: never
         Returns: {
@@ -3306,6 +3516,26 @@ export type Database = {
       rebuild_auction_last_bidders: {
         Args: { p_auction_id: string }
         Returns: Json
+      }
+      register_contract_acceptance: {
+        Args: {
+          p_accepted_at_client?: string
+          p_browser?: string
+          p_contract_type: string
+          p_declaration_text: string
+          p_device?: string
+          p_extra?: Json
+          p_ip?: string
+          p_origin: string
+          p_os?: string
+          p_partner_contract_id?: string
+          p_payment_reference?: string
+          p_plan_name?: string
+          p_plan_value?: number
+          p_route?: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
       release_pending_referral_bonuses: { Args: never; Returns: number }
       release_protection_lock: { Args: never; Returns: boolean }
