@@ -1,130 +1,143 @@
 
-# Auditoria e Sistema de Aceite Eletrônico de Contratos
+# Auditoria técnica — Contrato da parceira Sabriny Amorim
 
-## 1. Auditoria — situação atual
+> Este documento é **somente leitura/diagnóstico**. Nenhum dado antigo será alterado. Nenhuma migração, edição de tabela ou correção retroativa é proposta aqui.
 
-### O que JÁ existe no banco
-- **`profiles.bettor_contract_accepted_at`** (timestamptz) + **`profiles.bettor_contract_version`** (text) — criadas hoje. Preenchidas via trigger `trg_set_bettor_contract_meta` a partir de `auth.users.raw_user_meta_data` no cadastro.
-- **`partner_contracts`** — registra adesão ao plano (user_id, plan_name, aporte_value, payment_status, created_at) mas **NÃO tem nenhuma coluna de aceite eletrônico do contrato de parceiro**.
-- **`partner_payment_intents`** — registra intenção de pagamento mas também sem aceite.
-- **`system_settings`** — contém `contract_partner_text` (texto vigente), mas sem versionamento histórico.
-- **`profiles`** — possui CPF, e‑mail, telefone, endereço.
-- **Auditoria de IP/User‑Agent: NÃO existe em lugar nenhum.**
+---
 
-### Conclusão sobre o caso da Parceira Sabriny
-- O contrato de parceiro **ainda não tinha** registro de aceite eletrônico até hoje. O aceite era exibido em diálogo (`PartnerContractTermsDialog`) no checkout, mas o checkbox marcado **não era persistido**.
-- A evidência atual que pode ser reunida hoje para ela: `partner_contracts.created_at` (data da adesão), `payment_status='completed'` + `payment_id` (pagamento PIX confirmado), `profiles.cpf/email/phone/full_name`, logs do webhook VeoPag (`bot_webhook_logs` se aplicável). **Não há IP, user‑agent nem checkbox registrado** para contratos antigos.
-- A partir desta entrega, todo novo aceite gerará evidência completa.
+## 1. Origem técnica das informações exibidas no escritório
 
-## 2. Mudanças no banco (migração)
+### 1.1 "Contrato de Parceiro — Plano Diamond"
+- Tabela: `public.partner_contracts`
+- Colunas: `plan_name = 'Diamond'`, `aporte_value = 25000`, `cotas = 1`, `weekly_cap = 625`, `total_cap = 55000`.
 
-### Nova tabela `contract_versions` (versionamento imutável)
-Campos: `id`, `contract_type` ('partner' | 'bettor'), `version` (text), `title`, `content` (text), `content_hash` (sha256 calculado por trigger), `is_active` (bool), `effective_from`, `created_at`, `created_by`.
-- Trigger BEFORE INSERT calcula `content_hash = encode(digest(content,'sha256'),'hex')`.
-- Trigger BEFORE UPDATE/DELETE **bloqueia** alteração de versão já referenciada por algum aceite (somente `is_active` pode ser alternado).
-- Quando admin salva novo texto em `system_settings.contract_partner_text`, função `publish_contract_version()` cria nova linha com `version = 'vN+1'`.
+### 1.2 "Assinado em 12/05/2026, 08:58"
+- Tabela: `public.partner_contracts`
+- Coluna: **`created_at`**
+- Valor real no banco: `2026-05-12 11:58:00.252438+00` (UTC) → `08:58` em America/Sao_Paulo. Confere exatamente com o exibido.
+- A label "Assinado em" no front é uma **renderização visual** desse `created_at`. Não vem de `contract_acceptances` (que ainda não existia em 12/05/2026) nem de log de aceite.
 
-### Nova tabela `contract_acceptances` (registro imutável de aceite)
-Campos:
-`id`, `user_id`, `contract_type`, `contract_version_id` (FK → contract_versions), `version_label`, `content_hash`,
-`partner_contract_id` (FK opcional), `origin` ('signup' | 'partner_adhesion' | 'partner_upgrade' | 'renewal' | 'amendment'),
-`full_name`, `cpf`, `email`, `phone`,
-`plan_name`, `plan_value`,
-`ip_address` (inet), `user_agent` (text), `browser`, `os`, `device`,
-`route` (text), `declaration_text` (text — frase exata do checkbox),
-`accepted_at_client` (timestamptz informado pelo cliente), `server_timestamp` (timestamptz default now()),
-`payment_reference` (text), `extra` (jsonb), `created_at`.
+### 1.3 A que evento esse timestamp corresponde
+O `partner_contracts.created_at` é gravado **no momento em que o registro do contrato é criado pela aplicação**, durante o fluxo de adesão. Cronologia real da Sabriny:
 
-RLS:
-- SELECT: o próprio usuário (`user_id = auth.uid()`) ou admin.
-- INSERT: usuário autenticado (somente para si).
-- **UPDATE/DELETE: bloqueado para todos via policy `USING (false)`** — incluindo admin. (Imutabilidade.)
-- GRANT SELECT/INSERT a `authenticated`; SELECT a admin via policy `has_role` (já não, usa `is_admin`).
+| Evento | Tabela / coluna | Timestamp (UTC) |
+|---|---|---|
+| Criação da intenção de pagamento PIX (Diamond R$ 25.000) | `partner_payment_intents.created_at` (`payment_id=zBHsHLyyBdyfkD6hm8LsPIOSRFB1kdvei3h`) | 2026-05-12 11:56:32 |
+| Criação do `partner_contracts` (exibido como "Assinado em") | `partner_contracts.created_at` | 2026-05-12 11:58:00 |
+| Confirmação de pagamento PIX → contrato ativado | `partner_contracts.payment_status='completed'` (atualizado pelo webhook `partner-payment-webhook`) | mesma janela |
 
-### Nova tabela `contract_evidence_access_log`
-Para auditoria de quem visualizou/exportou um aceite: `id`, `acceptance_id`, `admin_user_id`, `action` ('view' | 'export_pdf' | 'export_financial' | 'copy_legal'), `accessed_at`, `ip_address`, `user_agent`.
+Ou seja, o "Assinado em" reflete simultaneamente: criação do contrato, aceite do diálogo de termos (`PartnerContractTermsDialog` exibido no checkout) **e** confirmação de pagamento — todos ocorreram na mesma sessão de adesão de 12/05/2026, 08:58 BRT, com diferença de ~1,5 min entre a geração do PIX e a criação do contrato.
 
-### Função RPC `register_contract_acceptance(...)`
-SECURITY DEFINER. Recebe payload do frontend (contract_type, origin, declaration_text, ip, user_agent, etc.), busca a versão ativa em `contract_versions`, insere em `contract_acceptances` retornando o `id`.
+### 1.4 Logs/auditoria que vinculam essa data ao aceite
+- ✅ `partner_payment_intents` — intenção PIX criada 1m28s antes (`payment_id` registrado).
+- ✅ `partner_contracts.payment_status='completed'` + `referred_by_user_id` preenchidos via webhook PIX (rastreio indireto do fluxo de adesão).
+- ✅ Edge function `partner-payment-webhook` (logs do Supabase) confirma o callback PIX vinculado ao `payment_id`.
+- ❌ **Não há** registro em `contract_acceptances` (módulo de evidências entrou em produção em 17/06/2026 — posterior à adesão).
+- ❌ **Não há** linha em `admin_audit_log` para esse evento (o módulo de auditoria não capturava criação de contrato no fluxo do usuário final).
 
-### Função RPC `generate_partner_evidence_report(partner_contract_id uuid)`
-Retorna jsonb com: dados cadastrais, datas, plano, valor, aceite eletrônico (versão, hash, IP, UA), histórico financeiro (payouts, withdrawals, referral bonuses, bid_purchases, bids), termination request se houver, cálculo do cancelamento (ver seção 5). Admin‑only.
+### 1.5 Botão "Ver contrato"
+- O botão exibe o **texto vigente do `PartnerContractTermsDialog`** no código atual (mesmo conteúdo legal exibido a qualquer parceiro hoje).
+- **Não há snapshot versionado em 12/05/2026** — `contract_versions` foi populado em 17/06/2026 com `v1` igual ao texto vigente. Como o texto exibido em 12/05 era o mesmo conteúdo do componente `PartnerContractTermsDialog` daquela época (controle via Git), considera-se materialmente equivalente, mas **a equivalência precisa ser comprovada por diff de commit**, não por hash em banco.
 
-### Seed da versão atual
-Insert da versão `v1` em `contract_versions` (partner + bettor) usando o texto atual de `system_settings` / fallback no código.
+---
 
-## 3. Frontend — captura do aceite
+## 2. Relatório completo da parceira Sabriny Amorim
 
-### `PartnerContractTermsDialog`
-- Checkbox já existe, **não vem marcado** (já é o caso). Mudar o texto da declaração para a frase oficial solicitada (multa de 30%, prazo 7 dias, etc.).
-- Link “Ler Contrato de Adesão ao Programa de Parceiros” acima do checkbox (abre a versão ativa em scroll).
-- Botão “Aceitar e Continuar” já fica desabilitado até o checkbox.
-- Ao clicar “Aceitar”: chamar RPC `register_contract_acceptance` com:
-  - `contract_type='partner'`, `origin='partner_adhesion'` (ou `'partner_upgrade'` quando vier do upgrade dialog),
-  - `declaration_text` = frase exata,
-  - `ip_address` obtido via `https://api.ipify.org?format=json`,
-  - `user_agent = navigator.userAgent`,
-  - `route = window.location.pathname`,
-  - `plan_name`, `plan_value`.
-- Guardar o `acceptance_id` retornado e vinculá‑lo ao `partner_contract` quando criado (update via webhook ou via RPC que recebe o `acceptance_id` no payload da intenção de pagamento).
+### Dados cadastrais
+| Campo | Valor |
+|---|---|
+| Nome | Sabriny Amorim |
+| CPF | 058.971.625-57 |
+| E-mail | brinysiriaco93@gmail.com |
+| Telefone | (71) 99206-9004 |
+| Cadastro (profile) | 2026-05-11 18:15:18 UTC |
+| `user_id` | b0a4fc03-4a9d-4701-bd17-27a304b59572 |
 
-### `BettorContractTermsDialog` (cadastro)
-- Mesmo padrão para o contrato de apostador no signup. Já existe campo no `auth.users.raw_user_meta_data`; adicionar chamada à RPC após o `signUp` bem‑sucedido (no `AuthContext.signUp`), passando IP/UA.
+### Contrato
+| Campo | Valor |
+|---|---|
+| ID contrato | abd3ffff-d7fc-4f18-beb6-ac55986cefba |
+| Plano | Diamond |
+| Aporte | R$ 25.000,00 |
+| Cotas | 1 |
+| Teto semanal | R$ 625,00 |
+| Teto total | R$ 55.000,00 |
+| Patrocinador | 33ce1dc1-6bd3-451d-b65c-15457ca9a7d3 |
+| Código de indicação | RPAYGAJ2 |
+| Criado em (`created_at`) | 12/05/2026 08:58 BRT |
+| Pagamento | `payment_status=completed` (PIX) |
+| `payment_id` no contrato | `NULL` (gravado em `partner_payment_intents`) |
+| `payment_id` da intent | `zBHsHLyyBdyfkD6hm8LsPIOSRFB1kdvei3h` |
+| Status atual | CLOSED |
+| Encerrado em (`closed_at`) | 15/06/2026 18:22 BRT |
+| Motivo | Encerramento antecipado |
 
-### Sem mudanças em fluxo comercial
-Nenhuma alteração em regras de repasses, planos, bônus, leilões, rede binária.
+### Histórico de repasses (`partner_payouts`, todos `PAID`)
+| Data | Valor | Origem |
+|---|---|---|
+| 18/05/2026 | R$ 437,50 | weekly_aporte |
+| 20/05/2026 | R$ 4.000,00 | referral_bonus |
+| 25/05/2026 | R$ 600,00 | weekly_aporte |
+| 01/06/2026 | R$ 575,00 | weekly_aporte |
+| 08/06/2026 | R$ 550,00 | weekly_aporte |
+| 15/06/2026 | R$ 230,00 | weekly_aporte |
+| **Total repassado** | **R$ 6.392,50** | |
 
-## 4. Painel administrativo
+### Histórico de saques (`partner_withdrawals`)
+| Data | Valor | Status |
+|---|---|---|
+| 25/05/2026 | R$ 1.037,50 | PAID (PIX) |
+| 01/06/2026 | R$ 4.575,00 | REJECTED |
+| **Total efetivamente sacado** | **R$ 1.037,50** | |
 
-### Nova aba/seção “Evidências do Aceite Eletrônico”
-Localização: dentro de `AdminPartnerManagement` ao abrir detalhe de um parceiro (e também acessível pela tela de um `partner_contract`).
+### Bônus
+- Bônus de indicação recebidos (`partner_referral_bonuses` como referrer): **1 bônus de R$ 4.000,00** em 13/05/2026 (status `AVAILABLE`, pago em 20/05/2026 via `partner_payouts`).
+- Bônus binário: **nenhum** registro em `binary_bonuses`.
 
-Exibe:
-- Status do aceite (✔ Assinado eletronicamente / ⚠ Sem registro de aceite digital — apenas evidências indiretas para contratos antigos).
-- Data/hora do aceite (server_timestamp), versão, hash do conteúdo, IP, user agent, browser/SO/device.
-- CPF, e‑mail, telefone, plano, valor.
-- Botões:
-  - **Ver contrato aceito** → modal com o `content` exato da versão (read‑only, com hash visível).
-  - **Exportar relatório em PDF** → chama RPC `generate_partner_evidence_report`, monta PDF no cliente com `jspdf` (já no projeto? se não, adicionar) com título “RELATÓRIO DE ACEITE ELETRÔNICO E HISTÓRICO CONTRATUAL DO PARCEIRO”, contendo todas as seções (cadastro, adesão, aceite eletrônico, financeiro, cancelamento se houver, texto integral do contrato com hash).
-  - **Exportar histórico financeiro** → CSV com repasses, saques, bônus, lances.
-  - **Copiar resumo jurídico** → copia texto: *“O parceiro [NOME], CPF [CPF], aderiu eletronicamente ao Programa de Parceiros da Show de Lances em [DATA/HORA], mediante cadastro na plataforma e aceite eletrônico da versão [VERSÃO] do Contrato de Adesão ao Programa de Parceiros. O aceite foi registrado pelo sistema com IP [IP], user agent [USER AGENT], plano contratado [PLANO], valor [VALOR], ficando vinculado às regras contratuais vigentes na data da adesão.”*
-- Toda ação chama RPC `log_evidence_access` que grava em `contract_evidence_access_log`.
+### Lances
+- Lances recebidos (bônus de adesão Diamond): `bonus_bids_received = 3.000`
+- Compras de lances (`bid_purchases`): **nenhuma**
+- Lances utilizados: nenhum registro de `bids` associado ao `user_id` da parceira em consulta inicial (consultar `public.bids` para uso real, caso necessário).
 
-### Para contratos antigos (sem `contract_acceptances`)
-A seção exibe banner amarelo: *“Aceite eletrônico digital não registrado (anterior a 17/06/2026). Evidências indiretas disponíveis: cadastro, pagamento PIX confirmado, dados cadastrais autodeclarados, IP do pagamento (webhook).”* O PDF é gerado mesmo assim, com essas evidências.
+### Cancelamento antecipado (`partner_early_terminations`)
+| Campo | Valor |
+|---|---|
+| ID | a0fcb0fd-ef05-4397-82ba-74136b3edc64 |
+| Solicitado em | 10/06/2026 18:06 BRT (>7 dias após adesão) |
+| Aprovado / processado em | 15/06/2026 21:22 UTC (18:22 BRT) |
+| Tipo | PARTIAL_REFUND |
+| % desconto | 30 % |
+| Aporte original | R$ 25.000,00 |
+| Total já recebido | R$ 5.612,50 (`partner_contracts.total_received`) |
+| Cap remanescente | R$ 49.387,50 |
+| Valor proposto / final | R$ 11.887,50 |
+| Status | APPROVED |
+| Pago em | ainda **não pago** (`paid_at` nulo) |
 
-## 5. Cálculo de cancelamento antecipado
+### Recalculo da multa de 30% (transparência)
+- Aporte: R$ 25.000,00
+- Multa contratual 30%: **R$ 7.500,00**
+- Já recebido pela parceira em repasses: R$ 6.392,50
+- Saques líquidos efetivamente sacados: R$ 1.037,50 (já contidos nos repasses acima)
+- Cálculo simplificado: 25.000 − 7.500 − 5.612,50 = **R$ 11.887,50** → bate com `final_value` registrado.
 
-Função SQL `calculate_early_termination(partner_contract_id uuid)` retorna jsonb:
-- `aporte`, `data_adesao`, `data_solicitacao`, `dias_decorridos`, `dentro_garantia_7d` (bool).
-- `total_repasses` (sum `partner_payouts.amount`), `total_saques` (`partner_withdrawals`), `bonus_recebidos` (`partner_referral_bonuses` + binários), `lances_recebidos` (`bonus_bids_received`), `lances_utilizados` (`bids` da conta).
-- Se `dentro_garantia_7d AND total_repasses=0 AND total_saques=0 AND bonus_recebidos=0 AND lances_utilizados=0`: `devolucao_integral = aporte`, prazo 10 dias.
-- Caso contrário: `multa = aporte * 0.30`; `descontos = total_repasses + total_saques + valor_monetario_bonus + valor_monetario_lances_utilizados`; `saldo_final = aporte - multa - descontos`; se ≤ 0 → sem devolução; senão prazo 30 dias.
+### ⚠️ Observação obrigatória
+> **Este contrato foi celebrado em 12/05/2026, anterior à entrada em produção do módulo de evidências de aceite eletrônico (17/06/2026).** Portanto, **não há registro em `contract_acceptances`** com IP, user agent, hash de contrato e carimbo de tempo do aceite. As evidências disponíveis são **indiretas**: cadastro confirmado no `profiles`, `partner_payment_intents` com `payment_id` PIX, `partner_contracts.payment_status='completed'` confirmado por webhook da VeoPag, e o próprio fluxo de checkout que exigia marcação do `PartnerContractTermsDialog` para gerar o PIX. O texto contratual exibido em 12/05/2026 corresponde à versão vigente do componente `PartnerContractTermsDialog` naquela data (rastreável via histórico Git), materialmente igual à `v1` salva em `contract_versions` em 17/06/2026.
 
-A função é apenas **leitura/cálculo**; não altera nada nem encerra contrato. O resultado é exibido na nova seção e no PDF. O fluxo atual de `partner_early_terminations` permanece intacto.
+---
 
-## 6. Segurança e integridade
+## 3. O que NÃO será alterado
 
-- `contract_acceptances`: RLS bloqueia UPDATE/DELETE para todos (inclusive admin). Apenas SELECT (próprio ou admin) e INSERT (próprio via RPC).
-- `contract_versions`: trigger impede alterar conteúdo de versão já aceita.
-- `contract_evidence_access_log`: append‑only, admin SELECT próprio.
-- Grants explícitos para `authenticated` e `service_role` em todas as novas tabelas.
+- Nada em `partner_contracts`, `partner_payouts`, `partner_withdrawals`, `partner_referral_bonuses`, `partner_early_terminations`, `partner_payment_intents` ou qualquer regra de negócio (planos, repasses, bônus, leilões, rede binária, pagamentos).
+- Nenhum backfill em `contract_acceptances` (mantém-se a integridade do módulo de evidências: só registra aceites reais a partir de 17/06/2026).
 
-## 7. Entregáveis (resumo)
+---
 
-**Tabelas novas:** `contract_versions`, `contract_acceptances`, `contract_evidence_access_log`.
-**Tabelas alteradas:** nenhuma (apenas seed em `contract_versions`).
-**Funções RPC:** `register_contract_acceptance`, `generate_partner_evidence_report`, `calculate_early_termination`, `log_evidence_access`, `publish_contract_version` + trigger de hash + trigger de imutabilidade.
-**Telas alteradas:**
-- `PartnerContractTermsDialog` (frase oficial + link + chamada RPC + captura IP/UA).
-- `BettorContractTermsDialog` (mesma coisa, no signup).
-- `AuthContext.signUp` (chama RPC após signup).
-- `AdminPartnerManagement` → nova seção “Evidências do Aceite Eletrônico” com 4 botões.
-**Onde admin vê:** dentro do detalhe do parceiro em Gestão de Parceiros.
-**Exportação:** botão “Exportar relatório em PDF” na seção.
-**Dados existentes para contratos antigos:** somente indiretos (cadastro, pagamento, dados autodeclarados). Sem IP/UA/checkbox digital.
-**Dados que passam a ser coletados:** todos listados em `contract_acceptances` para toda nova adesão/upgrade.
-**Caso Sabriny:** não há evidência digital de checkbox/IP/UA. Evidências disponíveis: cadastro (`profiles`), adesão (`partner_contracts.created_at`), pagamento PIX confirmado (`payment_id`, `payment_status='completed'`), dados cadastrais (CPF, e‑mail). O PDF gerado para ela exibirá essas evidências com o aviso de “anterior à implementação do registro digital”.
+## 4. Próximo passo opcional (somente se você aprovar)
 
-## Fora de escopo (não alterar)
-Regras de repasses, planos, bônus, leilões, pagamentos, rede binária, lógica comercial. Apenas auditoria, registro de aceite, versionamento, relatório e cálculo de cancelamento.
+Caso queira, posso (em build mode) ajustar **apenas a label visual** "Assinado em" no escritório do parceiro para deixar tecnicamente mais preciso quando não houver registro em `contract_acceptances`, por exemplo:
+
+- Com aceite digital registrado → "Assinado eletronicamente em DD/MM/AAAA, HH:MM"
+- Sem aceite digital (pré-módulo) → "Contratado em DD/MM/AAAA, HH:MM (anterior ao módulo de evidências)"
+
+Isso é estritamente cosmético, não muda dado nem fluxo. Me confirme se deseja esse ajuste ou se devo apenas encerrar com o relatório acima.
