@@ -37,12 +37,15 @@ export const HeroSection = () => {
     >
       {/* Background decorative elements */}
       <div className="absolute inset-0 bg-black/10" aria-hidden="true"></div>
-      <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl" aria-hidden="true"></div>
-      <div className="absolute bottom-10 sm:bottom-20 right-5 sm:right-10 w-24 h-24 sm:w-32 sm:h-32 bg-accent/20 rounded-full blur-xl" aria-hidden="true"></div>
+      <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-16 h-16 sm:w-20 sm:h-20 bg-primary/15 rounded-full blur-2xl" aria-hidden="true"></div>
+      <div className="absolute bottom-10 sm:bottom-20 right-5 sm:right-10 w-24 h-24 sm:w-32 sm:h-32 bg-primary/20 rounded-full blur-2xl" aria-hidden="true"></div>
+      {/* Transição suave para a seção clara abaixo */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-background" aria-hidden="true"></div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-16 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" aria-hidden="true"></div>
       
       <div className="container mx-auto px-4 sm:px-6 relative z-10 w-full">
         <div className="max-w-4xl mx-auto">
-          <Badge className="mb-4 sm:mb-6 bg-background/20 text-foreground border-white/20 text-xs sm:text-sm">
+          <Badge className="mb-4 sm:mb-6 bg-background/10 text-white border border-primary/60 backdrop-blur-sm text-xs sm:text-sm shadow-[0_0_20px_hsl(var(--primary)/0.25)]">
             🔥 Leilões ao vivo agora!
           </Badge>
           
@@ -51,7 +54,11 @@ export const HeroSection = () => {
             className="text-3xl sm:text-4xl lg:text-6xl font-bold mb-4 sm:mb-6 text-white leading-tight"
           >
             Ganhe Produtos Incríveis por
-            <span className="block bg-gradient-primary bg-clip-text text-transparent mt-1 sm:mt-2">Centavos!</span>
+            <span
+              className="block mt-1 sm:mt-2 bg-gradient-primary bg-clip-text text-transparent drop-shadow-[0_2px_18px_hsl(var(--primary-glow)/0.55)]"
+            >
+              Centavos!
+            </span>
           </h1>
           
           <p className="text-base sm:text-xl lg:text-2xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
@@ -64,7 +71,7 @@ export const HeroSection = () => {
             <Link to="/leiloes" className="w-full sm:w-auto">
               <Button 
                 size="xl" 
-                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-glow font-semibold"
+                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-gradient-primary text-primary-foreground hover:opacity-95 shadow-glow font-semibold"
                 aria-label="Ver todos os leilões ativos"
               >
                 <TrendingUp className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
@@ -74,7 +81,8 @@ export const HeroSection = () => {
             <Link to={hasPartnerContract ? "/minha-parceria" : "/investir"} className="w-full sm:w-auto">
               <Button 
                 size="xl" 
-                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-accent hover:bg-accent/90 text-accent-foreground border-0"
+                variant="outline"
+                className="w-full text-base sm:text-lg py-4 sm:py-3 bg-transparent border-2 border-white/40 text-white hover:bg-white/10 hover:text-white hover:border-primary"
                 aria-label={hasPartnerContract ? "Acessar minha parceria" : "Conheça o programa de parceiros"}
               >
                 <Briefcase className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
