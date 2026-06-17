@@ -330,7 +330,7 @@ export const AuctionCard = ({
               👥 {displayParticipants >= 100 ? `+${Math.floor(displayParticipants / 100) * 100}` : displayParticipants} participantes
             </span>
             <span className="text-muted-foreground">·</span>
-            <span className="font-bold text-success">{calculateDiscount()}% OFF</span>
+            <span className="font-semibold text-success">Preço reduzido</span>
             {(displayStatus === 'active' || displayStatus === 'finished') && getActiveTime() !== null && (
               <>
                 <span className="text-muted-foreground">·</span>
