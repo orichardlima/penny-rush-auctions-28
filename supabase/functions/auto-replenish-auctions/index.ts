@@ -27,6 +27,30 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // 0. Atomic idempotency guard — only proceed if we win the UPDATE race (last_run < now - 60s).
+    // No prior read; the WHERE clause itself enforces the 60s gap. If 0 rows are updated,
+    // another invocation already ran in the last 60s and we abort.
+    const nowIso = new Date().toISOString()
+    const cutoffIso = new Date(Date.now() - 60_000).toISOString()
+    const { data: lockRows, error: lockErr } = await supabase
+      .from('system_settings')
+      .update({ setting_value: nowIso })
+      .eq('setting_key', 'auto_replenish_last_run')
+      .lt('setting_value', cutoffIso)
+      .select('setting_key')
+
+    if (lockErr) {
+      console.error('Lock acquisition error:', lockErr)
+      throw lockErr
+    }
+    if (!lockRows || lockRows.length === 0) {
+      console.log('Skipped: another invocation ran in the last 60s')
+      return new Response(JSON.stringify({ skipped: 'too-soon' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+
     // 1. Fetch settings
     const { data: settingsData, error: settingsError } = await supabase
       .from('system_settings')
