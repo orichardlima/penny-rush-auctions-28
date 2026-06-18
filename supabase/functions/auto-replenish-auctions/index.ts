@@ -233,9 +233,16 @@ Deno.serve(async (req) => {
         company_revenue: 0,
       }
 
+      // Defense in depth: never insert an auction without ends_at
+      if (!auctionData.ends_at || !auctionData.starts_at) {
+        console.error(`Skipping template ${template.id}: missing starts_at/ends_at`)
+        continue
+      }
+
       const { data: auction, error: insertError } = await supabase
         .from('auctions')
         .insert(auctionData)
+
         .select('id')
         .single()
 
