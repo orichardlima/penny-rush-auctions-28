@@ -3437,6 +3437,7 @@ export type Database = {
         }
         Returns: string
       }
+      panic_tick_loop: { Args: never; Returns: undefined }
       partner_check_leave_eligibility: {
         Args: { p_contract_id: string }
         Returns: Json
