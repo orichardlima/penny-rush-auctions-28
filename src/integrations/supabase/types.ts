@@ -3102,6 +3102,7 @@ export type Database = {
       }
       execute_overdue_bot_bids: { Args: never; Returns: Json }
       execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
+      execute_panic_bids: { Args: never; Returns: Json }
       expire_bid_lots: {
         Args: never
         Returns: {
