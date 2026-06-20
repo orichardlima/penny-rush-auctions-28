@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart, Gauge
+  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home
 } from 'lucide-react';
 import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
