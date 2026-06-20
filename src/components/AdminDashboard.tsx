@@ -126,6 +126,12 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+            <Link to="/" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">
+                <Home className="h-4 w-4 mr-2" />
+                Início
+              </Button>
+            </Link>
             <Button variant="outline" onClick={refreshData} disabled={financialLoading} className="flex-1 sm:flex-none">
               <RefreshCw className={`h-4 w-4 mr-2 ${financialLoading ? 'animate-spin' : ''}`} />
               Atualizar Dados
