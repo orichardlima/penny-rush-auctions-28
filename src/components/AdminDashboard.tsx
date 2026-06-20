@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart, Gauge
+  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home
 } from 'lucide-react';
 import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
@@ -125,6 +126,12 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+            <Link to="/" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">
+                <Home className="h-4 w-4 mr-2" />
+                Início
+              </Button>
+            </Link>
             <Button variant="outline" onClick={refreshData} disabled={financialLoading} className="flex-1 sm:flex-none">
               <RefreshCw className={`h-4 w-4 mr-2 ${financialLoading ? 'animate-spin' : ''}`} />
               Atualizar Dados
