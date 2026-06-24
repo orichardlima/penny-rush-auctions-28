@@ -3519,6 +3519,10 @@ export type Database = {
         Args: { p_auction_id: string }
         Returns: Json
       }
+      recalc_partner_contract_totals: {
+        Args: { _contract_id: string }
+        Returns: undefined
+      }
       register_contract_acceptance: {
         Args: {
           p_accepted_at_client?: string
