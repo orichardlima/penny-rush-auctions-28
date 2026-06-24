@@ -318,7 +318,8 @@ const AdminPartnerManagement = () => {
     const pixKey = withdrawal.payment_details?.pix_key || '';
     const pixType = withdrawal.payment_details?.pix_key_type || '';
     const holderName = withdrawal.payment_details?.holder_name || withdrawal.user_name || '';
-    const amount = formatPrice(withdrawal.amount);
+    const payable = Number(withdrawal.net_amount ?? withdrawal.amount) || 0;
+    const amount = formatPrice(payable);
     const text = `PIX: ${pixKey} (${pixType}) | Valor: ${amount} | Nome: ${holderName}`;
     copyToClipboard(text, 'Dados PIX');
   };
