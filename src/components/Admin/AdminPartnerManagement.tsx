@@ -318,7 +318,8 @@ const AdminPartnerManagement = () => {
     const pixKey = withdrawal.payment_details?.pix_key || '';
     const pixType = withdrawal.payment_details?.pix_key_type || '';
     const holderName = withdrawal.payment_details?.holder_name || withdrawal.user_name || '';
-    const amount = formatPrice(withdrawal.amount);
+    const payable = Number(withdrawal.net_amount ?? withdrawal.amount) || 0;
+    const amount = formatPrice(payable);
     const text = `PIX: ${pixKey} (${pixType}) | Valor: ${amount} | Nome: ${holderName}`;
     copyToClipboard(text, 'Dados PIX');
   };
@@ -2018,10 +2019,23 @@ const AdminPartnerManagement = () => {
                   </div>
 
                   {/* Valor em destaque */}
-                  <div className="p-4 bg-primary/10 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Valor do Saque</p>
-                    <p className="text-2xl font-bold text-primary">{formatPrice(pixConfirmWithdrawal.amount)}</p>
-                  </div>
+                  {(() => {
+                    const gross = Number(pixConfirmWithdrawal.amount) || 0;
+                    const hasNet = pixConfirmWithdrawal.net_amount !== null && pixConfirmWithdrawal.net_amount !== undefined;
+                    const net = hasNet ? Number(pixConfirmWithdrawal.net_amount) : gross;
+                    const fee = hasNet ? Number(pixConfirmWithdrawal.fee_amount ?? (gross - net)) : 0;
+                    return (
+                      <div className="p-4 bg-primary/10 rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Valor Líquido a Pagar</p>
+                        <p className="text-2xl font-bold text-primary">{formatPrice(net)}</p>
+                        {hasNet && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Bruto: {formatPrice(gross)} • Taxa: {formatPrice(fee)}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Dados PIX */}
                   <div className="space-y-2">
