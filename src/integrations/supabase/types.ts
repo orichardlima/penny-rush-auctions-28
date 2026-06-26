@@ -3111,6 +3111,16 @@ export type Database = {
         }[]
       }
       expire_suspended_bonuses: { Args: never; Returns: undefined }
+      find_orphan_binary_points: {
+        Args: never
+        Returns: {
+          leg: string
+          orphan_points: number
+          partner_contract_id: string
+          partner_name: string
+          plan_name: string
+        }[]
+      }
       fix_partner_referral: {
         Args: { p_referral_code: string; p_referred_contract_id: string }
         Returns: Json
@@ -3548,6 +3558,10 @@ export type Database = {
       resolve_manager_by_ref_code: {
         Args: { _ref_code: string }
         Returns: string
+      }
+      reverse_orphan_binary_points: {
+        Args: { p_contract_id: string; p_leg: string; p_reason_note: string }
+        Returns: Json
       }
       tick_bot_executor: { Args: never; Returns: undefined }
       try_protection_lock: { Args: never; Returns: boolean }
