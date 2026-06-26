@@ -361,7 +361,7 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
         weeklyHistory={weeklyHistory}
         loading={loadingHistory}
         initialWeeks={8}
-        onChangeWeeks={useCallback((n: number) => { fetchHistory(n); }, [fetchHistory])}
+        onChangeWeeks={handleChangeHistoryWeeks}
       />
     </div>
   );
