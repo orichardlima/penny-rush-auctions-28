@@ -11,8 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { GitBranch, Settings, History, Play, Users, TrendingUp, DollarSign, RefreshCw, AlertTriangle, TreePine } from 'lucide-react';
+import { GitBranch, Settings, History, Play, Users, TrendingUp, DollarSign, RefreshCw, AlertTriangle, TreePine, Undo2 } from 'lucide-react';
 import { AdminBinaryTreeView } from './AdminBinaryTreeView';
+import { OrphanBinaryPointsPanel } from './OrphanBinaryPointsPanel';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
