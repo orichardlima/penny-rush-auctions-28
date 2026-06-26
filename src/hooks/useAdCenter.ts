@@ -142,6 +142,37 @@ export const useAdCenter = (partnerContractId?: string) => {
     setCompletions((data as AdCenterCompletion[]) || []);
   }, [partnerContractId]);
 
+  // Buscar histórico retroativo de confirmações
+  const fetchHistory = useCallback(async (weeksBack: number = 8) => {
+    if (!partnerContractId) return;
+    setLoadingHistory(true);
+    try {
+      const now = new Date();
+      const currentWeekStart = getWeekStart(now);
+      // Data de início: N semanas atrás (antes da semana corrente)
+      const start = new Date(currentWeekStart);
+      start.setDate(start.getDate() - weeksBack * 7);
+
+      const { data, error } = await supabase
+        .from('ad_center_completions')
+        .select('*')
+        .eq('partner_contract_id', partnerContractId)
+        .gte('completion_date', formatDateBrazil(start))
+        .lt('completion_date', formatDateBrazil(currentWeekStart))
+        .order('completion_date', { ascending: false });
+
+      if (error) {
+        console.error('[useAdCenter] Erro ao buscar histórico:', error);
+        return;
+      }
+
+      setHistoryCompletions((data as AdCenterCompletion[]) || []);
+      setHistoryWeeksBack(weeksBack);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [partnerContractId]);
+
   // Carregar dados
   useEffect(() => {
     const load = async () => {
