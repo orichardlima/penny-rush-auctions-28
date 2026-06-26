@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import WeeklyAdsHistory from './WeeklyAdsHistory';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,12 +48,20 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
   const {
     todayMaterial,
     weekProgress,
+    weeklyHistory,
+    loadingHistory,
+    fetchHistory,
     loading,
     confirming,
     confirmCompletion
   } = useAdCenter(partnerContractId);
 
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
+
+  const handleChangeHistoryWeeks = useCallback((n: number) => {
+    fetchHistory(n);
+  }, [fetchHistory]);
+
 
   const handleCopyCaption = () => {
     if (!todayMaterial?.description) return;
@@ -346,6 +355,14 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
           </div>
         </CardContent>
       </Card>
+
+      {/* Histórico Retroativo */}
+      <WeeklyAdsHistory
+        weeklyHistory={weeklyHistory}
+        loading={loadingHistory}
+        initialWeeks={8}
+        onChangeWeeks={handleChangeHistoryWeeks}
+      />
     </div>
   );
 };

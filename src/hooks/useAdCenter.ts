@@ -41,6 +41,25 @@ export interface WeekProgress {
   canConfirmToday: boolean;
 }
 
+export interface HistoryDayStatus {
+  date: string;
+  dayName: string;
+  dayNumber: number;
+  completed: boolean;
+  socialNetwork: string | null;
+  confirmedAt: string | null;
+}
+
+export interface WeeklyHistoryEntry {
+  weekStart: string;
+  weekEnd: string;
+  days: HistoryDayStatus[];
+  completedDays: number;
+  requiredDays: number;
+  unlockPercentage: number;
+  status: 'META' | 'PARCIAL' | 'ZERO';
+}
+
 const REQUIRED_DAYS = 7;
 const FULL_PERCENTAGE = 100;
 const PENALTY_PERCENTAGE = 40;
@@ -78,7 +97,10 @@ export const useAdCenter = (partnerContractId?: string) => {
   const { user } = useAuth();
   const [materials, setMaterials] = useState<AdCenterMaterial[]>([]);
   const [completions, setCompletions] = useState<AdCenterCompletion[]>([]);
+  const [historyCompletions, setHistoryCompletions] = useState<AdCenterCompletion[]>([]);
+  const [historyWeeksBack, setHistoryWeeksBack] = useState<number>(8);
   const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   // Buscar materiais ativos
@@ -118,6 +140,37 @@ export const useAdCenter = (partnerContractId?: string) => {
     }
 
     setCompletions((data as AdCenterCompletion[]) || []);
+  }, [partnerContractId]);
+
+  // Buscar histórico retroativo de confirmações
+  const fetchHistory = useCallback(async (weeksBack: number = 8) => {
+    if (!partnerContractId) return;
+    setLoadingHistory(true);
+    try {
+      const now = new Date();
+      const currentWeekStart = getWeekStart(now);
+      // Data de início: N semanas atrás (antes da semana corrente)
+      const start = new Date(currentWeekStart);
+      start.setDate(start.getDate() - weeksBack * 7);
+
+      const { data, error } = await supabase
+        .from('ad_center_completions')
+        .select('*')
+        .eq('partner_contract_id', partnerContractId)
+        .gte('completion_date', formatDateBrazil(start))
+        .lt('completion_date', formatDateBrazil(currentWeekStart))
+        .order('completion_date', { ascending: false });
+
+      if (error) {
+        console.error('[useAdCenter] Erro ao buscar histórico:', error);
+        return;
+      }
+
+      setHistoryCompletions((data as AdCenterCompletion[]) || []);
+      setHistoryWeeksBack(weeksBack);
+    } finally {
+      setLoadingHistory(false);
+    }
   }, [partnerContractId]);
 
   // Carregar dados
@@ -191,6 +244,54 @@ export const useAdCenter = (partnerContractId?: string) => {
     };
   }, [completions]);
 
+  // Histórico agrupado por semana (a partir de historyCompletions)
+  const weeklyHistory = useMemo((): WeeklyHistoryEntry[] => {
+    const now = new Date();
+    const currentWeekStart = getWeekStart(now);
+    const weeks: WeeklyHistoryEntry[] = [];
+
+    for (let w = 1; w <= historyWeeksBack; w++) {
+      const wStart = new Date(currentWeekStart);
+      wStart.setDate(wStart.getDate() - w * 7);
+      const wEnd = new Date(wStart);
+      wEnd.setDate(wEnd.getDate() + 6);
+
+      const days: HistoryDayStatus[] = [];
+      let completedDays = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(wStart);
+        d.setDate(wStart.getDate() + i);
+        const dateStr = formatDateBrazil(d);
+        const match = historyCompletions.find(c => c.completion_date === dateStr);
+        if (match) completedDays++;
+        days.push({
+          date: dateStr,
+          dayName: DAY_NAMES[d.getDay()],
+          dayNumber: d.getDate(),
+          completed: !!match,
+          socialNetwork: match?.social_network ?? null,
+          confirmedAt: match?.confirmed_at ?? null,
+        });
+      }
+
+      const status: 'META' | 'PARCIAL' | 'ZERO' =
+        completedDays >= REQUIRED_DAYS ? 'META' : completedDays === 0 ? 'ZERO' : 'PARCIAL';
+      const unlockPercentage = status === 'META' ? FULL_PERCENTAGE : PENALTY_PERCENTAGE;
+
+      weeks.push({
+        weekStart: formatDateBrazil(wStart),
+        weekEnd: formatDateBrazil(wEnd),
+        days,
+        completedDays,
+        requiredDays: REQUIRED_DAYS,
+        unlockPercentage,
+        status,
+      });
+    }
+    return weeks;
+  }, [historyCompletions, historyWeeksBack]);
+
+
   // Confirmar divulgação do dia
   const confirmCompletion = async (socialNetwork: string, materialId?: string): Promise<boolean> => {
     if (!partnerContractId) {
@@ -263,6 +364,10 @@ export const useAdCenter = (partnerContractId?: string) => {
     todayMaterial,
     completions,
     weekProgress,
+    weeklyHistory,
+    loadingHistory,
+    historyWeeksBack,
+    fetchHistory,
     loading,
     confirming,
     confirmCompletion,
