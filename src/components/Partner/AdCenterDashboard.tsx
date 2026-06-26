@@ -58,6 +58,11 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
 
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
 
+  const handleChangeHistoryWeeks = useCallback((n: number) => {
+    fetchHistory(n);
+  }, [fetchHistory]);
+
+
   const handleCopyCaption = () => {
     if (!todayMaterial?.description) return;
     navigator.clipboard.writeText(todayMaterial.description);
