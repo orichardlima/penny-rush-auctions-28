@@ -69,9 +69,10 @@ export const BinaryNetworkManager: React.FC = () => {
       </Card>
 
       <Tabs defaultValue="tree">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="tree"><TreePine className="w-4 h-4 mr-2" />Estrutura da Rede</TabsTrigger>
           <TabsTrigger value="cycle"><Play className="w-4 h-4 mr-2" />Fechar Ciclo</TabsTrigger>
+          <TabsTrigger value="orphans"><Undo2 className="w-4 h-4 mr-2" />Órfãos</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-2" />Histórico</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-2" />Configurações</TabsTrigger>
         </TabsList>
@@ -79,6 +80,11 @@ export const BinaryNetworkManager: React.FC = () => {
         <TabsContent value="tree">
           <AdminBinaryTreeView />
         </TabsContent>
+
+        <TabsContent value="orphans">
+          <OrphanBinaryPointsPanel />
+        </TabsContent>
+
 
         <TabsContent value="cycle" className="space-y-4">
           <Card>
