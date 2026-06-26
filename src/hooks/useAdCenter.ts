@@ -244,6 +244,54 @@ export const useAdCenter = (partnerContractId?: string) => {
     };
   }, [completions]);
 
+  // Histórico agrupado por semana (a partir de historyCompletions)
+  const weeklyHistory = useMemo((): WeeklyHistoryEntry[] => {
+    const now = new Date();
+    const currentWeekStart = getWeekStart(now);
+    const weeks: WeeklyHistoryEntry[] = [];
+
+    for (let w = 1; w <= historyWeeksBack; w++) {
+      const wStart = new Date(currentWeekStart);
+      wStart.setDate(wStart.getDate() - w * 7);
+      const wEnd = new Date(wStart);
+      wEnd.setDate(wEnd.getDate() + 6);
+
+      const days: HistoryDayStatus[] = [];
+      let completedDays = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(wStart);
+        d.setDate(wStart.getDate() + i);
+        const dateStr = formatDateBrazil(d);
+        const match = historyCompletions.find(c => c.completion_date === dateStr);
+        if (match) completedDays++;
+        days.push({
+          date: dateStr,
+          dayName: DAY_NAMES[d.getDay()],
+          dayNumber: d.getDate(),
+          completed: !!match,
+          socialNetwork: match?.social_network ?? null,
+          confirmedAt: match?.confirmed_at ?? null,
+        });
+      }
+
+      const status: 'META' | 'PARCIAL' | 'ZERO' =
+        completedDays >= REQUIRED_DAYS ? 'META' : completedDays === 0 ? 'ZERO' : 'PARCIAL';
+      const unlockPercentage = status === 'META' ? FULL_PERCENTAGE : PENALTY_PERCENTAGE;
+
+      weeks.push({
+        weekStart: formatDateBrazil(wStart),
+        weekEnd: formatDateBrazil(wEnd),
+        days,
+        completedDays,
+        requiredDays: REQUIRED_DAYS,
+        unlockPercentage,
+        status,
+      });
+    }
+    return weeks;
+  }, [historyCompletions, historyWeeksBack]);
+
+
   // Confirmar divulgação do dia
   const confirmCompletion = async (socialNetwork: string, materialId?: string): Promise<boolean> => {
     if (!partnerContractId) {
