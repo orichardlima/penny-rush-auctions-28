@@ -350,6 +350,14 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
           </div>
         </CardContent>
       </Card>
+
+      {/* Histórico Retroativo */}
+      <WeeklyAdsHistory
+        weeklyHistory={weeklyHistory}
+        loading={loadingHistory}
+        initialWeeks={8}
+        onChangeWeeks={useCallback((n: number) => { fetchHistory(n); }, [fetchHistory])}
+      />
     </div>
   );
 };
