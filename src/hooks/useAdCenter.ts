@@ -97,7 +97,10 @@ export const useAdCenter = (partnerContractId?: string) => {
   const { user } = useAuth();
   const [materials, setMaterials] = useState<AdCenterMaterial[]>([]);
   const [completions, setCompletions] = useState<AdCenterCompletion[]>([]);
+  const [historyCompletions, setHistoryCompletions] = useState<AdCenterCompletion[]>([]);
+  const [historyWeeksBack, setHistoryWeeksBack] = useState<number>(8);
   const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   // Buscar materiais ativos
