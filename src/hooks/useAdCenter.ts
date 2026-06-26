@@ -41,6 +41,25 @@ export interface WeekProgress {
   canConfirmToday: boolean;
 }
 
+export interface HistoryDayStatus {
+  date: string;
+  dayName: string;
+  dayNumber: number;
+  completed: boolean;
+  socialNetwork: string | null;
+  confirmedAt: string | null;
+}
+
+export interface WeeklyHistoryEntry {
+  weekStart: string;
+  weekEnd: string;
+  days: HistoryDayStatus[];
+  completedDays: number;
+  requiredDays: number;
+  unlockPercentage: number;
+  status: 'META' | 'PARCIAL' | 'ZERO';
+}
+
 const REQUIRED_DAYS = 7;
 const FULL_PERCENTAGE = 100;
 const PENALTY_PERCENTAGE = 40;
