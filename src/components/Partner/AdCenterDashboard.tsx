@@ -47,6 +47,9 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
   const {
     todayMaterial,
     weekProgress,
+    weeklyHistory,
+    loadingHistory,
+    fetchHistory,
     loading,
     confirming,
     confirmCompletion
