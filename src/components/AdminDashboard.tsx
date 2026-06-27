@@ -10,8 +10,9 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home
+  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home, Download
 } from 'lucide-react';
+import PlatformDownloadsManager from '@/components/Admin/PlatformDownloadsManager';
 import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
 import { AdminFinancialOverview } from '@/components/AdminFinancialOverview';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
@@ -235,6 +236,9 @@ const AdminDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="bot-monitor" title="Monitor Bots" className="flex items-center gap-2 shrink-0">
               <Gauge className="h-4 w-4" /><span className="hidden sm:inline">Monitor Bots</span>
+            </TabsTrigger>
+            <TabsTrigger value="downloads" title="Downloads" className="flex items-center gap-2 shrink-0">
+              <Download className="h-4 w-4" /><span className="hidden sm:inline">Downloads</span>
             </TabsTrigger>
           </TabsList>
 
