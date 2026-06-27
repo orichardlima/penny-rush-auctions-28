@@ -86,7 +86,7 @@ export const HeroSection = () => {
                 aria-label={hasPartnerContract ? "Acessar minha parceria" : "Conheça o programa de parceiros"}
               >
                 <Briefcase className="w-5 h-5 sm:w-5 sm:h-5 mr-2" aria-hidden="true" />
-                {hasPartnerContract ? "Minha Parceria" : "Seja um Parceiro"}
+                {hasPartnerContract ? "Minha Parceria" : "Seja um Parceiro de Expansão"}
               </Button>
             </Link>
           </div>
