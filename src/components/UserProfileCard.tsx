@@ -464,7 +464,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 "Usuário engajado com boa frequência de lances. Oportunidade de aumentar gastos."
               }
               {analytics.user_classification === 'Parceiro' && 
-                "Parceiro ativo com contrato vigente. Acompanhar rendimentos e indicações."
+                "Parceiro ativo com contrato vigente. Acompanhar repasses e indicações."
               }
               {analytics.user_classification === 'Casual' && 
                 "Usuário ocasional. Estratégias de engajamento podem aumentar atividade."

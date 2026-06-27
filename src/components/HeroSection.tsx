@@ -78,7 +78,7 @@ export const HeroSection = () => {
                 Ver Leilões Ativos
               </Button>
             </Link>
-            <Link to={hasPartnerContract ? "/minha-parceria" : "/investir"} className="w-full sm:w-auto">
+            <Link to={hasPartnerContract ? "/minha-parceria" : "/parceiro"} className="w-full sm:w-auto">
               <Button 
                 size="xl" 
                 variant="outline"

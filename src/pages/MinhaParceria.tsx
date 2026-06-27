@@ -60,7 +60,7 @@ const MinhaParceria = () => {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex flex-col">
       <SEOHead 
         title="Minha Parceria" 
-        description="Acompanhe seu investimento, rendimentos semanais e gerencie sua parceria no Show de Lances."
+        description="Acompanhe seus aportes, repasses semanais e gerencie sua parceria no Show de Lances."
       />
       <Header userBids={profile?.bids_balance || 0} onBuyBids={() => {}} />
       

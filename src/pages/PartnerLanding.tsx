@@ -51,7 +51,7 @@ const PartnerLanding = () => {
     <div className="min-h-screen bg-background">
       <SEOHead 
         title="Seja Parceiro"
-        description="Participe do crescimento do Show de Lances. Programa de parceria com rendimentos semanais, teto garantido e transparência total."
+        description="Participe do crescimento do Show de Lances. Programa de parceria com repasses semanais, teto definido em contrato e transparência total."
       />
       <Header onBuyBids={handleBuyBids} />
 
