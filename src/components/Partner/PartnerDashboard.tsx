@@ -457,7 +457,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold">Torne-se um Parceiro</h2>
+          <h2 className="text-2xl font-bold">Seja um Parceiro de Expansão</h2>
           <p className="text-muted-foreground">
             Escolha um plano de participação e participe de repasses semanais, proporcionais ao faturamento da plataforma
           </p>

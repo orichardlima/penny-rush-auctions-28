@@ -41,7 +41,7 @@ export const Footer = () => {
               </li>
               <li>
                 <Link to="/parceiro" className="hover:opacity-100 transition-opacity">
-                  Seja Parceiro
+                  Seja um Parceiro de Expansão
                 </Link>
               </li>
             </ul>

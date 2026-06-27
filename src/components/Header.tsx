@@ -100,7 +100,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
 
   // Partner link config based on user status
   const partnerLink = hasPartnerContract ? '/minha-parceria' : '/parceiro';
-  const partnerLabel = hasPartnerContract ? 'Minha Parceria' : 'Seja Parceiro';
+  const partnerLabel = hasPartnerContract ? 'Minha Parceria' : 'Seja um Parceiro de Expansão';
 
   const isCurrentPage = (path: string) => location.pathname === path;
 

@@ -50,7 +50,7 @@ const PartnerLanding = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="Seja Parceiro"
+        title="Seja um Parceiro de Expansão"
         description="Participe do crescimento do Show de Lances. Programa de parceria com repasses semanais, teto definido em contrato e transparência total."
       />
       <Header onBuyBids={handleBuyBids} />
@@ -112,7 +112,7 @@ const PartnerLanding = () => {
         <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4">
-              Pronto para se Tornar um Parceiro?
+              Pronto para ser um Parceiro de Expansão?
             </h2>
             <p className="text-purple-100/80 text-lg mb-8">
               Junte-se a mais de 150 parceiros que já estão participando do crescimento da plataforma
