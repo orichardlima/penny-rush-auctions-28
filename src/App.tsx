@@ -156,6 +156,7 @@ const TermosDeUso = lazyWithRetry(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacidade"));
 const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
 const Contato = lazyWithRetry(() => import("./pages/Contato"));
+const Downloads = lazyWithRetry(() => import("./pages/Downloads"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -197,6 +198,7 @@ const AppContent = () => {
       <Route path="/privacidade" element={<LazyRoute><PoliticaPrivacidade /></LazyRoute>} />
       <Route path="/faq" element={<LazyRoute><FAQ /></LazyRoute>} />
       <Route path="/contato" element={<LazyRoute><Contato /></LazyRoute>} />
+      <Route path="/downloads" element={<LazyRoute><Downloads /></LazyRoute>} />
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
   );
