@@ -51,7 +51,7 @@ const AdminParceiros = () => {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex flex-col">
       <SEOHead 
         title="Gestão de Parceiros" 
-        description="Administração de parceiros e contratos de investimento da plataforma."
+        description="Administração de parceiros e contratos de parceria da plataforma."
       />
       <Header />
       

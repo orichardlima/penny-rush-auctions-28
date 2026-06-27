@@ -896,7 +896,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <DollarSign className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-sm">
               <strong>O que são Repasses?</strong> São valores creditados automaticamente em sua conta 
-              com base no rendimento semanal da plataforma. Esses valores ficam disponíveis para 
+              com base no faturamento semanal da plataforma. Esses valores ficam disponíveis para 
               saque via PIX na aba "Saques".
             </AlertDescription>
           </Alert>
@@ -1120,7 +1120,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                     Histórico de Repasses Creditados
                   </CardTitle>
                   <CardDescription>
-                    Valores calculados e adicionados ao seu saldo com base no rendimento semanal.
+                    Valores calculados e adicionados ao seu saldo com base no faturamento semanal.
                     Estes valores ficam disponíveis para saque na aba "Saques".
                   </CardDescription>
                 </div>
