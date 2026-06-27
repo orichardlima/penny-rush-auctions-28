@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { usePlatformDownloads, CATEGORY_LABELS, DownloadCategory, PlatformDownload } from '@/hooks/usePlatformDownloads';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+
 
 const emptyForm = {
   id: '' as string | null,
@@ -48,7 +48,6 @@ export const PlatformDownloadsManager = () => {
   const handleSave = async () => {
     if (!form.title.trim()) { toast({ title: 'Título obrigatório', variant: 'destructive' }); return; }
     if (!form.id && !form.file) { toast({ title: 'Selecione um arquivo', variant: 'destructive' }); return; }
-    if (form.file && form.file.size > MAX_BYTES) { toast({ title: 'Arquivo maior que 20 MB', variant: 'destructive' }); return; }
 
     setSaving(true);
     try {
@@ -209,7 +208,7 @@ export const PlatformDownloadsManager = () => {
             <div>
               <Label>Arquivo {form.id && <span className="text-xs text-muted-foreground">(deixe vazio para manter atual)</span>}</Label>
               <Input type="file" onChange={e => setForm({ ...form, file: e.target.files?.[0] || null })} />
-              <p className="text-xs text-muted-foreground mt-1">Máximo 20 MB.</p>
+              <p className="text-xs text-muted-foreground mt-1">Sem limite de tamanho.</p>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
