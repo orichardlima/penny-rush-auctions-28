@@ -12,6 +12,7 @@ import { Plus, Trash2, Pencil, Loader2, Download as DownloadIcon } from 'lucide-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { usePlatformDownloads, CATEGORY_LABELS, DownloadCategory, PlatformDownload } from '@/hooks/usePlatformDownloads';
+import { uploadResumable } from '@/utils/resumableUpload';
 
 
 
@@ -30,6 +31,7 @@ export const PlatformDownloadsManager = () => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const openNew = () => { setForm({ ...emptyForm, id: null }); setOpen(true); };
   const openEdit = (it: PlatformDownload) => {
@@ -59,10 +61,8 @@ export const PlatformDownloadsManager = () => {
       if (form.file) {
         const ext = form.file.name.split('.').pop() || 'bin';
         storage_path = `${form.category}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('platform-downloads')
-          .upload(storage_path, form.file, { contentType: form.file.type, upsert: false });
-        if (upErr) throw upErr;
+        setProgress(0);
+        await uploadResumable('platform-downloads', storage_path, form.file, setProgress);
         file_name = form.file.name;
         file_size = form.file.size;
         mime_type = form.file.type;
@@ -218,7 +218,8 @@ export const PlatformDownloadsManager = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {saving ? (progress > 0 && progress < 100 ? `Enviando ${progress}%` : 'Salvando...') : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
