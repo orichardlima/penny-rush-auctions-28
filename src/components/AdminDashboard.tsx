@@ -343,6 +343,10 @@ const AdminDashboard = () => {
             {mountedTabs.has('vault-config') && <FuryVaultConfigManager />}
           </TabsContent>
 
+          <TabsContent value="downloads" className="space-y-6">
+            {mountedTabs.has('downloads') && <PlatformDownloadsManager />}
+          </TabsContent>
+
           <TabsContent value="bot-monitor" className="space-y-6">
             {mountedTabs.has('bot-monitor') && <BotMonitorDashboard />}
           </TabsContent>
