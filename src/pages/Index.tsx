@@ -235,7 +235,7 @@ const Index = () => {
               <div className="flex-1 text-center lg:text-left">
                 <Badge className="bg-accent text-accent-foreground mb-4">Exclusivo</Badge>
                 <h2 className="text-3xl font-bold mb-4">
-                  Seja um Parceiro Investidor
+                  Seja um Parceiro de Expansão
                 </h2>
                 <p className="text-lg text-muted-foreground mb-6">
                   Contribua com a plataforma e receba repasses semanais proporcionais 

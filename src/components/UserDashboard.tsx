@@ -370,7 +370,7 @@ const UserDashboard = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-foreground">💎 Seja um Parceiro Investidor!</h3>
+                      <h3 className="text-lg font-bold text-foreground">💎 Seja um Parceiro de Expansão!</h3>
                       <Badge className="bg-purple-500 text-white text-xs">PRO</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
