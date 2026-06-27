@@ -48,7 +48,6 @@ export const PlatformDownloadsManager = () => {
   const handleSave = async () => {
     if (!form.title.trim()) { toast({ title: 'Título obrigatório', variant: 'destructive' }); return; }
     if (!form.id && !form.file) { toast({ title: 'Selecione um arquivo', variant: 'destructive' }); return; }
-    if (form.file && form.file.size > MAX_BYTES) { toast({ title: 'Arquivo maior que 20 MB', variant: 'destructive' }); return; }
 
     setSaving(true);
     try {
