@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { usePlatformDownloads, CATEGORY_LABELS, DownloadCategory, PlatformDownload } from '@/hooks/usePlatformDownloads';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+
 
 const emptyForm = {
   id: '' as string | null,
