@@ -1,47 +1,58 @@
-## Central de Downloads
 
-Página `/downloads` acessível a qualquer usuário logado, com gestão completa via Painel Admin.
+## Auditoria de Compliance – Termos a Corrigir
 
-### 1. Banco de dados
-Nova tabela `platform_downloads`:
-- `id`, `title`, `description`, `category` (enum: `contrato`, `apresentacao`, `kit_divulgacao`, `regulamento`, `outros`), `file_url`, `file_name`, `file_size`, `mime_type`, `display_order`, `is_active`, `download_count`, `created_at`, `updated_at`, `created_by`.
-- RLS: SELECT para `authenticated` (apenas `is_active=true`); INSERT/UPDATE/DELETE apenas para admin via `is_admin_user()`.
-- GRANTs explícitos para `authenticated` e `service_role`.
+Varredura completa do site identificou ocorrências de **"investimento"**, **"rendimento"**, **"ROI"**, **"retorno"** e **"investidor"** em áreas voltadas ao público (landing do parceiro, dashboard pessoal, SEO, hero da home). Esses termos podem caracterizar oferta de investimento financeiro perante CVM/BCB e devem ser substituídos pela linguagem oficial de **parceria/aporte/repasse**.
 
-Nova tabela `platform_download_logs` (auditoria opcional):
-- `id`, `download_id`, `user_id`, `downloaded_at`, `ip_address`.
-- Trigger incrementa `download_count` automaticamente.
+### Substituições padrão a aplicar
 
-### 2. Storage
-Bucket privado `platform-downloads` no Supabase Storage. Acesso via Signed URL (validade 5 min) gerada sob demanda — garante que apenas usuários logados baixem.
+| Termo atual | Substituir por |
+|---|---|
+| Investimento / Investir | Aporte / Participar como parceiro |
+| Investidor | Parceiro |
+| Rendimento / Rendimentos | Repasse / Repasses |
+| Retorno / Retorno sobre investimento | Recebimento / Resultado da parceria |
+| Simular Investimento | Simular Participação |
+| Calculadora de Investimento | Simulador de Parceria |
+| "/investir" (texto visível) | "/parceiro" |
 
-### 3. Frontend — Usuário (`/downloads`)
-Nova página `src/pages/Downloads.tsx`:
-- Cards agrupados por categoria com ícone (FileText, Presentation, Megaphone, Scale).
-- Cada card: título, descrição, tamanho, botão "Baixar" (gera signed URL e dispara download).
-- Responsivo (grid 1/2/3 colunas).
-- Empty state quando categoria está vazia.
-- Link adicionado no menu do Header e no Footer.
+### Arquivos com alterações apenas de copy/UI visível
 
-### 4. Frontend — Admin
-Nova aba "Downloads" em `AdminDashboard.tsx` com componente `PlatformDownloadsManager`:
-- Lista todos os arquivos (ativos + inativos) com ordenação drag/seta.
-- Botão "Novo arquivo": modal com upload, título, descrição, categoria, ordem.
-- Ações por linha: editar metadados, ativar/desativar, excluir (remove do storage + tabela).
-- Coluna com contador de downloads.
+1. **`src/components/Investir/InvestmentHero.tsx`**
+   - Manter o badge legal "não representa investimento financeiro" (é disclaimer correto).
+   - Sem outras ocorrências visíveis — manter.
 
-### 5. Conteúdo inicial
-A página fica pronta vazia. O admin sobe os 4 materiais (Contrato APN, Apresentação, Kit, Regulamento) pelo painel após a publicação — sem precisar de deploy.
+2. **`src/components/Investir/InvestmentFAQ.tsx`**
+   - Reformular a primeira pergunta: trocar `"Isso é um investimento financeiro?"` por `"O Programa de Parceiros é um investimento financeiro?"` mantendo a resposta atual (já está em conformidade).
 
-### Detalhes técnicos
-- Limite de upload: 20 MB por arquivo (validação client + edge).
-- Categorias como enum Postgres `download_category` para integridade.
-- Signed URL gerada via `supabase.storage.from('platform-downloads').createSignedUrl(path, 300)`.
-- Sem alterações em UI/fluxos existentes — apenas adições.
+3. **`src/pages/PartnerLanding.tsx`**
+   - Meta description: trocar `"rendimentos semanais"` por `"repasses semanais"`.
 
-### Fora de escopo
-- Versionamento de arquivos (substitui in-place).
-- Notificação push quando admin sobe novo material (pode ser fase 2).
-- Permissões granulares por tipo de usuário (todos logados veem tudo).
+4. **`src/pages/MinhaParceria.tsx`**
+   - Meta description: trocar `"Acompanhe seu investimento, rendimentos semanais…"` por `"Acompanhe seus aportes, repasses semanais e gerencie sua parceria…"`.
 
-Aprovar para eu implementar?
+5. **`src/pages/AdminParceiros.tsx`** (visível apenas para admin no `<title>`)
+   - Trocar `"contratos de investimento"` por `"contratos de parceria"`.
+
+6. **`src/components/Partner/PartnerDashboard.tsx`** (linhas 899 e 1123)
+   - Trocar `"rendimento semanal da plataforma"` por `"faturamento semanal da plataforma"`.
+
+7. **`src/components/UserProfileCard.tsx`** (linha 467)
+   - Trocar `"Acompanhar rendimentos e indicações."` por `"Acompanhar repasses e indicações."`.
+
+8. **`src/components/HeroSection.tsx`** (linha 81)
+   - Atualizar link de `"/investir"` para `"/parceiro"` (a rota antiga já redireciona, mas evita o termo no HTML/SEO).
+
+### Áreas **mantidas como estão** (decisão consciente)
+
+- **`AuctionHistory.tsx`, `PersonalAnalytics.tsx`, `FinancialDashboard.tsx`, `AuctionDetailView.tsx`, `FinancialAnalytics/AuctionFinancialCard.tsx`, `AdminFinancial/TopPerformingAuctions.tsx`** — usam ROI/retorno no contexto de **leilões** (gasto em lances vs valor do produto arrematado). Isso é métrica de jogo/leilão, não de programa de parceria, e não configura oferta de investimento. **Não alterar.**
+- **Pasta `src/components/Investir/`** e rota `/investir` em `App.tsx` (já é redirect → `/parceiro`) — renomear pasta/rota é refactor amplo e fora do escopo de compliance de copy. Mantém-se como nomenclatura interna de código.
+- **Disclaimers existentes** (`PartnershipDisclaimer.tsx`, hero, FAQ, rodapé legal de `PartnerLanding`) usam "investimento financeiro" no sentido negativo ("não é investimento financeiro") — **manter**, é o texto exigido pela própria proteção jurídica.
+
+### Escopo
+
+Mudança puramente de copy/texto visível e meta tags. Sem alteração de lógica, rotas funcionais, schema ou componentes. Não toca em ROI dos leilões (contexto diferente).
+
+### Itens fora do escopo desta entrega (sugestão futura)
+
+- Renomear pasta `src/components/Investir/` → `src/components/Parceria/` e atualizar imports.
+- Remover a rota legada `/investir` do `App.tsx` quando não houver mais referências externas.
