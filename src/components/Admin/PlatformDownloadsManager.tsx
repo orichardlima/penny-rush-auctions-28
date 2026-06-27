@@ -218,7 +218,8 @@ export const PlatformDownloadsManager = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {saving ? (progress > 0 && progress < 100 ? `Enviando ${progress}%` : 'Salvando...') : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
