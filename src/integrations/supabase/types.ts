@@ -2653,6 +2653,57 @@ export type Database = {
           },
         ]
       }
+      platform_downloads: {
+        Row: {
+          category: Database["public"]["Enums"]["download_category"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          download_count: number
+          file_name: string
+          file_size: number
+          id: string
+          is_active: boolean
+          mime_type: string | null
+          storage_path: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["download_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          download_count?: number
+          file_name: string
+          file_size?: number
+          id?: string
+          is_active?: boolean
+          mime_type?: string | null
+          storage_path: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["download_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          download_count?: number
+          file_name?: string
+          file_size?: number
+          id?: string
+          is_active?: boolean
+          mime_type?: string | null
+          storage_path?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_templates: {
         Row: {
           bid_cost: number | null
@@ -3403,6 +3454,10 @@ export type Database = {
         Args: { affiliate_uuid: string }
         Returns: undefined
       }
+      increment_platform_download: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
       is_affiliate_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
@@ -3567,7 +3622,12 @@ export type Database = {
       try_protection_lock: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      download_category:
+        | "contrato"
+        | "apresentacao"
+        | "kit_divulgacao"
+        | "regulamento"
+        | "outros"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3694,6 +3754,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      download_category: [
+        "contrato",
+        "apresentacao",
+        "kit_divulgacao",
+        "regulamento",
+        "outros",
+      ],
+    },
   },
 } as const
