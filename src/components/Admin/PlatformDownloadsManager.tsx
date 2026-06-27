@@ -61,10 +61,8 @@ export const PlatformDownloadsManager = () => {
       if (form.file) {
         const ext = form.file.name.split('.').pop() || 'bin';
         storage_path = `${form.category}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('platform-downloads')
-          .upload(storage_path, form.file, { contentType: form.file.type, upsert: false });
-        if (upErr) throw upErr;
+        setProgress(0);
+        await uploadResumable('platform-downloads', storage_path, form.file, setProgress);
         file_name = form.file.name;
         file_size = form.file.size;
         mime_type = form.file.type;
