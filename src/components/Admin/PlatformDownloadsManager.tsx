@@ -31,6 +31,7 @@ export const PlatformDownloadsManager = () => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const openNew = () => { setForm({ ...emptyForm, id: null }); setOpen(true); };
   const openEdit = (it: PlatformDownload) => {
