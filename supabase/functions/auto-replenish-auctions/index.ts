@@ -198,17 +198,64 @@ Deno.serve(async (req) => {
 
     console.log('Selected tiers:', selected.map(t => `${(t as any).tier || 'standard'}:${t.title}`).join(' | '))
 
-    // 8. Criar leilões com starts escalonados
+    // 8. Criar leilões com starts escalonados + jitter anti-colisão
     const nowDate = new Date()
     const createdAuctions: string[] = []
+    const COLLISION_WINDOW_SEC = 90
+    const MAX_JITTER_ATTEMPTS = 20
+
+    // Helper: verifica se há ends_at próximo em ±90s (banco + batch atual)
+    const batchEndsAt: number[] = []
+    const hasCollision = async (candidateMs: number): Promise<boolean> => {
+      for (const b of batchEndsAt) {
+        if (Math.abs(b - candidateMs) <= COLLISION_WINDOW_SEC * 1000) return true
+      }
+      const lo = new Date(candidateMs - COLLISION_WINDOW_SEC * 1000).toISOString()
+      const hi = new Date(candidateMs + COLLISION_WINDOW_SEC * 1000).toISOString()
+      const { data, error } = await supabase
+        .from('auctions')
+        .select('id', { head: true, count: 'exact' })
+        .gte('ends_at', lo)
+        .lte('ends_at', hi)
+      if (error) {
+        console.error('collision check error', error)
+        return false
+      }
+      return (data as any)?.length ? true : false
+    }
 
     for (let i = 0; i < selected.length; i++) {
       const template = selected[i]
-      const startsAt = new Date(nowDate.getTime() + i * intervalMinutes * 60 * 1000)
-      const randomDurationMs = (durationMinHours + Math.random() * (durationMaxHours - durationMinHours)) * 60 * 60 * 1000
-      const endsAt = new Date(startsAt.getTime() + randomDurationMs)
+      const baseStartsAt = nowDate.getTime() + i * intervalMinutes * 60 * 1000
+      const durationMs = (durationMinHours + Math.random() * (durationMaxHours - durationMinHours)) * 60 * 60 * 1000
 
-      // Resolver image_url se template tem image_key (storage), senão usa image_url existente
+      // Jitter: starts ±90s, ends adiciona ±120s independente
+      const startsJitter = Math.round((Math.random() * 180 - 90) * 1000) // -90..+90s
+      let candidateStartsMs = baseStartsAt + startsJitter
+      let candidateEndsMs = candidateStartsMs + durationMs + Math.round((Math.random() * 240 - 60) * 1000) // -60..+180s
+
+      // Anti-colisão: até 20 tentativas re-sorteando o jitter do ends
+      let attempt = 0
+      while (attempt < MAX_JITTER_ATTEMPTS && await hasCollision(candidateEndsMs)) {
+        attempt++
+        const extraJitter = Math.round((Math.random() * 300 - 30) * 1000) // -30..+270s
+        candidateEndsMs = candidateStartsMs + durationMs + extraJitter
+      }
+      if (attempt >= MAX_JITTER_ATTEMPTS) {
+        // Fallback determinístico: empurra +3min
+        candidateEndsMs = candidateStartsMs + durationMs + 3 * 60 * 1000
+      }
+
+      // Sanidade: garantir duração dentro dos limites configurados
+      const finalDurationMs = candidateEndsMs - candidateStartsMs
+      const minMs = durationMinHours * 60 * 60 * 1000
+      const maxMs = durationMaxHours * 60 * 60 * 1000
+      if (finalDurationMs < minMs) candidateEndsMs = candidateStartsMs + minMs
+      if (finalDurationMs > maxMs) candidateEndsMs = candidateStartsMs + maxMs
+
+      const startsAt = new Date(candidateStartsMs)
+      const endsAt = new Date(candidateEndsMs)
+
       const resolvedImageUrl = (template as any).image_key
         ? `${supabaseUrl}/storage/v1/object/public/product-images/${(template as any).image_key}`
         : template.image_url
@@ -233,7 +280,6 @@ Deno.serve(async (req) => {
         company_revenue: 0,
       }
 
-      // Defense in depth: never insert an auction without ends_at
       if (!auctionData.ends_at || !auctionData.starts_at) {
         console.error(`Skipping template ${template.id}: missing starts_at/ends_at`)
         continue
@@ -242,7 +288,6 @@ Deno.serve(async (req) => {
       const { data: auction, error: insertError } = await supabase
         .from('auctions')
         .insert(auctionData)
-
         .select('id')
         .single()
 
@@ -252,6 +297,13 @@ Deno.serve(async (req) => {
       }
 
       createdAuctions.push(auction.id)
+      batchEndsAt.push(candidateEndsMs)
+
+      console.log(
+        `[REPLENISH] auction_id=${auction.id} template=${template.id} ` +
+        `starts_at=${startsAt.toISOString()} ends_at=${endsAt.toISOString()} ` +
+        `jitter_attempts=${attempt}`
+      )
 
       await supabase
         .from('product_templates')
