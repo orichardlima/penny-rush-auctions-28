@@ -22,7 +22,21 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Shared-secret auth: required for external scheduler (cron-job.org).
+  // Never log the header value.
+  const triggerSecret = Deno.env.get('REPLENISH_TRIGGER_SECRET')
+  if (triggerSecret) {
+    const provided = req.headers.get('x-replenish-secret')
+    if (!provided || provided !== triggerSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   try {
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
