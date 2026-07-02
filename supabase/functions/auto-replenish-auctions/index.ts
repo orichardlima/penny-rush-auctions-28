@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-replenish-secret',
 }
 
 // Sorteio ponderado: escolhe um índice respeitando os pesos
@@ -25,8 +25,17 @@ Deno.serve(async (req) => {
   // Shared-secret auth: required for external scheduler (cron-job.org).
   // Never log the header value.
   const triggerSecret = Deno.env.get('REPLENISH_TRIGGER_SECRET')
+  const provided = req.headers.get('x-replenish-secret')
+  console.log('AUTO_REPLENISH_AUTH_DIAGNOSTIC', JSON.stringify({
+    method: req.method,
+    hasProvidedHeader: Boolean(provided),
+    providedLength: provided?.length ?? 0,
+    hasExpectedSecret: Boolean(triggerSecret),
+    expectedLength: triggerSecret?.length ?? 0,
+    match: Boolean(triggerSecret && provided && provided === triggerSecret),
+  }))
+
   if (triggerSecret) {
-    const provided = req.headers.get('x-replenish-secret')
     if (!provided || provided !== triggerSecret) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
