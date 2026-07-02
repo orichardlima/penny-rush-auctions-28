@@ -636,6 +636,59 @@ export type Database = {
           },
         ]
       }
+      auction_scheduled_finalizations: {
+        Row: {
+          auction_id: string
+          bot_only: boolean
+          cancel_reason: string | null
+          cancelled_at: string | null
+          created_at: string
+          finalized_at: string | null
+          id: string
+          notes: Json
+          queued_at: string
+          reason: string
+          scheduled_for: string
+          updated_at: string
+        }
+        Insert: {
+          auction_id: string
+          bot_only?: boolean
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          notes?: Json
+          queued_at?: string
+          reason: string
+          scheduled_for: string
+          updated_at?: string
+        }
+        Update: {
+          auction_id?: string
+          bot_only?: boolean
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          notes?: Json
+          queued_at?: string
+          reason?: string
+          scheduled_for?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_scheduled_finalizations_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auctions: {
         Row: {
           bid_cost: number | null
@@ -3063,6 +3116,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _schedule_bot_only_finalization: {
+        Args: { p_auction_id: string; p_reason: string; p_title: string }
+        Returns: string
+      }
       admin_adjust_affiliate_balance: {
         Args: {
           _admin_name: string
@@ -3089,6 +3146,13 @@ export type Database = {
       admin_preview_partner_sponsor_transfer: {
         Args: { p_contract_id: string }
         Returns: Json
+      }
+      admin_release_stuck_auctions: {
+        Args: { p_ids: string[] }
+        Returns: {
+          auction_id: string
+          new_ends_at: string
+        }[]
       }
       admin_transfer_partner_sponsor: {
         Args: {
