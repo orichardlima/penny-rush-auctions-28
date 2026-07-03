@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
-import { Shield, ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowRight, CheckCircle } from "lucide-react";
 import { InvestmentHero } from "@/components/Investir/InvestmentHero";
 import { InvestmentSimulator } from "@/components/Investir/InvestmentSimulator";
 import { InvestmentBenefits } from "@/components/Investir/InvestmentBenefits";
@@ -12,6 +12,7 @@ import { InvestmentTimeline } from "@/components/Investir/InvestmentTimeline";
 import { TestimonialCarousel } from "@/components/Investir/TestimonialCarousel";
 import { PlanComparison } from "@/components/Investir/PlanComparison";
 import { InvestmentFAQ } from "@/components/Investir/InvestmentFAQ";
+import { PartnershipDisclaimer } from "@/components/Partner/PartnershipDisclaimer";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartnerContract } from "@/hooks/usePartnerContract";
 // Tracking de referral agora é feito globalmente no App.tsx
@@ -129,22 +130,11 @@ const PartnerLanding = () => {
         </div>
       </section>
 
-      {/* Legal Disclaimer */}
+      {/* Legal Disclaimer (canonical) */}
       <section className="py-8 bg-muted/50">
         <div className="container mx-auto px-4 sm:px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <Shield className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Aviso Legal Importante
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              O programa de parceiros da Show de Lances não constitui investimento financeiro, aplicação financeira, 
-              oferta de valores mobiliários ou qualquer outra forma de captação de recursos regulamentada. 
-              Os repasses são proporcionais ao desempenho da plataforma e não há garantia de repasse mínimo, valor fixo ou prazo. 
-              Ao participar do programa, você declara estar ciente dos termos e condições e assume os riscos envolvidos.
-            </p>
+          <div className="max-w-4xl mx-auto">
+            <PartnershipDisclaimer variant="card" />
           </div>
         </div>
       </section>

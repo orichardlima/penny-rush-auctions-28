@@ -277,7 +277,7 @@ export const AuctionHistory = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Investimento Médio</CardTitle>
+              <CardTitle className="text-sm font-medium">Custo médio em lances</CardTitle>
               <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
@@ -290,7 +290,7 @@ export const AuctionHistory = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">ROI Total</CardTitle>
+              <CardTitle className="text-sm font-medium">Resultado total</CardTitle>
               {stats.totalROI >= 0 ? (
                 <TrendingUp className="h-4 w-4 text-green-500" />
               ) : (
@@ -302,7 +302,7 @@ export const AuctionHistory = () => {
                 {stats.totalROI.toFixed(1)}%
               </div>
               <p className="text-xs text-muted-foreground">
-                retorno sobre investimento
+                resultado da participação
               </p>
             </CardContent>
           </Card>
@@ -356,7 +356,7 @@ export const AuctionHistory = () => {
                   <TableHead>Leilão</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Lances</TableHead>
-                  <TableHead>Investido</TableHead>
+                  <TableHead>Gasto em lances</TableHead>
                   <TableHead>Resultado</TableHead>
                   <TableHead>Última Atividade</TableHead>
                 </TableRow>

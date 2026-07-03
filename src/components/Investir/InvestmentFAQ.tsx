@@ -8,8 +8,8 @@ import {
 
 const faqs = [
   {
-    question: "O Programa de Parceiros é um investimento financeiro?",
-    answer: "Não. O programa de parceiros não é um investimento financeiro regulamentado. É uma parceria onde você contribui com um aporte e recebe repasses proporcionais baseados no desempenho da plataforma. Não há garantia de valor mínimo, prazo ou repasse fixo."
+    question: "O Programa de Parceiros é uma aplicação financeira?",
+    answer: "Não. Trata-se de uma parceria de expansão em que o parceiro faz um aporte e recebe repasses variáveis proporcionais ao desempenho da plataforma. Não há garantia de valor mínimo, prazo, repasse fixo, rentabilidade ou retorno."
   },
   {
     question: "Para que é utilizado o meu aporte?",

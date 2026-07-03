@@ -238,8 +238,8 @@ const Index = () => {
                   Seja um Parceiro de Expansão
                 </h2>
                 <p className="text-lg text-muted-foreground mb-6">
-                  Contribua com a plataforma e receba repasses semanais proporcionais 
-                  ao faturamento. Transparência total e retornos reais.
+                  Contribua com a plataforma e receba repasses semanais proporcionais
+                  ao faturamento. Transparência total e regras claras.
                 </p>
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="flex items-center gap-2">
@@ -285,9 +285,9 @@ const Index = () => {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-primary" />
-                          <span>Retorno potencial</span>
+                          <span>Teto do contrato</span>
                         </div>
-                        <span className="font-medium">Até 200% do aporte</span>
+                        <span className="font-medium">Definido no plano</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">

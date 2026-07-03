@@ -227,14 +227,14 @@ export const PersonalAnalytics = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">ROI Médio</CardTitle>
+            <CardTitle className="text-sm font-medium">Resultado Médio</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold mb-2">
               {stats.auctionsWon > 0 ? ((stats.totalSaved / stats.totalSpent) * 100).toFixed(1) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
-              Retorno sobre investimento
+              Resultado da participação
             </p>
           </CardContent>
         </Card>
