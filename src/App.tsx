@@ -15,6 +15,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { logChunkError, markReloadAttempted, wasReloadRecent } from "@/utils/chunkErrorTelemetry";
 import Index from "./pages/Index";
+import { ContractReacceptGuard } from "@/components/ContractReacceptGuard";
 
 // --- lazyWithRetry: retry automático em falha de import ---
 function lazyWithRetry(importFn: () => Promise<{ default: React.ComponentType<any> }>) {
@@ -146,6 +147,7 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const AffiliateDashboard = lazyWithRetry(() => import("./pages/AffiliateDashboard"));
 const PartnerLanding = lazyWithRetry(() => import("./pages/PartnerLanding"));
+const InvestirRedirect = lazyWithRetry(() => import("./pages/InvestirRedirect"));
 const MinhaParceria = lazyWithRetry(() => import("./pages/MinhaParceria"));
 const MeusContratos = lazyWithRetry(() => import("./pages/MeusContratos"));
 
@@ -174,6 +176,7 @@ const AppContent = () => {
   useProfileCompleteGuard();
   
   return (
+    <ContractReacceptGuard>
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/leiloes" element={<LazyRoute><Auctions /></LazyRoute>} />
@@ -186,7 +189,7 @@ const AppContent = () => {
       <Route path="/dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
       <Route path="/afiliado" element={<LazyRoute><AffiliateDashboard /></LazyRoute>} />
       <Route path="/parceiro" element={<LazyRoute><PartnerLanding /></LazyRoute>} />
-      <Route path="/investir" element={<Navigate to="/parceiro" replace />} />
+      <Route path="/investir" element={<LazyRoute><InvestirRedirect /></LazyRoute>} />
       <Route path="/minha-parceria" element={<LazyRoute><MinhaParceria /></LazyRoute>} />
       <Route path="/minha-parceria/encerramento" element={<LazyRoute><MinhaParceriaEncerramento /></LazyRoute>} />
       <Route path="/meus-contratos" element={<LazyRoute><MeusContratos /></LazyRoute>} />
@@ -201,6 +204,7 @@ const AppContent = () => {
       <Route path="/downloads" element={<LazyRoute><Downloads /></LazyRoute>} />
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
+    </ContractReacceptGuard>
   );
 };
 

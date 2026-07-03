@@ -5,9 +5,11 @@ import { TrendingUp, Briefcase, Shield, Clock, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { usePublicStats } from "@/hooks/usePublicStats";
 
 export const HeroSection = () => {
   const { profile } = useAuth();
+  const { availableAuctions, finishedAuctions, loading: statsLoading } = usePublicStats();
   const [hasPartnerContract, setHasPartnerContract] = useState(false);
 
   useEffect(() => {
@@ -107,41 +109,27 @@ export const HeroSection = () => {
             </div>
           </div>
 
-          {/* Stats - Mobile optimized 2x2 grid */}
-          <div 
-            className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mt-6 sm:mt-12"
-            role="list"
-            aria-label="Estatísticas da plataforma"
-          >
-            <div 
-              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6"
-              role="listitem"
+          {/* Estatísticas verificáveis - apenas números apurados no banco. Sem promessas financeiras. */}
+          {!statsLoading && (availableAuctions !== null || finishedAuctions !== null) && (
+            <div
+              className="grid grid-cols-2 gap-3 sm:gap-6 mt-6 sm:mt-12 max-w-md"
+              role="list"
+              aria-label="Estatísticas da plataforma"
             >
-              <div className="text-xl sm:text-2xl font-bold text-white mb-1">500K+</div>
-              <div className="text-white/70 text-xs sm:text-sm">Usuários Ativos</div>
+              {availableAuctions !== null && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6" role="listitem">
+                  <div className="text-xl sm:text-2xl font-bold text-white mb-1">{availableAuctions}</div>
+                  <div className="text-white/70 text-xs sm:text-sm">Leilões disponíveis agora</div>
+                </div>
+              )}
+              {finishedAuctions !== null && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6" role="listitem">
+                  <div className="text-xl sm:text-2xl font-bold text-white mb-1">{finishedAuctions.toLocaleString('pt-BR')}</div>
+                  <div className="text-white/70 text-xs sm:text-sm">Leilões finalizados</div>
+                </div>
+              )}
             </div>
-            <div 
-              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6"
-              role="listitem"
-            >
-              <div className="text-xl sm:text-2xl font-bold text-white mb-1">R$ 2Mi+</div>
-              <div className="text-white/70 text-xs sm:text-sm">Em Prêmios</div>
-            </div>
-            <div 
-              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6"
-              role="listitem"
-            >
-              <div className="text-xl sm:text-2xl font-bold text-white mb-1">15s</div>
-              <div className="text-white/70 text-xs sm:text-sm">Por Leilão</div>
-            </div>
-            <div 
-              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 sm:p-6"
-              role="listitem"
-            >
-              <div className="text-xl sm:text-2xl font-bold text-white mb-1">98%</div>
-              <div className="text-white/70 text-xs sm:text-sm">Satisfação</div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </section>
