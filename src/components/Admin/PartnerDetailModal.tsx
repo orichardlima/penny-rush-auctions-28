@@ -296,7 +296,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-4">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-primary" />
-                    <CardTitle className="text-sm font-semibold">Rendimento da Semana Atual</CardTitle>
+                    <CardTitle className="text-sm font-semibold">Repasse da Semana Atual</CardTitle>
                   </div>
                   <div className="flex items-center gap-3 text-right">
                     <div>
