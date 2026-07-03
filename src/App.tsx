@@ -15,6 +15,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { logChunkError, markReloadAttempted, wasReloadRecent } from "@/utils/chunkErrorTelemetry";
 import Index from "./pages/Index";
+import { ContractReacceptGuard } from "@/components/ContractReacceptGuard";
 
 // --- lazyWithRetry: retry automático em falha de import ---
 function lazyWithRetry(importFn: () => Promise<{ default: React.ComponentType<any> }>) {
@@ -203,6 +204,7 @@ const AppContent = () => {
       <Route path="/downloads" element={<LazyRoute><Downloads /></LazyRoute>} />
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
+    </ContractReacceptGuard>
   );
 };
 
