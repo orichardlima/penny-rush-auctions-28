@@ -241,7 +241,7 @@ export const FinancialDashboard = () => {
       <div>
         <h2 className="text-2xl font-bold mb-2">Resumo Financeiro</h2>
         <p className="text-muted-foreground">
-          Acompanhe seus gastos, investimentos e retornos nos leilões
+          Acompanhe seus gastos e resultados nos leilões
         </p>
       </div>
 
@@ -249,7 +249,7 @@ export const FinancialDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Investido</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Gasto</CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -403,8 +403,8 @@ export const FinancialDashboard = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Leilão</TableHead>
-                    <TableHead>Investido</TableHead>
-                    <TableHead>ROI</TableHead>
+                    <TableHead>Gasto em lances</TableHead>
+                    <TableHead>Resultado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
