@@ -146,6 +146,7 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPassword = lazyWithRetry(() => import("./pages/ResetPassword"));
 const AffiliateDashboard = lazyWithRetry(() => import("./pages/AffiliateDashboard"));
 const PartnerLanding = lazyWithRetry(() => import("./pages/PartnerLanding"));
+const InvestirRedirect = lazyWithRetry(() => import("./pages/InvestirRedirect"));
 const MinhaParceria = lazyWithRetry(() => import("./pages/MinhaParceria"));
 const MeusContratos = lazyWithRetry(() => import("./pages/MeusContratos"));
 
