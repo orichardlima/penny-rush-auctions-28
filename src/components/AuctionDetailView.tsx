@@ -430,29 +430,29 @@ export const AuctionDetailView: React.FC<AuctionDetailViewProps> = ({
         </Card>
       </div>
 
-      {/* Performance Financeira (ROI e Margem) */}
+      {/* Resultado do Leilão (Custo × Arremate) */}
       {financialData && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Performance Financeira
+              Resultado do Leilão
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="text-center p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground mb-2">ROI (Return on Investment)</div>
+                <div className="text-sm text-muted-foreground mb-2">Resultado</div>
                 <div className={`text-3xl font-bold flex items-center justify-center gap-2 ${getROIColor(financialData.roi_percentage)}`}>
-                  {financialData.roi_percentage > 0 ? 
-                    <TrendingUp className="h-6 w-6" /> : 
+                  {financialData.roi_percentage > 0 ?
+                    <TrendingUp className="h-6 w-6" /> :
                     <TrendingDown className="h-6 w-6" />
                   }
                   {financialData.roi_percentage.toFixed(1)}%
                 </div>
               </div>
               <div className="text-center p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground mb-2">Margem de Lucro</div>
+                <div className="text-sm text-muted-foreground mb-2">Saldo (arremate − custo)</div>
                 <div className={`text-3xl font-bold ${getROIColor(financialData.profit_margin)}`}>
                   {formatCurrencyFromReais(financialData.profit_margin)}
                 </div>

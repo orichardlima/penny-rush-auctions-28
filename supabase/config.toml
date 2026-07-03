@@ -65,3 +65,12 @@ verify_jwt = false
 
 [functions.partner-regularize-payment]
 verify_jwt = false
+
+[functions.register-contract-acceptance]
+verify_jwt = false
+
+[functions.prepare-partner-settlement]
+verify_jwt = false
+
+[functions.sign-partner-settlement]
+verify_jwt = false

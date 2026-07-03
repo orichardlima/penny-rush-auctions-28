@@ -7,15 +7,16 @@ interface PartnershipDisclaimerProps {
 }
 
 /**
- * Aviso legal padronizado do Programa de Parceria.
- * Reforça que não é investimento financeiro e que repasses dependem do faturamento real.
+ * Aviso legal canônico do Programa de Parceria.
+ * Único ponto oficial em que a palavra "investimento" pode aparecer,
+ * exclusivamente para reforçar que a parceria NÃO é investimento financeiro.
  */
 export const PartnershipDisclaimer = ({
   variant = "inline",
   className,
 }: PartnershipDisclaimerProps) => {
   const message =
-    "Programa de parceria. Os repasses dependem do faturamento real da plataforma. Não há garantia de valor mínimo. Não constitui investimento financeiro.";
+    "Esta parceria não constitui investimento financeiro, aplicação financeira, promessa de rentabilidade ou garantia de retorno. Os repasses são variáveis e dependem das regras contratuais e do desempenho da plataforma.";
 
   if (variant === "card") {
     return (

@@ -109,9 +109,8 @@ export const InvestmentHero = ({ onScrollToSimulator, onScrollToPlans }: Investm
           {/* Legal text below hero */}
           <div className="mt-10 p-4 bg-black/20 rounded-lg border border-white/10">
             <p className="text-xs text-purple-200/60 leading-relaxed">
-              Este programa não representa investimento financeiro.
-              Os valores recebidos dependem do desempenho da plataforma.
-              Não há garantia de repasse mínimo, valor fixo ou prazo.
+              Programa de parceria de expansão. Os repasses são variáveis, dependem do desempenho
+              da plataforma e das regras contratuais. Não há garantia de valor mínimo, prazo ou repasse fixo.
             </p>
           </div>
         </div>
