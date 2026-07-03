@@ -3015,6 +3015,7 @@ export type Database = {
           os: string | null
           partner_contract_id: string
           penalty: number
+          processing_error: string | null
           processing_status: string
           quote_id: string | null
           receipt_html: string | null
@@ -3040,6 +3041,7 @@ export type Database = {
           os?: string | null
           partner_contract_id: string
           penalty: number
+          processing_error?: string | null
           processing_status?: string
           quote_id?: string | null
           receipt_html?: string | null
@@ -3065,6 +3067,7 @@ export type Database = {
           os?: string | null
           partner_contract_id?: string
           penalty?: number
+          processing_error?: string | null
           processing_status?: string
           quote_id?: string | null
           receipt_html?: string | null
