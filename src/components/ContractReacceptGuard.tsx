@@ -81,25 +81,19 @@ export function ContractReacceptGuard({ children }: { children: React.ReactNode 
     if (!activeType || !terms || !user) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.rpc('register_contract_acceptance', {
-        p_contract_type: activeType,
-        p_origin: 'REACCEPT_GUARD',
-        p_declaration_text:
-          'Li e aceito a versão vigente do contrato apresentada nesta tela.',
-        p_partner_contract_id: null,
-        p_plan_name: null,
-        p_plan_value: null,
-        p_ip: null,
-        p_user_agent: navigator.userAgent,
-        p_browser: null,
-        p_os: null,
-        p_device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-        p_route: location.pathname,
-        p_accepted_at_client: new Date().toISOString(),
-        p_payment_reference: null,
-        p_extra: { version: terms.version, source: 'reaccept_guard' },
+      // Edge Function server-side captura IP/UA/device e resolve versão/hash oficial.
+      const { data, error } = await supabase.functions.invoke('register-contract-acceptance', {
+        body: {
+          contract_type: activeType,
+          origin: 'REACCEPT_GUARD',
+          declaration_text:
+            'Li e aceito a versão vigente do contrato apresentada nesta tela.',
+          route: location.pathname,
+          extra: { version: terms.version, source: 'reaccept_guard' },
+        },
       });
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
       toast.success('Aceite registrado. Obrigado.');
       setActiveType(null);
       setTerms(null);
