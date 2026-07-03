@@ -5,9 +5,11 @@ import { TrendingUp, Briefcase, Shield, Clock, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { usePublicStats } from "@/hooks/usePublicStats";
 
 export const HeroSection = () => {
   const { profile } = useAuth();
+  const { availableAuctions, finishedAuctions, loading: statsLoading } = usePublicStats();
   const [hasPartnerContract, setHasPartnerContract] = useState(false);
 
   useEffect(() => {

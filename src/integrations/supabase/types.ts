@@ -1320,6 +1320,7 @@ export type Database = {
         Row: {
           content: string
           content_hash: string
+          content_html: string | null
           contract_type: string
           created_at: string
           created_by: string | null
@@ -1332,6 +1333,7 @@ export type Database = {
         Insert: {
           content: string
           content_hash: string
+          content_html?: string | null
           contract_type: string
           created_at?: string
           created_by?: string | null
@@ -1344,6 +1346,7 @@ export type Database = {
         Update: {
           content?: string
           content_hash?: string
+          content_html?: string | null
           contract_type?: string
           created_at?: string
           created_by?: string | null
@@ -2997,6 +3000,146 @@ export type Database = {
         }
         Relationships: []
       }
+      settlement_acceptances: {
+        Row: {
+          accepted_at: string
+          browser: string | null
+          declaration_text: string
+          device: string | null
+          discounts: number
+          gross_amount: number
+          id: string
+          ip_address: unknown
+          liquidation_type: string
+          net_amount: number
+          os: string | null
+          partner_contract_id: string
+          penalty: number
+          processing_status: string
+          quote_id: string | null
+          receipt_html: string | null
+          route: string | null
+          termination_id: string | null
+          terms_hash: string
+          terms_text: string
+          terms_version: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          browser?: string | null
+          declaration_text: string
+          device?: string | null
+          discounts: number
+          gross_amount: number
+          id?: string
+          ip_address?: unknown
+          liquidation_type: string
+          net_amount: number
+          os?: string | null
+          partner_contract_id: string
+          penalty: number
+          processing_status?: string
+          quote_id?: string | null
+          receipt_html?: string | null
+          route?: string | null
+          termination_id?: string | null
+          terms_hash: string
+          terms_text: string
+          terms_version: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          browser?: string | null
+          declaration_text?: string
+          device?: string | null
+          discounts?: number
+          gross_amount?: number
+          id?: string
+          ip_address?: unknown
+          liquidation_type?: string
+          net_amount?: number
+          os?: string | null
+          partner_contract_id?: string
+          penalty?: number
+          processing_status?: string
+          quote_id?: string | null
+          receipt_html?: string | null
+          route?: string | null
+          termination_id?: string | null
+          terms_hash?: string
+          terms_text?: string
+          terms_version?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_acceptances_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "settlement_quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settlement_quotes: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          discounts: number
+          expires_at: string
+          gross_amount: number
+          id: string
+          liquidation_type: string
+          net_amount: number
+          partner_contract_id: string
+          penalty: number
+          termination_id: string | null
+          terms_hash: string
+          terms_text: string
+          terms_version: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          discounts?: number
+          expires_at: string
+          gross_amount?: number
+          id?: string
+          liquidation_type: string
+          net_amount?: number
+          partner_contract_id: string
+          penalty?: number
+          termination_id?: string | null
+          terms_hash: string
+          terms_text: string
+          terms_version: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          discounts?: number
+          expires_at?: string
+          gross_amount?: number
+          id?: string
+          liquidation_type?: string
+          net_amount?: number
+          partner_contract_id?: string
+          penalty?: number
+          termination_id?: string | null
+          terms_hash?: string
+          terms_text?: string
+          terms_version?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string
@@ -3178,6 +3321,10 @@ export type Database = {
         Args: { code_to_check: string }
         Returns: boolean
       }
+      check_contract_version_status: {
+        Args: { p_user_id?: string }
+        Returns: Json
+      }
       cleanup_old_bids_batch: { Args: never; Returns: undefined }
       close_binary_cycle: {
         Args: { p_admin_id: string; p_notes?: string }
@@ -3226,6 +3373,19 @@ export type Database = {
         }[]
       }
       expire_suspended_bonuses: { Args: never; Returns: undefined }
+      finalize_partner_settlement_acceptance: {
+        Args: {
+          p_browser: string
+          p_declaration_text: string
+          p_device: string
+          p_ip: string
+          p_os: string
+          p_quote_id: string
+          p_route: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
       find_orphan_binary_points: {
         Args: never
         Returns: {
