@@ -186,7 +186,7 @@ const AppContent = () => {
       <Route path="/dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
       <Route path="/afiliado" element={<LazyRoute><AffiliateDashboard /></LazyRoute>} />
       <Route path="/parceiro" element={<LazyRoute><PartnerLanding /></LazyRoute>} />
-      <Route path="/investir" element={<Navigate to="/parceiro" replace />} />
+      <Route path="/investir" element={<LazyRoute><InvestirRedirect /></LazyRoute>} />
       <Route path="/minha-parceria" element={<LazyRoute><MinhaParceria /></LazyRoute>} />
       <Route path="/minha-parceria/encerramento" element={<LazyRoute><MinhaParceriaEncerramento /></LazyRoute>} />
       <Route path="/meus-contratos" element={<LazyRoute><MeusContratos /></LazyRoute>} />
