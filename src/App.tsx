@@ -175,6 +175,7 @@ const AppContent = () => {
   useProfileCompleteGuard();
   
   return (
+    <ContractReacceptGuard>
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/leiloes" element={<LazyRoute><Auctions /></LazyRoute>} />
