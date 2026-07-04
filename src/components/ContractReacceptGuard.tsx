@@ -113,12 +113,14 @@ export function ContractReacceptGuard({ children }: { children: React.ReactNode 
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <FileSignature className="h-5 w-5 text-primary" />
-              Nova versão do contrato — reaceite obrigatório
+              {activeType && status?.[activeType]?.accepted
+                ? 'Nova versão do contrato — reaceite obrigatório'
+                : 'Aceite dos termos vigentes'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Publicamos uma nova versão do{' '}
-              {activeType === 'partner' ? 'contrato de parceria' : 'contrato do apostador'}.
-              Leia e aceite para continuar utilizando a plataforma.
+              {activeType && status?.[activeType]?.accepted
+                ? `Publicamos uma nova versão do ${activeType === 'partner' ? 'contrato de parceria' : 'contrato do apostador'}. Leia e aceite para continuar utilizando a plataforma.`
+                : `Leia e aceite os termos vigentes do ${activeType === 'partner' ? 'contrato de parceria' : 'contrato do apostador'} para continuar utilizando a plataforma.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
