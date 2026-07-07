@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin, UserCheck } from 'lucide-react';
 import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
-import { getReferralCode, clearReferralTracking } from '@/hooks/useReferralTracking';
+import { getReferralCode, clearReferralTracking, getOrCreateVisitorId, getStoredPerfRefCode } from '@/hooks/useReferralTracking';
 import { getPartnerReferralCode, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { SEOHead } from '@/components/SEOHead';
 import { Header } from '@/components/Header';
@@ -331,6 +331,10 @@ const Auth = () => {
         state: formData.state,
         referral_code: finalReferralCode,
         partner_referral_code: finalPartnerReferralCode,
+        // [FASE 1A] Metadata do sistema de performance de parceiros.
+        // Puramente informativo — NÃO sobrescreve sponsor/patrocinador/afiliado.
+        perf_ref_code: getStoredPerfRefCode() ?? null,
+        perf_visitor_id: (() => { try { return getOrCreateVisitorId(); } catch { return null; } })(),
         bettor_contract_accepted: true,
         bettor_contract_version: 'v1',
       };

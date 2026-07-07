@@ -7,6 +7,10 @@ const COOKIE_EXPIRY_DAYS = 30;
 
 export const useReferralTracking = () => {
   useEffect(() => {
+    // [FASE 1A] Captura passiva de UTMs + referrer para performance de parceiros.
+    // Não afeta o fluxo de afiliados abaixo.
+    try { capturePerfUtmsFromUrl(); } catch { /* noop */ }
+
     const trackReferral = async () => {
       // Verificar se já existe referral salvo
       const existingRef = localStorage.getItem(REFERRAL_STORAGE_KEY);
@@ -81,3 +85,83 @@ export const clearReferralTracking = () => {
   localStorage.removeItem(REFERRAL_STORAGE_KEY);
   document.cookie = `${REFERRAL_COOKIE_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 };
+
+// ============================================================================
+// [FASE 1A] Helpers do sistema de performance de parceiros.
+// Independentes do fluxo de afiliados acima. NÃO alteram sponsor, patrocinador,
+// binário, contratos, comissões, payout ou afiliados financeiros.
+// ============================================================================
+
+const PERF_VISITOR_KEY = 'perf_visitor_id';
+const PERF_REF_CODE_KEY = 'perf_ref_code';
+const PERF_UTM_KEY = 'perf_utm';
+const PERF_REFERRER_KEY = 'perf_referrer';
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
+
+export type PerfUtms = Partial<Record<(typeof UTM_KEYS)[number], string>>;
+
+function randomId(): string {
+  try {
+    // crypto.randomUUID disponível em browsers modernos
+    // fallback abaixo caso indisponível
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = (globalThis as any).crypto;
+    if (c?.randomUUID) return c.randomUUID();
+    const bytes = new Uint8Array(16);
+    c?.getRandomValues?.(bytes);
+    return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return `v_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+export function getOrCreateVisitorId(): string {
+  try {
+    const existing = localStorage.getItem(PERF_VISITOR_KEY);
+    if (existing && existing.length >= 8) return existing;
+    const fresh = randomId();
+    localStorage.setItem(PERF_VISITOR_KEY, fresh);
+    return fresh;
+  } catch {
+    return randomId();
+  }
+}
+
+export function getStoredPerfRefCode(): string | null {
+  try { return localStorage.getItem(PERF_REF_CODE_KEY); } catch { return null; }
+}
+
+export function setStoredPerfRefCode(code: string): void {
+  try { localStorage.setItem(PERF_REF_CODE_KEY, code); } catch { /* noop */ }
+}
+
+export function getStoredPerfUtms(): PerfUtms {
+  try {
+    const raw = localStorage.getItem(PERF_UTM_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+export function capturePerfUtmsFromUrl(): void {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const utms: PerfUtms = {};
+    for (const k of UTM_KEYS) {
+      const v = params.get(k);
+      if (v) utms[k] = v.slice(0, 100);
+    }
+    if (Object.keys(utms).length > 0) {
+      localStorage.setItem(PERF_UTM_KEY, JSON.stringify(utms));
+    }
+    const ref = document.referrer;
+    if (ref && !localStorage.getItem(PERF_REFERRER_KEY)) {
+      localStorage.setItem(PERF_REFERRER_KEY, ref.slice(0, 500));
+    }
+  } catch { /* noop */ }
+}
+
+export function getStoredPerfReferrer(): string | null {
+  try { return localStorage.getItem(PERF_REFERRER_KEY); } catch { return null; }
+}

@@ -159,6 +159,7 @@ const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacid
 const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
 const Contato = lazyWithRetry(() => import("./pages/Contato"));
 const Downloads = lazyWithRetry(() => import("./pages/Downloads"));
+const ReferralRedirect = lazyWithRetry(() => import("./pages/ReferralRedirect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -202,6 +203,7 @@ const AppContent = () => {
       <Route path="/faq" element={<LazyRoute><FAQ /></LazyRoute>} />
       <Route path="/contato" element={<LazyRoute><Contato /></LazyRoute>} />
       <Route path="/downloads" element={<LazyRoute><Downloads /></LazyRoute>} />
+      <Route path="/r/:code" element={<LazyRoute><ReferralRedirect /></LazyRoute>} />
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
     </ContractReacceptGuard>
