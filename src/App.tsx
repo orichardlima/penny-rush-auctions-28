@@ -159,6 +159,7 @@ const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacid
 const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
 const Contato = lazyWithRetry(() => import("./pages/Contato"));
 const Downloads = lazyWithRetry(() => import("./pages/Downloads"));
+const ReferralRedirect = lazyWithRetry(() => import("./pages/ReferralRedirect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
