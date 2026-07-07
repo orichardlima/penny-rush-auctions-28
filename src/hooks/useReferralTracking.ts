@@ -7,6 +7,10 @@ const COOKIE_EXPIRY_DAYS = 30;
 
 export const useReferralTracking = () => {
   useEffect(() => {
+    // [FASE 1A] Captura passiva de UTMs + referrer para performance de parceiros.
+    // Não afeta o fluxo de afiliados abaixo.
+    try { capturePerfUtmsFromUrl(); } catch { /* noop */ }
+
     const trackReferral = async () => {
       // Verificar se já existe referral salvo
       const existingRef = localStorage.getItem(REFERRAL_STORAGE_KEY);
