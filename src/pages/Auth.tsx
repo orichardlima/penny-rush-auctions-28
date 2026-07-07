@@ -331,6 +331,10 @@ const Auth = () => {
         state: formData.state,
         referral_code: finalReferralCode,
         partner_referral_code: finalPartnerReferralCode,
+        // [FASE 1A] Metadata do sistema de performance de parceiros.
+        // Puramente informativo — NÃO sobrescreve sponsor/patrocinador/afiliado.
+        perf_ref_code: getStoredPerfRefCode() ?? null,
+        perf_visitor_id: (() => { try { return getOrCreateVisitorId(); } catch { return null; } })(),
         bettor_contract_accepted: true,
         bettor_contract_version: 'v1',
       };
