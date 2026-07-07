@@ -636,6 +636,109 @@ export type Database = {
           },
         ]
       }
+      anti_fraud_flags: {
+        Row: {
+          created_at: string
+          evidence: Json
+          flag_type: string
+          id: string
+          partner_user_id: string | null
+          related_event_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          severity: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          evidence?: Json
+          flag_type: string
+          id?: string
+          partner_user_id?: string | null
+          related_event_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          evidence?: Json
+          flag_type?: string
+          id?: string
+          partner_user_id?: string | null
+          related_event_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anti_fraud_flags_related_event_id_fkey"
+            columns: ["related_event_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attribution_events: {
+        Row: {
+          conversion_id: string
+          conversion_type: string
+          created_at: string
+          id: string
+          metadata: Json
+          partner_user_id: string
+          points_awarded: number
+          referral_code: string | null
+          reversed: boolean
+          reversed_at: string | null
+          reversed_reason: string | null
+          source_click_event_id: string | null
+        }
+        Insert: {
+          conversion_id: string
+          conversion_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          partner_user_id: string
+          points_awarded?: number
+          referral_code?: string | null
+          reversed?: boolean
+          reversed_at?: string | null
+          reversed_reason?: string | null
+          source_click_event_id?: string | null
+        }
+        Update: {
+          conversion_id?: string
+          conversion_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          partner_user_id?: string
+          points_awarded?: number
+          referral_code?: string | null
+          reversed?: boolean
+          reversed_at?: string | null
+          reversed_reason?: string | null
+          source_click_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attribution_events_source_click_event_id_fkey"
+            columns: ["source_click_event_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auction_scheduled_finalizations: {
         Row: {
           auction_id: string
@@ -2641,6 +2744,93 @@ export type Database = {
           },
         ]
       }
+      partner_weekly_eligibility: {
+        Row: {
+          calculated_at: string
+          created_at: string
+          id: string
+          metadata: Json
+          partner_user_id: string
+          percentage: number
+          reason: string | null
+          status: string
+          updated_at: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          calculated_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          partner_user_id: string
+          percentage?: number
+          reason?: string | null
+          status: string
+          updated_at?: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          calculated_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          partner_user_id?: string
+          percentage?: number
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      partner_weekly_scores: {
+        Row: {
+          active_days: number
+          breakdown: Json
+          calculated_at: string
+          click_points: number
+          conversion_points: number
+          created_at: string
+          id: string
+          partner_user_id: string
+          total_points: number
+          updated_at: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          active_days?: number
+          breakdown?: Json
+          calculated_at?: string
+          click_points?: number
+          conversion_points?: number
+          created_at?: string
+          id?: string
+          partner_user_id: string
+          total_points?: number
+          updated_at?: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          active_days?: number
+          breakdown?: Json
+          calculated_at?: string
+          click_points?: number
+          conversion_points?: number
+          created_at?: string
+          id?: string
+          partner_user_id?: string
+          total_points?: number
+          updated_at?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       partner_withdrawals: {
         Row: {
           amount: number
@@ -2708,6 +2898,117 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      performance_audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity: string | null
+          entity_id: string | null
+          error_message: string | null
+          id: string
+          metadata: Json
+          target_partner_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          target_partner_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          target_partner_user_id?: string | null
+        }
+        Relationships: []
+      }
+      performance_backfill_issues: {
+        Row: {
+          action_taken: string
+          affected_user_ids: string[] | null
+          created_at: string
+          details: Json
+          id: string
+          issue_type: string
+          referral_code: string | null
+          requires_manual_fix: boolean
+          resolved_at: string | null
+        }
+        Insert: {
+          action_taken: string
+          affected_user_ids?: string[] | null
+          created_at?: string
+          details?: Json
+          id?: string
+          issue_type: string
+          referral_code?: string | null
+          requires_manual_fix?: boolean
+          resolved_at?: string | null
+        }
+        Update: {
+          action_taken?: string
+          affected_user_ids?: string[] | null
+          created_at?: string
+          details?: Json
+          id?: string
+          issue_type?: string
+          referral_code?: string | null
+          requires_manual_fix?: boolean
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
+      performance_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+          updated_by: string | null
+          value_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+          updated_by?: string | null
+          value_type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+          updated_by?: string | null
+          value_type?: string
+        }
+        Relationships: []
       }
       platform_downloads: {
         Row: {
@@ -3000,6 +3301,42 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_links: {
+        Row: {
+          campaign_slug: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          partner_user_id: string
+          referral_code: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_slug?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          partner_user_id: string
+          referral_code: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_slug?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          partner_user_id?: string
+          referral_code?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       settlement_acceptances: {
         Row: {
           accepted_at: string
@@ -3200,6 +3537,75 @@ export type Database = {
         }
         Relationships: []
       }
+      tracking_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          fraud_flags: Json
+          id: string
+          ip_hash: string | null
+          is_qualified: boolean
+          is_suspicious: boolean
+          landing_url: string | null
+          metadata: Json
+          partner_user_id: string | null
+          referral_code: string | null
+          referrer: string | null
+          session_id: string | null
+          ua_hash: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          fraud_flags?: Json
+          id?: string
+          ip_hash?: string | null
+          is_qualified?: boolean
+          is_suspicious?: boolean
+          landing_url?: string | null
+          metadata?: Json
+          partner_user_id?: string | null
+          referral_code?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          ua_hash?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          fraud_flags?: Json
+          id?: string
+          ip_hash?: string | null
+          is_qualified?: boolean
+          is_suspicious?: boolean
+          landing_url?: string | null
+          metadata?: Json
+          partner_user_id?: string | null
+          referral_code?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          ua_hash?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
       weekly_revenue_snapshots: {
         Row: {
           closed_at: string | null
@@ -3293,6 +3699,7 @@ export type Database = {
         Args: { p_contract_id: string }
         Returns: Json
       }
+      admin_recalculate_week: { Args: { p_week_start: string }; Returns: Json }
       admin_release_stuck_auctions: {
         Args: { p_ids: string[] }
         Returns: {
@@ -3312,12 +3719,30 @@ export type Database = {
         Returns: Json
       }
       archive_old_finished_auctions: { Args: never; Returns: undefined }
+      attribute_conversion: {
+        Args: {
+          p_conversion_id: string
+          p_conversion_type: string
+          p_metadata?: Json
+          p_user_id: string
+          p_visitor_id?: string
+        }
+        Returns: Json
+      }
       bot_protection_loop: { Args: never; Returns: undefined }
       bot_protection_loop_safe: { Args: never; Returns: undefined }
       bot_tick: { Args: never; Returns: undefined }
       bot_tick_safe: { Args: never; Returns: undefined }
+      calculate_all_partner_weekly_scores: {
+        Args: { p_week_start: string }
+        Returns: Json
+      }
       calculate_early_termination: {
         Args: { p_partner_contract_id: string }
+        Returns: Json
+      }
+      calculate_partner_weekly_score: {
+        Args: { p_partner_user_id: string; p_week_start: string }
         Returns: Json
       }
       check_affiliate_code_availability: {
@@ -3596,6 +4021,10 @@ export type Database = {
           unique_buyers: number
         }[]
       }
+      get_partner_performance_dashboard: {
+        Args: { p_partner_user_id: string }
+        Returns: Json
+      }
       get_public_profile: {
         Args: { target_user_id: string }
         Returns: {
@@ -3845,8 +4274,38 @@ export type Database = {
         Args: { p_contract_id: string; p_leg: string; p_reason_note: string }
         Returns: Json
       }
+      reverse_performance_points: {
+        Args: {
+          p_conversion_id: string
+          p_conversion_type: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       tick_bot_executor: { Args: never; Returns: undefined }
+      track_click: {
+        Args: {
+          p_ip_hash: string
+          p_landing_url: string
+          p_metadata?: Json
+          p_referral_code: string
+          p_referrer: string
+          p_session_id: string
+          p_ua_hash: string
+          p_utm_campaign: string
+          p_utm_content: string
+          p_utm_medium: string
+          p_utm_source: string
+          p_utm_term: string
+          p_visitor_id: string
+        }
+        Returns: Json
+      }
       try_protection_lock: { Args: never; Returns: boolean }
+      update_performance_setting: {
+        Args: { p_key: string; p_value: string }
+        Returns: Json
+      }
     }
     Enums: {
       download_category:
