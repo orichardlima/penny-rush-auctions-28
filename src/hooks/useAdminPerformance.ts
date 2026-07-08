@@ -161,7 +161,7 @@ export const useAdminPerformance = (weekStart: string) => {
         .select('id', { count: 'exact', head: true })
         .gte('created_at', weekStartISO)
         .lt('created_at', weekEnd)
-        .eq('is_dedupe', true);
+        .eq('is_suspicious', true);
       const ae = await sb
         .from('attribution_events')
         .select('conversion_type')
