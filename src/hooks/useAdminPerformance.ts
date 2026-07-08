@@ -148,32 +148,30 @@ export const useAdminPerformance = (weekStart: string) => {
         }))
       );
 
-      // KPIs: contagens dentro da semana
-      const [clicksAll, clicksDedupe, ae, aeReversed] = await Promise.all([
-        supabase
-          .from('tracking_events')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', weekStartISO)
-          .lt('created_at', weekEnd)
-          .eq('event_type', 'qualified_click'),
-        supabase
-          .from('tracking_events')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', weekStartISO)
-          .lt('created_at', weekEnd)
-          .eq('is_dedupe', true),
-        supabase
-          .from('attribution_events')
-          .select('conversion_type')
-          .gte('created_at', weekStartISO)
-          .lt('created_at', weekEnd),
-        supabase
-          .from('attribution_events')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', weekStartISO)
-          .lt('created_at', weekEnd)
-          .eq('reversed', true),
-      ]);
+      // KPIs: contagens dentro da semana (awaits sequenciais evitam explosão de tipos)
+      const clicksAll: any = await supabase
+        .from('tracking_events')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', weekStartISO)
+        .lt('created_at', weekEnd)
+        .eq('event_type', 'qualified_click');
+      const clicksDedupe: any = await supabase
+        .from('tracking_events')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', weekStartISO)
+        .lt('created_at', weekEnd)
+        .eq('is_dedupe', true);
+      const ae: any = await supabase
+        .from('attribution_events')
+        .select('conversion_type')
+        .gte('created_at', weekStartISO)
+        .lt('created_at', weekEnd);
+      const aeReversed: any = await supabase
+        .from('attribution_events')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', weekStartISO)
+        .lt('created_at', weekEnd)
+        .eq('reversed', true);
 
       const aeRows = (ae.data ?? []) as { conversion_type: string }[];
       setKpis({
