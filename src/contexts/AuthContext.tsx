@@ -18,6 +18,8 @@ interface SignUpData {
   partner_referral_code?: string | null;
   bettor_contract_accepted?: boolean;
   bettor_contract_version?: string;
+  perf_ref_code?: string | null;
+  perf_visitor_id?: string | null;
 }
 
 
@@ -148,6 +150,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           partner_referral_code: userData.partner_referral_code || null,
           bettor_contract_accepted: userData.bettor_contract_accepted ? 'true' : 'false',
           bettor_contract_version: userData.bettor_contract_version || 'v1',
+          perf_ref_code: userData.perf_ref_code || null,
+          perf_visitor_id: userData.perf_visitor_id || null,
         },
 
       },
