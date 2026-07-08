@@ -230,6 +230,14 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
       .from('partner_contracts')
       .update({ status: 'ACTIVE', payment_status: 'completed', bonus_bids_received: planData?.bonus_bids || 0 })
       .eq('id', contract.id)
+
+    await tryAttributeConversion(
+      supabase,
+      'partner_plan_approved',
+      contract.id.toString(),
+      contract.user_id,
+      { contract_id: contract.id, plan_name: contract.plan_name, aporte_value: contract.aporte_value },
+    )
   } else if (isRejected) {
     await supabase
       .from('partner_contracts')
