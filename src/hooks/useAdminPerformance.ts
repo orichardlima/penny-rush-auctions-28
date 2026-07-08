@@ -148,25 +148,26 @@ export const useAdminPerformance = (weekStart: string) => {
         }))
       );
 
-      // KPIs: contagens dentro da semana (awaits sequenciais evitam explosão de tipos)
-      const clicksAll: any = await supabase
+      // KPIs: contagens dentro da semana. Cast em `any` para evitar TS2589 (chain profunda).
+      const sb: any = supabase;
+      const clicksAll = await sb
         .from('tracking_events')
         .select('id', { count: 'exact', head: true })
         .gte('created_at', weekStartISO)
         .lt('created_at', weekEnd)
         .eq('event_type', 'qualified_click');
-      const clicksDedupe: any = await supabase
+      const clicksDedupe = await sb
         .from('tracking_events')
         .select('id', { count: 'exact', head: true })
         .gte('created_at', weekStartISO)
         .lt('created_at', weekEnd)
         .eq('is_dedupe', true);
-      const ae: any = await supabase
+      const ae = await sb
         .from('attribution_events')
         .select('conversion_type')
         .gte('created_at', weekStartISO)
         .lt('created_at', weekEnd);
-      const aeReversed: any = await supabase
+      const aeReversed = await sb
         .from('attribution_events')
         .select('id', { count: 'exact', head: true })
         .gte('created_at', weekStartISO)
