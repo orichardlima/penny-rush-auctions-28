@@ -367,6 +367,16 @@ async function processBidPurchase(supabase: any, isApproved: boolean, isRejected
       }
     }
 
+    await tryAttributeConversion(
+      supabase,
+      'purchase_approved',
+      purchase.id.toString(),
+      purchase.user_id,
+      { purchase_id: purchase.id, amount_paid: purchase.amount_paid, bids_purchased: purchase.bids_purchased },
+    )
+
+
+
   } else if (isRejected) {
     console.log('❌ Bid payment rejected')
     await supabase
