@@ -154,6 +154,7 @@ const MeusContratos = lazyWithRetry(() => import("./pages/MeusContratos"));
 const MinhaParceriaEncerramento = lazyWithRetry(() => import("./pages/MinhaParceriaEncerramento"));
 
 const AdminParceiros = lazyWithRetry(() => import("./pages/AdminParceiros"));
+const AdminCentralPerformance = lazyWithRetry(() => import("./pages/AdminCentralPerformance"));
 const TermosDeUso = lazyWithRetry(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacidade"));
 const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
@@ -197,6 +198,7 @@ const AppContent = () => {
 
 
       <Route path="/admin/parceiros" element={<LazyRoute><AdminParceiros /></LazyRoute>} />
+      <Route path="/admin/central-performance" element={<LazyRoute><AdminCentralPerformance /></LazyRoute>} />
       <Route path="/reset-password" element={<LazyRoute><ResetPassword /></LazyRoute>} />
       <Route path="/termos" element={<LazyRoute><TermosDeUso /></LazyRoute>} />
       <Route path="/privacidade" element={<LazyRoute><PoliticaPrivacidade /></LazyRoute>} />
