@@ -59,7 +59,7 @@ export interface EligibilityRow {
 
 export interface KpiData {
   qualified_clicks: number;
-  dedupe_clicks: number;
+  suspicious_clicks: number;
   signups: number;
   purchases_approved: number;
   contracts_approved: number;
