@@ -6,6 +6,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+// ===== Performance Center (modo relatório) — nunca bloqueia fluxo =====
+async function tryAttributeConversion(
+  supabase: any,
+  conversionType: 'partner_plan_approved',
+  conversionId: string,
+  userId: string,
+  extraMetadata: Record<string, unknown>,
+) {
+  try {
+    const { data: flag } = await supabase
+      .from('performance_settings')
+      .select('setting_value')
+      .eq('setting_key', 'performance_tracking_enabled')
+      .maybeSingle()
+    if (flag?.setting_value !== 'true') return
+
+    let visitorId: string | null = null
+    let refCode: string | null = null
+    try {
+      const { data: u } = await supabase.auth.admin.getUserById(userId)
+      const meta: any = u?.user?.user_metadata || {}
+      visitorId = meta.perf_visitor_id || null
+      refCode = meta.perf_ref_code || null
+    } catch (_) { /* ignore */ }
+
+    await supabase.rpc('attribute_conversion', {
+      p_conversion_type: conversionType,
+      p_conversion_id: conversionId,
+      p_user_id: userId,
+      p_visitor_id: visitorId,
+      p_metadata: { ...extraMetadata, perf_ref_code: refCode, source: 'partner_payment_webhook' },
+    })
+  } catch (perfErr) {
+    console.error('⚠️ Performance attribution failed (non-blocking):', perfErr)
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -150,6 +187,14 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
 
     console.log('✅ Partner contract activation completed')
 
+    await tryAttributeConversion(
+      supabase,
+      'partner_plan_approved',
+      contractData.id.toString(),
+      intent.user_id,
+      { contract_id: contractData.id, plan_name: intent.plan_name, aporte_value: intent.aporte_value },
+    )
+
   } else if (isRejected) {
     console.log('❌ Payment rejected, updating intent')
     await supabase
@@ -185,6 +230,14 @@ async function processLegacyContractPayment(supabase: any, isApproved: boolean, 
       .from('partner_contracts')
       .update({ status: 'ACTIVE', payment_status: 'completed', bonus_bids_received: planData?.bonus_bids || 0 })
       .eq('id', contract.id)
+
+    await tryAttributeConversion(
+      supabase,
+      'partner_plan_approved',
+      contract.id.toString(),
+      contract.user_id,
+      { contract_id: contract.id, plan_name: contract.plan_name, aporte_value: contract.aporte_value },
+    )
   } else if (isRejected) {
     await supabase
       .from('partner_contracts')
