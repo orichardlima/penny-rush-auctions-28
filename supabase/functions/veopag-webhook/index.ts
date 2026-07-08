@@ -231,6 +231,14 @@ async function processNewContractPayment(supabase: any, isApproved: boolean, isR
 
     console.log('✅ Partner contract activation completed')
 
+    await tryAttributeConversion(
+      supabase,
+      'partner_plan_approved',
+      contractData.id.toString(),
+      intent.user_id,
+      { contract_id: contractData.id, plan_name: intent.plan_name, aporte_value: intent.aporte_value },
+    )
+
   } else if (isRejected) {
     console.log('❌ Payment rejected, updating intent')
     await supabase
