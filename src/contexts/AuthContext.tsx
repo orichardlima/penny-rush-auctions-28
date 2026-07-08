@@ -18,6 +18,8 @@ interface SignUpData {
   partner_referral_code?: string | null;
   bettor_contract_accepted?: boolean;
   bettor_contract_version?: string;
+  perf_ref_code?: string | null;
+  perf_visitor_id?: string | null;
 }
 
 
