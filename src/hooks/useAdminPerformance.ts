@@ -177,7 +177,7 @@ export const useAdminPerformance = (weekStart: string) => {
       const aeRows = (ae.data ?? []) as { conversion_type: string }[];
       setKpis({
         qualified_clicks: clicksAll.count ?? 0,
-        dedupe_clicks: clicksDedupe.count ?? 0,
+        suspicious_clicks: clicksDedupe.count ?? 0,
         signups: aeRows.filter((r) => r.conversion_type === 'signup').length,
         purchases_approved: aeRows.filter((r) => r.conversion_type === 'purchase_approved').length,
         contracts_approved: aeRows.filter((r) => r.conversion_type === 'partner_plan_approved').length,

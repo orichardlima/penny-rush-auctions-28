@@ -130,7 +130,7 @@ const AdminCentralPerformance: React.FC = () => {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <KpiCard label="Cliques qualificados" value={kpis?.qualified_clicks ?? 0} />
-          <KpiCard label="Cliques dedupe" value={kpis?.dedupe_clicks ?? 0} muted />
+          <KpiCard label="Cliques suspeitos" value={kpis?.suspicious_clicks ?? 0} muted />
           <KpiCard label="Cadastros" value={kpis?.signups ?? 0} />
           <KpiCard label="Compras aprovadas" value={kpis?.purchases_approved ?? 0} />
           <KpiCard label="Contratos aprovados" value={kpis?.contracts_approved ?? 0} />
