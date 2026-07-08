@@ -6,6 +6,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+// ===== Performance Center (modo relatório) — nunca bloqueia fluxo =====
+async function tryAttributeConversion(
+  supabase: any,
+  conversionType: 'partner_plan_approved',
+  conversionId: string,
+  userId: string,
+  extraMetadata: Record<string, unknown>,
+) {
+  try {
+    const { data: flag } = await supabase
+      .from('performance_settings')
+      .select('setting_value')
+      .eq('setting_key', 'performance_tracking_enabled')
+      .maybeSingle()
+    if (flag?.setting_value !== 'true') return
+
+    let visitorId: string | null = null
+    let refCode: string | null = null
+    try {
+      const { data: u } = await supabase.auth.admin.getUserById(userId)
+      const meta: any = u?.user?.user_metadata || {}
+      visitorId = meta.perf_visitor_id || null
+      refCode = meta.perf_ref_code || null
+    } catch (_) { /* ignore */ }
+
+    await supabase.rpc('attribute_conversion', {
+      p_conversion_type: conversionType,
+      p_conversion_id: conversionId,
+      p_user_id: userId,
+      p_visitor_id: visitorId,
+      p_metadata: { ...extraMetadata, perf_ref_code: refCode, source: 'partner_payment_webhook' },
+    })
+  } catch (perfErr) {
+    console.error('⚠️ Performance attribution failed (non-blocking):', perfErr)
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
