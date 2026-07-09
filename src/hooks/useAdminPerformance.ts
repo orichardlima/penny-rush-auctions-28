@@ -112,7 +112,7 @@ export const useAdminPerformance = (weekStart: string) => {
         setTrackingEnabled(!!(settings.data as any).performance_tracking_enabled);
       }
 
-      // Ranking: scores + profile
+      // Ranking: scores + display names
       const scores = await supabase
         .from('partner_weekly_scores')
         .select('partner_user_id,total_points,click_points,conversion_points,active_days')
@@ -122,14 +122,26 @@ export const useAdminPerformance = (weekStart: string) => {
       if (scores.error) throw scores.error;
 
       const ids = (scores.data ?? []).map((s: any) => s.partner_user_id);
-      let profileMap = new Map<string, { full_name: string | null; email: string | null }>();
+      let profileMap = new Map<string, {
+        full_name: string | null;
+        email: string | null;
+        affiliate_code: string | null;
+        referral_code: string | null;
+        display_name: string;
+      }>();
       if (ids.length) {
-        const profs = await supabase
-          .from('profiles')
-          .select('id,full_name,email')
-          .in('id', ids);
-        (profs.data ?? []).forEach((p: any) =>
-          profileMap.set(p.id, { full_name: p.full_name, email: p.email })
+        const names = await supabase.rpc('admin_get_partner_display_names', {
+          partner_ids: ids,
+        });
+        if (names.error) throw names.error;
+        (names.data ?? []).forEach((p: any) =>
+          profileMap.set(p.id, {
+            full_name: p.full_name,
+            email: p.email,
+            affiliate_code: p.affiliate_code,
+            referral_code: p.referral_code,
+            display_name: p.display_name,
+          })
         );
       }
       setRanking(
@@ -137,6 +149,9 @@ export const useAdminPerformance = (weekStart: string) => {
           ...s,
           full_name: profileMap.get(s.partner_user_id)?.full_name ?? null,
           email: profileMap.get(s.partner_user_id)?.email ?? null,
+          affiliate_code: profileMap.get(s.partner_user_id)?.affiliate_code ?? null,
+          referral_code: profileMap.get(s.partner_user_id)?.referral_code ?? null,
+          display_name: profileMap.get(s.partner_user_id)?.display_name ?? 'Parceiro não identificado',
         }))
       );
 
@@ -152,6 +167,10 @@ export const useAdminPerformance = (weekStart: string) => {
         (elig.data ?? []).map((e: any) => ({
           ...e,
           full_name: profileMap.get(e.partner_user_id)?.full_name ?? null,
+          email: profileMap.get(e.partner_user_id)?.email ?? null,
+          affiliate_code: profileMap.get(e.partner_user_id)?.affiliate_code ?? null,
+          referral_code: profileMap.get(e.partner_user_id)?.referral_code ?? null,
+          display_name: profileMap.get(e.partner_user_id)?.display_name ?? 'Parceiro não identificado',
         }))
       );
 
