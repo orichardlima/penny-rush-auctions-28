@@ -198,7 +198,10 @@ const AdminCentralPerformance: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Elegibilidade simulada</CardTitle>
-                <CardDescription>Quem passaria caso a Central estivesse ativada. Não gera repasse.</CardDescription>
+                <CardDescription>
+                  Quem passaria caso a Central estivesse ativada. Não gera repasse.
+                  O parceiro é identificado pelo nome real, e-mail ou código de afiliado.
+                </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
@@ -216,7 +219,14 @@ const AdminCentralPerformance: React.FC = () => {
                     )}
                     {eligibility.map((e: any) => (
                       <TableRow key={e.partner_user_id}>
-                        <TableCell className="text-xs font-mono">{e.full_name ?? e.partner_user_id.slice(0, 8)}</TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm" title={e.full_name ? 'Nome do perfil' : e.email ? 'E-mail do cadastro' : e.affiliate_code ? 'Código de afiliado' : e.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
+                            {e.display_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${e.partner_user_id}`}>
+                            {e.email ?? e.affiliate_code ?? e.referral_code ?? e.partner_user_id.slice(0, 8)}
+                          </div>
+                        </TableCell>
                         <TableCell><Badge variant={e.status === 'eligible' ? 'default' : 'secondary'}>{e.status}</Badge></TableCell>
                         <TableCell className="text-right font-mono">{fmtPct(Number(e.percentage))}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{e.reason ?? '—'}</TableCell>
