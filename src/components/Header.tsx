@@ -192,14 +192,24 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
               Vencedores
             </Link>
             {profile?.is_admin && (
-              <Link 
-                to="/admin/parceiros" 
-                className={`flex items-center gap-1.5 transition-colors ${isCurrentPage('/admin/parceiros') ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
-                aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
-              >
-                <Users2 className="w-4 h-4" aria-hidden="true" />
-                Gestão Parceiros
-              </Link>
+              <>
+                <Link 
+                  to="/admin/parceiros" 
+                  className={`flex items-center gap-1.5 transition-colors ${isCurrentPage('/admin/parceiros') ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
+                  aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
+                >
+                  <Users2 className="w-4 h-4" aria-hidden="true" />
+                  Gestão Parceiros
+                </Link>
+                <Link 
+                  to="/admin/central-performance" 
+                  className={`flex items-center gap-1.5 transition-colors ${isCurrentPage('/admin/central-performance') ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
+                  aria-current={isCurrentPage('/admin/central-performance') ? 'page' : undefined}
+                >
+                  <LineChart className="w-4 h-4" aria-hidden="true" />
+                  Central de Performance
+                </Link>
+              </>
             )}
           </nav>
 
