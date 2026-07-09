@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import WeeklyAdsHistory from './WeeklyAdsHistory';
+import PartnerPerformanceSection from './PartnerPerformanceSection';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -166,6 +167,9 @@ const AdCenterDashboard: React.FC<AdCenterDashboardProps> = ({ partnerContractId
           )}
         </CardContent>
       </Card>
+
+      {/* Minha Performance (modo relatório, controlado por flag) */}
+      <PartnerPerformanceSection />
 
       {/* Material do Dia */}
       <Card>
