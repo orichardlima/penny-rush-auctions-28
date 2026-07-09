@@ -285,7 +285,14 @@ const AdminCentralPerformance: React.FC = () => {
                         <TableCell><Badge variant="outline">{f.flag_type}</Badge></TableCell>
                         <TableCell>{f.severity}</TableCell>
                         <TableCell>{f.status}</TableCell>
-                        <TableCell className="text-xs font-mono">{f.partner_user_id?.slice(0, 8) ?? '—'}</TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm" title={f.full_name ? 'Nome do perfil' : f.email ? 'E-mail do cadastro' : f.affiliate_code ? 'Código de afiliado' : f.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
+                            {f.display_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${f.partner_user_id}`}>
+                            {f.email ?? f.affiliate_code ?? f.referral_code ?? f.partner_user_id?.slice(0, 8) ?? '—'}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
