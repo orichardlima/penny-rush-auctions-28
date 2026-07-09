@@ -200,9 +200,11 @@ const AdminCentralPerformance: React.FC = () => {
                           <div className="font-medium" title={r.full_name ? 'Nome do perfil' : r.email ? 'E-mail do cadastro' : r.affiliate_code ? 'Código de afiliado' : r.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
                             {r.display_name}
                           </div>
-                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${r.partner_user_id}`}>
-                            {r.email ?? r.affiliate_code ?? r.referral_code ?? r.partner_user_id.slice(0, 8)}
-                          </div>
+                          {(() => {
+                            const sub = r.email ?? r.affiliate_code ?? r.referral_code ?? r.partner_user_id.slice(0, 8);
+                            if (!sub || sub === r.display_name) return null;
+                            return <div className="text-xs text-muted-foreground" title={`ID técnico: ${r.partner_user_id}`}>{sub}</div>;
+                          })()}
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">{Number(r.total_points).toFixed(2)}</TableCell>
                         <TableCell className="text-right font-mono">{Number(r.click_points).toFixed(2)}</TableCell>
