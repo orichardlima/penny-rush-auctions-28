@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Coins, ShoppingCart, User, Menu, TimerReset, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText, Download } from "lucide-react";
+import { Coins, ShoppingCart, User, Menu, TimerReset, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText, Download, LineChart } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,14 +192,24 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
               Vencedores
             </Link>
             {profile?.is_admin && (
-              <Link 
-                to="/admin/parceiros" 
-                className={`flex items-center gap-1.5 transition-colors ${isCurrentPage('/admin/parceiros') ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
-                aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
-              >
-                <Users2 className="w-4 h-4" aria-hidden="true" />
-                Gestão Parceiros
-              </Link>
+              <>
+                <Link 
+                  to="/admin/parceiros" 
+                  className={`flex items-center gap-1.5 transition-colors ${isCurrentPage('/admin/parceiros') ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
+                  aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
+                >
+                  <Users2 className="w-4 h-4" aria-hidden="true" />
+                  Gestão Parceiros
+                </Link>
+                <Link 
+                  to="/admin/central-performance" 
+                  className={`flex items-center gap-1.5 transition-colors ${isCurrentPage('/admin/central-performance') ? 'text-primary font-medium' : 'text-foreground hover:text-primary'}`}
+                  aria-current={isCurrentPage('/admin/central-performance') ? 'page' : undefined}
+                >
+                  <LineChart className="w-4 h-4" aria-hidden="true" />
+                  Central de Performance
+                </Link>
+              </>
             )}
           </nav>
 
@@ -459,14 +469,24 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <span>Vencedores</span>
                       </Link>
                       {profile?.is_admin && (
-                        <Link 
-                          to="/admin/parceiros" 
-                          className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/admin/parceiros') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
-                          aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
-                        >
-                          <Users2 className="w-5 h-5" aria-hidden="true" />
-                          <span>Gestão Parceiros</span>
-                        </Link>
+                        <>
+                          <Link 
+                            to="/admin/parceiros" 
+                            className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/admin/parceiros') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
+                            aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
+                          >
+                            <Users2 className="w-5 h-5" aria-hidden="true" />
+                            <span>Gestão Parceiros</span>
+                          </Link>
+                          <Link 
+                            to="/admin/central-performance" 
+                            className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/admin/central-performance') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
+                            aria-current={isCurrentPage('/admin/central-performance') ? 'page' : undefined}
+                          >
+                            <LineChart className="w-5 h-5" aria-hidden="true" />
+                            <span>Central de Performance</span>
+                          </Link>
+                        </>
                       )}
                     </div>
                   </nav>
