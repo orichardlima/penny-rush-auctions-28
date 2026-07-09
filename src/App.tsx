@@ -161,6 +161,7 @@ const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
 const Contato = lazyWithRetry(() => import("./pages/Contato"));
 const Downloads = lazyWithRetry(() => import("./pages/Downloads"));
 const ReferralRedirect = lazyWithRetry(() => import("./pages/ReferralRedirect"));
+const PartnerGuide = lazyWithRetry(() => import("./pages/PartnerGuide"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
