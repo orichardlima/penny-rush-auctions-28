@@ -105,11 +105,17 @@ export const useAdminPerformance = (weekStart: string) => {
     setLoading(true);
     setError(null);
     try {
-      // Settings (flag)
-      const settings = await supabase.from('performance_settings').select('*').limit(1).maybeSingle();
+      // Settings (flags) - tabela key/value
+      const settings = await supabase
+        .from('performance_settings')
+        .select('setting_key,setting_value')
+        .in('setting_key', ['performance_center_enabled', 'performance_tracking_enabled']);
       if (settings.data) {
-        setCenterEnabled(!!(settings.data as any).performance_center_enabled);
-        setTrackingEnabled(!!(settings.data as any).performance_tracking_enabled);
+        const map = new Map<string, string>(
+          (settings.data as any[]).map((r) => [r.setting_key, String(r.setting_value)])
+        );
+        setCenterEnabled(map.get('performance_center_enabled') === 'true');
+        setTrackingEnabled(map.get('performance_tracking_enabled') === 'true');
       }
 
       // Ranking
