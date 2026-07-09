@@ -1,73 +1,76 @@
-## Problema
-
-No painel `/admin/central-performance`, a coluna "Parceiro" do ranking está mostrando:
-
-- **"—"** como nome
-- Código truncado do UUID, ex: `9634ea5f`, `d0d960ff`
-
-Isso acontece porque a tabela `profiles` dos parceiros em questão está com `full_name` e `email` vazios. O frontend só consegue ler `profiles`, então ele acaba exibindo o UUID como identificador.
 
 ## Objetivo
 
-Deixar o painel mais didático para o administrador, mostrando o **identificador real do parceiro** (nome, e-mail ou código de afiliado) e nunca o UUID puro.
+Expor ao parceiro, dentro da aba **Central de Anúncios**, uma nova seção **"Minha Performance"** que mostra os dados coletados pela Central de Performance (cliques rastreados, cadastros, conversões, pontuação semanal e posição no ranking) — **sem afetar o repasse**, sem substituir o fluxo atual de confirmação manual e mantendo a proteção "modo relatório".
 
-## Solução técnica
+## Onde entra visualmente
 
-Criar uma função segura no banco (`admin_get_partner_display_names`) que, com permissão de admin, busque os dados reais de identificação em várias fontes:
+Dentro de `src/components/Partner/AdCenterDashboard.tsx`, **abaixo** do Card "Progresso Semanal" e **antes** de "Material de Hoje". Nada do fluxo existente (alertas, confirmação manual 7 dias, histórico) é removido ou alterado.
 
-1. `profiles.full_name`
-2. `auth.users.email`
-3. `affiliates.affiliate_code`
-4. `partner_contracts.referral_code`
+```text
+[Alerta inadimplência]
+[Alerta Central de Anúncios (7 dias)]
+[Card Progresso Semanal]        ← já existe
+[NOVA SEÇÃO: Minha Performance] ← novidade, colapsável
+[Card Material de Hoje]         ← já existe
+[Card Histórico da Semana]      ← já existe
+[Histórico Retroativo]          ← já existe
+```
 
-O frontend usará essa função para enriquecer as linhas do ranking e da elegibilidade, com fallback didático:
+## Regras de visibilidade
 
-**Nome completo → E-mail → Código de afiliado → "Parceiro não identificado"**
+A nova seção só aparece quando:
+
+- `performance_tracking_enabled = true` **E**
+- `performance_center_partner_visible = true` (nova flag, default `false` — funciona como "botão liga/desliga" para o parceiro, independente da flag `performance_center_enabled` que continua controlando conexão com payout)
+
+Enquanto `performance_center_partner_visible = false`, o parceiro não vê nada de novo. Isso permite ativar a exibição gradualmente (ex.: só para você primeiro) sem tocar em outras flags.
+
+Dentro da seção, mostrar sempre um **badge "Modo relatório — não impacta seu repasse"** para reforçar transparência.
+
+## Conteúdo da seção "Minha Performance"
+
+1. **Meu link rastreável** — `showdelances.com/r/{código}` com botão "Copiar". Buscar código em `referral_links` (ou fallback para `affiliates.affiliate_code` / `partner_contracts.referral_code`).
+2. **KPIs da semana atual** (4 cards compactos): Cliques qualificados, Cadastros, Compras aprovadas, Novos parceiros. Fonte: `tracking_events` + `attribution_events` filtrados por `partner_user_id = auth.uid()` e `week_start`.
+3. **Meus pontos da semana** — total, cliques vs. conversões, dias ativos. Fonte: `partner_weekly_scores`.
+4. **Minha posição no ranking** — "Você está em Xº de N parceiros". Calculada a partir de `partner_weekly_scores` da semana.
+5. **Mini-histórico últimas 4 semanas** — barrinhas com total de pontos por semana.
+6. **Aviso didático** — "Estes dados são informativos. O repasse continua sendo calculado pelas confirmações diárias acima." + link para `/guia-parceiro`.
 
 ## Passos de implementação
 
-### 1. Migration — RPC de identificação do parceiro
+### 1. Migration
+- Inserir em `performance_settings` a nova chave `performance_center_partner_visible` com `setting_value = 'false'`.
+- Criar RPC `get_partner_performance_summary(_week_start date)` (SECURITY DEFINER) que retorna, para `auth.uid()`:
+  - `referral_code`, `qualified_clicks`, `signups`, `purchases_approved`, `contracts_approved`, `total_points`, `click_points`, `conversion_points`, `active_days`, `week_rank`, `week_total_partners`.
+- Criar RPC `get_partner_performance_history(_weeks int)` que retorna as últimas N semanas: `week_start`, `total_points`.
+- GRANT EXECUTE nas duas RPCs para `authenticated`.
 
-Criar a função `admin_get_partner_display_names(partner_ids uuid[])`:
+Nenhuma alteração em `partner_weekly_eligibility`, `partner_payouts`, triggers financeiros ou lógica de repasse.
 
-- `SECURITY DEFINER`, pois precisa ler `auth.users`.
-- Verifica se o chamador é admin via `profiles.is_admin`.
-- Retorna: `id`, `full_name`, `email`, `affiliate_code`, `referral_code`, `display_name` (campo calculado com o melhor nome disponível).
+### 2. Frontend
 
-### 2. Atualizar `src/hooks/useAdminPerformance.ts`
+- Criar hook `src/hooks/usePartnerPerformance.ts` que:
+  - Lê `performance_tracking_enabled` e `performance_center_partner_visible` em `performance_settings`.
+  - Chama as duas RPCs acima quando ambas as flags estiverem `true`.
+  - Retorna `{ visible, summary, history, loading }`.
+- Criar componente `src/components/Partner/PartnerPerformanceSection.tsx` (colapsável, `<Accordion>` ou `<Collapsible>` já disponível no shadcn) com os 6 blocos acima.
+- Editar `src/components/Partner/AdCenterDashboard.tsx` para renderizar `<PartnerPerformanceSection contractId={partnerContractId} />` na posição indicada. Nenhuma outra linha do arquivo muda.
 
-- Após buscar os `partner_user_id` do ranking e da elegibilidade, chamar a nova RPC.
-- Preencher `full_name`, `email` e `display_name` nos objetos de ranking e elegibilidade.
+### 3. Validação
+- Com `performance_center_partner_visible = false` → seção invisível para todos.
+- Ativar a flag apenas para teste → seção aparece com dados reais do usuário logado.
+- Confirmar que RPCs só retornam dados do próprio `auth.uid()` (nada de outros parceiros).
+- Confirmar que nenhum cálculo de `partner_payouts` ou `partner_weekly_eligibility` foi alterado.
 
-### 3. Atualizar `src/pages/AdminCentralPerformance.tsx`
+## O que NÃO será alterado
 
-- Na coluna "Parceiro", exibir o `display_name`.
-- Mostrar o e-mail ou código de afiliado como subtítulo, quando útil.
-- Adicionar tooltip explicando a origem do nome ("Nome do perfil", "E-mail do cadastro", "Código de afiliado").
-- Substituir todas as exibições de `partner_user_id.slice(0, 8)` por identificadores reais.
-- Manter o UUID completo disponível apenas em tooltip ou em uma coluna técnica opcional, se necessário.
-
-### 4. Melhorias didáticas no painel
-
-- Adicionar legenda explicando o que é cada KPI e cada aba.
-- Incluir badge explicativo na coluna "Parceiro": "Identificador real quando disponível".
-- Garantir que linhas sem identificador mostrem "Parceiro não identificado" em vez de código.
-
-### 5. Validação
-
-- Rodar a RPC diretamente no SQL Editor para confirmar que retorna nome/e-mail/código reais para os parceiros da screenshot.
-- Verificar no painel que o ranking mostra:
-  - Nome real quando existir
-  - E-mail quando nome não existir
-  - Código de afiliado quando não houver nome nem e-mail
-  - Nunca mais um UUID truncado como identificador principal
-
-## O que não será alterado
-
-- Nenhuma mudança na regra de pontuação, elegibilidade ou modo relatório.
-- Nenhuma conexão com payout, binário ou comissões.
-- As tabelas e flags `performance_tracking_enabled` / `performance_center_enabled` permanecem iguais.
+- Fluxo de confirmação manual de 7 dias (botão "Confirmar Divulgação").
+- Regra atual de repasse 100% vs 40%.
+- `performance_center_enabled` continua `false` (payout desconectado).
+- Rota `/admin/central-performance` e RPCs administrativas.
+- `PartnerDashboard`, roteamento, header, guia do parceiro.
 
 ## Resultado esperado
 
-O administrador abre `/admin/central-performance` e vê imediatamente quem é cada parceiro no ranking, sem precisar decifrar códigos UUID.
+Quando você ativar `performance_center_partner_visible = true`, cada parceiro passa a ver, dentro da própria Central de Anúncios, os números reais da sua divulgação rastreada — mantendo total transparência de que ainda é modo relatório e o repasse continua pelo mecanismo atual.
