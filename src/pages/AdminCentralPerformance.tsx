@@ -137,6 +137,28 @@ const AdminCentralPerformance: React.FC = () => {
           <KpiCard label="Reversões" value={kpis?.reversed ?? 0} muted />
         </div>
 
+        {/* Legenda didática */}
+        <Card className="bg-muted/30">
+          <CardContent className="py-4">
+            <div className="text-sm font-medium mb-2">Como ler este painel</div>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+              <li>
+                <strong>Identificação do parceiro:</strong> mostramos o nome do perfil quando disponível;
+                se não houver nome, exibimos o e-mail de cadastro; se não houver e-mail, o código de afiliado.
+                O ID técnico aparece apenas ao passar o mouse no subtítulo.
+              </li>
+              <li>
+                <strong>Ranking:</strong> pontuação da semana selecionada. Cliques valem pouco;
+                cadastros, compras e contratos aprovados têm peso maior.
+              </li>
+              <li>
+                <strong>Elegibilidade simulada:</strong> indica quem atingiria a meta semanal caso a Central estivesse ativada.
+                Nenhum repasse real é gerado enquanto o modo relatório estiver ligado.
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="ranking">
           <TabsList className="flex flex-wrap">
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
