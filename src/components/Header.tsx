@@ -469,14 +469,24 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <span>Vencedores</span>
                       </Link>
                       {profile?.is_admin && (
-                        <Link 
-                          to="/admin/parceiros" 
-                          className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/admin/parceiros') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
-                          aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
-                        >
-                          <Users2 className="w-5 h-5" aria-hidden="true" />
-                          <span>Gestão Parceiros</span>
-                        </Link>
+                        <>
+                          <Link 
+                            to="/admin/parceiros" 
+                            className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/admin/parceiros') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
+                            aria-current={isCurrentPage('/admin/parceiros') ? 'page' : undefined}
+                          >
+                            <Users2 className="w-5 h-5" aria-hidden="true" />
+                            <span>Gestão Parceiros</span>
+                          </Link>
+                          <Link 
+                            to="/admin/central-performance" 
+                            className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/admin/central-performance') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
+                            aria-current={isCurrentPage('/admin/central-performance') ? 'page' : undefined}
+                          >
+                            <LineChart className="w-5 h-5" aria-hidden="true" />
+                            <span>Central de Performance</span>
+                          </Link>
+                        </>
                       )}
                     </div>
                   </nav>
