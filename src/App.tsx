@@ -207,6 +207,7 @@ const AppContent = () => {
       <Route path="/contato" element={<LazyRoute><Contato /></LazyRoute>} />
       <Route path="/downloads" element={<LazyRoute><Downloads /></LazyRoute>} />
       <Route path="/r/:code" element={<LazyRoute><ReferralRedirect /></LazyRoute>} />
+      <Route path="/guia-parceiro" element={<LazyRoute><PartnerGuide /></LazyRoute>} />
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
     </ContractReacceptGuard>
