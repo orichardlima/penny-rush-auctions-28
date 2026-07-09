@@ -3695,6 +3695,17 @@ export type Database = {
           schedule: string
         }[]
       }
+      admin_get_partner_display_names: {
+        Args: { partner_ids: string[] }
+        Returns: {
+          affiliate_code: string
+          display_name: string
+          email: string
+          full_name: string
+          id: string
+          referral_code: string
+        }[]
+      }
       admin_preview_partner_sponsor_transfer: {
         Args: { p_contract_id: string }
         Returns: Json
