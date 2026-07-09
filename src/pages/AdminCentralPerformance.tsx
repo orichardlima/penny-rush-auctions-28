@@ -247,9 +247,11 @@ const AdminCentralPerformance: React.FC = () => {
                           <div className="font-medium text-sm" title={e.full_name ? 'Nome do perfil' : e.email ? 'E-mail do cadastro' : e.affiliate_code ? 'Código de afiliado' : e.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
                             {e.display_name}
                           </div>
-                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${e.partner_user_id}`}>
-                            {e.email ?? e.affiliate_code ?? e.referral_code ?? e.partner_user_id.slice(0, 8)}
-                          </div>
+                          {(() => {
+                            const sub = e.email ?? e.affiliate_code ?? e.referral_code ?? e.partner_user_id.slice(0, 8);
+                            if (!sub || sub === e.display_name) return null;
+                            return <div className="text-xs text-muted-foreground" title={`ID técnico: ${e.partner_user_id}`}>{sub}</div>;
+                          })()}
                         </TableCell>
                         <TableCell><Badge variant={e.status === 'eligible' ? 'default' : 'secondary'}>{e.status}</Badge></TableCell>
                         <TableCell className="text-right font-mono">{fmtPct(Number(e.percentage))}</TableCell>
