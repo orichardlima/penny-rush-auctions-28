@@ -233,14 +233,6 @@ export const useAdminPerformance = (weekStart: string) => {
         reversed: aeReversed.count ?? 0,
       });
 
-      // Anti-fraud
-      const af = await supabase
-        .from('anti_fraud_flags')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      setFraud(af.data ?? []);
-
       // Audit logs
       const al = await supabase
         .from('performance_audit_logs')
