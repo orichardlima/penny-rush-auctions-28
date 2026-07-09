@@ -150,7 +150,10 @@ const AdminCentralPerformance: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Ranking de parceiros — pontos da semana</CardTitle>
-                <CardDescription>Ordem por total de pontos. Dados apenas para relatório.</CardDescription>
+                <CardDescription>
+                  Ordem por total de pontos. O nome exibido é o identificador real do parceiro
+                  (nome do perfil, e-mail ou código de afiliado). Dados apenas para relatório.
+                </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
@@ -172,8 +175,12 @@ const AdminCentralPerformance: React.FC = () => {
                       <TableRow key={r.partner_user_id}>
                         <TableCell className="font-mono">{i + 1}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{r.full_name ?? '—'}</div>
-                          <div className="text-xs text-muted-foreground">{r.email ?? r.partner_user_id.slice(0, 8)}</div>
+                          <div className="font-medium" title={r.full_name ? 'Nome do perfil' : r.email ? 'E-mail do cadastro' : r.affiliate_code ? 'Código de afiliado' : r.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
+                            {r.display_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${r.partner_user_id}`}>
+                            {r.email ?? r.affiliate_code ?? r.referral_code ?? r.partner_user_id.slice(0, 8)}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">{Number(r.total_points).toFixed(2)}</TableCell>
                         <TableCell className="text-right font-mono">{Number(r.click_points).toFixed(2)}</TableCell>
