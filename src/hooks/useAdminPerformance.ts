@@ -43,6 +43,9 @@ export interface RankingRow {
   partner_user_id: string;
   full_name: string | null;
   email: string | null;
+  affiliate_code: string | null;
+  referral_code: string | null;
+  display_name: string;
   total_points: number;
   click_points: number;
   conversion_points: number;
@@ -52,6 +55,10 @@ export interface RankingRow {
 export interface EligibilityRow {
   partner_user_id: string;
   full_name: string | null;
+  email: string | null;
+  affiliate_code: string | null;
+  referral_code: string | null;
+  display_name: string;
   status: string;
   percentage: number;
   reason: string | null;
