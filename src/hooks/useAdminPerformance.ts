@@ -112,7 +112,7 @@ export const useAdminPerformance = (weekStart: string) => {
         setTrackingEnabled(!!(settings.data as any).performance_tracking_enabled);
       }
 
-      // Ranking: scores + display names
+      // Ranking
       const scores = await supabase
         .from('partner_weekly_scores')
         .select('partner_user_id,total_points,click_points,conversion_points,active_days')
@@ -121,7 +121,30 @@ export const useAdminPerformance = (weekStart: string) => {
         .limit(200);
       if (scores.error) throw scores.error;
 
-      const ids = (scores.data ?? []).map((s: any) => s.partner_user_id);
+      // Eligibility
+      const elig = await supabase
+        .from('partner_weekly_eligibility')
+        .select('partner_user_id,status,percentage,reason')
+        .eq('week_start', weekStart)
+        .order('percentage', { ascending: false })
+        .limit(200);
+      if (elig.error) throw elig.error;
+
+      // Anti-fraud
+      const af = await supabase
+        .from('anti_fraud_flags')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (af.error) throw af.error;
+
+      // Buscar nomes reais para todos os parceiros envolvidos (uma única chamada)
+      const allIds = Array.from(new Set([
+        ...(scores.data ?? []).map((s: any) => s.partner_user_id),
+        ...(elig.data ?? []).map((e: any) => e.partner_user_id),
+        ...(af.data ?? []).map((f: any) => f.partner_user_id).filter(Boolean),
+      ]));
+
       let profileMap = new Map<string, {
         full_name: string | null;
         email: string | null;
@@ -129,9 +152,9 @@ export const useAdminPerformance = (weekStart: string) => {
         referral_code: string | null;
         display_name: string;
       }>();
-      if (ids.length) {
+      if (allIds.length) {
         const names = await supabase.rpc('admin_get_partner_display_names', {
-          partner_ids: ids,
+          partner_ids: allIds,
         });
         if (names.error) throw names.error;
         (names.data ?? []).forEach((p: any) =>
@@ -144,33 +167,33 @@ export const useAdminPerformance = (weekStart: string) => {
           })
         );
       }
+
+      const enrich = (partner_user_id: string) => ({
+        full_name: profileMap.get(partner_user_id)?.full_name ?? null,
+        email: profileMap.get(partner_user_id)?.email ?? null,
+        affiliate_code: profileMap.get(partner_user_id)?.affiliate_code ?? null,
+        referral_code: profileMap.get(partner_user_id)?.referral_code ?? null,
+        display_name: profileMap.get(partner_user_id)?.display_name ?? 'Parceiro não identificado',
+      });
+
       setRanking(
         (scores.data ?? []).map((s: any) => ({
           ...s,
-          full_name: profileMap.get(s.partner_user_id)?.full_name ?? null,
-          email: profileMap.get(s.partner_user_id)?.email ?? null,
-          affiliate_code: profileMap.get(s.partner_user_id)?.affiliate_code ?? null,
-          referral_code: profileMap.get(s.partner_user_id)?.referral_code ?? null,
-          display_name: profileMap.get(s.partner_user_id)?.display_name ?? 'Parceiro não identificado',
+          ...enrich(s.partner_user_id),
         }))
       );
 
-      // Eligibility
-      const elig = await supabase
-        .from('partner_weekly_eligibility')
-        .select('partner_user_id,status,percentage,reason')
-        .eq('week_start', weekStart)
-        .order('percentage', { ascending: false })
-        .limit(200);
-      if (elig.error) throw elig.error;
       setEligibility(
         (elig.data ?? []).map((e: any) => ({
           ...e,
-          full_name: profileMap.get(e.partner_user_id)?.full_name ?? null,
-          email: profileMap.get(e.partner_user_id)?.email ?? null,
-          affiliate_code: profileMap.get(e.partner_user_id)?.affiliate_code ?? null,
-          referral_code: profileMap.get(e.partner_user_id)?.referral_code ?? null,
-          display_name: profileMap.get(e.partner_user_id)?.display_name ?? 'Parceiro não identificado',
+          ...enrich(e.partner_user_id),
+        }))
+      );
+
+      setFraud(
+        (af.data ?? []).map((f: any) => ({
+          ...f,
+          ...enrich(f.partner_user_id),
         }))
       );
 
