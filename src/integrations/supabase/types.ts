@@ -4036,6 +4036,32 @@ export type Database = {
         Args: { p_partner_user_id: string }
         Returns: Json
       }
+      get_partner_performance_history: {
+        Args: { _weeks?: number }
+        Returns: {
+          click_points: number
+          conversion_points: number
+          total_points: number
+          week_start: string
+        }[]
+      }
+      get_partner_performance_summary: {
+        Args: { _week_start: string }
+        Returns: {
+          active_days: number
+          click_points: number
+          contracts_approved: number
+          conversion_points: number
+          purchases_approved: number
+          qualified_clicks: number
+          referral_code: string
+          signups: number
+          suspicious_clicks: number
+          total_points: number
+          week_rank: number
+          week_total_partners: number
+        }[]
+      }
       get_public_profile: {
         Args: { target_user_id: string }
         Returns: {
