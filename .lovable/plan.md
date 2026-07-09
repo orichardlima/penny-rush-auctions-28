@@ -1,91 +1,57 @@
-# Etapa 4C — Cálculo automático + Painel Admin (modo relatório)
+# Plano: Página de Guia do Parceiro — Central de Performance
 
-**Premissa inegociável:** `performance_center_enabled=false` continua. Zero diff em `partner-weekly-payouts`, `affiliate_commissions`, sponsor, binário, contratos, `partner_contracts`, `partner_payouts`, `profiles.referred_by_partner_code`. Nenhum parceiro vê nada. Apenas admin e apenas leitura/simulação.
+## Objetivo
+Criar uma página pública didática que ensine os parceiros de expansão a:
+1. Compartilhar seu link rastreável (`showdelances.com/r/{codigo}`).
+2. Acompanhar métricas e pontuação semanal.
+3. Entender o que conta para a elegibilidade aos 100% dos CPAs/repasses.
 
----
+## Escopo
+- Apenas conteúdo/apresentação (frontend). Não alterar regras de negócio, payout, comissões, banco de dados ou configurações existentes.
+- Página pública, sem necessidade de login.
+- Foco na **nova Central de Performance**, mantendo linguagem compatível com o modo relatório atual (`performance_center_enabled=false`).
 
-## 1. Cron jobs (pg_cron + pg_net)
+## O que será feito
 
-Criar via **supabase--insert** (contém `anon_key` — não pode virar migration compartilhada). Dois jobs distintos, ambos chamando `recalculate-weekly-scores` com header `x-cron-key: <PERFORMANCE_CRON_SECRET>`:
+### 1. Nova página: `src/pages/PartnerGuide.tsx`
+- Estrutura padrão de página pública: `Header`, `Footer`, `SEOHead`.
+- Layout em seções:
+  - **Hero explicativo**: título, subtítulo e CTA para área de parceiro (`/parceiro` ou `/minha-parceria`).
+  - **Como funciona o link**: exemplo de link pessoal, onde encontrar o código, botão de copiar exemplo (ilustrativo), dicas de compartilhamento (WhatsApp, Instagram, stories, grupos, QR Code futuro).
+  - **O que é pontuado**: cards com ícones listando cliques qualificados, cadastros, compras de créditos/lances, participação em leilões, novos parceiros e aportes aprovados — com os pesos padrão configuráveis (0,2; 5; 8; 4; 10; 20).
+  - **Como acompanhar**: explicação do painel do parceiro (quando ativo), semana de segunda a domingo, dias ativos, meta semanal e qualificação automática por conversão forte.
+  - **Regras antifraude em linguagem simples**: não clicar no próprio link, não gerar cadastros falsos, não usar bots, importância de conversões reais.
+  - **FAQ em accordion**: 8–12 perguntas didáticas (ex.: "Posso clicar no meu próprio link?", "Quando a pontuação é atualizada?", "O que é dia ativo?", "Comprovação por print?").
+  - **Banner de aviso (modo relatório)**: informar que a Central de Performance está em fase de acompanhamento/observação e que a conexão com os repasses ocorrerá após validação dos dados reais.
 
-| jobname | schedule | body | finalidade |
-|---|---|---|---|
-| `performance-recalc-intraweek` | `*/30 * * * *` | `{}` (usa semana Bahia atual) | atualização contínua do ranking |
-| `performance-recalc-weekly-close` | `5 3 * * 1` | `{ "week_start": "<segunda anterior>" }` calculado via `date_trunc('week', (now() AT TIME ZONE 'America/Bahia')::date - interval '1 day')` | fechamento da semana encerrada |
+### 2. Rota pública em `src/App.tsx`
+- Adicionar rota `/guia-parceiro` (ou `/parceiro/guia`, a definir) dentro do `BrowserRouter`, usando `LazyRoute` para consistência com as demais páginas.
 
-Notas:
-- `5 3 * * 1` UTC = 00:05 segunda em America/Bahia (UTC−3, sem DST).
-- Antes de criar: `SELECT cron.unschedule(jobname)` idempotente para evitar duplicatas.
-- Requer `pg_cron` + `pg_net` habilitados (verificar; se faltar, migration só de `CREATE EXTENSION`).
-- `partner-weekly-payouts` **não é tocado**. Não há novo cron para payout.
+### 3. Link de acesso
+- Adicionar link no `Footer` para "Guia do Parceiro" ou "Como divulgar".
+- Opcionalmente, adicionar link discreto na `PartnerLanding` (página pública de parceiro) próximo ao FAQ existente.
+- Não alterar o dashboard logado (`/minha-parceria`) nesta etapa, pois a Central ainda não está visível para parceiros.
 
-## 2. Backend (dados)
+### 4. Conteúdo e tom
+- Linguagem simples, direta e motivadora.
+- Não prometer ganhos específicos.
+- Deixar claro que cliques sozinhos não garantem elegibilidade e que conversões reais têm mais peso.
 
-Nenhuma mudança de schema. Reuso do que já existe:
-- `calculate_all_partner_weekly_scores(p_week_start)` popula `partner_weekly_scores` e `partner_weekly_eligibility`.
-- Confirmar em execução seca (via curl edge function com `x-cron-key`) que ambas as tabelas recebem linhas para a semana atual.
-- Se `calculate_all_partner_weekly_scores` já grava eligibility, ok. Se não grava, criar RPC **read-only** `simulate_partner_weekly_eligibility(p_week_start)` que devolve JSON sem escrever — apenas leitura, sem side-effects em payout.
+## Não será feito
+- Não criar/editar tabelas, RPCs, Edge Functions ou triggers.
+- Não alterar `performance_center_enabled`, `performance_tracking_enabled` nem qualquer configuração.
+- Não conectar a pontuação ao payout, comissões, contratos, patrocinador ou binário.
+- Não criar QR Code real nesta etapa (mencionar como recurso futuro).
 
-## 3. Painel Admin (frontend, modo relatório)
+## Validação
+1. `bun run build` deve passar sem erros de TypeScript.
+2. Playwright: acessar `/guia-parceiro` sem login, verificar renderização das seções principais e do FAQ.
+3. Verificar que a navegação a partir do `Footer` funciona.
 
-Nova rota **`/admin/central-performance`** (somente admin, guardada por `profile.is_admin`, igual a `AdminParceiros.tsx`). Item no menu admin existente.
+## Pergunta para confirmação
+Qual rota prefere?
+- `/guia-parceiro` (padrão proposto)
+- `/parceiro/guia`
+- `/central-performance/guia`
 
-Componentes (todos read-only, sem mutação):
-
-```
-src/pages/AdminCentralPerformance.tsx
-src/components/Admin/Performance/
-  ├── PerformanceHeader.tsx        (badge "MODO RELATÓRIO", seletor de semana Bahia)
-  ├── PerformanceRankingTable.tsx  (ranking por pontos)
-  ├── PerformanceKpiCards.tsx      (cliques qualificados, cadastros, compras aprovadas, contratos aprovados)
-  ├── PerformanceEligibilityTable.tsx (elegibilidade simulada — quem passaria se center estivesse ativo)
-  ├── PerformanceAntiFraudPanel.tsx (últimas linhas de anti_fraud_flags)
-  ├── PerformanceAuditPanel.tsx    (últimas linhas de performance_audit_logs + performance_backfill_issues)
-  └── PerformanceInconsistencies.tsx (visitantes sem attribution, attribution sem tracking, órfãos)
-src/hooks/useAdminPerformance.ts   (fetch centralizado, sem realtime pesado)
-```
-
-Fontes de dados (SELECT apenas):
-- `partner_weekly_scores`, `partner_weekly_eligibility` — ranking + elegibilidade simulada.
-- `tracking_events` agregado — cliques qualificados, dedupe, host_flag.
-- `attribution_events` agregado por `conversion_type` — signup, purchase_approved, partner_plan_approved.
-- `anti_fraud_flags` — últimos flags, sem ação.
-- `performance_audit_logs` — logs recentes.
-- `performance_backfill_issues` — pendências.
-- Inconsistências: LEFT JOIN queries para detectar attribution sem tracking, tracking sem attribution do mesmo visitor_id, etc.
-
-Regras UI:
-- Badge global "MODO RELATÓRIO — sem impacto financeiro" em toda a tela.
-- Nenhum botão de ação (sem "aprovar", "pagar", "reverter"). Apenas visualização + export CSV opcional (client-side, sem edge function).
-- Semana Bahia: reutilizar helpers de `src/utils/weekHelpers.ts` mas garantindo timezone Bahia (mesma lógica do `bahiaTodayISO`/`toMondayISO` da edge function).
-
-## 4. Parceiro (frontend)
-
-**Nada muda.** Nenhum link, nenhuma tela, nenhum badge. `performance_center_enabled=false` continua governando qualquer exposição futura.
-
-## 5. Fora de escopo (explicitamente)
-
-- Payout real, criação/alteração de `partner_payouts`.
-- Chamadas de `partner-weekly-payouts`.
-- Alteração de `affiliate_commissions`, `partner_contracts`, `partner_binary_positions`.
-- Notificações/e-mails a parceiros.
-- Reversão dos registros de teste (test_user_id `26a25ea7…`, tracking `faf7d23b…`, attribution `ca7657b2…`, code `124BB09F`, afiliado Luis Carlos `9634ea5f…`) — permanecem documentados para limpeza pré-ativação.
-- Ativação de `performance_center_enabled`.
-
-## 6. Validação após implementação
-
-1. `cron.job` lista os dois jobs ativos; `cron.job_run_details` mostra sucesso após 30min.
-2. Curl manual em `recalculate-weekly-scores` com `x-cron-key` → 200 + linhas em `partner_weekly_scores` para semana Bahia atual.
-3. Painel admin abre, mostra ranking, KPIs coerentes com evento de teste (Luis Carlos com 5 pontos).
-4. Diff-check: `git diff` NÃO toca `partner-weekly-payouts`, `partner_contracts`, `affiliate_commissions`, sponsor, binário.
-5. Parceiro logado em `/minha-parceria` não vê absolutamente nada de performance.
-6. `performance_center_enabled` continua `false` em `performance_settings`.
-
-## Detalhes técnicos
-
-- **Cron SQL** roda via `supabase--insert` (não migration), pois embute anon_key. Header `x-cron-key` lê do PERFORMANCE_CRON_SECRET já criado na Etapa 3.
-- **Timezone:** todo cálculo de semana no cliente/admin usa fórmula Bahia (UTC−3 fixo). Não confiar em `new Date().getDay()` local do browser.
-- **Permissões:** todas as tabelas consultadas já têm RLS; o painel usa sessão admin, então basta policies existentes de `is_admin`. Se alguma tabela (`tracking_events`, `attribution_events`, `anti_fraud_flags`, `performance_audit_logs`) não tiver policy admin-read, adicionar **via migration separada apenas com `CREATE POLICY … FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))`** — sem GRANTs novos, sem tocar dados.
-- **Bundle:** rota admin com `React.lazy` para não pesar no bundle do parceiro.
-
-Aguardando aprovação para implementar.
+Aguardo confirmação para iniciar a implementação.
