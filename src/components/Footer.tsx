@@ -44,6 +44,11 @@ export const Footer = () => {
                   Seja um Parceiro de Expansão
                 </Link>
               </li>
+              <li>
+                <Link to="/guia-parceiro" className="hover:opacity-100 transition-opacity">
+                  Guia do Parceiro
+                </Link>
+              </li>
             </ul>
           </div>
           
