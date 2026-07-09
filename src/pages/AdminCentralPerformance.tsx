@@ -137,6 +137,28 @@ const AdminCentralPerformance: React.FC = () => {
           <KpiCard label="Reversões" value={kpis?.reversed ?? 0} muted />
         </div>
 
+        {/* Legenda didática */}
+        <Card className="bg-muted/30">
+          <CardContent className="py-4">
+            <div className="text-sm font-medium mb-2">Como ler este painel</div>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+              <li>
+                <strong>Identificação do parceiro:</strong> mostramos o nome do perfil quando disponível;
+                se não houver nome, exibimos o e-mail de cadastro; se não houver e-mail, o código de afiliado.
+                O ID técnico aparece apenas ao passar o mouse no subtítulo.
+              </li>
+              <li>
+                <strong>Ranking:</strong> pontuação da semana selecionada. Cliques valem pouco;
+                cadastros, compras e contratos aprovados têm peso maior.
+              </li>
+              <li>
+                <strong>Elegibilidade simulada:</strong> indica quem atingiria a meta semanal caso a Central estivesse ativada.
+                Nenhum repasse real é gerado enquanto o modo relatório estiver ligado.
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="ranking">
           <TabsList className="flex flex-wrap">
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
@@ -150,7 +172,10 @@ const AdminCentralPerformance: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Ranking de parceiros — pontos da semana</CardTitle>
-                <CardDescription>Ordem por total de pontos. Dados apenas para relatório.</CardDescription>
+                <CardDescription>
+                  Ordem por total de pontos. O nome exibido é o identificador real do parceiro
+                  (nome do perfil, e-mail ou código de afiliado). Dados apenas para relatório.
+                </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
@@ -172,8 +197,12 @@ const AdminCentralPerformance: React.FC = () => {
                       <TableRow key={r.partner_user_id}>
                         <TableCell className="font-mono">{i + 1}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{r.full_name ?? '—'}</div>
-                          <div className="text-xs text-muted-foreground">{r.email ?? r.partner_user_id.slice(0, 8)}</div>
+                          <div className="font-medium" title={r.full_name ? 'Nome do perfil' : r.email ? 'E-mail do cadastro' : r.affiliate_code ? 'Código de afiliado' : r.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
+                            {r.display_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${r.partner_user_id}`}>
+                            {r.email ?? r.affiliate_code ?? r.referral_code ?? r.partner_user_id.slice(0, 8)}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">{Number(r.total_points).toFixed(2)}</TableCell>
                         <TableCell className="text-right font-mono">{Number(r.click_points).toFixed(2)}</TableCell>
@@ -191,7 +220,10 @@ const AdminCentralPerformance: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Elegibilidade simulada</CardTitle>
-                <CardDescription>Quem passaria caso a Central estivesse ativada. Não gera repasse.</CardDescription>
+                <CardDescription>
+                  Quem passaria caso a Central estivesse ativada. Não gera repasse.
+                  O parceiro é identificado pelo nome real, e-mail ou código de afiliado.
+                </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
@@ -209,7 +241,14 @@ const AdminCentralPerformance: React.FC = () => {
                     )}
                     {eligibility.map((e: any) => (
                       <TableRow key={e.partner_user_id}>
-                        <TableCell className="text-xs font-mono">{e.full_name ?? e.partner_user_id.slice(0, 8)}</TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm" title={e.full_name ? 'Nome do perfil' : e.email ? 'E-mail do cadastro' : e.affiliate_code ? 'Código de afiliado' : e.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
+                            {e.display_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${e.partner_user_id}`}>
+                            {e.email ?? e.affiliate_code ?? e.referral_code ?? e.partner_user_id.slice(0, 8)}
+                          </div>
+                        </TableCell>
                         <TableCell><Badge variant={e.status === 'eligible' ? 'default' : 'secondary'}>{e.status}</Badge></TableCell>
                         <TableCell className="text-right font-mono">{fmtPct(Number(e.percentage))}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{e.reason ?? '—'}</TableCell>
@@ -246,7 +285,14 @@ const AdminCentralPerformance: React.FC = () => {
                         <TableCell><Badge variant="outline">{f.flag_type}</Badge></TableCell>
                         <TableCell>{f.severity}</TableCell>
                         <TableCell>{f.status}</TableCell>
-                        <TableCell className="text-xs font-mono">{f.partner_user_id?.slice(0, 8) ?? '—'}</TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm" title={f.full_name ? 'Nome do perfil' : f.email ? 'E-mail do cadastro' : f.affiliate_code ? 'Código de afiliado' : f.referral_code ? 'Código de indicação' : 'Identificador técnico'}>
+                            {f.display_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground" title={`ID técnico: ${f.partner_user_id}`}>
+                            {f.email ?? f.affiliate_code ?? f.referral_code ?? f.partner_user_id?.slice(0, 8) ?? '—'}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
