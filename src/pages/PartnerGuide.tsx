@@ -27,6 +27,7 @@ import {
   QrCode,
   CalendarCheck,
   Info,
+  Target,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
