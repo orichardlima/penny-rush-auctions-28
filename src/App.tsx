@@ -156,6 +156,8 @@ const MinhaParceriaEncerramento = lazyWithRetry(() => import("./pages/MinhaParce
 const AdminParceiros = lazyWithRetry(() => import("./pages/AdminParceiros"));
 const AdminCentralPerformance = lazyWithRetry(() => import("./pages/AdminCentralPerformance"));
 const AdminPontosLoja = lazyWithRetry(() => import("./pages/AdminPontosLoja"));
+const LojaShow = lazyWithRetry(() => import("./pages/LojaShow"));
+const MeusResgates = lazyWithRetry(() => import("./pages/MeusResgates"));
 const TermosDeUso = lazyWithRetry(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacidade"));
 const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
