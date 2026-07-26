@@ -906,15 +906,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bid_lot_consumptions: {
+        Row: {
+          amount_consumed: number
+          bid_id: string
+          bid_purchase_id: string | null
+          created_at: string
+          eligible_for_points: boolean
+          id: string
+          lot_id: string
+          source: string | null
+        }
+        Insert: {
+          amount_consumed: number
+          bid_id: string
+          bid_purchase_id?: string | null
+          created_at?: string
+          eligible_for_points: boolean
+          id?: string
+          lot_id: string
+          source?: string | null
+        }
+        Update: {
+          amount_consumed?: number
+          bid_id?: string
+          bid_purchase_id?: string | null
+          created_at?: string
+          eligible_for_points?: boolean
+          id?: string
+          lot_id?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_lot_consumptions_bid_id_fkey"
+            columns: ["bid_id"]
+            isOneToOne: false
+            referencedRelation: "bids"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_lot_consumptions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "bid_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bid_lots: {
         Row: {
+          bid_purchase_id: string | null
           created_at: string
+          eligible_for_points: boolean
           expired_amount: number
           expires_at: string | null
+          external_payment_id: string | null
           id: string
+          idempotency_key: string | null
           initial_amount: number
           notified_1d_at: string | null
           notified_7d_at: string | null
+          payment_gateway: string | null
+          purchased_at: string | null
           remaining_amount: number
           source: string
           source_ref: string | null
@@ -922,13 +976,19 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bid_purchase_id?: string | null
           created_at?: string
+          eligible_for_points?: boolean
           expired_amount?: number
           expires_at?: string | null
+          external_payment_id?: string | null
           id?: string
+          idempotency_key?: string | null
           initial_amount: number
           notified_1d_at?: string | null
           notified_7d_at?: string | null
+          payment_gateway?: string | null
+          purchased_at?: string | null
           remaining_amount: number
           source?: string
           source_ref?: string | null
@@ -936,13 +996,19 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bid_purchase_id?: string | null
           created_at?: string
+          eligible_for_points?: boolean
           expired_amount?: number
           expires_at?: string | null
+          external_payment_id?: string | null
           id?: string
+          idempotency_key?: string | null
           initial_amount?: number
           notified_1d_at?: string | null
           notified_7d_at?: string | null
+          payment_gateway?: string | null
+          purchased_at?: string | null
           remaining_amount?: number
           source?: string
           source_ref?: string | null
@@ -1044,27 +1110,63 @@ export type Database = {
       }
       bids: {
         Row: {
+          accrual_started_at_snapshot: string | null
           auction_id: string
+          audience_version_snapshot: number | null
           bid_amount: number
           cost_paid: number
           created_at: string
+          eligible_for_points: boolean
           id: string
+          is_test: boolean
+          lot_id: string | null
+          points_accrual_active_at_bid: boolean | null
+          points_campaign_id: string | null
+          points_multiplier_snapshot: number | null
+          points_program_active_at_bid: boolean | null
+          points_rule_id: string | null
+          source: string | null
+          tracking_status: string
           user_id: string
         }
         Insert: {
+          accrual_started_at_snapshot?: string | null
           auction_id: string
+          audience_version_snapshot?: number | null
           bid_amount: number
           cost_paid: number
           created_at?: string
+          eligible_for_points?: boolean
           id?: string
+          is_test?: boolean
+          lot_id?: string | null
+          points_accrual_active_at_bid?: boolean | null
+          points_campaign_id?: string | null
+          points_multiplier_snapshot?: number | null
+          points_program_active_at_bid?: boolean | null
+          points_rule_id?: string | null
+          source?: string | null
+          tracking_status?: string
           user_id: string
         }
         Update: {
+          accrual_started_at_snapshot?: string | null
           auction_id?: string
+          audience_version_snapshot?: number | null
           bid_amount?: number
           cost_paid?: number
           created_at?: string
+          eligible_for_points?: boolean
           id?: string
+          is_test?: boolean
+          lot_id?: string | null
+          points_accrual_active_at_bid?: boolean | null
+          points_campaign_id?: string | null
+          points_multiplier_snapshot?: number | null
+          points_program_active_at_bid?: boolean | null
+          points_rule_id?: string | null
+          source?: string | null
+          tracking_status?: string
           user_id?: string
         }
         Relationships: [
@@ -1073,6 +1175,13 @@ export type Database = {
             columns: ["auction_id"]
             isOneToOne: false
             referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bids_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "bid_lots"
             referencedColumns: ["id"]
           },
         ]
@@ -3061,6 +3170,170 @@ export type Database = {
         }
         Relationships: []
       }
+      points_bid_reconciliation_queue: {
+        Row: {
+          available_amount: number | null
+          bid_id: string | null
+          created_at: string
+          id: string
+          reason: string
+          requested_amount: number
+          user_id: string
+        }
+        Insert: {
+          available_amount?: number | null
+          bid_id?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          requested_amount: number
+          user_id: string
+        }
+        Update: {
+          available_amount?: number | null
+          bid_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          requested_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_bid_reconciliation_queue_bid_id_fkey"
+            columns: ["bid_id"]
+            isOneToOne: false
+            referencedRelation: "bids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_program_settings_audit: {
+        Row: {
+          actor: string | null
+          created_at: string
+          id: string
+          key: string
+          new_value: string | null
+          old_value: string | null
+          table_type: string
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          id?: string
+          key: string
+          new_value?: string | null
+          old_value?: string | null
+          table_type: string
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          id?: string
+          key?: string
+          new_value?: string | null
+          old_value?: string | null
+          table_type?: string
+        }
+        Relationships: []
+      }
+      points_program_settings_bool: {
+        Row: {
+          is_admin_only: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: boolean
+        }
+        Insert: {
+          is_admin_only?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: boolean
+        }
+        Update: {
+          is_admin_only?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: boolean
+        }
+        Relationships: []
+      }
+      points_program_settings_json: {
+        Row: {
+          is_admin_only: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          is_admin_only?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          is_admin_only?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      points_program_settings_num: {
+        Row: {
+          is_admin_only: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: number
+        }
+        Insert: {
+          is_admin_only?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: number
+        }
+        Update: {
+          is_admin_only?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      points_program_settings_time: {
+        Row: {
+          is_admin_only: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: string | null
+        }
+        Insert: {
+          is_admin_only?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Update: {
+          is_admin_only?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
       product_templates: {
         Row: {
           bid_cost: number | null
@@ -3145,6 +3418,7 @@ export type Database = {
           is_admin: boolean | null
           is_blocked: boolean | null
           is_bot: boolean | null
+          is_test_account: boolean
           neighborhood: string | null
           number: string | null
           phone: string | null
@@ -3178,6 +3452,7 @@ export type Database = {
           is_admin?: boolean | null
           is_blocked?: boolean | null
           is_bot?: boolean | null
+          is_test_account?: boolean
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
@@ -3211,6 +3486,7 @@ export type Database = {
           is_admin?: boolean | null
           is_blocked?: boolean | null
           is_bot?: boolean | null
+          is_test_account?: boolean
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
@@ -3769,6 +4045,10 @@ export type Database = {
         Args: { p_admin_id: string; p_notes?: string }
         Returns: Json
       }
+      commit_bid_lot_consumptions: {
+        Args: { p_bid_id: string; p_rows: Json }
+        Returns: undefined
+      }
       complete_oauth_profile: {
         Args: {
           p_affiliate_referral_code?: string
@@ -3790,6 +4070,10 @@ export type Database = {
       consume_bid_lots: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
+      }
+      consume_bid_lots_for_bid: {
+        Args: { p_amount: number; p_bid_id: string; p_user_id: string }
+        Returns: boolean
       }
       credit_purchase_bids: {
         Args: { p_amount: number; p_purchase_id?: string; p_user_id: string }
@@ -4238,6 +4522,36 @@ export type Database = {
         Args: { p_auction_id: string; p_user_id: string }
         Returns: undefined
       }
+      place_bid_as: {
+        Args: { p_actor: string; p_auction: string; p_target: string }
+        Returns: undefined
+      }
+      points_admin_set_bool: {
+        Args: { p_key: string; p_value: boolean }
+        Returns: undefined
+      }
+      points_admin_set_json: {
+        Args: { p_key: string; p_value: Json }
+        Returns: undefined
+      }
+      points_admin_set_num: {
+        Args: { p_key: string; p_value: number }
+        Returns: undefined
+      }
+      points_admin_set_time: {
+        Args: { p_key: string; p_value: string }
+        Returns: undefined
+      }
+      points_get_bool: {
+        Args: { p_default?: boolean; p_key: string }
+        Returns: boolean
+      }
+      points_get_json: { Args: { p_key: string }; Returns: Json }
+      points_get_num: {
+        Args: { p_default?: number; p_key: string }
+        Returns: number
+      }
+      points_get_time: { Args: { p_key: string }; Returns: string }
       position_partner_binary: {
         Args: {
           p_contract_id: string
@@ -4247,6 +4561,16 @@ export type Database = {
         Returns: Json
       }
       preview_binary_cycle_closure: { Args: never; Returns: Json }
+      preview_consume_bid_lots: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: {
+          bid_purchase_id: string
+          eligible: boolean
+          lot_id: string
+          source: string
+          take: number
+        }[]
+      }
       process_fast_start_bonus: {
         Args: { p_contract_id: string; p_tier_id: string }
         Returns: undefined
