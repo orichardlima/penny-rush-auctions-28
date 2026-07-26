@@ -23,11 +23,12 @@ export default function AdminPontosLoja() {
   useEffect(() => {
     (async () => {
       try {
+        const sb = supabase as any;
         const [b, n, t, j] = await Promise.all([
-          supabase.from("points_program_settings_bool").select("key,value,is_admin_only"),
-          supabase.from("points_program_settings_num").select("key,value,is_admin_only"),
-          supabase.from("points_program_settings_time").select("key,value,is_admin_only"),
-          supabase.from("points_program_settings_json").select("key,value,is_admin_only"),
+          sb.from("points_program_settings_bool").select("key,value,is_admin_only"),
+          sb.from("points_program_settings_num").select("key,value,is_admin_only"),
+          sb.from("points_program_settings_time").select("key,value,is_admin_only"),
+          sb.from("points_program_settings_json").select("key,value,is_admin_only"),
         ]);
         if (b.error || n.error || t.error || j.error) {
           setError(b.error?.message || n.error?.message || t.error?.message || j.error?.message || "erro");
