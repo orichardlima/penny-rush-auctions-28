@@ -739,6 +739,127 @@ export type Database = {
           },
         ]
       }
+      auction_points_settlement_items: {
+        Row: {
+          auction_id: string
+          campaign_id: string | null
+          carryover_after: number
+          carryover_before: number
+          created_at: string
+          eligible_bids_count: number
+          id: string
+          ledger_id: string | null
+          points_awarded: number
+          rule_id: string
+          settlement_id: string
+          total_eligible_bids: number
+          user_id: string
+        }
+        Insert: {
+          auction_id: string
+          campaign_id?: string | null
+          carryover_after?: number
+          carryover_before?: number
+          created_at?: string
+          eligible_bids_count: number
+          id?: string
+          ledger_id?: string | null
+          points_awarded: number
+          rule_id: string
+          settlement_id: string
+          total_eligible_bids: number
+          user_id: string
+        }
+        Update: {
+          auction_id?: string
+          campaign_id?: string | null
+          carryover_after?: number
+          carryover_before?: number
+          created_at?: string
+          eligible_bids_count?: number
+          id?: string
+          ledger_id?: string | null
+          points_awarded?: number
+          rule_id?: string
+          settlement_id?: string
+          total_eligible_bids?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_points_settlement_items_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "points_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_points_settlement_items_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "points_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_points_settlement_items_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "auction_points_settlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auction_points_settlements: {
+        Row: {
+          auction_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          idempotency_key: string
+          metadata: Json
+          reason: string | null
+          reversed_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["points_settlement_status"]
+          updated_at: string
+          version: number
+          winner_id: string | null
+        }
+        Insert: {
+          auction_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          idempotency_key: string
+          metadata?: Json
+          reason?: string | null
+          reversed_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["points_settlement_status"]
+          updated_at?: string
+          version?: number
+          winner_id?: string | null
+        }
+        Update: {
+          auction_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          reason?: string | null
+          reversed_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["points_settlement_status"]
+          updated_at?: string
+          version?: number
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
       auction_scheduled_finalizations: {
         Row: {
           auction_id: string
@@ -3170,6 +3291,41 @@ export type Database = {
         }
         Relationships: []
       }
+      points_accrual_buckets: {
+        Row: {
+          campaign_id: string | null
+          eligible_bids_remaining: number
+          id: string
+          rule_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          eligible_bids_remaining?: number
+          id?: string
+          rule_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          eligible_bids_remaining?: number
+          id?: string
+          rule_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_accrual_buckets_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "points_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       points_bid_reconciliation_queue: {
         Row: {
           available_amount: number | null
@@ -3204,6 +3360,83 @@ export type Database = {
             columns: ["bid_id"]
             isOneToOne: false
             referencedRelation: "bids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_ledger: {
+        Row: {
+          admin_id: string | null
+          auction_id: string | null
+          available_after: number
+          available_before: number
+          campaign_id: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          idempotency_key: string | null
+          metadata: Json
+          payment_id: string | null
+          points_delta: number
+          reason: string | null
+          redemption_id: string | null
+          reserved_after: number
+          reserved_before: number
+          rule_id: string | null
+          settlement_id: string | null
+          transaction_type: Database["public"]["Enums"]["points_ledger_type"]
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          auction_id?: string | null
+          available_after: number
+          available_before: number
+          campaign_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          payment_id?: string | null
+          points_delta: number
+          reason?: string | null
+          redemption_id?: string | null
+          reserved_after: number
+          reserved_before: number
+          rule_id?: string | null
+          settlement_id?: string | null
+          transaction_type: Database["public"]["Enums"]["points_ledger_type"]
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          auction_id?: string | null
+          available_after?: number
+          available_before?: number
+          campaign_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          metadata?: Json
+          payment_id?: string | null
+          points_delta?: number
+          reason?: string | null
+          redemption_id?: string | null
+          reserved_after?: number
+          reserved_before?: number
+          rule_id?: string | null
+          settlement_id?: string | null
+          transaction_type?: Database["public"]["Enums"]["points_ledger_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_ledger_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "points_rules"
             referencedColumns: ["id"]
           },
         ]
@@ -3331,6 +3564,517 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           value?: string | null
+        }
+        Relationships: []
+      }
+      points_redemption_items: {
+        Row: {
+          created_at: string
+          id: string
+          internal_cost_snapshot: number | null
+          item_id: string
+          item_snapshot: Json
+          points_total: number
+          points_unit: number
+          quantity: number
+          redemption_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          internal_cost_snapshot?: number | null
+          item_id: string
+          item_snapshot: Json
+          points_total: number
+          points_unit: number
+          quantity: number
+          redemption_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          internal_cost_snapshot?: number | null
+          item_id?: string
+          item_snapshot?: Json
+          points_total?: number
+          points_unit?: number
+          quantity?: number
+          redemption_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_redemption_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "points_store_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "points_redemption_items_redemption_id_fkey"
+            columns: ["redemption_id"]
+            isOneToOne: false
+            referencedRelation: "points_redemptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_redemption_status_history: {
+        Row: {
+          actor: string | null
+          created_at: string
+          id: string
+          new_status: Database["public"]["Enums"]["points_redemption_status"]
+          old_status:
+            | Database["public"]["Enums"]["points_redemption_status"]
+            | null
+          reason: string | null
+          redemption_id: string
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          id?: string
+          new_status: Database["public"]["Enums"]["points_redemption_status"]
+          old_status?:
+            | Database["public"]["Enums"]["points_redemption_status"]
+            | null
+          reason?: string | null
+          redemption_id: string
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["points_redemption_status"]
+          old_status?:
+            | Database["public"]["Enums"]["points_redemption_status"]
+            | null
+          reason?: string | null
+          redemption_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_redemption_status_history_redemption_id_fkey"
+            columns: ["redemption_id"]
+            isOneToOne: false
+            referencedRelation: "points_redemptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_redemptions: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          cancelled_at: string | null
+          carrier: string | null
+          created_at: string
+          delivered_at: string | null
+          id: string
+          idempotency_key: string | null
+          order_number: string
+          rejected_at: string | null
+          shipped_at: string | null
+          shipping_address_snapshot: Json | null
+          shipping_cost: number | null
+          shipping_method: string | null
+          status: Database["public"]["Enums"]["points_redemption_status"]
+          total_points: number
+          tracking_code: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          order_number?: string
+          rejected_at?: string | null
+          shipped_at?: string | null
+          shipping_address_snapshot?: Json | null
+          shipping_cost?: number | null
+          shipping_method?: string | null
+          status?: Database["public"]["Enums"]["points_redemption_status"]
+          total_points: number
+          tracking_code?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          cancelled_at?: string | null
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          order_number?: string
+          rejected_at?: string | null
+          shipped_at?: string | null
+          shipping_address_snapshot?: Json | null
+          shipping_cost?: number | null
+          shipping_method?: string | null
+          status?: Database["public"]["Enums"]["points_redemption_status"]
+          total_points?: number
+          tracking_code?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      points_rules: {
+        Row: {
+          active_from: string
+          active_to: string | null
+          bids_per_point: number
+          campaign_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          multiplier: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active_from?: string
+          active_to?: string | null
+          bids_per_point: number
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          multiplier?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active_from?: string
+          active_to?: string | null
+          bids_per_point?: number
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          multiplier?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      points_store_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      points_store_inventory_movements: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          id: string
+          item_id: string
+          movement_type: Database["public"]["Enums"]["points_inventory_movement_type"]
+          quantity_delta: number
+          reason: string | null
+          redemption_id: string | null
+          stock_after: number
+          stock_before: number
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          movement_type: Database["public"]["Enums"]["points_inventory_movement_type"]
+          quantity_delta: number
+          reason?: string | null
+          redemption_id?: string | null
+          stock_after: number
+          stock_before: number
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          movement_type?: Database["public"]["Enums"]["points_inventory_movement_type"]
+          quantity_delta?: number
+          reason?: string | null
+          redemption_id?: string | null
+          stock_after?: number
+          stock_before?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_store_inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "points_store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_store_item_images: {
+        Row: {
+          alt: string | null
+          created_at: string
+          id: string
+          item_id: string
+          sort_order: number
+          url: string
+        }
+        Insert: {
+          alt?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          sort_order?: number
+          url: string
+        }
+        Update: {
+          alt?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          sort_order?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_store_item_images_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "points_store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_store_item_price_history: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          id: string
+          item_id: string
+          new_cost_points: number
+          old_cost_points: number | null
+          reason: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          new_cost_points: number
+          old_cost_points?: number | null
+          reason?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          new_cost_points?: number
+          old_cost_points?: number | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_store_item_price_history_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "points_store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_store_items: {
+        Row: {
+          brand: string | null
+          category_id: string | null
+          cost_points: number
+          created_at: string
+          dimensions: Json | null
+          ends_at: string | null
+          estimated_days: number | null
+          featured: boolean
+          free_shipping: boolean
+          full_description: string | null
+          id: string
+          internal_cost_brl: number | null
+          item_type: Database["public"]["Enums"]["points_store_item_type"]
+          main_image_url: string | null
+          model: string | null
+          name: string
+          on_demand: boolean
+          per_user_limit: number | null
+          reference_value_brl: number | null
+          short_description: string | null
+          sku: string | null
+          slug: string
+          starts_at: string | null
+          status: Database["public"]["Enums"]["points_store_item_status"]
+          stock_available: number | null
+          stock_min: number
+          stock_reserved: number
+          stock_total: number
+          supplier: string | null
+          updated_at: string
+          weight_g: number | null
+        }
+        Insert: {
+          brand?: string | null
+          category_id?: string | null
+          cost_points: number
+          created_at?: string
+          dimensions?: Json | null
+          ends_at?: string | null
+          estimated_days?: number | null
+          featured?: boolean
+          free_shipping?: boolean
+          full_description?: string | null
+          id?: string
+          internal_cost_brl?: number | null
+          item_type?: Database["public"]["Enums"]["points_store_item_type"]
+          main_image_url?: string | null
+          model?: string | null
+          name: string
+          on_demand?: boolean
+          per_user_limit?: number | null
+          reference_value_brl?: number | null
+          short_description?: string | null
+          sku?: string | null
+          slug: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["points_store_item_status"]
+          stock_available?: number | null
+          stock_min?: number
+          stock_reserved?: number
+          stock_total?: number
+          supplier?: string | null
+          updated_at?: string
+          weight_g?: number | null
+        }
+        Update: {
+          brand?: string | null
+          category_id?: string | null
+          cost_points?: number
+          created_at?: string
+          dimensions?: Json | null
+          ends_at?: string | null
+          estimated_days?: number | null
+          featured?: boolean
+          free_shipping?: boolean
+          full_description?: string | null
+          id?: string
+          internal_cost_brl?: number | null
+          item_type?: Database["public"]["Enums"]["points_store_item_type"]
+          main_image_url?: string | null
+          model?: string | null
+          name?: string
+          on_demand?: boolean
+          per_user_limit?: number | null
+          reference_value_brl?: number | null
+          short_description?: string | null
+          sku?: string | null
+          slug?: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["points_store_item_status"]
+          stock_available?: number | null
+          stock_min?: number
+          stock_reserved?: number
+          stock_total?: number
+          supplier?: string | null
+          updated_at?: string
+          weight_g?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_store_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "points_store_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_wallets: {
+        Row: {
+          available_points: number
+          blocked_points: number
+          created_at: string
+          expired_points: number
+          lifetime_earned: number
+          lifetime_redeemed: number
+          lifetime_reversed: number
+          reserved_points: number
+          status: Database["public"]["Enums"]["points_wallet_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_points?: number
+          blocked_points?: number
+          created_at?: string
+          expired_points?: number
+          lifetime_earned?: number
+          lifetime_redeemed?: number
+          lifetime_reversed?: number
+          reserved_points?: number
+          status?: Database["public"]["Enums"]["points_wallet_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_points?: number
+          blocked_points?: number
+          created_at?: string
+          expired_points?: number
+          lifetime_earned?: number
+          lifetime_redeemed?: number
+          lifetime_reversed?: number
+          reserved_points?: number
+          status?: Database["public"]["Enums"]["points_wallet_status"]
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3944,6 +4688,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _points_ensure_wallet: { Args: { p_user: string }; Returns: undefined }
       _schedule_bot_only_finalization: {
         Args: { p_auction_id: string; p_reason: string; p_title: string }
         Returns: string
@@ -4437,6 +5182,10 @@ export type Database = {
       }
       is_admin_user: { Args: { user_uuid: string }; Returns: boolean }
       is_affiliate_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_auction_final_for_points: {
+        Args: { p_auction_id: string }
+        Returns: boolean
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {
@@ -4526,6 +5275,16 @@ export type Database = {
         Args: { p_actor: string; p_auction: string; p_target: string }
         Returns: undefined
       }
+      points_admin_adjust: {
+        Args: {
+          p_admin: string
+          p_delta: number
+          p_idem: string
+          p_reason: string
+          p_user: string
+        }
+        Returns: string
+      }
       points_admin_set_bool: {
         Args: { p_key: string; p_value: boolean }
         Returns: undefined
@@ -4542,6 +5301,15 @@ export type Database = {
         Args: { p_key: string; p_value: string }
         Returns: undefined
       }
+      points_confirm_reservation: {
+        Args: {
+          p_amount: number
+          p_idem: string
+          p_redemption: string
+          p_user: string
+        }
+        Returns: string
+      }
       points_get_bool: {
         Args: { p_default?: boolean; p_key: string }
         Returns: boolean
@@ -4552,6 +5320,32 @@ export type Database = {
         Returns: number
       }
       points_get_time: { Args: { p_key: string }; Returns: string }
+      points_release_reservation: {
+        Args: {
+          p_amount: number
+          p_idem: string
+          p_redemption: string
+          p_user: string
+        }
+        Returns: string
+      }
+      points_reserve: {
+        Args: {
+          p_amount: number
+          p_idem: string
+          p_redemption: string
+          p_user: string
+        }
+        Returns: string
+      }
+      points_reverse_settlement: {
+        Args: { p_reason: string; p_settlement_id: string }
+        Returns: string
+      }
+      points_settle_auction: {
+        Args: { p_actor?: string; p_auction_id: string; p_reason?: string }
+        Returns: string
+      }
       position_partner_binary: {
         Args: {
           p_contract_id: string
@@ -4605,6 +5399,22 @@ export type Database = {
         Args: { _contract_id: string }
         Returns: undefined
       }
+      redeem_approve: {
+        Args: { p_admin: string; p_notes: string; p_redemption: string }
+        Returns: undefined
+      }
+      redeem_cancel: {
+        Args: { p_reason: string; p_redemption: string }
+        Returns: undefined
+      }
+      redeem_create: {
+        Args: { p_idem: string; p_items: Json; p_shipping: Json }
+        Returns: string
+      }
+      redeem_reject: {
+        Args: { p_admin: string; p_reason: string; p_redemption: string }
+        Returns: undefined
+      }
       register_contract_acceptance: {
         Args: {
           p_accepted_at_client?: string
@@ -4643,6 +5453,7 @@ export type Database = {
         }
         Returns: Json
       }
+      store_visible_for: { Args: { p_user: string }; Returns: boolean }
       tick_bot_executor: { Args: never; Returns: undefined }
       track_click: {
         Args: {
@@ -4675,6 +5486,58 @@ export type Database = {
         | "kit_divulgacao"
         | "regulamento"
         | "outros"
+      points_inventory_movement_type:
+        | "ENTRY"
+        | "RESERVE"
+        | "RELEASE"
+        | "REDEMPTION"
+        | "ADJUSTMENT"
+        | "LOSS"
+        | "DAMAGE"
+        | "RETURN"
+        | "CANCELLATION"
+      points_ledger_type:
+        | "EARN_AUCTION"
+        | "EARN_CAMPAIGN"
+        | "RESERVE_REDEMPTION"
+        | "CONFIRM_REDEMPTION"
+        | "RELEASE_REDEMPTION"
+        | "ADMIN_CREDIT"
+        | "ADMIN_DEBIT"
+        | "ORDER_REVERSAL"
+        | "CHARGEBACK_REVERSAL"
+        | "FRAUD_REVERSAL"
+        | "EXPIRATION"
+        | "CORRECTION"
+      points_redemption_status:
+        | "PENDING"
+        | "APPROVED"
+        | "REJECTED"
+        | "SEPARATING"
+        | "SHIPPED"
+        | "DELIVERED"
+        | "CANCELLED"
+        | "REVERSED"
+      points_settlement_status:
+        | "PENDING"
+        | "PROCESSING"
+        | "COMPLETED"
+        | "FAILED"
+        | "REVERSED"
+        | "SUPERSEDED"
+      points_store_item_status:
+        | "DRAFT"
+        | "ACTIVE"
+        | "PAUSED"
+        | "OUT_OF_STOCK"
+        | "ARCHIVED"
+      points_store_item_type: "PHYSICAL" | "DIGITAL"
+      points_wallet_status:
+        | "NORMAL"
+        | "UNDER_REVIEW"
+        | "BLOCKED"
+        | "SUSPENDED"
+        | "CLOSED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4808,6 +5671,64 @@ export const Constants = {
         "kit_divulgacao",
         "regulamento",
         "outros",
+      ],
+      points_inventory_movement_type: [
+        "ENTRY",
+        "RESERVE",
+        "RELEASE",
+        "REDEMPTION",
+        "ADJUSTMENT",
+        "LOSS",
+        "DAMAGE",
+        "RETURN",
+        "CANCELLATION",
+      ],
+      points_ledger_type: [
+        "EARN_AUCTION",
+        "EARN_CAMPAIGN",
+        "RESERVE_REDEMPTION",
+        "CONFIRM_REDEMPTION",
+        "RELEASE_REDEMPTION",
+        "ADMIN_CREDIT",
+        "ADMIN_DEBIT",
+        "ORDER_REVERSAL",
+        "CHARGEBACK_REVERSAL",
+        "FRAUD_REVERSAL",
+        "EXPIRATION",
+        "CORRECTION",
+      ],
+      points_redemption_status: [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "SEPARATING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+        "REVERSED",
+      ],
+      points_settlement_status: [
+        "PENDING",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+        "REVERSED",
+        "SUPERSEDED",
+      ],
+      points_store_item_status: [
+        "DRAFT",
+        "ACTIVE",
+        "PAUSED",
+        "OUT_OF_STOCK",
+        "ARCHIVED",
+      ],
+      points_store_item_type: ["PHYSICAL", "DIGITAL"],
+      points_wallet_status: [
+        "NORMAL",
+        "UNDER_REVIEW",
+        "BLOCKED",
+        "SUSPENDED",
+        "CLOSED",
       ],
     },
   },
