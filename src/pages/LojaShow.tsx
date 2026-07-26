@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import Header from "@/components/Header";
+import { Header } from "@/components/Header";
 
 const sb = supabase as any;
 
