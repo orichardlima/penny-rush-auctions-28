@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 const sb = supabase as any;
 
-type SettingRow = { setting_key: string; setting_value: any };
+type SettingRow = { key: string; value: any };
 
 function useSettings() {
   const [bools, setBools] = useState<SettingRow[]>([]);
@@ -30,10 +30,10 @@ function useSettings() {
   const reload = useCallback(async () => {
     setLoading(true);
     const [b, n, t, j] = await Promise.all([
-      sb.from("points_program_settings_bool").select("setting_key,setting_value"),
-      sb.from("points_program_settings_num").select("setting_key,setting_value"),
-      sb.from("points_program_settings_time").select("setting_key,setting_value"),
-      sb.from("points_program_settings_json").select("setting_key,setting_value"),
+      sb.from("points_program_settings_bool").select("key,value"),
+      sb.from("points_program_settings_num").select("key,value"),
+      sb.from("points_program_settings_time").select("key,value"),
+      sb.from("points_program_settings_json").select("key,value"),
     ]);
     setBools(b.data || []);
     setNums(n.data || []);
@@ -52,11 +52,12 @@ function ConfigTab() {
 
   const update = async (table: string, key: string, value: any) => {
     setSaving(key);
-    const { error } = await sb.from(table).update({ setting_value: value }).eq("setting_key", key);
+    const { error } = await sb.from(table).update({ value }).eq("key", key);
     if (error) toast.error(`Erro: ${error.message}`);
     else { toast.success("Salvo"); await reload(); }
     setSaving(null);
   };
+
 
   if (loading) return <Skeleton className="h-96 w-full" />;
 
@@ -73,17 +74,17 @@ function ConfigTab() {
         <CardHeader><CardTitle>Feature Flags</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {bools.map(r => (
-            <div key={r.setting_key} className="flex items-center justify-between border rounded p-3">
+            <div key={r.key} className="flex items-center justify-between border rounded p-3">
               <div>
-                <div className="font-mono text-sm">{r.setting_key}</div>
-                <Badge variant={r.setting_value ? "default" : "secondary"} className="mt-1">
-                  {r.setting_value ? "ATIVA" : "DESATIVADA"}
+                <div className="font-mono text-sm">{r.key}</div>
+                <Badge variant={r.value ? "default" : "secondary"} className="mt-1">
+                  {r.value ? "ATIVA" : "DESATIVADA"}
                 </Badge>
               </div>
               <Switch
-                checked={!!r.setting_value}
-                disabled={saving === r.setting_key}
-                onCheckedChange={(v) => update("points_program_settings_bool", r.setting_key, v)}
+                checked={!!r.value}
+                disabled={saving === r.key}
+                onCheckedChange={(v) => update("points_program_settings_bool", r.key, v)}
               />
             </div>
           ))}
@@ -94,7 +95,7 @@ function ConfigTab() {
         <CardHeader><CardTitle>Parâmetros numéricos</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {nums.map(r => (
-            <NumEditor key={r.setting_key} row={r} onSave={(v) => update("points_program_settings_num", r.setting_key, v)} disabled={saving === r.setting_key} />
+            <NumEditor key={r.key} row={r} onSave={(v) => update("points_program_settings_num", r.key, v)} disabled={saving === r.key} />
           ))}
         </CardContent>
       </Card>
@@ -103,7 +104,7 @@ function ConfigTab() {
         <CardHeader><CardTitle>Datas de corte</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {times.map(r => (
-            <TimeEditor key={r.setting_key} row={r} onSave={(v) => update("points_program_settings_time", r.setting_key, v)} disabled={saving === r.setting_key} />
+            <TimeEditor key={r.key} row={r} onSave={(v) => update("points_program_settings_time", r.key, v)} disabled={saving === r.key} />
           ))}
         </CardContent>
       </Card>
@@ -112,7 +113,7 @@ function ConfigTab() {
         <CardHeader><CardTitle>Configurações JSON</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {jsons.map(r => (
-            <JsonEditor key={r.setting_key} row={r} onSave={(v) => update("points_program_settings_json", r.setting_key, v)} disabled={saving === r.setting_key} />
+            <JsonEditor key={r.key} row={r} onSave={(v) => update("points_program_settings_json", r.key, v)} disabled={saving === r.key} />
           ))}
         </CardContent>
       </Card>
@@ -121,11 +122,11 @@ function ConfigTab() {
 }
 
 function NumEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: number) => void; disabled: boolean }) {
-  const [v, setV] = useState(String(row.setting_value ?? ""));
+  const [v, setV] = useState(String(row.value ?? ""));
   return (
     <div className="flex items-end gap-2 border rounded p-3">
       <div className="flex-1">
-        <Label className="font-mono text-xs">{row.setting_key}</Label>
+        <Label className="font-mono text-xs">{row.key}</Label>
         <Input type="number" value={v} onChange={e => setV(e.target.value)} />
       </div>
       <Button size="sm" disabled={disabled} onClick={() => onSave(Number(v))}>Salvar</Button>
@@ -133,11 +134,11 @@ function NumEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: num
   );
 }
 function TimeEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: string | null) => void; disabled: boolean }) {
-  const [v, setV] = useState(row.setting_value ? new Date(row.setting_value).toISOString().slice(0, 16) : "");
+  const [v, setV] = useState(row.value ? new Date(row.value).toISOString().slice(0, 16) : "");
   return (
     <div className="flex items-end gap-2 border rounded p-3">
       <div className="flex-1">
-        <Label className="font-mono text-xs">{row.setting_key}</Label>
+        <Label className="font-mono text-xs">{row.key}</Label>
         <Input type="datetime-local" value={v} onChange={e => setV(e.target.value)} />
       </div>
       <Button size="sm" variant="outline" disabled={disabled} onClick={() => onSave(null)}>Limpar</Button>
@@ -146,11 +147,11 @@ function TimeEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: st
   );
 }
 function JsonEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: any) => void; disabled: boolean }) {
-  const [v, setV] = useState(JSON.stringify(row.setting_value, null, 2));
+  const [v, setV] = useState(JSON.stringify(row.value, null, 2));
   const [err, setErr] = useState<string | null>(null);
   return (
     <div className="border rounded p-3 space-y-2">
-      <Label className="font-mono text-xs">{row.setting_key}</Label>
+      <Label className="font-mono text-xs">{row.key}</Label>
       <Textarea rows={5} value={v} onChange={e => { setV(e.target.value); setErr(null); }} className="font-mono text-xs" />
       {err && <p className="text-xs text-destructive">{err}</p>}
       <div className="flex justify-end">
@@ -162,12 +163,28 @@ function JsonEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: an
   );
 }
 
+
 // ------------------------ Regras ------------------------
 function RulesTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", bids_per_point: 12, multiplier: 1, is_active: true });
+  const [form, setForm] = useState({
+    rule_code: "POINTS_STANDARD",
+    version: 1,
+    name: "",
+    bids_per_point: 12,
+    points_per_block: 1,
+    multiplier: 1,
+    is_active: false,
+  });
+  const [activating, setActivating] = useState<string | null>(null);
+  const [activateOpen, setActivateOpen] = useState<any | null>(null);
+  const [activateForm, setActivateForm] = useState({
+    cutoff: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16),
+    audience_mode: "all",
+    user_ids: "",
+  });
 
   const load = async () => {
     setLoading(true);
@@ -176,54 +193,129 @@ function RulesTab() {
   };
   useEffect(() => { load(); }, []);
 
-  const save = async () => {
-    const { error } = await sb.from("points_rules").insert(form);
-    if (error) toast.error(error.message);
-    else { toast.success("Regra criada"); setOpen(false); await load(); }
+  const nextVersion = () => {
+    const same = rows.filter(r => r.rule_code === form.rule_code);
+    return same.length ? Math.max(...same.map(r => r.version || 1)) + 1 : 1;
   };
-  const toggle = async (id: string, active: boolean) => {
-    await sb.from("points_rules").update({ is_active: active }).eq("id", id);
-    await load();
+
+  const save = async () => {
+    const payload = { ...form, version: form.version || nextVersion() };
+    const { error } = await sb.from("points_rules").insert(payload);
+    if (error) toast.error(error.message);
+    else { toast.success("Regra criada (inativa)"); setOpen(false); await load(); }
+  };
+
+  const activate = async () => {
+    if (!activateOpen) return;
+    setActivating(activateOpen.id);
+    const userIds = activateForm.user_ids
+      .split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+    const { data, error } = await sb.rpc("points_admin_activate_pilot", {
+      p_rule_id: activateOpen.id,
+      p_cutoff: new Date(activateForm.cutoff).toISOString(),
+      p_pilot_user_ids: userIds,
+      p_audience_mode: activateForm.audience_mode,
+    });
+    if (error) toast.error(error.message);
+    else { toast.success(`Ativado: ${JSON.stringify(data)}`); setActivateOpen(null); await load(); }
+    setActivating(null);
   };
 
   return (
     <div className="space-y-4">
+      <Alert>
+        <AlertTitle>Ativação atômica</AlertTitle>
+        <AlertDescription>
+          Regras nascem inativas. A ativação usa a RPC <code>points_admin_activate_pilot</code>, que valida corte,
+          audiência, webhooks e liga todas as flags necessárias em uma única transação.
+        </AlertDescription>
+      </Alert>
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">Cada regra define a razão de lances pagos elegíveis por ponto acumulado.</p>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setForm(f => ({ ...f, version: nextVersion() })); }}>
           <DialogTrigger asChild><Button>Nova regra</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Nova regra de pontuação</DialogTitle></DialogHeader>
             <div className="space-y-3">
+              <div><Label>Código da regra</Label><Input value={form.rule_code} onChange={e => setForm({ ...form, rule_code: e.target.value })} /></div>
+              <div><Label>Versão</Label><Input type="number" value={form.version} onChange={e => setForm({ ...form, version: Number(e.target.value) })} /></div>
               <div><Label>Nome</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-              <div><Label>Lances por ponto</Label><Input type="number" value={form.bids_per_point} onChange={e => setForm({ ...form, bids_per_point: Number(e.target.value) })} /></div>
+              <div><Label>Lances por bloco</Label><Input type="number" value={form.bids_per_point} onChange={e => setForm({ ...form, bids_per_point: Number(e.target.value) })} /></div>
+              <div><Label>Pontos por bloco</Label><Input type="number" value={form.points_per_block} onChange={e => setForm({ ...form, points_per_block: Number(e.target.value) })} /></div>
               <div><Label>Multiplicador</Label><Input type="number" step="0.1" value={form.multiplier} onChange={e => setForm({ ...form, multiplier: Number(e.target.value) })} /></div>
-              <div className="flex items-center gap-2"><Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} /><Label>Ativa</Label></div>
             </div>
-            <DialogFooter><Button onClick={save}>Criar</Button></DialogFooter>
+            <DialogFooter><Button onClick={save}>Criar (inativa)</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
       {loading ? <Skeleton className="h-64 w-full" /> : (
         <Table>
-          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Lances/Ponto</TableHead><TableHead>Multiplicador</TableHead><TableHead>Vigência</TableHead><TableHead>Ativa</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>v</TableHead><TableHead>Nome</TableHead><TableHead>Lances/Bloco</TableHead><TableHead>Pts/Bloco</TableHead><TableHead>Mult.</TableHead><TableHead>Ativa</TableHead><TableHead>Ação</TableHead></TableRow></TableHeader>
           <TableBody>
             {rows.map(r => (
               <TableRow key={r.id}>
+                <TableCell className="font-mono text-xs">{r.rule_code}</TableCell>
+                <TableCell>{r.version}</TableCell>
                 <TableCell>{r.name}</TableCell>
                 <TableCell>{r.bids_per_point}</TableCell>
+                <TableCell>{r.points_per_block}</TableCell>
                 <TableCell>{r.multiplier}</TableCell>
-                <TableCell className="text-xs">{new Date(r.active_from).toLocaleDateString("pt-BR")}{r.active_to ? ` → ${new Date(r.active_to).toLocaleDateString("pt-BR")}` : ""}</TableCell>
-                <TableCell><Switch checked={r.is_active} onCheckedChange={v => toggle(r.id, v)} /></TableCell>
+                <TableCell><Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? "ATIVA" : "INATIVA"}</Badge></TableCell>
+                <TableCell>
+                  {!r.is_active && (
+                    <Button size="sm" disabled={activating === r.id} onClick={() => setActivateOpen(r)}>Ativar</Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
-            {!rows.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma regra cadastrada</TableCell></TableRow>}
+            {!rows.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Nenhuma regra cadastrada</TableCell></TableRow>}
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={!!activateOpen} onOpenChange={(v) => { if (!v) setActivateOpen(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ativar {activateOpen?.rule_code} v{activateOpen?.version}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Alert>
+              <AlertDescription>
+                Esta ação liga o programa de pontos em produção usando a RPC atômica. Confirme corte e audiência.
+              </AlertDescription>
+            </Alert>
+            <div>
+              <Label>Data/hora do corte (UTC local)</Label>
+              <Input type="datetime-local" value={activateForm.cutoff} onChange={e => setActivateForm({ ...activateForm, cutoff: e.target.value })} />
+            </div>
+            <div>
+              <Label>Modo de audiência</Label>
+              <select
+                className="w-full border rounded px-3 py-2 bg-background"
+                value={activateForm.audience_mode}
+                onChange={e => setActivateForm({ ...activateForm, audience_mode: e.target.value })}
+              >
+                <option value="pilot">pilot (lista específica)</option>
+                <option value="all">all (todos os autenticados)</option>
+              </select>
+            </div>
+            {activateForm.audience_mode === "pilot" && (
+              <div>
+                <Label>UUIDs do piloto (um por linha ou separados por vírgula)</Label>
+                <Textarea rows={4} value={activateForm.user_ids} onChange={e => setActivateForm({ ...activateForm, user_ids: e.target.value })} className="font-mono text-xs" />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivateOpen(null)}>Cancelar</Button>
+            <Button disabled={!!activating} onClick={activate}>Confirmar ativação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 // ------------------------ Categorias ------------------------
 function CategoriesTab() {
