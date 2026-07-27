@@ -1079,62 +1079,95 @@ export type Database = {
         Row: {
           bid_purchase_id: string | null
           created_at: string
+          credited_via_canonical_rpc: boolean
           eligible_for_points: boolean
           expired_amount: number
           expires_at: string | null
           external_payment_id: string | null
+          gateway_account_id: string | null
+          gateway_event_id: string | null
+          gateway_payload_hash: string | null
           id: string
           idempotency_key: string | null
           initial_amount: number
+          lot_status: string
           notified_1d_at: string | null
           notified_7d_at: string | null
+          payment_confirmed_at: string | null
+          payment_created_at: string | null
+          payment_eligible_for_points: boolean
+          payment_environment: string | null
           payment_gateway: string | null
+          processed_at: string | null
           purchased_at: string | null
           remaining_amount: number
           source: string
           source_ref: string | null
           updated_at: string
           user_id: string
+          webhook_received_at: string | null
         }
         Insert: {
           bid_purchase_id?: string | null
           created_at?: string
+          credited_via_canonical_rpc?: boolean
           eligible_for_points?: boolean
           expired_amount?: number
           expires_at?: string | null
           external_payment_id?: string | null
+          gateway_account_id?: string | null
+          gateway_event_id?: string | null
+          gateway_payload_hash?: string | null
           id?: string
           idempotency_key?: string | null
           initial_amount: number
+          lot_status?: string
           notified_1d_at?: string | null
           notified_7d_at?: string | null
+          payment_confirmed_at?: string | null
+          payment_created_at?: string | null
+          payment_eligible_for_points?: boolean
+          payment_environment?: string | null
           payment_gateway?: string | null
+          processed_at?: string | null
           purchased_at?: string | null
           remaining_amount: number
           source?: string
           source_ref?: string | null
           updated_at?: string
           user_id: string
+          webhook_received_at?: string | null
         }
         Update: {
           bid_purchase_id?: string | null
           created_at?: string
+          credited_via_canonical_rpc?: boolean
           eligible_for_points?: boolean
           expired_amount?: number
           expires_at?: string | null
           external_payment_id?: string | null
+          gateway_account_id?: string | null
+          gateway_event_id?: string | null
+          gateway_payload_hash?: string | null
           id?: string
           idempotency_key?: string | null
           initial_amount?: number
+          lot_status?: string
           notified_1d_at?: string | null
           notified_7d_at?: string | null
+          payment_confirmed_at?: string | null
+          payment_created_at?: string | null
+          payment_eligible_for_points?: boolean
+          payment_environment?: string | null
           payment_gateway?: string | null
+          processed_at?: string | null
           purchased_at?: string | null
           remaining_amount?: number
           source?: string
           source_ref?: string | null
           updated_at?: string
           user_id?: string
+          webhook_received_at?: string | null
         }
         Relationships: [
           {
@@ -1189,37 +1222,74 @@ export type Database = {
         Row: {
           amount_paid: number
           bids_purchased: number
+          canonical_lot_id: string | null
           created_at: string
+          credited_via_canonical_rpc: boolean
           external_reference: string | null
+          gateway_account_id: string | null
+          gateway_event_id: string | null
+          gateway_payload_hash: string | null
           id: string
           package_id: string
+          payment_confirmed_at: string | null
+          payment_created_at: string | null
+          payment_environment: string | null
           payment_id: string | null
           payment_status: string | null
+          processed_at: string | null
           user_id: string
+          webhook_received_at: string | null
         }
         Insert: {
           amount_paid: number
           bids_purchased: number
+          canonical_lot_id?: string | null
           created_at?: string
+          credited_via_canonical_rpc?: boolean
           external_reference?: string | null
+          gateway_account_id?: string | null
+          gateway_event_id?: string | null
+          gateway_payload_hash?: string | null
           id?: string
           package_id: string
+          payment_confirmed_at?: string | null
+          payment_created_at?: string | null
+          payment_environment?: string | null
           payment_id?: string | null
           payment_status?: string | null
+          processed_at?: string | null
           user_id: string
+          webhook_received_at?: string | null
         }
         Update: {
           amount_paid?: number
           bids_purchased?: number
+          canonical_lot_id?: string | null
           created_at?: string
+          credited_via_canonical_rpc?: boolean
           external_reference?: string | null
+          gateway_account_id?: string | null
+          gateway_event_id?: string | null
+          gateway_payload_hash?: string | null
           id?: string
           package_id?: string
+          payment_confirmed_at?: string | null
+          payment_created_at?: string | null
+          payment_environment?: string | null
           payment_id?: string | null
           payment_status?: string | null
+          processed_at?: string | null
           user_id?: string
+          webhook_received_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bid_purchases_canonical_lot_id_fkey"
+            columns: ["canonical_lot_id"]
+            isOneToOne: false
+            referencedRelation: "bid_lots"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bid_purchases_package_id_fkey"
             columns: ["package_id"]
@@ -3129,6 +3199,70 @@ export type Database = {
           },
         ]
       }
+      payment_reversal_events: {
+        Row: {
+          amount: number | null
+          applied_at: string | null
+          bid_lot_id: string | null
+          bid_purchase_id: string | null
+          created_at: string
+          gateway_event_id: string | null
+          id: string
+          notes: string | null
+          reversal_case_id: string | null
+          reversal_type: string
+          status: string
+        }
+        Insert: {
+          amount?: number | null
+          applied_at?: string | null
+          bid_lot_id?: string | null
+          bid_purchase_id?: string | null
+          created_at?: string
+          gateway_event_id?: string | null
+          id?: string
+          notes?: string | null
+          reversal_case_id?: string | null
+          reversal_type: string
+          status?: string
+        }
+        Update: {
+          amount?: number | null
+          applied_at?: string | null
+          bid_lot_id?: string | null
+          bid_purchase_id?: string | null
+          created_at?: string
+          gateway_event_id?: string | null
+          id?: string
+          notes?: string | null
+          reversal_case_id?: string | null
+          reversal_type?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reversal_events_bid_lot_id_fkey"
+            columns: ["bid_lot_id"]
+            isOneToOne: false
+            referencedRelation: "bid_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reversal_events_bid_purchase_id_fkey"
+            columns: ["bid_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "bid_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reversal_events_reversal_case_id_fkey"
+            columns: ["reversal_case_id"]
+            isOneToOne: false
+            referencedRelation: "points_reversal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_audit_logs: {
         Row: {
           action: string
@@ -3731,6 +3865,75 @@ export type Database = {
         }
         Relationships: []
       }
+      points_reversal_cases: {
+        Row: {
+          bid_purchase_id: string | null
+          created_at: string
+          id: string
+          lot_id: string | null
+          metadata: Json
+          payment_id: string | null
+          points_outstanding: number
+          points_recovered: number
+          points_to_reverse: number
+          reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          settlement_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          bid_purchase_id?: string | null
+          created_at?: string
+          id?: string
+          lot_id?: string | null
+          metadata?: Json
+          payment_id?: string | null
+          points_outstanding?: number
+          points_recovered?: number
+          points_to_reverse?: number
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          settlement_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          bid_purchase_id?: string | null
+          created_at?: string
+          id?: string
+          lot_id?: string | null
+          metadata?: Json
+          payment_id?: string | null
+          points_outstanding?: number
+          points_recovered?: number
+          points_to_reverse?: number
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          settlement_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_reversal_cases_bid_purchase_id_fkey"
+            columns: ["bid_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "bid_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "points_reversal_cases_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "bid_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       points_rules: {
         Row: {
           active_from: string
@@ -3738,12 +3941,16 @@ export type Database = {
           bids_per_point: number
           campaign_id: string | null
           created_at: string
+          created_by: string | null
           id: string
           is_active: boolean
           metadata: Json
           multiplier: number
           name: string
+          points_per_block: number
+          rule_code: string
           updated_at: string
+          version: number
         }
         Insert: {
           active_from?: string
@@ -3751,12 +3958,16 @@ export type Database = {
           bids_per_point: number
           campaign_id?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
           metadata?: Json
           multiplier?: number
           name: string
+          points_per_block: number
+          rule_code: string
           updated_at?: string
+          version: number
         }
         Update: {
           active_from?: string
@@ -3764,12 +3975,16 @@ export type Database = {
           bids_per_point?: number
           campaign_id?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
           metadata?: Json
           multiplier?: number
           name?: string
+          points_per_block?: number
+          rule_code?: string
           updated_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -4820,6 +5035,24 @@ export type Database = {
         Args: { p_amount: number; p_bid_id: string; p_user_id: string }
         Returns: boolean
       }
+      credit_paid_bid_purchase: {
+        Args: {
+          p_amount_paid: number
+          p_bid_purchase_id: string
+          p_bids_amount: number
+          p_external_payment_id: string
+          p_gateway_account_id: string
+          p_gateway_event_id: string
+          p_gateway_payload_hash: string
+          p_payment_confirmed_at: string
+          p_payment_created_at: string
+          p_payment_environment: string
+          p_payment_gateway: string
+          p_user_id: string
+          p_webhook_received_at?: string
+        }
+        Returns: Json
+      }
       credit_purchase_bids: {
         Args: { p_amount: number; p_purchase_id?: string; p_user_id: string }
         Returns: number
@@ -5275,6 +5508,15 @@ export type Database = {
         Args: { p_actor: string; p_auction: string; p_target: string }
         Returns: undefined
       }
+      points_admin_activate_pilot: {
+        Args: {
+          p_audience_mode?: string
+          p_cutoff: string
+          p_pilot_user_ids: string[]
+          p_rule_id: string
+        }
+        Returns: Json
+      }
       points_admin_adjust: {
         Args: {
           p_admin: string
@@ -5301,6 +5543,9 @@ export type Database = {
         Args: { p_key: string; p_value: string }
         Returns: undefined
       }
+      points_audience_mode: { Args: never; Returns: string }
+      points_audience_version: { Args: never; Returns: number }
+      points_canonical_credit_active: { Args: never; Returns: string }
       points_confirm_reservation: {
         Args: {
           p_amount: number
@@ -5320,6 +5565,7 @@ export type Database = {
         Returns: number
       }
       points_get_time: { Args: { p_key: string }; Returns: string }
+      points_is_admin: { Args: { _uid: string }; Returns: boolean }
       points_release_reservation: {
         Args: {
           p_amount: number
@@ -5342,10 +5588,15 @@ export type Database = {
         Args: { p_reason: string; p_settlement_id: string }
         Returns: string
       }
+      points_rule_has_dependencies: {
+        Args: { _rule_id: string }
+        Returns: boolean
+      }
       points_settle_auction: {
         Args: { p_actor?: string; p_auction_id: string; p_reason?: string }
         Returns: string
       }
+      points_user_in_audience: { Args: { _user_id: string }; Returns: boolean }
       position_partner_binary: {
         Args: {
           p_contract_id: string
@@ -5443,6 +5694,16 @@ export type Database = {
       }
       reverse_orphan_binary_points: {
         Args: { p_contract_id: string; p_leg: string; p_reason_note: string }
+        Returns: Json
+      }
+      reverse_paid_bid_purchase: {
+        Args: {
+          p_amount?: number
+          p_bid_purchase_id: string
+          p_gateway_event_id: string
+          p_notes?: string
+          p_reversal_type: string
+        }
         Returns: Json
       }
       reverse_performance_points: {
