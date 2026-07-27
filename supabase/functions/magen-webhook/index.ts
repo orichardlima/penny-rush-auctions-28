@@ -183,20 +183,46 @@ async function processBidPurchase(supabase: any, purchase: any, transactionId: s
     return new Response('OK', { status: 200, headers: corsHeaders })
   }
 
+  // Timestamp autêntico do gateway (magenpay envia data no payload)
+  const gatewayConfirmedAt: string | null = purchase.created_at ?? null
+  const payloadHash = await crypto.subtle
+    .digest('SHA-256', new TextEncoder().encode(JSON.stringify({ purchase_id: purchase.id, e2e: transactionId })))
+    .then((b) => Array.from(new Uint8Array(b)).map((x) => x.toString(16).padStart(2, '0')).join(''))
+
   await supabase
     .from('bid_purchases')
-    .update({ payment_status: 'completed' })
+    .update({
+      payment_status: 'completed',
+      payment_confirmed_at: gatewayConfirmedAt,
+      webhook_received_at: new Date().toISOString(),
+      gateway_event_id: transactionId,
+      gateway_payload_hash: payloadHash,
+      payment_environment: Deno.env.get('APP_ENV') ?? 'production',
+    })
     .eq('id', purchase.id)
 
-  const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
-    p_user_id: purchase.user_id,
-    p_amount: purchase.bids_purchased,
-    p_purchase_id: purchase.id,
-  })
-  if (creditErr) console.error('❌ credit_purchase_bids failed:', creditErr)
+  const { data: creditRes, error: creditErr } = await supabase.rpc(
+    'credit_paid_bid_purchase',
+    {
+      p_user_id: purchase.user_id,
+      p_bid_purchase_id: purchase.id,
+      p_bids_amount: purchase.bids_purchased,
+      p_amount_paid: purchase.amount_paid,
+      p_payment_environment: Deno.env.get('APP_ENV') ?? 'production',
+      p_payment_gateway: 'magenpay',
+      p_gateway_account_id: Deno.env.get('MAGENPAY_ACCOUNT_ID') ?? null,
+      p_external_payment_id: transactionId || purchase.id,
+      p_gateway_event_id: transactionId || purchase.id,
+      p_gateway_payload_hash: payloadHash,
+      p_payment_created_at: purchase.created_at ?? null,
+      p_payment_confirmed_at: gatewayConfirmedAt,
+      p_webhook_received_at: new Date().toISOString(),
+    },
+  )
+  if (creditErr) console.error('❌ credit_paid_bid_purchase failed:', creditErr)
+  else console.log('✅ Canonical credit:', JSON.stringify(creditRes))
 
 
-  console.log('✅ Bid purchase completed: +' + purchase.bids_purchased + ' lances')
 
   // Approve affiliate commissions
   const { data: commissions } = await supabase
