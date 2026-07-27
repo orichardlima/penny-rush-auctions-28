@@ -74,17 +74,17 @@ function ConfigTab() {
         <CardHeader><CardTitle>Feature Flags</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {bools.map(r => (
-            <div key={r.setting_key} className="flex items-center justify-between border rounded p-3">
+            <div key={r.key} className="flex items-center justify-between border rounded p-3">
               <div>
-                <div className="font-mono text-sm">{r.setting_key}</div>
-                <Badge variant={r.setting_value ? "default" : "secondary"} className="mt-1">
-                  {r.setting_value ? "ATIVA" : "DESATIVADA"}
+                <div className="font-mono text-sm">{r.key}</div>
+                <Badge variant={r.value ? "default" : "secondary"} className="mt-1">
+                  {r.value ? "ATIVA" : "DESATIVADA"}
                 </Badge>
               </div>
               <Switch
-                checked={!!r.setting_value}
-                disabled={saving === r.setting_key}
-                onCheckedChange={(v) => update("points_program_settings_bool", r.setting_key, v)}
+                checked={!!r.value}
+                disabled={saving === r.key}
+                onCheckedChange={(v) => update("points_program_settings_bool", r.key, v)}
               />
             </div>
           ))}
@@ -95,7 +95,7 @@ function ConfigTab() {
         <CardHeader><CardTitle>Parâmetros numéricos</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {nums.map(r => (
-            <NumEditor key={r.setting_key} row={r} onSave={(v) => update("points_program_settings_num", r.setting_key, v)} disabled={saving === r.setting_key} />
+            <NumEditor key={r.key} row={r} onSave={(v) => update("points_program_settings_num", r.key, v)} disabled={saving === r.key} />
           ))}
         </CardContent>
       </Card>
@@ -104,7 +104,7 @@ function ConfigTab() {
         <CardHeader><CardTitle>Datas de corte</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {times.map(r => (
-            <TimeEditor key={r.setting_key} row={r} onSave={(v) => update("points_program_settings_time", r.setting_key, v)} disabled={saving === r.setting_key} />
+            <TimeEditor key={r.key} row={r} onSave={(v) => update("points_program_settings_time", r.key, v)} disabled={saving === r.key} />
           ))}
         </CardContent>
       </Card>
@@ -113,7 +113,7 @@ function ConfigTab() {
         <CardHeader><CardTitle>Configurações JSON</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {jsons.map(r => (
-            <JsonEditor key={r.setting_key} row={r} onSave={(v) => update("points_program_settings_json", r.setting_key, v)} disabled={saving === r.setting_key} />
+            <JsonEditor key={r.key} row={r} onSave={(v) => update("points_program_settings_json", r.key, v)} disabled={saving === r.key} />
           ))}
         </CardContent>
       </Card>
@@ -122,11 +122,11 @@ function ConfigTab() {
 }
 
 function NumEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: number) => void; disabled: boolean }) {
-  const [v, setV] = useState(String(row.setting_value ?? ""));
+  const [v, setV] = useState(String(row.value ?? ""));
   return (
     <div className="flex items-end gap-2 border rounded p-3">
       <div className="flex-1">
-        <Label className="font-mono text-xs">{row.setting_key}</Label>
+        <Label className="font-mono text-xs">{row.key}</Label>
         <Input type="number" value={v} onChange={e => setV(e.target.value)} />
       </div>
       <Button size="sm" disabled={disabled} onClick={() => onSave(Number(v))}>Salvar</Button>
@@ -134,11 +134,11 @@ function NumEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: num
   );
 }
 function TimeEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: string | null) => void; disabled: boolean }) {
-  const [v, setV] = useState(row.setting_value ? new Date(row.setting_value).toISOString().slice(0, 16) : "");
+  const [v, setV] = useState(row.value ? new Date(row.value).toISOString().slice(0, 16) : "");
   return (
     <div className="flex items-end gap-2 border rounded p-3">
       <div className="flex-1">
-        <Label className="font-mono text-xs">{row.setting_key}</Label>
+        <Label className="font-mono text-xs">{row.key}</Label>
         <Input type="datetime-local" value={v} onChange={e => setV(e.target.value)} />
       </div>
       <Button size="sm" variant="outline" disabled={disabled} onClick={() => onSave(null)}>Limpar</Button>
@@ -147,11 +147,11 @@ function TimeEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: st
   );
 }
 function JsonEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: any) => void; disabled: boolean }) {
-  const [v, setV] = useState(JSON.stringify(row.setting_value, null, 2));
+  const [v, setV] = useState(JSON.stringify(row.value, null, 2));
   const [err, setErr] = useState<string | null>(null);
   return (
     <div className="border rounded p-3 space-y-2">
-      <Label className="font-mono text-xs">{row.setting_key}</Label>
+      <Label className="font-mono text-xs">{row.key}</Label>
       <Textarea rows={5} value={v} onChange={e => { setV(e.target.value); setErr(null); }} className="font-mono text-xs" />
       {err && <p className="text-xs text-destructive">{err}</p>}
       <div className="flex justify-end">
@@ -162,6 +162,7 @@ function JsonEditor({ row, onSave, disabled }: { row: SettingRow; onSave: (v: an
     </div>
   );
 }
+
 
 // ------------------------ Regras ------------------------
 function RulesTab() {
