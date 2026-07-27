@@ -10,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home, Download
+  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home, Download, Gift
 } from 'lucide-react';
 import PlatformDownloadsManager from '@/components/Admin/PlatformDownloadsManager';
 import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
@@ -228,6 +228,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="vault-config" title="Cofre Fúria" className="flex items-center gap-2 shrink-0">
               <Flame className="h-4 w-4" /><span className="hidden sm:inline">Cofre</span>
             </TabsTrigger>
+            <Link to="/admin/pontos-loja" title="Programa Pontos Show" className="flex items-center gap-2 shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-all hover:bg-muted text-muted-foreground hover:text-foreground">
+              <Gift className="h-4 w-4" /><span className="hidden sm:inline">Pontos</span>
+            </Link>
             <TabsTrigger value="purchases" title="Compras" className="flex items-center gap-2 shrink-0">
               <ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Compras</span>
             </TabsTrigger>
