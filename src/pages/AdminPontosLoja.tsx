@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 const sb = supabase as any;
 
-type SettingRow = { setting_key: string; setting_value: any };
+type SettingRow = { key: string; value: any };
 
 function useSettings() {
   const [bools, setBools] = useState<SettingRow[]>([]);
@@ -30,10 +30,10 @@ function useSettings() {
   const reload = useCallback(async () => {
     setLoading(true);
     const [b, n, t, j] = await Promise.all([
-      sb.from("points_program_settings_bool").select("setting_key,setting_value"),
-      sb.from("points_program_settings_num").select("setting_key,setting_value"),
-      sb.from("points_program_settings_time").select("setting_key,setting_value"),
-      sb.from("points_program_settings_json").select("setting_key,setting_value"),
+      sb.from("points_program_settings_bool").select("key,value"),
+      sb.from("points_program_settings_num").select("key,value"),
+      sb.from("points_program_settings_time").select("key,value"),
+      sb.from("points_program_settings_json").select("key,value"),
     ]);
     setBools(b.data || []);
     setNums(n.data || []);
@@ -52,11 +52,12 @@ function ConfigTab() {
 
   const update = async (table: string, key: string, value: any) => {
     setSaving(key);
-    const { error } = await sb.from(table).update({ setting_value: value }).eq("setting_key", key);
+    const { error } = await sb.from(table).update({ value }).eq("key", key);
     if (error) toast.error(`Erro: ${error.message}`);
     else { toast.success("Salvo"); await reload(); }
     setSaving(null);
   };
+
 
   if (loading) return <Skeleton className="h-96 w-full" />;
 
