@@ -1,33 +1,55 @@
-# Rollback — Fase 3
+# Rollback — Fase 3 v2
 
 ## Nada aplicado em produção
 
-- Migration `003_up.sql` NÃO executada.
-- Nenhuma flag alterada. `points_accrual_started_at = NULL`. `audience_mode`
-  inexistente em produção.
-- Webhooks VeoPag e MagenPay NÃO redeployados — apenas diff em branch.
+- Migration `003_up.sql` **NÃO** executada.
+- Nenhuma flag alterada. `points_accrual_started_at = NULL`.
+  `audience_mode` inexistente em produção.
+- Webhooks VeoPag e MagenPay **NÃO** redeployados — apenas diff em branch.
+- `points_rules` seguirá vazio até a migration ser aplicada.
 
 ## Se a migration for aplicada por engano
 
 1. Executar `003_down.sql` na mesma conexão.
 2. Verificar:
    ```sql
-   SELECT to_regclass('public.points_rules');           -- NULL
+   SELECT to_regclass('public.points_rules');            -- NULL
+   SELECT to_regclass('public.points_reversal_cases');   -- NULL
    SELECT to_regclass('public.payment_reversal_events'); -- NULL
    SELECT column_name FROM information_schema.columns
-    WHERE table_name='bid_lots' AND column_name='idempotency_key'; -- 0 linhas
+    WHERE table_name='bid_lots' AND column_name='payment_eligible_for_points'; -- 0 linhas
    ```
-3. Nenhum dado histórico é apagado: a migration não faz backfill, portanto o
-   rollback apenas remove estruturas vazias.
+3. A migration não faz backfill: o rollback apenas remove estruturas.
 
-## Se os webhooks forem redeployados por engano
+## Se webhooks forem redeployados por engano
 
-Reverter para o commit anterior do diretório `supabase/functions/veopag-webhook/`
-e `supabase/functions/magen-webhook/`. Como a RPC canônica não existirá em
-produção enquanto a migration não for aplicada, uma chamada acidental
-retornará erro `function does not exist` — o webhook precisa capturar esse
-erro e cair de volta em `credit_purchase_bids`. Isso está descrito no diff,
-mas fica registrado aqui como salvaguarda.
+Reverter os arquivos `supabase/functions/veopag-webhook/index.ts` e
+`supabase/functions/magen-webhook/index.ts` para o commit anterior. Enquanto
+a RPC canônica não existir em produção, uma chamada acidental retornará
+`function does not exist` — o código deve fazer fallback para
+`credit_purchase_bids`. Recomendado que o diff em branch inclua o try/catch
+antes de subir.
+
+## Se `points_admin_activate_pilot` for chamada por engano
+
+Como validação de pré-condições (`webhooks_validated=true`) bloqueia a
+execução, o pior caso é a auditoria registrar tentativa. Para reverter uma
+ativação de fato:
+
+```sql
+BEGIN;
+UPDATE public.points_program_settings_bool
+   SET value=false WHERE key IN ('points_program_enabled','points_accrual_enabled');
+UPDATE public.points_program_settings_json
+   SET value=jsonb_build_object('mode','off') WHERE key='audience_mode';
+UPDATE public.points_rules SET is_active=false WHERE rule_code='POINTS_STANDARD';
+DELETE FROM public.points_program_settings_time WHERE key='points_accrual_started_at';
+COMMIT;
+```
+
+`active_from` da regra **não** é revertido (imutabilidade histórica). Os
+bids emitidos entre ativação e reversão permanecem com seu `points_rule_id`
+snapshot, mas nada será liquidado enquanto o programa estiver desligado.
 
 ## Autorização
 
