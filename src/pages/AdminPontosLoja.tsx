@@ -169,7 +169,22 @@ function RulesTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", bids_per_point: 12, multiplier: 1, is_active: true });
+  const [form, setForm] = useState({
+    rule_code: "POINTS_STANDARD",
+    version: 1,
+    name: "",
+    bids_per_point: 12,
+    points_per_block: 1,
+    multiplier: 1,
+    is_active: false,
+  });
+  const [activating, setActivating] = useState<string | null>(null);
+  const [activateOpen, setActivateOpen] = useState<any | null>(null);
+  const [activateForm, setActivateForm] = useState({
+    cutoff: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16),
+    audience_mode: "all",
+    user_ids: "",
+  });
 
   const load = async () => {
     setLoading(true);
@@ -178,54 +193,129 @@ function RulesTab() {
   };
   useEffect(() => { load(); }, []);
 
-  const save = async () => {
-    const { error } = await sb.from("points_rules").insert(form);
-    if (error) toast.error(error.message);
-    else { toast.success("Regra criada"); setOpen(false); await load(); }
+  const nextVersion = () => {
+    const same = rows.filter(r => r.rule_code === form.rule_code);
+    return same.length ? Math.max(...same.map(r => r.version || 1)) + 1 : 1;
   };
-  const toggle = async (id: string, active: boolean) => {
-    await sb.from("points_rules").update({ is_active: active }).eq("id", id);
-    await load();
+
+  const save = async () => {
+    const payload = { ...form, version: form.version || nextVersion() };
+    const { error } = await sb.from("points_rules").insert(payload);
+    if (error) toast.error(error.message);
+    else { toast.success("Regra criada (inativa)"); setOpen(false); await load(); }
+  };
+
+  const activate = async () => {
+    if (!activateOpen) return;
+    setActivating(activateOpen.id);
+    const userIds = activateForm.user_ids
+      .split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+    const { data, error } = await sb.rpc("points_admin_activate_pilot", {
+      p_rule_id: activateOpen.id,
+      p_cutoff: new Date(activateForm.cutoff).toISOString(),
+      p_pilot_user_ids: userIds,
+      p_audience_mode: activateForm.audience_mode,
+    });
+    if (error) toast.error(error.message);
+    else { toast.success(`Ativado: ${JSON.stringify(data)}`); setActivateOpen(null); await load(); }
+    setActivating(null);
   };
 
   return (
     <div className="space-y-4">
+      <Alert>
+        <AlertTitle>Ativação atômica</AlertTitle>
+        <AlertDescription>
+          Regras nascem inativas. A ativação usa a RPC <code>points_admin_activate_pilot</code>, que valida corte,
+          audiência, webhooks e liga todas as flags necessárias em uma única transação.
+        </AlertDescription>
+      </Alert>
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">Cada regra define a razão de lances pagos elegíveis por ponto acumulado.</p>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setForm(f => ({ ...f, version: nextVersion() })); }}>
           <DialogTrigger asChild><Button>Nova regra</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Nova regra de pontuação</DialogTitle></DialogHeader>
             <div className="space-y-3">
+              <div><Label>Código da regra</Label><Input value={form.rule_code} onChange={e => setForm({ ...form, rule_code: e.target.value })} /></div>
+              <div><Label>Versão</Label><Input type="number" value={form.version} onChange={e => setForm({ ...form, version: Number(e.target.value) })} /></div>
               <div><Label>Nome</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-              <div><Label>Lances por ponto</Label><Input type="number" value={form.bids_per_point} onChange={e => setForm({ ...form, bids_per_point: Number(e.target.value) })} /></div>
+              <div><Label>Lances por bloco</Label><Input type="number" value={form.bids_per_point} onChange={e => setForm({ ...form, bids_per_point: Number(e.target.value) })} /></div>
+              <div><Label>Pontos por bloco</Label><Input type="number" value={form.points_per_block} onChange={e => setForm({ ...form, points_per_block: Number(e.target.value) })} /></div>
               <div><Label>Multiplicador</Label><Input type="number" step="0.1" value={form.multiplier} onChange={e => setForm({ ...form, multiplier: Number(e.target.value) })} /></div>
-              <div className="flex items-center gap-2"><Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} /><Label>Ativa</Label></div>
             </div>
-            <DialogFooter><Button onClick={save}>Criar</Button></DialogFooter>
+            <DialogFooter><Button onClick={save}>Criar (inativa)</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
       {loading ? <Skeleton className="h-64 w-full" /> : (
         <Table>
-          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Lances/Ponto</TableHead><TableHead>Multiplicador</TableHead><TableHead>Vigência</TableHead><TableHead>Ativa</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>v</TableHead><TableHead>Nome</TableHead><TableHead>Lances/Bloco</TableHead><TableHead>Pts/Bloco</TableHead><TableHead>Mult.</TableHead><TableHead>Ativa</TableHead><TableHead>Ação</TableHead></TableRow></TableHeader>
           <TableBody>
             {rows.map(r => (
               <TableRow key={r.id}>
+                <TableCell className="font-mono text-xs">{r.rule_code}</TableCell>
+                <TableCell>{r.version}</TableCell>
                 <TableCell>{r.name}</TableCell>
                 <TableCell>{r.bids_per_point}</TableCell>
+                <TableCell>{r.points_per_block}</TableCell>
                 <TableCell>{r.multiplier}</TableCell>
-                <TableCell className="text-xs">{new Date(r.active_from).toLocaleDateString("pt-BR")}{r.active_to ? ` → ${new Date(r.active_to).toLocaleDateString("pt-BR")}` : ""}</TableCell>
-                <TableCell><Switch checked={r.is_active} onCheckedChange={v => toggle(r.id, v)} /></TableCell>
+                <TableCell><Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? "ATIVA" : "INATIVA"}</Badge></TableCell>
+                <TableCell>
+                  {!r.is_active && (
+                    <Button size="sm" disabled={activating === r.id} onClick={() => setActivateOpen(r)}>Ativar</Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
-            {!rows.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma regra cadastrada</TableCell></TableRow>}
+            {!rows.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Nenhuma regra cadastrada</TableCell></TableRow>}
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={!!activateOpen} onOpenChange={(v) => { if (!v) setActivateOpen(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ativar {activateOpen?.rule_code} v{activateOpen?.version}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Alert>
+              <AlertDescription>
+                Esta ação liga o programa de pontos em produção usando a RPC atômica. Confirme corte e audiência.
+              </AlertDescription>
+            </Alert>
+            <div>
+              <Label>Data/hora do corte (UTC local)</Label>
+              <Input type="datetime-local" value={activateForm.cutoff} onChange={e => setActivateForm({ ...activateForm, cutoff: e.target.value })} />
+            </div>
+            <div>
+              <Label>Modo de audiência</Label>
+              <select
+                className="w-full border rounded px-3 py-2 bg-background"
+                value={activateForm.audience_mode}
+                onChange={e => setActivateForm({ ...activateForm, audience_mode: e.target.value })}
+              >
+                <option value="pilot">pilot (lista específica)</option>
+                <option value="all">all (todos os autenticados)</option>
+              </select>
+            </div>
+            {activateForm.audience_mode === "pilot" && (
+              <div>
+                <Label>UUIDs do piloto (um por linha ou separados por vírgula)</Label>
+                <Textarea rows={4} value={activateForm.user_ids} onChange={e => setActivateForm({ ...activateForm, user_ids: e.target.value })} className="font-mono text-xs" />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivateOpen(null)}>Cancelar</Button>
+            <Button disabled={!!activating} onClick={activate}>Confirmar ativação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 // ------------------------ Categorias ------------------------
 function CategoriesTab() {
