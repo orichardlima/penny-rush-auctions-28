@@ -422,7 +422,18 @@ async function processBidPurchase(supabase: any, isApproved: boolean, isRejected
       .update({ status: 'cancelled' })
       .eq('purchase_id', purchase.id)
       .in('status', ['pending', 'approved'])
+
+    // Reversão canônica (idempotente por gateway_event_id)
+    const { error: revErr } = await supabase.rpc('reverse_paid_bid_purchase', {
+      p_bid_purchase_id: purchase.id,
+      p_reversal_type: 'cancelled',
+      p_gateway_event_id: `${transactionId ?? purchase.id}:rejected`,
+      p_amount: purchase.amount_paid,
+      p_notes: 'veopag rejection webhook',
+    })
+    if (revErr) console.error('⚠️ reverse_paid_bid_purchase (non-blocking):', revErr)
   }
+
 
   return new Response('OK', { status: 200, headers: corsHeaders })
 }
