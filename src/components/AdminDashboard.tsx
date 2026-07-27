@@ -10,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   Users, Package, DollarSign, Target, Activity, Settings,
   BarChart3, RefreshCw, Shield, Brain, Eye, Wallet, Flame,
-  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home, Download
+  Handshake, LayoutTemplate, ShoppingCart, Gauge, Home, Download, Gift
 } from 'lucide-react';
 import PlatformDownloadsManager from '@/components/Admin/PlatformDownloadsManager';
 import BotMonitorDashboard from '@/components/Admin/BotMonitorDashboard';
