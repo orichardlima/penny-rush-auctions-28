@@ -5617,6 +5617,11 @@ export type Database = {
         Args: { p_actor?: string; p_auction_id: string; p_reason?: string }
         Returns: string
       }
+      points_settle_auction_safe: {
+        Args: { p_auction_id: string }
+        Returns: undefined
+      }
+      points_settle_pending_auctions: { Args: never; Returns: number }
       points_user_in_audience: { Args: { _user_id: string }; Returns: boolean }
       position_partner_binary: {
         Args: {
