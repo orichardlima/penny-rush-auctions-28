@@ -82,7 +82,7 @@ serve(async (req) => {
 
     // ===== ROUTE: Bid Purchase (existing logic) =====
     if (purchaseId) {
-      return await processBidPurchase(supabase, purchaseId)
+      return await processBidPurchase(supabase, purchaseId, txId)
     }
 
     return new Response(
@@ -392,7 +392,7 @@ async function processPlanUpgrade(supabase: any, upgradeRef: string, txId: strin
 }
 
 // ===== BID PURCHASE (existing logic) =====
-async function processBidPurchase(supabase: any, purchaseId: string) {
+async function processBidPurchase(supabase: any, purchaseId: string, txId: string) {
   const { data: purchase, error: purchaseError } = await supabase
     .from('bid_purchases')
     .select('*')
