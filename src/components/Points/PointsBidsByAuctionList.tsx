@@ -32,8 +32,10 @@ export function PointsBidsByAuctionList({
   const waiting = rows.filter((r) => r.status === "waiting");
   const converted = rows.filter((r) => r.status === "converted");
   const won = rows.filter((r) => r.status === "won");
+  const bonusRows = rows.filter((r) => (r.bonus_count || 0) > 0);
 
-  const sum = (arr: AuctionBidsRow[]) => arr.reduce((n, r) => n + r.bid_count, 0);
+  const sumBase = (arr: AuctionBidsRow[]) => arr.reduce((n, r) => n + (r.base_count || 0), 0);
+  const sumBonus = (arr: AuctionBidsRow[]) => arr.reduce((n, r) => n + (r.bonus_count || 0), 0);
 
   return (
     <Card>
@@ -45,13 +47,13 @@ export function PointsBidsByAuctionList({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
             <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
               <Clock className="h-3.5 w-3.5" /> Aguardando
             </div>
             <div className="mt-1 text-foreground">
-              <strong>{sum(waiting)}</strong> lances em <strong>{waiting.length}</strong> leilões ativos
+              <strong>{sumBase(waiting)}</strong> base em <strong>{waiting.length}</strong> leilões ativos
             </div>
           </div>
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
@@ -59,7 +61,7 @@ export function PointsBidsByAuctionList({
               <CheckCircle2 className="h-3.5 w-3.5" /> Convertidos
             </div>
             <div className="mt-1 text-foreground">
-              <strong>{sum(converted)}</strong> lances em <strong>{converted.length}</strong> leilões finalizados
+              <strong>{sumBase(converted)}</strong> base em <strong>{converted.length}</strong> leilões finalizados
             </div>
           </div>
           <div className="rounded-md border border-muted p-3">
@@ -67,7 +69,16 @@ export function PointsBidsByAuctionList({
               <Trophy className="h-3.5 w-3.5" /> Sem ponto (vitórias)
             </div>
             <div className="mt-1 text-foreground">
-              <strong>{sum(won)}</strong> lances em <strong>{won.length}</strong> leilões vencidos
+              <strong>{sumBase(won)}</strong> base em <strong>{won.length}</strong> leilões vencidos
+            </div>
+          </div>
+          <div className="rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 p-3">
+            <div className="flex items-center gap-1 text-muted-foreground font-medium">
+              <Gavel className="h-3.5 w-3.5" /> Bônus usados
+            </div>
+            <div className="mt-1 text-foreground">
+              <strong>{sumBonus(rows)}</strong> bônus em <strong>{bonusRows.length}</strong> leilões
+              <div className="text-[10px] text-muted-foreground">nunca geram pontos</div>
             </div>
           </div>
         </div>
@@ -97,8 +108,18 @@ export function PointsBidsByAuctionList({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">{r.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {r.bid_count} {r.bid_count === 1 ? "lance pago" : "lances pagos"} • último em {fmtDate(r.last_bid_at)}
+                  <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span>
+                      <strong className="text-foreground">{r.base_count}</strong>{" "}
+                      {r.base_count === 1 ? "base elegível" : "base elegíveis"}
+                    </span>
+                    {r.bonus_count > 0 && (
+                      <span className="text-muted-foreground/80">
+                        + <strong>{r.bonus_count}</strong> bônus{" "}
+                        <span className="text-[10px]">(não gera ponto)</span>
+                      </span>
+                    )}
+                    <span className="text-muted-foreground/70">• último em {fmtDate(r.last_bid_at)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">

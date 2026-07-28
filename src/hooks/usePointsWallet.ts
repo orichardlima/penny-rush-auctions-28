@@ -18,17 +18,28 @@ export interface PointsProgressData {
   bids_per_point: number;
 }
 
+export interface BidsBreakdown {
+  base_available: number;
+  bonus_available: number;
+  total_available: number;
+}
+
 export function usePointsWallet() {
   const { user } = useAuth();
   const [wallet, setWallet] = useState<PointsWalletData | null>(null);
   const [progress, setProgress] = useState<PointsProgressData | null>(null);
+  const [breakdown, setBreakdown] = useState<BidsBreakdown>({
+    base_available: 0,
+    bonus_available: 0,
+    total_available: 0,
+  });
   const [storeVisible, setStoreVisible] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [w, b, r, v, pendingBids] = await Promise.all([
+    const [w, b, r, v, pendingBids, lots] = await Promise.all([
       sb.from("points_wallets").select("*").eq("user_id", user.id).maybeSingle(),
       sb.from("points_accrual_buckets").select("eligible_bids_remaining").eq("user_id", user.id).maybeSingle(),
       sb.from("points_rules").select("bids_per_point").eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -38,6 +49,12 @@ export function usePointsWallet() {
         .select("id, auction_id")
         .eq("user_id", user.id)
         .eq("eligible_for_points", true),
+      sb
+        .from("bid_lots")
+        .select("remaining_amount, source, eligible_for_points, lot_status")
+        .eq("user_id", user.id)
+        .eq("lot_status", "active")
+        .gt("remaining_amount", 0),
     ]);
 
     const pendingRows = pendingBids.data || [];
@@ -52,6 +69,16 @@ export function usePointsWallet() {
       const activeAuctionIds = new Set((activeAuctions || []).map((auction: any) => auction.id));
       pendingEligibleBids = pendingRows.filter((row: any) => activeAuctionIds.has(row.auction_id)).length;
     }
+
+    let base_available = 0;
+    let bonus_available = 0;
+    (lots.data || []).forEach((l: any) => {
+      const amt = Number(l.remaining_amount || 0);
+      const isBase = l.source === "paid_purchase" && l.eligible_for_points === true;
+      if (isBase) base_available += amt;
+      else bonus_available += amt;
+    });
+
     setWallet(w.data || {
       available_points: 0, reserved_points: 0, lifetime_earned: 0, lifetime_redeemed: 0, status: "NORMAL",
     });
@@ -60,11 +87,16 @@ export function usePointsWallet() {
       pending_eligible_bids: pendingEligibleBids,
       bids_per_point: r.data?.bids_per_point ?? 12,
     });
+    setBreakdown({
+      base_available,
+      bonus_available,
+      total_available: base_available + bonus_available,
+    });
     setStoreVisible(!!v.data);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
-  return { wallet, progress, storeVisible, loading, reload: load };
+  return { wallet, progress, breakdown, storeVisible, loading, reload: load };
 }

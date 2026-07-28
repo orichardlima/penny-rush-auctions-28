@@ -11,6 +11,8 @@ export interface AuctionBidsRow {
   title: string;
   image_url: string | null;
   bid_count: number;
+  base_count: number;
+  bonus_count: number;
   last_bid_at: string;
   status: AuctionPointsStatus;
   auction_status: string;
@@ -26,22 +28,27 @@ export function usePointsBidsByAuction() {
     if (!user) return;
     setLoading(true);
 
-    const { data: bids } = await sb
-      .from("bids")
-      .select("auction_id, created_at")
-      .eq("user_id", user.id)
-      .eq("eligible_for_points", true);
+    // Consumo real: bid_lot_consumptions -> distingue base (eligible) x bonus (não eligible)
+    const { data: consumptions } = await sb
+      .from("bid_lot_consumptions")
+      .select("amount_consumed, eligible_for_points, created_at, bids!inner(auction_id, user_id, created_at)")
+      .eq("bids.user_id", user.id);
 
-    const grouped = new Map<string, { count: number; last: string }>();
-    (bids || []).forEach((b: any) => {
-      if (!b.auction_id) return;
-      const g = grouped.get(b.auction_id);
-      if (g) {
-        g.count += 1;
-        if (b.created_at > g.last) g.last = b.created_at;
-      } else {
-        grouped.set(b.auction_id, { count: 1, last: b.created_at });
-      }
+    const grouped = new Map<
+      string,
+      { base: number; bonus: number; last: string }
+    >();
+
+    (consumptions || []).forEach((c: any) => {
+      const auctionId = c.bids?.auction_id;
+      if (!auctionId) return;
+      const amt = Number(c.amount_consumed || 0);
+      const when = c.bids?.created_at || c.created_at;
+      const g = grouped.get(auctionId) || { base: 0, bonus: 0, last: when };
+      if (c.eligible_for_points) g.base += amt;
+      else g.bonus += amt;
+      if (when > g.last) g.last = when;
+      grouped.set(auctionId, g);
     });
 
     const auctionIds = Array.from(grouped.keys());
@@ -75,7 +82,9 @@ export function usePointsBidsByAuction() {
         auction_id: a.id,
         title: a.title,
         image_url: a.image_url,
-        bid_count: g.count,
+        base_count: g.base,
+        bonus_count: g.bonus,
+        bid_count: g.base + g.bonus,
         last_bid_at: g.last,
         status,
         auction_status: a.status,
