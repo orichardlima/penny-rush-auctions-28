@@ -108,8 +108,18 @@ export function PointsBidsByAuctionList({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">{r.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {r.bid_count} {r.bid_count === 1 ? "lance pago" : "lances pagos"} • último em {fmtDate(r.last_bid_at)}
+                  <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span>
+                      <strong className="text-foreground">{r.base_count}</strong>{" "}
+                      {r.base_count === 1 ? "base elegível" : "base elegíveis"}
+                    </span>
+                    {r.bonus_count > 0 && (
+                      <span className="text-muted-foreground/80">
+                        + <strong>{r.bonus_count}</strong> bônus{" "}
+                        <span className="text-[10px]">(não gera ponto)</span>
+                      </span>
+                    )}
+                    <span className="text-muted-foreground/70">• último em {fmtDate(r.last_bid_at)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
