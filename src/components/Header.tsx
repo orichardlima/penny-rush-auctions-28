@@ -253,7 +253,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
 
                 {/* Buy Bids Button - Mobile optimized */}
                 <Button 
-                  onClick={onBuyBids} 
+                  onClick={handleBuyBidsClick} 
                   variant="default" 
                   size="sm" 
                   className="px-2 sm:px-4"
