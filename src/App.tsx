@@ -157,6 +157,8 @@ const AdminParceiros = lazyWithRetry(() => import("./pages/AdminParceiros"));
 const AdminCentralPerformance = lazyWithRetry(() => import("./pages/AdminCentralPerformance"));
 const AdminPontosLoja = lazyWithRetry(() => import("./pages/AdminPontosLoja"));
 const LojaShow = lazyWithRetry(() => import("./pages/LojaShow"));
+const ProdutoShow = lazyWithRetry(() => import("./pages/ProdutoShow"));
+const CheckoutResgate = lazyWithRetry(() => import("./pages/CheckoutResgate"));
 const MeusResgates = lazyWithRetry(() => import("./pages/MeusResgates"));
 const MeusPontos = lazyWithRetry(() => import("./pages/MeusPontos"));
 const TermosDeUso = lazyWithRetry(() => import("./pages/TermosDeUso"));
@@ -206,6 +208,8 @@ const AppContent = () => {
       <Route path="/admin/central-performance" element={<LazyRoute><AdminCentralPerformance /></LazyRoute>} />
       <Route path="/admin/pontos-loja" element={<LazyRoute><AdminPontosLoja /></LazyRoute>} />
       <Route path="/loja-show" element={<LazyRoute><LojaShow /></LazyRoute>} />
+      <Route path="/loja-show/checkout" element={<LazyRoute><CheckoutResgate /></LazyRoute>} />
+      <Route path="/loja-show/:slug" element={<LazyRoute><ProdutoShow /></LazyRoute>} />
       <Route path="/meus-resgates" element={<LazyRoute><MeusResgates /></LazyRoute>} />
       <Route path="/meus-pontos" element={<LazyRoute><MeusPontos /></LazyRoute>} />
       <Route path="/reset-password" element={<LazyRoute><ResetPassword /></LazyRoute>} />

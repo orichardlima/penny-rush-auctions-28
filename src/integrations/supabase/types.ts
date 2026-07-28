@@ -4358,6 +4358,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address_city: string | null
+          address_complement: string | null
+          address_neighborhood: string | null
+          address_number: string | null
+          address_state: string | null
+          address_street: string | null
+          address_zip: string | null
           avatar_url: string | null
           bettor_contract_accepted_at: string | null
           bettor_contract_version: string | null
@@ -4392,6 +4399,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          address_city?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip?: string | null
           avatar_url?: string | null
           bettor_contract_accepted_at?: string | null
           bettor_contract_version?: string | null
@@ -4426,6 +4440,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          address_city?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip?: string | null
           avatar_url?: string | null
           bettor_contract_accepted_at?: string | null
           bettor_contract_version?: string | null
