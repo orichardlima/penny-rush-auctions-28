@@ -9,14 +9,17 @@ import { Sparkles, Store, ShoppingBag, Info } from "lucide-react";
 import { Header } from "@/components/Header";
 import { usePointsWallet } from "@/hooks/usePointsWallet";
 import { usePointsLedger } from "@/hooks/usePointsLedger";
+import { usePointsBidsByAuction } from "@/hooks/usePointsBidsByAuction";
 import { PointsProgressCard } from "@/components/Points/PointsProgressCard";
 import { PointsHistoryList } from "@/components/Points/PointsHistoryList";
+import { PointsBidsByAuctionList } from "@/components/Points/PointsBidsByAuctionList";
 
 export default function MeusPontos() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { wallet, progress, storeVisible, loading } = usePointsWallet();
   const { entries, loading: ledgerLoading } = usePointsLedger(30);
+  const { rows: auctionRows, loading: auctionRowsLoading } = usePointsBidsByAuction();
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -88,6 +91,9 @@ export default function MeusPontos() {
 
         {/* Progresso do próximo ponto */}
         <PointsProgressCard progress={progress} />
+
+        {/* Lances por leilão */}
+        <PointsBidsByAuctionList rows={auctionRows} loading={auctionRowsLoading} />
 
         {/* Histórico */}
         <PointsHistoryList entries={entries} loading={ledgerLoading} />
