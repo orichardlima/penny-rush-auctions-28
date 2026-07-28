@@ -35,24 +35,6 @@ export default function MeusPontos() {
     );
   }
 
-  const neverParticipated = !storeVisible && wallet.lifetime_earned === 0 && wallet.available_points === 0;
-
-  if (neverParticipated) {
-    return (
-      <>
-        <Header />
-        <div className="container mx-auto p-4 md:p-6 max-w-2xl">
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Programa Pontos Show em breve</AlertTitle>
-            <AlertDescription>
-              O Programa Pontos Show ainda não está disponível para o seu perfil. Assim que for liberado, você poderá acompanhar aqui seus pontos gerados a cada lance pago em leilões que não venceu.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </>
-    );
-  }
 
   const fmt = (n: number) => Number(n || 0).toLocaleString("pt-BR");
 
