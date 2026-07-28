@@ -13,6 +13,7 @@ import { usePointsBidsByAuction } from "@/hooks/usePointsBidsByAuction";
 import { PointsProgressCard } from "@/components/Points/PointsProgressCard";
 import { PointsHistoryList } from "@/components/Points/PointsHistoryList";
 import { PointsBidsByAuctionList } from "@/components/Points/PointsBidsByAuctionList";
+import { RecentRedemptionsCard } from "@/components/Points/RecentRedemptionsCard";
 
 export default function MeusPontos() {
   const { user, loading: authLoading } = useAuth();
@@ -121,6 +122,10 @@ export default function MeusPontos() {
 
         {/* Lances por leilão */}
         <PointsBidsByAuctionList rows={auctionRows} loading={auctionRowsLoading} />
+
+        {/* Resgates recentes */}
+        <RecentRedemptionsCard />
+
 
         {/* Histórico */}
         <PointsHistoryList entries={entries} loading={ledgerLoading} />
