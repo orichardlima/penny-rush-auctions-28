@@ -1,69 +1,38 @@
 
-# Estado atual do Programa Pontos Show
+# Correção do Pipeline de Pontos Show
 
-## 1. Escritório do Administrador — `/admin/pontos-loja`
+## Diagnóstico (dados reais do banco)
 
-Página existe, é lazy-loaded, protegida por `profile.is_admin`, com 5 abas:
+O programa está **totalmente ligado** (todas as flags `true`, regra ativa 12→1, loja com 3 itens, audiência `all`). Porém **nenhum ponto está sendo gerado** por dois motivos:
 
-| Aba | O que faz | Situação real |
-|---|---|---|
-| **Configurações** | Lê/edita flags booleanas, parâmetros numéricos, datas de corte e JSONs (audience, elegibilidade, etc). | ❌ **QUEBRADA.** O código consulta as colunas `setting_key`/`setting_value`, mas as tabelas reais em produção usam `key`/`value`. A aba abre em branco e qualquer tentativa de salvar retorna erro. |
-| **Regras** | Lista `points_rules` e permite criar nova regra (nome, lances/ponto, multiplicador, ativa). | ⚠️ **Parcial.** Lista funciona. **Criação está incompleta**: o formulário só envia `name/bids_per_point/multiplier/is_active`; a Fase 3 exige também `rule_code`, `version`, `points_per_block`. Inserir uma regra nova pela UI hoje falha ou cria um registro inconsistente que os triggers de imutabilidade não protegem corretamente. A regra oficial `POINTS_STANDARD v1` (12:1) já está semeada, inativa, pronta para ser ligada pela RPC atômica. |
-| **Categorias** | CRUD simples de categorias da loja. | ✅ Funciona. Nenhuma categoria cadastrada ainda (opcional). |
-| **Itens** | CRUD de produtos, edição de estoque (+/-), status DRAFT/ACTIVE/PAUSED/OUT_OF_STOCK/ARCHIVED. | ✅ Funciona. **3 produtos já cadastrados como ACTIVE**: Fone Bluetooth (150 pts, estoque 2), Caixa de Som (300 pts, estoque 1), PS5 Slim (1000 pts, estoque 1). Todos com limite 1/usuário. |
-| **Resgates** | Fila com filtros PENDING/APPROVED/REJECTED/ALL, ações Aprovar / Rejeitar (com motivo) via RPCs `redeem_approve` / `redeem_reject`. | ✅ Funciona. Nenhum resgate ainda. |
+1. **Bug SQL bloqueante:** 4 lances já foram lançados na fila `points_bid_reconciliation_queue` com o erro `column reference "source" is ambiguous`. Toda tentativa de consumir lotes de lance para gerar pontos aborta com esse erro e o lance é enviado para a fila em vez de virar ponto.
+2. **Data de corte no futuro:** `points_accrual_started_at = 2026-07-28 07:57 UTC` (ainda faltam ~4h). Antes desse horário nenhum lance é elegível — comportamento correto, apenas informativo.
+3. **Zero `bid_lots` com `eligible_for_points=true` no banco inteiro** — indica que o webhook de compra paga ainda não marcou nenhum lote como elegível (ou ninguém comprou lances desde a virada de schema). Precisa validação após a correção do bug.
 
-## 2. Loja do usuário — `/loja-show`
+## O que corrigir
 
-- ✅ Rota registrada e protegida por login.
-- ✅ Gate por RPC `store_visible_for`. Enquanto `points_store_enabled=false` a página mostra "Loja em breve" — atualmente é isso que qualquer usuário vê.
-- ✅ Exibe saldo da wallet, lista só itens ACTIVE ordenados por destaque, botão Resgatar chama `redeem_create` com idempotency key, redireciona para `/meus-resgates`.
-- ✅ Bloqueia botão quando estoque zerado ou saldo insuficiente.
+### 1. Bug "column source is ambiguous"
+Localizar a função SQL que faz JOIN entre `bid_lots` e `bid_lot_consumptions` (ambas têm coluna `source`) sem qualificar. Candidatas prováveis:
+- `consume_bid_lots_for_bid`
+- `commit_bid_lot_consumptions`
+- `consume_bid_lots`
 
-## 3. Meus resgates — `/meus-resgates`
+Qualificar todas as referências a `source` com o alias da tabela (`bl.source` vs `blc.source`) e criar migration única com a versão corrigida (`CREATE OR REPLACE FUNCTION`).
 
-- ✅ Rota registrada. Lista os resgates do próprio usuário (a página está criada e usa as mesmas RPCs).
+### 2. Reprocessar a fila
+Após a função corrigida, disparar reprocessamento dos 4 itens em `points_bid_reconciliation_queue` para não perderem elegibilidade retroativa (ou marcar como "corte anterior" se caírem antes de `points_accrual_started_at`).
 
-## 4. Backend / segurança
+### 3. Verificação pós-correção
+- Confirmar que a função executa sem erro em um lance de teste.
+- Confirmar que, quando um `bid_lot` pago é consumido em um leilão que o usuário não vence, um `points_ledger` (`EARN_AUCTION`) é criado e `points_wallets.available_points` incrementa a cada 12 lances.
+- Confirmar que a fila `points_bid_reconciliation_queue` para de crescer.
 
-- ✅ RLS ligada em `points_program_settings_*`, `points_rules`, `points_store_items`, `points_store_categories`, `points_redemptions`, `points_wallets`.
-- ✅ Todas as RPCs necessárias existem: `store_visible_for`, `redeem_create`, `redeem_approve`, `redeem_reject`, `is_admin_user`, `points_admin_activate_pilot`, `credit_paid_bid_purchase`, `reverse_paid_bid_purchase`, `points_settle_auction`, `consume_bid_lots`, `is_auction_final_for_points`.
-- ✅ Triggers de imutabilidade e anti-delete em `points_rules` ativos.
-- ✅ Webhooks VeoPag e MagenPay deployados com fluxo canônico.
-- ✅ Todas as flags neutras (`false` / `NULL` / `off`). Nada acontece em produção ainda.
+## Fora de escopo (não mexer)
+- Data de corte (`points_accrual_started_at`) — usuário definiu; só documentar que antes desse horário não gera pontos.
+- Regras 12→1, audiência, catálogo, UI admin, flags — tudo já validado e funcionando.
+- Nenhuma alteração em UI/UX; correção é 100% backend (função SQL).
 
-## Conclusão honesta
-
-O programa está pronto na infraestrutura e na loja do usuário, mas **o escritório do admin tem 2 bugs que impedem o piloto real**:
-
-1. A aba Configurações não consegue ler nem gravar as flags porque foi codificada com nomes de coluna errados.
-2. A aba Regras cria regras incompletas.
-
-Se você tentar antes das 13h ajustar uma flag pela UI, vai encontrar tela vazia / erro. Precisamos corrigir isso antes do corte.
-
----
-
-# Plano de correção (só as 2 abas quebradas — nada mais é tocado)
-
-### Detalhes técnicos
-
-**Fix 1 — `src/pages/AdminPontosLoja.tsx`, `useSettings` e `ConfigTab`:**
-- Trocar `select("setting_key,setting_value")` por `select("key,value")` nas 4 queries.
-- Trocar `.eq("setting_key", key)` por `.eq("key", key)` no `update`.
-- Trocar todas as leituras `r.setting_key` / `r.setting_value` por `r.key` / `r.value` (nos editores Num/Time/Json e nos maps das listas).
-- Ajustar o tipo `SettingRow` para `{ key: string; value: any }`.
-
-**Fix 2 — `RulesTab`:**
-- Adicionar ao form: `rule_code` (texto, default `POINTS_STANDARD`), `version` (número, default próxima versão), `points_per_block` (número, default 1).
-- Enviar esses campos no `insert`.
-- Mostrar `rule_code` e `version` na tabela junto de `bids_per_point`.
-- Trocar o toggle de "Ativa" por um botão "Ativar" que chama a RPC atômica `points_admin_activate_pilot` (evita ativar regra por UPDATE direto e passar por cima da validação exigida pela Fase 3).
-
-Nada mais no admin, na loja, nos webhooks, nas RPCs ou no banco é alterado. As flags continuam neutras. Não há qualquer ativação de programa neste plano — só o conserto do escritório.
-
-### Verificação
-- Abrir `/admin/pontos-loja`, aba Configurações: as 8 flags booleanas, 1 numérica, 2 datas e 8 JSONs aparecem, editam e salvam.
-- Aba Regras: `POINTS_STANDARD v1` aparece; botão "Ativar" chama a RPC (só será usado às 13h após o smoke test).
-- Sem regressão nas abas Categorias, Itens e Resgates.
-
-Depois desse fix, o cenário para as 13h fica: gerar a compra real de R$ 5,00, validar webhook + idempotência, marcar `webhooks_validated=true` e rodar `points_admin_activate_pilot` com `audience_mode='all'` conforme você já autorizou.
+## Detalhes técnicos
+- Migration única `CREATE OR REPLACE FUNCTION` para as funções afetadas, mantendo assinatura idêntica.
+- Sem `DROP`, sem alteração de schema, sem novas tabelas.
+- Após aplicar, rodar `SELECT` na fila para provar que reason mudou (ou está vazia).
