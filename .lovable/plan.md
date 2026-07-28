@@ -1,38 +1,44 @@
-## Objetivo
-Garantir, de forma explícita e à prova de regressão, que **lances de bots nunca gerem Pontos Show**, mesmo em cenários futuros de mudança de regra ou bug.
+## Diagnóstico — Programa Pontos Show em produção
 
-## Estado atual (verificado)
-- Bots inserem lances direto em `bids` (função `execute_overdue_bot_bids`), sem passar por `place_bid`, com `cost_paid=0` e `eligible_for_points` no default (false).
-- `place_bid` (usuários reais) já força `eligible_for_points=false` quando `is_bot=true`.
-- `points_settle_auction` já filtra `profiles.is_bot=false` ao apurar pontos.
-- Ou seja, hoje bots **não** geram pontos, mas a proteção depende de o default do campo continuar `false` e do filtro no settle. Não há barreira física.
+Verifiquei o estado real do sistema no banco (horário atual: **28/07/2026 13:29 UTC**, corte configurado: **28/07 07:57 UTC** — já passou).
 
-## Mudanças propostas (defesa em profundidade, sem alterar UI/UX)
+### ✅ Infraestrutura: 100% operacional
+- Todas as flags ligadas: `points_program_enabled`, `points_accrual_enabled`, `points_lot_consumption_enabled`, `points_store_enabled`, `points_redemption_enabled`, `webhooks_validated`.
+- Regra ativa: **12 lances pagos elegíveis = 1 Ponto Show**.
+- Data de corte já vigente.
+- Trigger anti-bot funcionando (nenhum lance de bot marcado como elegível).
 
-1. **Trigger `bids_block_bot_points_eligibility` (BEFORE INSERT OR UPDATE em `public.bids`)**
-   - Se o `user_id` pertencer a um perfil com `is_bot=true` (ou `is_test_account=true`, ou admin), força:
-     - `NEW.eligible_for_points := false`
-     - `NEW.points_rule_id := NULL`
-     - `NEW.points_campaign_id := NULL`
-     - `NEW.points_multiplier_snapshot := NULL`
-     - `NEW.lot_id := NULL` / `NEW.source := NULL` (bots não consomem lote pago)
-   - Idempotente e barato; garante que nada a jusante contabilize bot.
+### ❌ Pontos ainda NÃO estão sendo gerados — e o motivo não é bug
 
-2. **Reforço em `points_settle_auction`**
-   - Manter o filtro atual (`is_bot=false`) e adicionar comentário/CHECK explícito para evitar remoção acidental. Nenhuma mudança de comportamento.
+Contadores reais desde o corte:
 
-3. **Backfill defensivo (uma vez, dentro da mesma migration)**
-   - `UPDATE public.bids SET eligible_for_points=false, points_rule_id=NULL, points_campaign_id=NULL, points_multiplier_snapshot=NULL WHERE user_id IN (SELECT user_id FROM profiles WHERE is_bot=true) AND eligible_for_points=true;`
-   - Garante estado limpo antes da data de corte.
+| Métrica | Valor |
+|---|---|
+| Compras PIX pagas após o corte (`bid_purchases` payment_status='paid') | **0** |
+| Compras PIX pagas em toda a história da tabela | **0** |
+| Lotes elegíveis criados (`bid_lots.eligible_for_points=true`) | **0** |
+| Lances de usuários **reais** após o corte | **0** |
+| Lances de **bots** após o corte | 5.729 (corretamente inelegíveis) |
+| Consumos FIFO elegíveis (`bid_lot_consumptions`) | 0 |
+| Entradas no ledger (`points_ledger`) | 0 |
+| Carteiras criadas (`points_wallets`) | 0 |
+| Liquidações de leilão (`auction_points_settlements`) | 0 |
+| Fila de reconciliação pendente | 0 (limpa) |
 
-4. **Sem alteração** em: UI, `place_bid`, fluxo de compras, loja, dashboards, webhooks, regras existentes.
+### 🎯 Conclusão
 
-## Verificação após aplicar
-- Inserir manualmente um `bids` com `user_id` de bot e `eligible_for_points=true` → conferir que o trigger reescreve para `false`.
-- Rodar `points_settle_auction` em leilão de teste com bots participando → confirmar que nenhum bot aparece em `auction_points_settlement_items`.
-- Confirmar que `bid_lot_consumptions` para bots permanece vazio.
+O sistema está **pronto e destravado**, mas **nenhum usuário real comprou lances via PIX após o corte**. Sem compra paga → sem lote elegível → sem consumo elegível → sem ponto. É o comportamento esperado das regras que você aprovou.
 
-## Fora de escopo
-- Mudanças em UI do admin/usuário.
-- Alterar lógica de bots ou de finalização de leilão.
-- Alterar regras de pontuação (12:1) ou flags.
+Um detalhe estranho vale registrar: a tabela `bid_purchases` mostra **0 compras com `payment_status='paid'` em toda a história** (833 registros, nenhum "paid"). Isso pode indicar que o status "paid" nunca é usado (talvez seja "approved", "confirmed", "completed" etc.) — vale investigar antes do teste real de R$ 5,00 para garantir que o webhook Veopag vai marcar o lote como elegível corretamente.
+
+### Próximos passos propostos
+
+1. **Confirmar o vocabulário de status** que o webhook Veopag grava em `bid_purchases.payment_status` (checar valores distintos existentes e o código do webhook), para garantir que o gatilho de elegibilidade dispara.
+2. **Fazer a compra real de R$ 5,00** que você já autorizou, e acompanhar em tempo real:
+   - lote criado com `eligible_for_points=true`
+   - lance consumido em leilão perdido gera `bid_lot_consumptions.eligible_for_points=true`
+   - `auction_points_settlements` cria pontos ao final
+   - `points_wallets.available_points` do usuário aumenta
+3. Só então declarar o pilot como validado end-to-end.
+
+Confirma seguir por aí? Posso começar pelo passo 1 (auditar o vocabulário de status e o caminho do webhook) sem mexer em nada de UI/negócio.
