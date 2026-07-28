@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.points_admin_activate_pilot(uuid,timestamptz,uuid[],text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.points_admin_activate_pilot(uuid,timestamptz,uuid[],text) TO authenticated;
