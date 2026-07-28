@@ -59,7 +59,7 @@ export default function MeusPontos() {
 
         {/* Cartão de saldo */}
         <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
-          <CardContent className="p-6">
+          <CardContent className="p-6 space-y-5">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Saldo disponível</div>
@@ -77,8 +77,34 @@ export default function MeusPontos() {
                 </div>
               </div>
             </div>
+
+            {/* Saldo de lances: base x bônus */}
+            <div className="rounded-lg border bg-background/60 p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Saldo de lances</div>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground">Base (R$ pagos)</div>
+                  <div className="text-lg font-bold text-primary">{fmt(breakdown.base_available)}</div>
+                  <div className="text-[10px] text-muted-foreground">elegíveis a pontos</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Bônus (mimo)</div>
+                  <div className="text-lg font-bold text-muted-foreground">{fmt(breakdown.bonus_available)}</div>
+                  <div className="text-[10px] text-muted-foreground">não geram pontos</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Total</div>
+                  <div className="text-lg font-bold">{fmt(breakdown.total_available)}</div>
+                  <div className="text-[10px] text-muted-foreground">lances disponíveis</div>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                Somente <strong>lances base</strong> contam para Pontos Show. Bônus é cortesia da plataforma para pacotes maiores.
+              </p>
+            </div>
+
             {storeVisible && (
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={() => navigate("/loja-show")} className="gap-2">
                   <Store className="h-4 w-4" /> Ir para a Loja Show
                 </Button>
@@ -91,7 +117,7 @@ export default function MeusPontos() {
         </Card>
 
         {/* Progresso do próximo ponto */}
-        <PointsProgressCard progress={progress} />
+        <PointsProgressCard progress={progress} bonusUsedOrPending={bonusUsedOrPending} />
 
         {/* Lances por leilão */}
         <PointsBidsByAuctionList rows={auctionRows} loading={auctionRowsLoading} />
