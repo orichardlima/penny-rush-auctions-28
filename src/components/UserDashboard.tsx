@@ -28,6 +28,7 @@ import {
   BarChart3,
   Users,
   ExternalLink,
+  Sparkles,
   Briefcase,
   ArrowRight
 } from 'lucide-react';
@@ -227,7 +228,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Saldo de Lances</CardTitle>
@@ -271,6 +272,19 @@ const UserDashboard = () => {
               <p className="text-xs text-muted-foreground">leilões ganhos</p>
             </CardContent>
           </Card>
+
+          <Link to="/meus-pontos" className="block">
+            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer bg-gradient-to-br from-primary/5 to-transparent">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pontos Show</CardTitle>
+                <Sparkles className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">Acompanhar →</div>
+                <p className="text-xs text-muted-foreground">saldo, progresso e histórico</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <MyBidLotsCard />
