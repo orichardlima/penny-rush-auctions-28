@@ -309,6 +309,15 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
+                      <Link to="/loja-show" className="w-full cursor-pointer">
+                        <ShoppingBag className="w-4 h-4 mr-2" aria-hidden="true" />
+                        Loja Show
+                        <Badge className="ml-auto bg-gradient-primary text-primary-foreground text-[9px] px-1.5 py-0 font-bold">
+                          NOVO
+                        </Badge>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/meus-contratos" className="w-full cursor-pointer">
                         <FileText className="w-4 h-4 mr-2" aria-hidden="true" />
                         Meus Contratos
