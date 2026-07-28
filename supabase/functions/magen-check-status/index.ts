@@ -82,7 +82,7 @@ serve(async (req) => {
 
     // ===== ROUTE: Bid Purchase (existing logic) =====
     if (purchaseId) {
-      return await processBidPurchase(supabase, purchaseId)
+      return await processBidPurchase(supabase, purchaseId, txId)
     }
 
     return new Response(
