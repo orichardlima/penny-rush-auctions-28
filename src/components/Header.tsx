@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Coins, ShoppingCart, User, Menu, TimerReset, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText, Download, LineChart, Sparkles } from "lucide-react";
+import { Coins, ShoppingCart, ShoppingBag, User, Menu, TimerReset, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText, Download, LineChart, Sparkles } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -309,6 +309,15 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
+                      <Link to="/loja-show" className="w-full cursor-pointer">
+                        <ShoppingBag className="w-4 h-4 mr-2" aria-hidden="true" />
+                        Loja Show
+                        <Badge className="ml-auto bg-gradient-primary text-primary-foreground text-[9px] px-1.5 py-0 font-bold">
+                          NOVO
+                        </Badge>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/meus-contratos" className="w-full cursor-pointer">
                         <FileText className="w-4 h-4 mr-2" aria-hidden="true" />
                         Meus Contratos
@@ -440,6 +449,15 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                           >
                             <Sparkles className="w-5 h-5" aria-hidden="true" />
                             <span>Meus Pontos Show</span>
+                          </Link>
+                          <Link
+                            to="/loja-show"
+                            className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors text-base font-medium ${isCurrentPage('/loja-show') ? 'bg-primary/10 text-primary' : 'text-foreground hover:text-primary hover:bg-accent'}`}
+                            aria-current={isCurrentPage('/loja-show') ? 'page' : undefined}
+                          >
+                            <ShoppingBag className="w-5 h-5" aria-hidden="true" />
+                            <span>Loja Show</span>
+                            <Badge className="ml-auto bg-gradient-primary text-primary-foreground text-[10px] px-1.5 py-0 font-bold">NOVO</Badge>
                           </Link>
                         </>
                       )}
