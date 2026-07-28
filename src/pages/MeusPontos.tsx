@@ -17,9 +17,10 @@ import { PointsBidsByAuctionList } from "@/components/Points/PointsBidsByAuction
 export default function MeusPontos() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { wallet, progress, storeVisible, loading } = usePointsWallet();
+  const { wallet, progress, breakdown, storeVisible, loading } = usePointsWallet();
   const { entries, loading: ledgerLoading } = usePointsLedger(30);
   const { rows: auctionRows, loading: auctionRowsLoading } = usePointsBidsByAuction();
+  const bonusUsedOrPending = auctionRows.reduce((n, r) => n + (r.bonus_count || 0), 0);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
