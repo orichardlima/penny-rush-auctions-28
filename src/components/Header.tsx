@@ -390,7 +390,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <div className="grid grid-cols-2 gap-2">
                           <Button 
                             onClick={() => {
-                              onBuyBids?.();
+                              handleBuyBidsClick();
                               setMobileMenuOpen(false);
                             }} 
                             variant="outline" 
