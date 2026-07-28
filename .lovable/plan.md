@@ -1,57 +1,75 @@
+## Objetivo
 
-## Contexto
+Deixar visível para o usuário, tanto no resumo de `/meus-pontos` quanto na lista "Meus lances por leilão", a diferença entre:
 
-Hoje o `/meus-pontos` mostra apenas números agregados:
-- Progresso `X/12 lances elegíveis` no bucket atual
-- Total de "lances pagos em validação" (leilões ainda ativos), sem detalhar em quais leilões
-- Histórico do ledger (ganhos/resgates), mas sem mostrar lances pagos que ainda não viraram ponto
+- **Lances base**: comprados com R$ pagos (1 lance = R$ 1). Contam para Pontos Show quando usados em leilão que o usuário não venceu.
+- **Lances bônus**: mimo do pacote (ex.: 15 grátis num pacote de 50). **Nunca** geram pontos.
 
-O usuário não consegue ver **por leilão** quantos lances pagos deu, quantos ainda estão "aguardando o leilão terminar" e quantos já viraram Ponto Show.
+Assim o usuário entende por que só uma parte do saldo evolui o progresso `X/12`.
 
-## O que construir
+## O que muda na tela `/meus-pontos`
 
-Uma nova seção **"Meus lances por leilão"** no `/meus-pontos`, entre o card de Progresso e o Histórico, listando cada leilão em que o usuário deu lances pagos elegíveis, com status claro por linha.
+### 1. Novo bloco "Saldo de lances" (dentro do cartão de saldo, abaixo dos pontos)
 
-### Cada linha mostra
-- Miniatura + título do produto (leilão)
-- Total de **lances pagos elegíveis** que o usuário deu naquele leilão
-- Badge de status:
-  - **Aguardando (leilão ativo)** — leilão `status='active'`, lances ainda podem virar ponto
-  - **Vitória sua (não gera ponto)** — leilão finalizado e o `orders` daquele leilão é do usuário
-  - **Convertido em pontos** — leilão finalizado, usuário não venceu, lances já contabilizados no bucket/ledger
-- Data do último lance
-- Link "Ver leilão"
+Três mini-indicadores:
 
-Ordenação: primeiro os ativos (mais recentes), depois finalizados recentes.
+- **Lances base disponíveis** (elegíveis a pontos) — soma de `remaining_amount` nos lotes `source='paid_purchase'` com `eligible_for_points=true`.
+- **Lances bônus disponíveis** (não geram pontos) — soma de `remaining_amount` nos demais lotes ativos (bônus de pacote, contrato de parceiro, migração, brindes).
+- **Total** — soma dos dois (bate com `profiles.bids_balance`).
 
-### Resumo no topo da seção
-Três contadores:
-- `Aguardando: N lances em M leilões ativos`
-- `Convertidos: N lances em M leilões finalizados`
-- `Sem ponto (vitórias): N lances em M leilões vencidos`
+Texto de apoio: "Somente lances base contam para Pontos Show. Bônus é cortesia da plataforma."
 
-Isso complementa (não substitui) o card de progresso `X/12` que já existe.
+### 2. Card "Progresso do próximo Ponto Show"
+
+Adicionar linha auxiliar abaixo do "em validação":
+
+- "**N lances bônus** foram/serão usados nestes leilões e **não geram pontos**." — só aparece quando houver bônus consumidos ou pendentes.
+
+### 3. Lista "Meus lances por leilão"
+
+Cada linha passa a mostrar a quebra:
+
+- `X pagos elegíveis + Y bônus` (quando houver bônus no mesmo leilão)
+- Contagem de bônus aparece com cor muted e ícone/legenda "não gera ponto"
+
+Resumo do topo ganha um 4º contador:
+
+- **Bônus usados** — N lances em M leilões (nunca geram ponto)
+
+Ordenação e status (Aguardando / Convertido / Vitória) permanecem inalterados.
 
 ## Detalhes técnicos
 
-**Novo hook** `src/hooks/usePointsBidsByAuction.ts`:
-1. Buscar `bids` do usuário com `eligible_for_points = true` agrupando por `auction_id` (contagem + max(created_at)).
-2. Para os `auction_id` retornados, buscar `auctions` (`id, title, image_url, status, finished_at, winner_id`) e `orders` (`auction_id, user_id`) para identificar vitórias.
-3. Classificar cada leilão em `waiting | converted | won` no cliente e devolver a lista já ordenada.
+### Hook `usePointsWallet.ts`
 
-**Novo componente** `src/components/Points/PointsBidsByAuctionList.tsx`:
-- Card com título "Meus lances por leilão"
-- Resumo (3 contadores)
-- Lista de linhas com thumb, título, contagem, badge de status, data, botão "Ver leilão"
-- Estado vazio didático quando não houver nenhum lance pago elegível ainda
-- Skeleton enquanto carrega
+Adicionar consulta a `bid_lots` do usuário com `remaining_amount > 0`, agrupando:
 
-**Integração em `src/pages/MeusPontos.tsx`**:
-- Chamar o novo hook e renderizar `<PointsBidsByAuctionList />` entre `PointsProgressCard` e `PointsHistoryList`.
-- Nenhuma mudança em backend, RPCs, migrations, webhooks ou regras de pontuação.
+- `base_bids_available` = soma de `remaining_amount` onde `source='paid_purchase' AND eligible_for_points=true`
+- `bonus_bids_available` = soma de `remaining_amount` do restante (inclui `source='purchase_bonus'`, `partner_contract`, `migration`, etc.)
 
-## Fora de escopo
+Retornar esses dois números junto com `wallet` e `progress`.
 
-- Não alterar lógica de FIFO, elegibilidade, settlement ou triggers.
-- Não mexer no admin, Loja Show, ou fluxo de compra.
-- Não alterar o card de saldo nem o histórico de ledger existentes.
+### Hook `usePointsBidsByAuction.ts`
+
+Trocar a consulta única em `bids` filtrada por `eligible_for_points=true` por duas contagens por `auction_id`:
+
+- `base_count` = bids do usuário no leilão com `eligible_for_points=true`
+- `bonus_count` = bids do usuário no leilão com `eligible_for_points=false` (excluindo lances gratuitos legados — filtrar por bids que consumiram algum lote via `bid_lot_consumptions`, ou simplesmente mostrar `total - base` a partir dos lots consumidos)
+
+Solução simples e correta: usar `bid_lot_consumptions` (`bid_id`, `lot_id`, `amount`, `eligible`) juntando com `bid_lots.source` para saber se aquela consumo veio de lote base ou bônus. Agregar por `auction_id` (via `bids.auction_id`).
+
+Retornar por linha: `base_count`, `bonus_count`, `bid_count` (soma), além dos campos atuais.
+
+Manter as linhas cuja soma > 0. Uma linha só com bônus (0 base) continua aparecendo, com status "Aguardando"/"Convertido"/"Vitória" pelas mesmas regras (só que não vai virar ponto — o próprio contador de bônus deixa isso claro).
+
+### Componentes
+
+- `PointsProgressCard.tsx`: aceitar `bonusUsedOrPending` opcional e renderizar a linha auxiliar.
+- `PointsBidsByAuctionList.tsx`: renderizar `base_count` + `bonus_count` por linha e adicionar o 4º card no resumo.
+- `MeusPontos.tsx`: renderizar novo bloco "Saldo de lances" dentro do cartão de saldo já existente.
+
+### Fora de escopo
+
+- Nenhuma mudança em migrations, RPCs, triggers, webhooks, regras de FIFO ou lógica de crédito.
+- Nenhuma mudança no admin, Loja Show, checkout ou histórico do ledger.
+- Nenhuma mudança visual no cartão de saldo além do novo bloco interno.
