@@ -26,6 +26,8 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   let signOut = null;
   
   const location = useLocation();
+  const navigate = useNavigate();
+  const handleBuyBidsClick = onBuyBids ?? (() => navigate("/pacotes"));
   const [hasPartnerContract, setHasPartnerContract] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
