@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Coins, ShoppingCart, User, Menu, TimerReset, LogIn, LogOut, Settings, Home, Trophy, HelpCircle, Briefcase, Users2, X, FileText, Download, LineChart, Sparkles } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -26,6 +26,8 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
   let signOut = null;
   
   const location = useLocation();
+  const navigate = useNavigate();
+  const handleBuyBidsClick = onBuyBids ?? (() => navigate("/pacotes"));
   const [hasPartnerContract, setHasPartnerContract] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -251,7 +253,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
 
                 {/* Buy Bids Button - Mobile optimized */}
                 <Button 
-                  onClick={onBuyBids} 
+                  onClick={handleBuyBidsClick} 
                   variant="default" 
                   size="sm" 
                   className="px-2 sm:px-4"
@@ -388,7 +390,7 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                         <div className="grid grid-cols-2 gap-2">
                           <Button 
                             onClick={() => {
-                              onBuyBids?.();
+                              handleBuyBidsClick();
                               setMobileMenuOpen(false);
                             }} 
                             variant="outline" 
