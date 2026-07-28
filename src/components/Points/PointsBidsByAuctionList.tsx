@@ -121,7 +121,7 @@ export function PointsBidsByAuctionList({
                     size="sm"
                     variant="ghost"
                     className="h-7 px-2 text-xs"
-                    onClick={() => navigate(`/auction/${r.auction_id}`)}
+                    onClick={() => navigate(`/leiloes`)}
                   >
                     Ver <ExternalLink className="h-3 w-3 ml-1" />
                   </Button>
