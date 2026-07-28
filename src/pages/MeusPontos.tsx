@@ -92,6 +92,9 @@ export default function MeusPontos() {
         {/* Progresso do próximo ponto */}
         <PointsProgressCard progress={progress} />
 
+        {/* Lances por leilão */}
+        <PointsBidsByAuctionList rows={auctionRows} loading={auctionRowsLoading} />
+
         {/* Histórico */}
         <PointsHistoryList entries={entries} loading={ledgerLoading} />
 
