@@ -158,6 +158,7 @@ const AdminCentralPerformance = lazyWithRetry(() => import("./pages/AdminCentral
 const AdminPontosLoja = lazyWithRetry(() => import("./pages/AdminPontosLoja"));
 const LojaShow = lazyWithRetry(() => import("./pages/LojaShow"));
 const MeusResgates = lazyWithRetry(() => import("./pages/MeusResgates"));
+const MeusPontos = lazyWithRetry(() => import("./pages/MeusPontos"));
 const TermosDeUso = lazyWithRetry(() => import("./pages/TermosDeUso"));
 const PoliticaPrivacidade = lazyWithRetry(() => import("./pages/PoliticaPrivacidade"));
 const FAQ = lazyWithRetry(() => import("./pages/FAQ"));
@@ -206,6 +207,7 @@ const AppContent = () => {
       <Route path="/admin/pontos-loja" element={<LazyRoute><AdminPontosLoja /></LazyRoute>} />
       <Route path="/loja-show" element={<LazyRoute><LojaShow /></LazyRoute>} />
       <Route path="/meus-resgates" element={<LazyRoute><MeusResgates /></LazyRoute>} />
+      <Route path="/meus-pontos" element={<LazyRoute><MeusPontos /></LazyRoute>} />
       <Route path="/reset-password" element={<LazyRoute><ResetPassword /></LazyRoute>} />
       <Route path="/termos" element={<LazyRoute><TermosDeUso /></LazyRoute>} />
       <Route path="/privacidade" element={<LazyRoute><PoliticaPrivacidade /></LazyRoute>} />
