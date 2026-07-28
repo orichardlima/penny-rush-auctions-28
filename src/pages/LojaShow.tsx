@@ -90,7 +90,10 @@ export default function LojaShow() {
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Seus pontos</div>
               <div className="text-2xl font-bold">{wallet?.available_points ?? 0}</div>
-              <Button size="sm" variant="link" className="p-0 h-auto" onClick={() => navigate("/meus-resgates")}>Meus resgates →</Button>
+              <div className="flex flex-col gap-1 mt-1">
+                <Button size="sm" variant="link" className="p-0 h-auto justify-start" onClick={() => navigate("/meus-pontos")}>Ver histórico e progresso →</Button>
+                <Button size="sm" variant="link" className="p-0 h-auto justify-start" onClick={() => navigate("/meus-resgates")}>Meus resgates →</Button>
+              </div>
             </CardContent>
           </Card>
         </div>
