@@ -6,6 +6,7 @@ import type { PointsProgressData } from "@/hooks/usePointsWallet";
 export function PointsProgressCard({ progress }: { progress: PointsProgressData }) {
   const ratio = progress.bids_per_point || 12;
   const consumed = Math.max(0, Math.min(ratio, progress.eligible_bids_remaining));
+  const pending = Math.max(0, progress.pending_eligible_bids || 0);
   const missing = ratio - consumed;
   const pct = (consumed / ratio) * 100;
 
@@ -29,6 +30,11 @@ export function PointsProgressCard({ progress }: { progress: PointsProgressData 
           </div>
         </div>
         <Progress value={pct} className="h-2" />
+        {pending > 0 && (
+          <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+            <strong className="text-foreground">{pending}</strong> lances pagos estão em validação porque os leilões ainda estão ativos.
+          </div>
+        )}
         <p className="text-xs text-muted-foreground leading-relaxed">
           Somente <strong>lances pagos</strong> consumidos em leilões que você <strong>não venceu</strong> contam.
           Lances gratuitos, bônus e vitórias não geram pontos.
