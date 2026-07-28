@@ -1,44 +1,74 @@
-## Diagnóstico — Programa Pontos Show em produção
 
-Verifiquei o estado real do sistema no banco (horário atual: **28/07/2026 13:29 UTC**, corte configurado: **28/07 07:57 UTC** — já passou).
+## Situação atual
 
-### ✅ Infraestrutura: 100% operacional
-- Todas as flags ligadas: `points_program_enabled`, `points_accrual_enabled`, `points_lot_consumption_enabled`, `points_store_enabled`, `points_redemption_enabled`, `webhooks_validated`.
-- Regra ativa: **12 lances pagos elegíveis = 1 Ponto Show**.
-- Data de corte já vigente.
-- Trigger anti-bot funcionando (nenhum lance de bot marcado como elegível).
+Hoje o usuário comum **não tem uma tela dedicada** para acompanhar os Pontos Show. As únicas informações existentes estão:
 
-### ❌ Pontos ainda NÃO estão sendo gerados — e o motivo não é bug
+- Em `/loja-show`: um cartão pequeno no canto superior mostra apenas `available_points`. Não mostra progresso do bucket (ex: "5 de 12 lances para o próximo ponto"), nem histórico, nem de qual leilão veio.
+- `/meus-resgates`: mostra só resgates feitos, nada sobre acúmulo.
+- **Não há link no `Header` nem no `UserDashboard`** apontando para nenhuma das duas. O usuário precisa saber a URL.
 
-Contadores reais desde o corte:
+Dados já disponíveis no banco (não precisa migration):
+- `points_wallets`: `available_points`, `reserved_points`, `lifetime_earned`, `lifetime_redeemed`.
+- `points_accrual_buckets`: `eligible_bids_remaining` — o resto de lances que ainda não fechou 1 ponto (o "5/12").
+- `points_ledger`: histórico com `transaction_type` (EARN_AUCTION, CONFIRM_REDEMPTION, EXPIRATION, ...), `points_delta`, `auction_id`, `created_at`, `reason`.
+- `points_rules` (regra ativa 12:1) para exibir a proporção corretamente.
 
-| Métrica | Valor |
-|---|---|
-| Compras PIX pagas após o corte (`bid_purchases` payment_status='paid') | **0** |
-| Compras PIX pagas em toda a história da tabela | **0** |
-| Lotes elegíveis criados (`bid_lots.eligible_for_points=true`) | **0** |
-| Lances de usuários **reais** após o corte | **0** |
-| Lances de **bots** após o corte | 5.729 (corretamente inelegíveis) |
-| Consumos FIFO elegíveis (`bid_lot_consumptions`) | 0 |
-| Entradas no ledger (`points_ledger`) | 0 |
-| Carteiras criadas (`points_wallets`) | 0 |
-| Liquidações de leilão (`auction_points_settlements`) | 0 |
-| Fila de reconciliação pendente | 0 (limpa) |
+## O que será entregue
 
-### 🎯 Conclusão
+### 1. Nova rota `/meus-pontos` — página "Meus Pontos Show"
 
-O sistema está **pronto e destravado**, mas **nenhum usuário real comprou lances via PIX após o corte**. Sem compra paga → sem lote elegível → sem consumo elegível → sem ponto. É o comportamento esperado das regras que você aprovou.
+Estrutura da página, de cima para baixo:
 
-Um detalhe estranho vale registrar: a tabela `bid_purchases` mostra **0 compras com `payment_status='paid'` em toda a história** (833 registros, nenhum "paid"). Isso pode indicar que o status "paid" nunca é usado (talvez seja "approved", "confirmed", "completed" etc.) — vale investigar antes do teste real de R$ 5,00 para garantir que o webhook Veopag vai marcar o lote como elegível corretamente.
+**a) Cabeçalho didático**
+- Título: "Meus Pontos Show".
+- Frase explicativa curta: "Você ganha 1 Ponto Show a cada 12 lances pagos usados em leilões que você **não venceu**."
 
-### Próximos passos propostos
+**b) Cartão de saldo (destaque)**
+- Número grande: `available_points`.
+- Linhas menores: "Total acumulado desde o início" (`lifetime_earned`) e "Já trocados" (`lifetime_redeemed`).
+- Botão "Ir para a Loja Show" → `/loja-show`.
 
-1. **Confirmar o vocabulário de status** que o webhook Veopag grava em `bid_purchases.payment_status` (checar valores distintos existentes e o código do webhook), para garantir que o gatilho de elegibilidade dispara.
-2. **Fazer a compra real de R$ 5,00** que você já autorizou, e acompanhar em tempo real:
-   - lote criado com `eligible_for_points=true`
-   - lance consumido em leilão perdido gera `bid_lot_consumptions.eligible_for_points=true`
-   - `auction_points_settlements` cria pontos ao final
-   - `points_wallets.available_points` do usuário aumenta
-3. Só então declarar o pilot como validado end-to-end.
+**c) Cartão "Progresso do próximo ponto"**
+- Lê `points_accrual_buckets.eligible_bids_remaining` e a regra ativa (ex.: 12).
+- Mostra: "Faltam X lances elegíveis para ganhar seu próximo ponto".
+- Barra de progresso (`eligible_bids_remaining / 12`).
+- Texto de apoio: "Somente lances **pagos** consumidos em leilões que você **não venceu** contam. Lances gratuitos, bônus e vitórias não geram pontos."
 
-Confirma seguir por aí? Posso começar pelo passo 1 (auditar o vocabulário de status e o caminho do webhook) sem mexer em nada de UI/negócio.
+**d) Histórico de movimentações**
+- Lista das últimas 30 linhas de `points_ledger` do usuário.
+- Cada linha traduzida para português com ícone e cor:
+  - `EARN_AUCTION` → "+N pts — leilão [título]" (join leve com `auctions.title` quando `auction_id` existir).
+  - `RESERVE_REDEMPTION` / `CONFIRM_REDEMPTION` → "−N pts — resgate na Loja".
+  - `RELEASE_REDEMPTION` → "Devolução de resgate".
+  - `EXPIRATION` → "Expiração de pontos".
+  - `ADMIN_CREDIT` / `ADMIN_DEBIT` → "Ajuste da equipe".
+- Data relativa ("há 2 h") + saldo depois (`available_after`) em cinza.
+- Estado vazio amigável: "Você ainda não gerou pontos. Compre lances e participe de leilões para começar."
+
+**e) Bloco "Como funciona" (colapsável, aberto por padrão na 1ª visita)**
+- Três passos curtos: "1. Compre lances pagos", "2. Dê lances em leilões", "3. Se não vencer, cada 12 lances pagos = 1 Ponto Show".
+- Link "Ver regulamento" (aponta pra `/faq` âncora pontos — só o link, sem alterar o FAQ agora).
+
+### 2. Acesso visível ao menu
+
+- **Header (desktop e mobile):** adicionar item "Pontos Show" com badge do saldo atual (ex.: `1.947 pts`) ao lado do sino de notificações, entre "Leilões" e o avatar. No mobile, entra no menu hamburguer.
+- **`UserDashboard`:** adicionar um card resumo "Pontos Show" ao lado dos cards existentes de saldo de lances, com botão "Acompanhar" → `/meus-pontos`.
+- **`/loja-show`:** o cartão de saldo passa a ter um segundo link "Ver histórico e progresso →" apontando para `/meus-pontos`.
+
+### 3. Comportamento quando o programa está desativado para o usuário
+
+- Se `store_visible_for(user)` = false **e** a carteira estiver vazia (`available_points=0` e `lifetime_earned=0`), a página mostra o mesmo alerta amigável usado hoje na Loja: "O Programa Pontos Show ainda não está disponível para o seu perfil".
+- Se o usuário já tem lifetime_earned > 0, a página abre normalmente mesmo com loja desabilitada — histórico é sempre visível.
+
+## Fora do escopo desta entrega
+
+- Nenhuma mudança em RPCs, triggers, regras de acúmulo, webhooks ou tabelas.
+- Nenhuma mudança na Loja Show em si (catálogo, resgates, admin).
+- Sem notificação push/email de "você ganhou 1 ponto" — pode ser fase seguinte.
+
+## Detalhes técnicos (para referência)
+
+- Arquivos novos: `src/pages/MeusPontos.tsx`, `src/hooks/usePointsWallet.ts`, `src/hooks/usePointsLedger.ts`, `src/components/Points/PointsProgressCard.tsx`, `src/components/Points/PointsHistoryList.tsx`.
+- Arquivos editados: `src/App.tsx` (rota `/meus-pontos` com `lazyWithRetry`), `src/components/Header.tsx` (item de menu + badge), `src/components/UserDashboard.tsx` (card resumo), `src/pages/LojaShow.tsx` (segundo link no cartão de saldo).
+- Todos os selects são RLS-safe: `points_wallets`, `points_accrual_buckets`, `points_ledger` já têm policies por `user_id = auth.uid()`.
+- Sem novas policies, sem novas migrations.
