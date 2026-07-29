@@ -2710,6 +2710,8 @@ export type Database = {
           financial_status_updated_at: string | null
           id: string
           is_demo: boolean
+          network_bonus_balance: number
+          network_bonus_total_received: number
           payment_id: string | null
           payment_status: string | null
           pix_key: string | null
@@ -2740,6 +2742,8 @@ export type Database = {
           financial_status_updated_at?: string | null
           id?: string
           is_demo?: boolean
+          network_bonus_balance?: number
+          network_bonus_total_received?: number
           payment_id?: string | null
           payment_status?: string | null
           pix_key?: string | null
@@ -2770,6 +2774,8 @@ export type Database = {
           financial_status_updated_at?: string | null
           id?: string
           is_demo?: boolean
+          network_bonus_balance?: number
+          network_bonus_total_received?: number
           payment_id?: string | null
           payment_status?: string | null
           pix_key?: string | null
@@ -5438,6 +5444,10 @@ export type Database = {
       expansion_recompute_memberships: {
         Args: { _contract_id: string }
         Returns: number
+      }
+      expansion_release_bonus: {
+        Args: { _payout_reference: string; _snapshot_id: string }
+        Returns: string
       }
       expansion_reverse_contract: {
         Args: { _contract_id: string; _reason?: string }
