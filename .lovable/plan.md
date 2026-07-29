@@ -1,120 +1,115 @@
+# Consumo de VQE com Saldo Acumulado por Equipe
 
-# Programa de Expansão por Equipes — Plano de Implementação
+## Objetivo
+Substituir a lógica atual de "janela semanal independente" por um modelo de **saldo acumulado de bonificação por equipe raiz**, com consumo determinístico do VQE a cada fechamento semanal. Pontos históricos de carreira permanecem intocados.
 
-Substituição integral do binário. Dado o tamanho (20 seções, DB + backend + frontend admin/parceiro + testes + migração), proponho executar em **6 fases sequenciais**, cada uma entregue e validada antes da próxima. Nada de pagamento financeiro real é ligado até você aprovar percentuais.
+## Regras aprovadas
+1. Cada equipe raiz (parceiro indicado diretamente pelo titular) possui um **saldo de bonificação** próprio, independente do histórico de carreira.
+2. No fechamento semanal:
+   - Somar ao saldo anterior de cada equipe os pontos líquidos elegíveis da semana.
+   - `largest_team` = equipe com maior saldo disponível.
+   - `others_sum` = soma dos saldos das demais equipes.
+   - `available_vqe = LEAST(largest, others_sum)`.
+   - `max_payable_vqe = plan_weekly_cap / expansion_bonus_rate`.
+   - `payable_vqe = LEAST(available_vqe, max_payable_vqe)`.
+   - `final_bonus = payable_vqe × expansion_bonus_rate`.
+3. Consumo:
+   - Debitar `payable_vqe` do saldo da maior equipe.
+   - Debitar `payable_vqe` do conjunto das demais, **proporcionalmente** ao saldo disponível de cada uma, com arredondamento determinístico (maior resto primeiro) para garantir soma exata.
+4. Sobras permanecem acumuladas para semanas futuras (em todas as equipes).
+5. **Carreira/qualificação continua usando pontos brutos históricos** — o consumo só afeta o saldo de bonificação.
+6. Idempotência total: reprocessar a mesma semana não pode consumir os mesmos pontos duas vezes; reversões geram carryforward negativo rastreável.
 
-## Diagnóstico rápido do que existe hoje
+## Estrutura de dados
 
-**Tabelas do binário (DB):**
-- `partner_binary_positions`, `binary_bonuses`, `binary_cycle_closures`, `binary_points_log`
-- Adjacentes: `partner_levels`, `partner_level_points`, `partner_weekly_scores`, `partner_weekly_eligibility`
+Nova tabela `expansion_team_balances`:
+- `partner_id` (titular) + `team_root_id` (equipe raiz)
+- `bonus_balance` numeric — saldo atual disponível para bonificação
+- `lifetime_earned` numeric — total bruto histórico (informativo; carreira lê do ledger)
+- `lifetime_consumed` numeric — total já consumido em bônus
+- `last_period_start` date — última semana processada
+- unique(partner_id, team_root_id)
 
-**Funções DB relevantes:**
-- `close_binary_cycle`, `get_binary_tree`, `auto_create_binary_position`, `find_orphan_binary_points`, `calculate_partner_weekly_score`, `upgrade_binary_points_propagation` (trigger)
+Nova tabela `expansion_period_team_movements` (auditoria por semana × equipe):
+- `snapshot_id` FK → `expansion_period_snapshots`
+- `partner_id`, `team_root_id`
+- `opening_balance`, `points_added`, `points_consumed`, `closing_balance`
+- `role` enum: `largest` | `other`
+- `consumption_share` numeric (proporção usada no rateio)
 
-**Frontend com dependência binária (21 arquivos):**
-- Parceiro: `BinaryNetworkTree`, `BinaryBonusHistory`, `PartnerDashboard`, `PartnerPlanCard`, `PartnerReferralSection`, `LeaveSponsorNetwork`
-- Admin: `BinaryNetworkManager`, `AdminBinaryTreeView`, `OrphanBinaryPointsPanel`, `TransferSponsorManager`, `PartnerGraduationManager`, `PartnerEvidencePanel`, `AdminNetworkExitsTab`, `PartnerDetailModal`, `AdminPartnerManagement`
-- Hooks: `useBinaryNetwork`, `useAdminBinaryCycle`, `useAdminPartners`, `usePartnerReferrals`, `useReferralTracking`
+Colunas novas em `expansion_period_snapshots`:
+- `available_vqe`, `payable_vqe`, `max_payable_vqe`
+- `total_consumed` (= 2 × payable_vqe)
+- `total_carryforward` (soma dos closing_balances)
+- `reprocess_count`, `reprocessed_at`
 
-**Preservado (não mexer):** genealogia de patrocínio (`partner_contracts.referrer_id`), afiliados, Fast Start, Central de Performance, saques, Pontos Show, comissões L1/L2/L3.
+## Motor de cálculo
 
----
+Substituir/estender `expansion_compute_period(partner_id, week_start)`:
 
-## Fase 1 — Fundação DB + Feature Flags (sem impacto no usuário)
+```text
+BEGIN
+  lock em expansion_team_balances FOR UPDATE (partner_id)
+  se snapshot existente e status='final' → abortar (idempotência)
+  se reprocessando → estornar movimentos anteriores desta semana
+    (somar de volta points_consumed em cada team_balance,
+     debitar points_added se aplicável — carryforward negativo se necessário)
 
-**Migrations:**
-1. Criar flags em `system_settings`:
-   - `binary_system_enabled = false`
-   - `expansion_program_enabled = true`
-   - `expansion_bonus_payout_enabled = false`
-   - `expansion_career_enabled = true`
-   - `expansion_points_generation_enabled = true`
-   - `expansion_points_migration_mode = 'start_from_cutoff'`
-   - `expansion_cutoff_at` (timestamp)
+  para cada team_root do partner:
+    opening = team_balance.bonus_balance
+    added   = SUM(points_ledger WHERE team_root_id=X AND week=W AND eligible)
+    working = opening + added
 
-2. Novas tabelas (public + GRANTs + RLS):
-   - `expansion_points_ledger` — lançamentos idempotentes (contract_id, user_id, plan_id, points, source, source_ref UNIQUE, status, reversed_by, created_at)
-   - `expansion_team_memberships` — cache derivado: para cada par (ancestor_contract_id, descendant_contract_id) qual é o `team_root_contract_id` (raiz da equipe = 1ª indicação direta no caminho). Índices em ambos os lados.
-   - `expansion_period_snapshots` — snapshot semanal por parceiro: pontos organizacionais, por equipe, equipes qualificadas, concentração, graduação computada, valor simulado.
-   - `expansion_bonus_lines` — lançamentos do bônus (sempre gravados, marcados como SIMULATED enquanto flag off; PAID quando ligada).
-   - `expansion_career_config` (JSONB) — regras por graduação (Bronze→Diamante) e regras de equipe qualificada.
-   - `expansion_admin_audit` — log de mudanças (admin, before, after, reason, ip).
+  largest_team = argmax(working)
+  others_sum   = sum(working) - working[largest]
+  available_vqe = LEAST(working[largest], others_sum)
+  max_payable   = plan_weekly_cap / rate
+  payable_vqe   = LEAST(available_vqe, max_payable)
+  bonus         = payable_vqe * rate
 
-3. Marcar tabelas binárias como LEGADO (comentário + revogar INSERT/UPDATE via política; SELECT mantido para auditoria). Não deletar dados.
+  debitar payable_vqe de working[largest]
+  distribuir payable_vqe entre as demais proporcional a working[i]/others_sum
+    → arredondamento por maior-resto para fechar soma exata
 
-4. Trigger no `partner_contracts` (ACTIVE): gerar `expansion_points_ledger` com `source_ref = contract_id||':activation'` (idempotente). Igual para upgrades: `source_ref = upgrade_id||':upgrade'`. Reversão em cancelamento.
+  UPDATE expansion_team_balances SET bonus_balance=closing, lifetime_consumed+=consumed
+  INSERT expansion_period_team_movements (auditoria por equipe)
+  INSERT/UPDATE expansion_period_snapshots (status='simulation', bonus, VQEs, totals)
+  INSERT expansion_bonus_lines (status='simulation', payout desabilitado)
+COMMIT
+```
 
-5. Função `expansion_recompute_team_memberships(contract_id)` — recalcula filiações ao ativar/cancelar/mover contrato.
+Todo o cálculo em transação única com `FOR UPDATE` no partner para evitar corrida.
 
-6. Funções de leitura: `get_expansion_dashboard(user_id)`, `get_expansion_teams(user_id)`, `get_expansion_team_details(user_id, team_root)`, `get_expansion_career_progress(user_id)`, `get_expansion_bonus_preview(user_id, period)`.
+## Reversão / carryforward negativo
 
-**Sem UI ainda.** Backfill dos memberships para contratos ativos existentes (não gera pontos retroativos — respeita `expansion_points_migration_mode`).
+RPC `expansion_reverse_period(partner_id, week_start, reason)`:
+- Só executa se `expansion_bonus_payout_enabled = false` ou linha ainda não paga.
+- Reverte movimentos: soma `points_consumed` de volta ao `bonus_balance`, subtrai `points_added`.
+- Se resultado ficar negativo (pontos já consumidos em semanas posteriores), registra `carryforward_debt` na `expansion_team_balances` — próximas adições abatem essa dívida antes de somar ao saldo disponível.
+- Marca snapshot como `reversed`, mantém histórico.
 
-## Fase 2 — Motor de Carreira + Bônus (simulado)
+## Backfill / migração
 
-- Função `expansion_calculate_period(period_start, period_end)` — para cada parceiro ativo: pontos por equipe, equipes qualificadas, concentração, graduação alcançada/ativa, valor simulado do bônus respeitando teto por plano.
-- Cron semanal grava em `expansion_period_snapshots` + `expansion_bonus_lines` (status SIMULATED).
-- Enquanto `expansion_bonus_payout_enabled=false`: nenhum lançamento em `partner_payouts` / saldo. Quando ligar: rotina promove SIMULATED→PAID gerando payout real.
-- Configuração inicial de graduações e teto semanal (Start R$80 … Diamond R$5.000) via `expansion_career_config`.
+- Criar `expansion_team_balances` inicializando `bonus_balance = 0` para todas as memberships existentes (não migrar histórico como saldo — pontos anteriores ao corte 2026-07-29 já foram tratados como janela semanal).
+- Primeira execução após deploy começa do zero de saldo; pontos novos da semana entram normalmente.
 
-## Fase 3 — Novo Escritório do Parceiro
+## Cron
+Manter cron semanal 00:30 America/Bahia processando todos os partners ativos via `expansion_compute_period`. Sem alteração de horário.
 
-Rotas novas (limpas, sem termos binários):
-- `/parceria` (redesign do dashboard) — 6 cards conforme seção 7
-- `/parceria/equipes` — lista de equipes diretas + drill-down
-- `/parceria/bonus-expansao` — página dedicada ao bônus com quadro "Como seu bônus é formado" e aviso da flag
-- `/parceria/carreira` — plano de carreira com progresso por graduação
-- `/parceria/pontos-historico` — histórico auditável de Pontos de Expansão
+## Guardrails
+- `expansion_bonus_payout_enabled` permanece `false`: cálculo grava tudo como `status='simulation'`, nada vira crédito real.
+- Auditoria completa em `expansion_admin_audit` (quem disparou, snapshot antes/depois).
+- `expansion_period_team_movements` permite reconstruir qualquer semana.
+- Testes automatizados cobrindo o exemplo dado (João 4k / Maria 3k / Carlos 2k / Fernanda 1k → bônus R$ 800, carryforward 0/1000/667/333) e casos: teto do plano ativo, equipe única, reversão, reprocesso.
 
-Componentes novos: `ExpansionDashboard`, `MyTeamsList`, `TeamDetailDrawer`, `ExpansionBonusPage`, `CareerPlanPage`, `ExpansionPointsHistory`, `GraduationProgress`, `TeamCard`.
+## Fases
+1. **Migration**: criar tabelas `expansion_team_balances` e `expansion_period_team_movements`, colunas novas em `expansion_period_snapshots`, GRANTs + RLS. Backfill de saldos zerados.
+2. **Motor**: reescrever `expansion_compute_period` com a lógica de consumo e rateio proporcional determinístico.
+3. **Reversão**: RPC `expansion_reverse_period` com carryforward negativo.
+4. **Testes SQL** rodando o exemplo canônico e edge cases.
+5. **UI admin**: exibir na simulação semanal, por equipe, `saldo inicial → +adicionados → −consumidos → saldo final`, além de VQE disponível, VQE pagável e teto aplicado. Sem alterar UI do parceiro nesta fase.
 
-Nada de árvore visual "pirâmide" — usar cards + tabelas expansíveis + gráficos de barra/linha.
-
-## Fase 4 — Novo Painel Admin
-
-- `/admin/expansao` com sub-abas: **Configurações** (pontos por plano, tetos, graduações, equipes qualificadas, concentração, líderes), **Simulações** (rodar cálculo de período sem persistir pagamento), **Ranking de Equipes**, **Concentração por Parceiro**, **Auditoria de Pontos**, **Lançamentos de Bônus** (SIMULATED/PAID), **Ajustes Manuais** (com justificativa obrigatória), **Migração** (mostra preview de `expansion_points_migration_mode`).
-- Toda mudança grava em `expansion_admin_audit`.
-
-## Fase 5 — Remoção do Binário da UI
-
-- Remover das rotas/menus: `BinaryNetworkTree`, `BinaryBonusHistory`, `BinaryNetworkManager`, `AdminBinaryTreeView`, `OrphanBinaryPointsPanel`, aba binária de `PartnerDetailModal`, cards binários de `PartnerDashboard`/`PartnerPlanCard`.
-- Reescrever textos de `LeaveSponsorNetwork`, `TransferSponsorManager`, `PartnerGraduationManager`, `PartnerEvidencePanel` sem termos binários (a lógica de patrocínio permanece).
-- Auditoria textual final: `rg -i "binári|perna|pareamento|left_points|right_points"` no `src/` deve retornar zero em conteúdo visível.
-- Contrato v2: novo template + texto do modal de reaceite (seção 16). Enforcement **continua desligado** — só liga com sua aprovação.
-
-## Fase 6 — Testes + Documentação
-
-- Testes SQL (pgTAP-style via edge function ou seeds): os 13 cenários da seção 19.
-- Testes frontend (Vitest): componentes chave renderizam sem termos binários.
-- Playwright: fluxo parceiro entra em `/parceria` sem qualquer menção binária.
-- Documento `docs/expansao/README.md`: como ligar `expansion_bonus_payout_enabled`, rollback (setar flags de volta + reativar rotas binárias — dados preservados), procedimento de migração.
-
----
-
-## Detalhes técnicos
-
-**Idempotência de pontos:** `expansion_points_ledger.source_ref TEXT UNIQUE`. Webhook/trigger sempre usa `ON CONFLICT DO NOTHING`.
-
-**Reversão:** row nova com `points < 0` + `reverses_id FK`. Nunca UPDATE em linha existente.
-
-**Team root (chave do modelo):** para ancestor A e descendant D, `team_root = ` o filho direto de A no caminho A→…→D. Materializado em `expansion_team_memberships` para consultas O(1). Recalculado sob trigger de mudança de patrocinador (raro; admin-only).
-
-**RLS:** parceiro vê apenas linhas onde `user_id = auth.uid()` ou onde é ancestor via `has_expansion_ancestor(auth.uid(), row.user_id)` (SECURITY DEFINER). Admin via `has_role('admin')`.
-
-**Rollback:** todas as tabelas binárias permanecem. Setar `binary_system_enabled=true` + `expansion_program_enabled=false` + reativar rotas antigas restaura o estado anterior sem migration reversa.
-
-## Pontos que precisam de decisão sua
-
-1. **Data de corte** (`expansion_cutoff_at`) — sugestão: momento em que a Fase 1 for aplicada. Confirma?
-2. **Migração de pontos legados:** começa em `start_from_cutoff` (nenhum ponto retroativo). Depois você decide se recalcula contratos ativos via painel.
-3. **Percentual/fator financeiro do bônus:** deixo os campos configuráveis, sem valor default operacional. Concorda?
-4. **Manter tela de "Rede de Equipe" antiga em modo somente-leitura** por N dias antes de remover do menu? Ou remover imediatamente na Fase 5?
-
-## Ordem de execução
-
-Fase 1 e 2 são pré-requisitos e não têm impacto visível. Posso rodar já.
-Fase 3 muda o escritório do parceiro — melhor fazer após você validar Fase 1/2.
-Fase 5 (remoção UI) é irreversível visualmente — só executo após seu OK.
-
-Ao aprovar, começo pela **Fase 1 (migrations + flags + tabelas + ledger + backfill de memberships)** e volto com o resultado antes de seguir.
+## Fora de escopo
+- Ativação de pagamentos (continua desligada).
+- Mudanças em carreira/qualificação (continuam lendo pontos brutos do ledger).
+- Alterações no fluxo de pontos de expansão (ledger e triggers permanecem como estão).
