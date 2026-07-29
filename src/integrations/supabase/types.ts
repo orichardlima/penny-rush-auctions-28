@@ -1833,6 +1833,325 @@ export type Database = {
         }
         Relationships: []
       }
+      expansion_admin_audit: {
+        Row: {
+          action: string
+          admin_id: string | null
+          after_value: Json | null
+          before_value: Json | null
+          created_at: string
+          id: string
+          metadata: Json
+          reason: string | null
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          after_value?: Json | null
+          before_value?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          after_value?: Json | null
+          before_value?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      expansion_bonus_lines: {
+        Row: {
+          adjustments: number
+          cap_applied: number
+          created_at: string
+          eligible_points: number
+          factor_applied: number
+          final_value: number
+          gross_value: number
+          id: string
+          meta: Json
+          paid_at: string | null
+          payout_ref: string | null
+          period_end: string
+          period_start: string
+          qualified_teams_count: number
+          rank_used: string | null
+          snapshot_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          adjustments?: number
+          cap_applied?: number
+          created_at?: string
+          eligible_points?: number
+          factor_applied?: number
+          final_value?: number
+          gross_value?: number
+          id?: string
+          meta?: Json
+          paid_at?: string | null
+          payout_ref?: string | null
+          period_end: string
+          period_start: string
+          qualified_teams_count?: number
+          rank_used?: string | null
+          snapshot_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          adjustments?: number
+          cap_applied?: number
+          created_at?: string
+          eligible_points?: number
+          factor_applied?: number
+          final_value?: number
+          gross_value?: number
+          id?: string
+          meta?: Json
+          paid_at?: string | null
+          payout_ref?: string | null
+          period_end?: string
+          period_start?: string
+          qualified_teams_count?: number
+          rank_used?: string | null
+          snapshot_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expansion_bonus_lines_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "expansion_period_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expansion_career_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_team_concentration_pct: number
+          min_active_partners_per_team: number
+          min_organizational_points: number
+          min_qualified_team_points: number
+          min_qualified_teams: number
+          rank_key: string
+          rank_label: string
+          required_leaders: Json
+          reward_notes: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_team_concentration_pct?: number
+          min_active_partners_per_team?: number
+          min_organizational_points?: number
+          min_qualified_team_points?: number
+          min_qualified_teams?: number
+          rank_key: string
+          rank_label: string
+          required_leaders?: Json
+          reward_notes?: string | null
+          sort_order: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_team_concentration_pct?: number
+          min_active_partners_per_team?: number
+          min_organizational_points?: number
+          min_qualified_team_points?: number
+          min_qualified_teams?: number
+          rank_key?: string
+          rank_label?: string
+          required_leaders?: Json
+          reward_notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expansion_period_snapshots: {
+        Row: {
+          computation_meta: Json
+          concentration_pct: number
+          created_at: string
+          id: string
+          organizational_points: number
+          period_end: string
+          period_start: string
+          personal_points: number
+          points_by_team: Json
+          qualified_teams_count: number
+          rank_achieved: string | null
+          rank_qualified: string | null
+          simulated_bonus_value: number
+          user_id: string
+          weekly_cap: number
+        }
+        Insert: {
+          computation_meta?: Json
+          concentration_pct?: number
+          created_at?: string
+          id?: string
+          organizational_points?: number
+          period_end: string
+          period_start: string
+          personal_points?: number
+          points_by_team?: Json
+          qualified_teams_count?: number
+          rank_achieved?: string | null
+          rank_qualified?: string | null
+          simulated_bonus_value?: number
+          user_id: string
+          weekly_cap?: number
+        }
+        Update: {
+          computation_meta?: Json
+          concentration_pct?: number
+          created_at?: string
+          id?: string
+          organizational_points?: number
+          period_end?: string
+          period_start?: string
+          personal_points?: number
+          points_by_team?: Json
+          qualified_teams_count?: number
+          rank_achieved?: string | null
+          rank_qualified?: string | null
+          simulated_bonus_value?: number
+          user_id?: string
+          weekly_cap?: number
+        }
+        Relationships: []
+      }
+      expansion_points_ledger: {
+        Row: {
+          admin_id: string | null
+          contract_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          plan_name: string | null
+          points: number
+          reason: string | null
+          reverses_id: string | null
+          source: string
+          source_ref: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          plan_name?: string | null
+          points: number
+          reason?: string | null
+          reverses_id?: string | null
+          source: string
+          source_ref: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          plan_name?: string | null
+          points?: number
+          reason?: string | null
+          reverses_id?: string | null
+          source?: string
+          source_ref?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expansion_points_ledger_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expansion_points_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "expansion_points_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expansion_team_memberships: {
+        Row: {
+          ancestor_user_id: string
+          created_at: string
+          depth: number
+          descendant_contract_id: string | null
+          descendant_user_id: string
+          id: string
+          team_root_user_id: string
+        }
+        Insert: {
+          ancestor_user_id: string
+          created_at?: string
+          depth: number
+          descendant_contract_id?: string | null
+          descendant_user_id: string
+          id?: string
+          team_root_user_id: string
+        }
+        Update: {
+          ancestor_user_id?: string
+          created_at?: string
+          depth?: number
+          descendant_contract_id?: string | null
+          descendant_user_id?: string
+          id?: string
+          team_root_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expansion_team_memberships_descendant_contract_id_fkey"
+            columns: ["descendant_contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fast_start_achievements: {
         Row: {
           achieved_at: string
@@ -5087,6 +5406,22 @@ export type Database = {
       execute_overdue_bot_bids: { Args: never; Returns: Json }
       execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
       execute_panic_bids: { Args: never; Returns: Json }
+      expansion_credit_contract_activation: {
+        Args: { _contract_id: string }
+        Returns: number
+      }
+      expansion_credit_upgrade: {
+        Args: { _upgrade_id: string }
+        Returns: number
+      }
+      expansion_recompute_memberships: {
+        Args: { _contract_id: string }
+        Returns: number
+      }
+      expansion_reverse_contract: {
+        Args: { _contract_id: string; _reason?: string }
+        Returns: number
+      }
       expire_bid_lots: {
         Args: never
         Returns: {
@@ -5246,6 +5581,18 @@ export type Database = {
           users_with_purchases: number
           users_with_wins: number
           win_conversion_rate: number
+        }[]
+      }
+      get_expansion_dashboard: { Args: { _user_id?: string }; Returns: Json }
+      get_expansion_teams: {
+        Args: { _user_id?: string }
+        Returns: {
+          members_count: number
+          team_root_name: string
+          team_root_plan: string
+          team_root_user_id: string
+          total_points: number
+          week_points: number
         }[]
       }
       get_financial_summary: {
