@@ -1,115 +1,111 @@
-# Consumo de VQE com Saldo Acumulado por Equipe
+# Separação definitiva entre Repasses Semanais e Bônus de Rede
 
 ## Objetivo
-Substituir a lógica atual de "janela semanal independente" por um modelo de **saldo acumulado de bonificação por equipe raiz**, com consumo determinístico do VQE a cada fechamento semanal. Pontos históricos de carreira permanecem intocados.
+Garantir que **repasses de parceria** e **bônus de rede** (incluindo o Bônus de Expansão) sejam mecanismos totalmente independentes: nunca se compensam, nunca se limitam e nunca se misturam no teto contratual de 200%/220%.
 
-## Regras aprovadas
-1. Cada equipe raiz (parceiro indicado diretamente pelo titular) possui um **saldo de bonificação** próprio, independente do histórico de carreira.
-2. No fechamento semanal:
-   - Somar ao saldo anterior de cada equipe os pontos líquidos elegíveis da semana.
-   - `largest_team` = equipe com maior saldo disponível.
-   - `others_sum` = soma dos saldos das demais equipes.
-   - `available_vqe = LEAST(largest, others_sum)`.
-   - `max_payable_vqe = plan_weekly_cap / expansion_bonus_rate`.
-   - `payable_vqe = LEAST(available_vqe, max_payable_vqe)`.
-   - `final_bonus = payable_vqe × expansion_bonus_rate`.
-3. Consumo:
-   - Debitar `payable_vqe` do saldo da maior equipe.
-   - Debitar `payable_vqe` do conjunto das demais, **proporcionalmente** ao saldo disponível de cada uma, com arredondamento determinístico (maior resto primeiro) para garantir soma exata.
-4. Sobras permanecem acumuladas para semanas futuras (em todas as equipes).
-5. **Carreira/qualificação continua usando pontos brutos históricos** — o consumo só afeta o saldo de bonificação.
-6. Idempotência total: reprocessar a mesma semana não pode consumir os mesmos pontos duas vezes; reversões geram carryforward negativo rastreável.
+---
 
-## Estrutura de dados
+## 1. Banco de dados
 
-Nova tabela `expansion_team_balances`:
-- `partner_id` (titular) + `team_root_id` (equipe raiz)
-- `bonus_balance` numeric — saldo atual disponível para bonificação
-- `lifetime_earned` numeric — total bruto histórico (informativo; carreira lê do ledger)
-- `lifetime_consumed` numeric — total já consumido em bônus
-- `last_period_start` date — última semana processada
-- unique(partner_id, team_root_id)
+### 1.1 Classificação obrigatória em `partner_payouts`
+Adicionar colunas (com backfill inteligente e default seguro):
+- `payout_type TEXT NOT NULL` — enum textual com CHECK:
+  - `partnership_weekly_repass`
+  - `direct_referral_bonus`
+  - `indirect_referral_bonus`
+  - `fast_start_bonus`
+  - `expansion_bonus`
+  - `leadership_bonus`
+- `source_type TEXT`, `source_id UUID`, `source_ref TEXT`
+- `gross_amount NUMERIC(18,2)`, `adjustment_amount NUMERIC(18,2) DEFAULT 0`, `final_amount NUMERIC(18,2)`
+- Índice único parcial em `(source_type, source_ref)` onde `source_ref IS NOT NULL` — evita duplicidade.
 
-Nova tabela `expansion_period_team_movements` (auditoria por semana × equipe):
-- `snapshot_id` FK → `expansion_period_snapshots`
-- `partner_id`, `team_root_id`
-- `opening_balance`, `points_added`, `points_consumed`, `closing_balance`
-- `role` enum: `largest` | `other`
-- `consumption_share` numeric (proporção usada no rateio)
+### 1.2 Backfill
+- Registros históricos existentes de `partner_payouts` (gerados pelo sistema de repasse semanal) → `payout_type = 'partnership_weekly_repass'`.
+- Nenhum registro atual pertence a bônus de rede (esses viviam em `referral_bonuses`, `fast_start_achievements`, `binary_bonuses`, etc., que **não entram** em `partner_payouts`).
 
-Colunas novas em `expansion_period_snapshots`:
-- `available_vqe`, `payable_vqe`, `max_payable_vqe`
-- `total_consumed` (= 2 × payable_vqe)
-- `total_carryforward` (soma dos closing_balances)
-- `reprocess_count`, `reprocessed_at`
+### 1.3 Regra imutável do teto contratual
+Alterar TODAS as funções que calculam `total_received` / consumo do teto do contrato para considerar **exclusivamente** `payout_type = 'partnership_weekly_repass'`. Alvos:
+- `close_binary_cycle`, `check_and_close_partner_contract`, `calculate_early_termination`
+- Views/RPCs de dashboard financeiro do parceiro
+- Qualquer soma em `partner_contracts.total_received`
 
-## Motor de cálculo
+A regra `network_bonuses_count_toward_contract_total_cap = false` fica **hardcoded** na lógica; não haverá flag admin.
 
-Substituir/estender `expansion_compute_period(partner_id, week_start)`:
-
-```text
-BEGIN
-  lock em expansion_team_balances FOR UPDATE (partner_id)
-  se snapshot existente e status='final' → abortar (idempotência)
-  se reprocessando → estornar movimentos anteriores desta semana
-    (somar de volta points_consumed em cada team_balance,
-     debitar points_added se aplicável — carryforward negativo se necessário)
-
-  para cada team_root do partner:
-    opening = team_balance.bonus_balance
-    added   = SUM(points_ledger WHERE team_root_id=X AND week=W AND eligible)
-    working = opening + added
-
-  largest_team = argmax(working)
-  others_sum   = sum(working) - working[largest]
-  available_vqe = LEAST(working[largest], others_sum)
-  max_payable   = plan_weekly_cap / rate
-  payable_vqe   = LEAST(available_vqe, max_payable)
-  bonus         = payable_vqe * rate
-
-  debitar payable_vqe de working[largest]
-  distribuir payable_vqe entre as demais proporcional a working[i]/others_sum
-    → arredondamento por maior-resto para fechar soma exata
-
-  UPDATE expansion_team_balances SET bonus_balance=closing, lifetime_consumed+=consumed
-  INSERT expansion_period_team_movements (auditoria por equipe)
-  INSERT/UPDATE expansion_period_snapshots (status='simulation', bonus, VQEs, totals)
-  INSERT expansion_bonus_lines (status='simulation', payout desabilitado)
-COMMIT
+### 1.4 Bônus de Expansão em `partner_payouts`
+Atualizar `expansion_release_bonus` para inserir o payout com:
 ```
+payout_type = 'expansion_bonus'
+source_type = 'expansion_snapshot'
+source_ref  = snapshot_id
+```
+O crédito na carteira acontece na coluna certa (ver 1.5).
 
-Todo o cálculo em transação única com `FOR UPDATE` no partner para evitar corrida.
+### 1.5 Carteira separada por categoria
+Em `partner_contracts`, adicionar colunas somatórias:
+- `network_bonus_balance NUMERIC(18,2) DEFAULT 0` — saldo disponível de bônus de rede
+- `network_bonus_total_received NUMERIC(18,2) DEFAULT 0`
 
-## Reversão / carryforward negativo
+`available_balance` e `total_received` continuam existindo mas passam a refletir **apenas** repasses de parceria.
+`expansion_release_bonus` credita em `network_bonus_balance` / `network_bonus_total_received`, nunca em `total_received`.
 
-RPC `expansion_reverse_period(partner_id, week_start, reason)`:
-- Só executa se `expansion_bonus_payout_enabled = false` ou linha ainda não paga.
-- Reverte movimentos: soma `points_consumed` de volta ao `bonus_balance`, subtrai `points_added`.
-- Se resultado ficar negativo (pontos já consumidos em semanas posteriores), registra `carryforward_debt` na `expansion_team_balances` — próximas adições abatem essa dívida antes de somar ao saldo disponível.
-- Marca snapshot como `reversed`, mantém histórico.
+---
 
-## Backfill / migração
+## 2. Backend / Edge Functions
+- Ajustar edge functions de saque para permitir sacar dos dois saldos (repasse e bônus de rede) sem misturá-los na contabilidade do teto.
+- Ajustar qualquer RPC de resumo do contrato (`get_partner_performance_summary`, etc.) para devolver os dois blocos separados.
 
-- Criar `expansion_team_balances` inicializando `bonus_balance = 0` para todas as memberships existentes (não migrar histórico como saldo — pontos anteriores ao corte 2026-07-29 já foram tratados como janela semanal).
-- Primeira execução após deploy começa do zero de saldo; pontos novos da semana entram normalmente.
+---
 
-## Cron
-Manter cron semanal 00:30 America/Bahia processando todos os partners ativos via `expansion_compute_period`. Sem alteração de horário.
+## 3. Frontend
 
-## Guardrails
-- `expansion_bonus_payout_enabled` permanece `false`: cálculo grava tudo como `status='simulation'`, nada vira crédito real.
-- Auditoria completa em `expansion_admin_audit` (quem disparou, snapshot antes/depois).
-- `expansion_period_team_movements` permite reconstruir qualquer semana.
-- Testes automatizados cobrindo o exemplo dado (João 4k / Maria 3k / Carlos 2k / Fernanda 1k → bônus R$ 800, carryforward 0/1000/667/333) e casos: teto do plano ativo, equipe única, reversão, reprocesso.
+### 3.1 Escritório do parceiro
+Dois quadros distintos na tela financeira:
 
-## Fases
-1. **Migration**: criar tabelas `expansion_team_balances` e `expansion_period_team_movements`, colunas novas em `expansion_period_snapshots`, GRANTs + RLS. Backfill de saldos zerados.
-2. **Motor**: reescrever `expansion_compute_period` com a lógica de consumo e rateio proporcional determinístico.
-3. **Reversão**: RPC `expansion_reverse_period` com carryforward negativo.
-4. **Testes SQL** rodando o exemplo canônico e edge cases.
-5. **UI admin**: exibir na simulação semanal, por equipe, `saldo inicial → +adicionados → −consumidos → saldo final`, além de VQE disponível, VQE pagável e teto aplicado. Sem alterar UI do parceiro nesta fase.
+**Quadro do Contrato**
+- Valor do aporte
+- Total de repasses recebidos
+- Saldo restante até o teto (200%/220%)
+- Teto total do contrato
 
-## Fora de escopo
-- Ativação de pagamentos (continua desligada).
-- Mudanças em carreira/qualificação (continuam lendo pontos brutos do ledger).
-- Alterações no fluxo de pontos de expansão (ledger e triggers permanecem como estão).
+**Quadro de Bônus de Rede**
+- Bônus de indicação (direta/indireta)
+- Bônus de Expansão
+- Fast Start / Liderança / demais bônus
+- Total acumulado de bônus
+
+### 3.2 Histórico
+Filtros por categoria: Repasses, Indicação, Expansão, Outros.
+
+### 3.3 Painel administrativo
+- Filtro por `payout_type` no histórico de payouts.
+- Relatório financeiro com quebra por tipo.
+- Coluna clara "Categoria" em cada lançamento.
+
+---
+
+## 4. Testes automatizados
+Suíte cobrindo os 7 cenários exigidos, com asserts diretos sobre `partner_contracts.total_received`, `available_balance` e `network_bonus_balance`.
+
+---
+
+## 5. Execução (fases curtas, uma migration cada)
+
+1. **Migration A** — colunas em `partner_payouts` + backfill + índice único.
+2. **Migration B** — colunas de saldo de rede em `partner_contracts` + funções de crédito revisadas + atualização de `expansion_release_bonus`.
+3. **Migration C** — reescrita das funções de teto contratual filtrando por `payout_type`.
+4. **Frontend** — dois quadros no escritório + filtros no admin.
+5. **Testes** — cenários 1 a 7.
+
+Cada migration entra individualmente e você aprova antes da próxima, evitando lock/timeout.
+
+---
+
+## Detalhes técnicos (referência)
+
+- CHECK constraint textual (não usar ENUM) para permitir novos tipos sem `ALTER TYPE`.
+- `expansion_release_bonus` já é atômico; apenas troca a coluna de destino do crédito e passa a preencher `payout_type`.
+- Cálculo do teto passa a ser: `SUM(final_amount) FILTER (WHERE payout_type='partnership_weekly_repass' AND status='PAID')`.
+- Nenhuma alteração no motor de VQE / snapshots / cron de fechamento — a separação é puramente contábil.
+
+Confirma que posso iniciar pela Migration A?
