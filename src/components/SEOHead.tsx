@@ -8,7 +8,7 @@ interface SEOHeadProps {
 }
 
 const SITE_NAME = "Show de Lances";
-const DEFAULT_IMAGE = "/lovable-uploads/1b939d7a-c3c8-4580-96bd-d2a6f01f2491.png";
+const DEFAULT_IMAGE = "https://showdelances.com/og-image.jpg";
 
 export const SEOHead = ({ 
   title, 
