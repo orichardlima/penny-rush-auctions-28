@@ -3120,46 +3120,67 @@ export type Database = {
       }
       partner_payouts: {
         Row: {
+          adjustment_amount: number
           amount: number
           calculated_amount: number
           created_at: string
+          final_amount: number | null
+          gross_amount: number | null
           id: string
           paid_at: string | null
           partner_contract_id: string
+          payout_type: string
           period_end: string | null
           period_start: string
           referral_bonus_id: string | null
           source: string
+          source_id: string | null
+          source_ref: string | null
+          source_type: string | null
           status: string
           total_cap_applied: boolean
           weekly_cap_applied: boolean
         }
         Insert: {
+          adjustment_amount?: number
           amount: number
           calculated_amount: number
           created_at?: string
+          final_amount?: number | null
+          gross_amount?: number | null
           id?: string
           paid_at?: string | null
           partner_contract_id: string
+          payout_type?: string
           period_end?: string | null
           period_start: string
           referral_bonus_id?: string | null
           source?: string
+          source_id?: string | null
+          source_ref?: string | null
+          source_type?: string | null
           status?: string
           total_cap_applied?: boolean
           weekly_cap_applied?: boolean
         }
         Update: {
+          adjustment_amount?: number
           amount?: number
           calculated_amount?: number
           created_at?: string
+          final_amount?: number | null
+          gross_amount?: number | null
           id?: string
           paid_at?: string | null
           partner_contract_id?: string
+          payout_type?: string
           period_end?: string | null
           period_start?: string
           referral_bonus_id?: string | null
           source?: string
+          source_id?: string | null
+          source_ref?: string | null
+          source_type?: string | null
           status?: string
           total_cap_applied?: boolean
           weekly_cap_applied?: boolean
