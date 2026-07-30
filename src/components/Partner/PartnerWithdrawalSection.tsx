@@ -346,13 +346,42 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   Solicitar Saque
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Solicitar Saque</DialogTitle>
                   <DialogDescription>
-                    Informe o valor que deseja sacar. Saldo disponível: {formatPrice(availableBalance)}
+                    Confira as duas origens de saldo antes de confirmar a solicitação.
                   </DialogDescription>
                 </DialogHeader>
+
+                {/* Origens de saldo — visão clara antes de confirmar */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                      <Handshake className="h-3 w-3" /> Repasses da Parceria
+                    </p>
+                    <p className="text-lg font-bold text-primary mt-0.5">{formatPrice(availableBalance)}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Contrato #{contract.id.slice(0, 8).toUpperCase()}
+                      {currentContractBalance && currentContractBalance.repass_reserved > 0 &&
+                        ` • ${formatPrice(currentContractBalance.repass_reserved)} reservado`}
+                    </p>
+                    <p className="text-[10px] text-primary/80 mt-1 font-medium">Origem desta solicitação</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                      <Network className="h-3 w-3" /> Bônus de Rede
+                    </p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                      {formatPrice(balances.bonus_available)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Carteira independente
+                      {balances.bonus_reserved > 0 && ` • ${formatPrice(balances.bonus_reserved)} reservado`}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Não incluído nesta solicitação</p>
+                  </div>
+                </div>
 
                 {!hasPaymentDetails && (
                   <Alert>
