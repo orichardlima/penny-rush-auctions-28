@@ -5704,15 +5704,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      __exp_seed_team: {
-        Args: {
-          _member: string
-          _partner: string
-          _period: string
-          _points: number
-        }
-        Returns: undefined
-      }
       _bot_finalize_auction: {
         Args: {
           p_auction_id: string
@@ -5937,7 +5928,6 @@ export type Database = {
           team_root_user_id: string
         }[]
       }
-      expansion_test_harness: { Args: never; Returns: Json }
       expansion_upgrade_points_delta: {
         Args: { _upgrade_id: string }
         Returns: number
