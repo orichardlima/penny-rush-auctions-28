@@ -25,7 +25,10 @@ import {
   Ban,
   FileSearch,
   Calculator,
-  Percent
+  Percent,
+  Handshake,
+  Network
+
 } from 'lucide-react';
 import type { PartnerWithdrawal } from '@/hooks/usePartnerWithdrawals';
 
