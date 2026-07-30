@@ -1668,6 +1668,41 @@ export type Database = {
           },
         ]
       }
+      contract_balance_anomalies: {
+        Row: {
+          contract_id: string
+          credited: number
+          deficit: number
+          detected_at: string
+          reserved: number
+          withdrawn: number
+        }
+        Insert: {
+          contract_id: string
+          credited: number
+          deficit: number
+          detected_at?: string
+          reserved: number
+          withdrawn: number
+        }
+        Update: {
+          contract_id?: string
+          credited?: number
+          deficit?: number
+          detected_at?: string
+          reserved?: number
+          withdrawn?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_balance_anomalies_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: true
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_evidence_access_log: {
         Row: {
           acceptance_id: string | null
@@ -2719,6 +2754,7 @@ export type Database = {
           plan_name: string
           referral_code: string | null
           referred_by_user_id: string | null
+          reserved_balance: number
           status: string
           total_cap: number
           total_received: number
@@ -2751,6 +2787,7 @@ export type Database = {
           plan_name: string
           referral_code?: string | null
           referred_by_user_id?: string | null
+          reserved_balance?: number
           status?: string
           total_cap: number
           total_received?: number
@@ -2783,6 +2820,7 @@ export type Database = {
           plan_name?: string
           referral_code?: string | null
           referred_by_user_id?: string | null
+          reserved_balance?: number
           status?: string
           total_cap?: number
           total_received?: number
@@ -3131,6 +3169,7 @@ export type Database = {
         Row: {
           available_balance: number
           created_at: string
+          reserved_balance: number
           total_adjusted: number
           total_credited: number
           total_withdrawn: number
@@ -3140,6 +3179,7 @@ export type Database = {
         Insert: {
           available_balance?: number
           created_at?: string
+          reserved_balance?: number
           total_adjusted?: number
           total_credited?: number
           total_withdrawn?: number
@@ -3149,6 +3189,7 @@ export type Database = {
         Update: {
           available_balance?: number
           created_at?: string
+          reserved_balance?: number
           total_adjusted?: number
           total_credited?: number
           total_withdrawn?: number
@@ -3586,7 +3627,11 @@ export type Database = {
           amount: number
           approved_at: string | null
           approved_by: string | null
+          balance_source: string
+          bonus_amount: number
+          cancelled_at: string | null
           created_at: string
+          expected_payment_at: string | null
           fee_amount: number
           fee_percentage: number
           id: string
@@ -3597,15 +3642,23 @@ export type Database = {
           payment_details: Json
           payment_method: string
           rejection_reason: string | null
+          repass_amount: number
+          request_ref: string | null
           requested_at: string
+          rules_snapshot: Json
           status: string
           updated_at: string
+          wallet_user_id: string | null
         }
         Insert: {
           amount: number
           approved_at?: string | null
           approved_by?: string | null
+          balance_source?: string
+          bonus_amount?: number
+          cancelled_at?: string | null
           created_at?: string
+          expected_payment_at?: string | null
           fee_amount?: number
           fee_percentage?: number
           id?: string
@@ -3616,15 +3669,23 @@ export type Database = {
           payment_details: Json
           payment_method?: string
           rejection_reason?: string | null
+          repass_amount?: number
+          request_ref?: string | null
           requested_at?: string
+          rules_snapshot?: Json
           status?: string
           updated_at?: string
+          wallet_user_id?: string | null
         }
         Update: {
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
+          balance_source?: string
+          bonus_amount?: number
+          cancelled_at?: string | null
           created_at?: string
+          expected_payment_at?: string | null
           fee_amount?: number
           fee_percentage?: number
           id?: string
@@ -3635,9 +3696,13 @@ export type Database = {
           payment_details?: Json
           payment_method?: string
           rejection_reason?: string | null
+          repass_amount?: number
+          request_ref?: string | null
           requested_at?: string
+          rules_snapshot?: Json
           status?: string
           updated_at?: string
+          wallet_user_id?: string | null
         }
         Relationships: [
           {
@@ -5360,6 +5425,72 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_allocations: {
+        Row: {
+          balance_type: string
+          confirmed_amount: number
+          confirmed_at: string | null
+          contract_id: string | null
+          created_at: string
+          id: string
+          released_at: string | null
+          reserved_amount: number
+          reserved_at: string
+          source_ref: string | null
+          status: string
+          wallet_transaction_id: string | null
+          wallet_user_id: string | null
+          withdrawal_id: string
+        }
+        Insert: {
+          balance_type: string
+          confirmed_amount?: number
+          confirmed_at?: string | null
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          released_at?: string | null
+          reserved_amount: number
+          reserved_at?: string
+          source_ref?: string | null
+          status?: string
+          wallet_transaction_id?: string | null
+          wallet_user_id?: string | null
+          withdrawal_id: string
+        }
+        Update: {
+          balance_type?: string
+          confirmed_amount?: number
+          confirmed_at?: string | null
+          contract_id?: string | null
+          created_at?: string
+          id?: string
+          released_at?: string | null
+          reserved_amount?: number
+          reserved_at?: string
+          source_ref?: string | null
+          status?: string
+          wallet_transaction_id?: string | null
+          wallet_user_id?: string | null
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_allocations_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_allocations_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "partner_withdrawals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -5983,6 +6114,11 @@ export type Database = {
           contract_id: string
         }[]
       }
+      partner_get_withdrawal_balances: {
+        Args: { _user_id?: string }
+        Returns: Json
+      }
+      partner_get_withdrawal_rules: { Args: never; Returns: Json }
       partner_leave_sponsor_network: {
         Args: { p_contract_id: string; p_ip?: string; p_reason?: string }
         Returns: Json
@@ -5994,6 +6130,16 @@ export type Database = {
       partner_process_expired_network_exits: { Args: never; Returns: Json }
       partner_request_leave_sponsor: {
         Args: { p_contract_id: string; p_ip?: string; p_reason?: string }
+        Returns: Json
+      }
+      partner_request_withdrawal: {
+        Args: {
+          _amount: number
+          _client_request_id?: string
+          _contract_id?: string
+          _payment_details?: Json
+          _source?: string
+        }
         Returns: Json
       }
       partner_search_eligible_sponsors: {
