@@ -5920,6 +5920,7 @@ export type Database = {
           period_start: string
         }[]
       }
+      expansion_effective_cutoff: { Args: never; Returns: string }
       expansion_get_partner_overview: {
         Args: { _user_id?: string }
         Returns: Json
