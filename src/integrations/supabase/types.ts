@@ -3366,6 +3366,8 @@ export type Database = {
           created_at: string
           id: string
           is_fast_start_bonus: boolean
+          migrated_at: string | null
+          migrated_to_network_wallet: boolean
           paid_at: string | null
           referral_level: number
           referred_contract_id: string
@@ -3374,6 +3376,7 @@ export type Database = {
           source_event: string
           status: string
           suspended_expires_at: string | null
+          wallet_transaction_id: string | null
         }
         Insert: {
           aporte_value: number
@@ -3383,6 +3386,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_fast_start_bonus?: boolean
+          migrated_at?: string | null
+          migrated_to_network_wallet?: boolean
           paid_at?: string | null
           referral_level?: number
           referred_contract_id: string
@@ -3391,6 +3396,7 @@ export type Database = {
           source_event?: string
           status?: string
           suspended_expires_at?: string | null
+          wallet_transaction_id?: string | null
         }
         Update: {
           aporte_value?: number
@@ -3400,6 +3406,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_fast_start_bonus?: boolean
+          migrated_at?: string | null
+          migrated_to_network_wallet?: boolean
           paid_at?: string | null
           referral_level?: number
           referred_contract_id?: string
@@ -3408,6 +3416,7 @@ export type Database = {
           source_event?: string
           status?: string
           suspended_expires_at?: string | null
+          wallet_transaction_id?: string | null
         }
         Relationships: [
           {
@@ -5518,6 +5527,10 @@ export type Database = {
       credit_purchase_bids: {
         Args: { p_amount: number; p_purchase_id?: string; p_user_id: string }
         Returns: number
+      }
+      credit_referral_bonus_to_network_wallet: {
+        Args: { _bonus_id: string; _note?: string }
+        Returns: Json
       }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
