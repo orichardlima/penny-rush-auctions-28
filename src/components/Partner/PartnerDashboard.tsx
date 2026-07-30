@@ -1271,14 +1271,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           <PartnerReferralSection planName={contract.plan_name} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
-        {/* Tab de Rede de Equipe */}
+        {/* Tab do Programa de Expansão por Equipes */}
         <TabsContent value="binary" className="space-y-6">
-          {/* Estrutura da rede */}
-          <BinaryNetworkTree />
-          
-          {/* Histórico de bônus */}
-          <BinaryBonusHistory />
+          <ExpansionProgramSection />
         </TabsContent>
+
       </Tabs>
 
       {/* Encerramento Antecipado */}
