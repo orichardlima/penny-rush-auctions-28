@@ -5905,6 +5905,10 @@ export type Database = {
         Args: { _period_start: string; _run_id?: string; _user_id: string }
         Returns: Json
       }
+      expansion_compute_week: {
+        Args: { _period_end: string; _user_id: string }
+        Returns: Json
+      }
       expansion_credit_contract_activation: {
         Args: { _contract_id: string }
         Returns: number
@@ -5921,6 +5925,10 @@ export type Database = {
         }[]
       }
       expansion_effective_cutoff: { Args: never; Returns: string }
+      expansion_estimate_current_period: {
+        Args: { _user_id?: string }
+        Returns: Json
+      }
       expansion_get_partner_overview: {
         Args: { _user_id?: string }
         Returns: Json
@@ -5942,6 +5950,15 @@ export type Database = {
         Args: { _payout_reference: string; _snapshot_id: string }
         Returns: string
       }
+      expansion_release_bonus_internal: {
+        Args: { _snapshot_id: string }
+        Returns: Json
+      }
+      expansion_release_closed_period: {
+        Args: { _period_start?: string }
+        Returns: Json
+      }
+      expansion_release_recovery: { Args: never; Returns: Json }
       expansion_reverse_contract: {
         Args: { _contract_id: string; _reason?: string }
         Returns: number
@@ -5955,6 +5972,7 @@ export type Database = {
         }
         Returns: Json
       }
+      expansion_structural_lock_active: { Args: never; Returns: boolean }
       expansion_team_balances: {
         Args: { _period_end: string; _user_id: string }
         Returns: {
