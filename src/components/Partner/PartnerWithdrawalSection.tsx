@@ -208,6 +208,13 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         </div>
       </div>
 
+      {/* Saldos separados por origem */}
+      <WithdrawalBalancesBreakdown
+        balances={balances}
+        loading={balancesLoading}
+        highlightContractId={contract.id}
+      />
+
       {/* Saldo e Ações */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-l-4 border-l-primary">
