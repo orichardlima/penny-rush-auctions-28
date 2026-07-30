@@ -83,7 +83,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const { fetchPendingRequest } = usePartnerEarlyTermination();
   const { totalPoints, binaryPoints, loading: referralLoading } = usePartnerReferrals();
   
-  // Pontos para graduação = perna menor do binário
+  // Pontos para graduação = volume qualificado de equipes
   const graduationPoints = binaryPoints.weakerLegPoints;
   
   const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(graduationPoints);
@@ -92,7 +92,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const currentWeekRevenue = useCurrentWeekRevenue(contract);
   const { weekProgress } = useAdCenter(contract?.id);
 
-  // Buscar pontos binários por plano
+  // Buscar pontos de equipe por plano
   const [planBinaryPoints, setPlanBinaryPoints] = useState<Record<string, number>>({});
   useEffect(() => {
     const fetchBinaryPoints = async () => {

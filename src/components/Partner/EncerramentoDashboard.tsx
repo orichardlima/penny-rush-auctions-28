@@ -455,7 +455,7 @@ const EncerramentoDashboard: React.FC = () => {
             <Alert className="mt-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                Sua posição na rede binária e o histórico de indicações continuam preservados — isso evita quebrar a estrutura
+                Sua posição na rede de equipes e o histórico de indicações continuam preservados — isso evita quebrar a estrutura
                 dos parceiros que estão acima ou abaixo de você. Você pode contratar um novo plano a qualquer momento.
               </AlertDescription>
             </Alert>
