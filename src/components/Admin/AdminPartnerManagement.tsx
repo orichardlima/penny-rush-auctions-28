@@ -726,10 +726,15 @@ const AdminPartnerManagement = () => {
           </TabsTrigger>
           <TabsTrigger value="reports" className="shrink-0">Relatórios</TabsTrigger>
           <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
+          <TabsTrigger value="expansion" className="shrink-0">
+            <GitBranch className="h-4 w-4 mr-1" />
+            Bônus de Expansão
+          </TabsTrigger>
           <TabsTrigger value="binary" className="shrink-0">
             <GitBranch className="h-4 w-4 mr-1" />
-            Rede de Equipe
+            Histórico legado
           </TabsTrigger>
+
           <TabsTrigger value="adcenter" className="shrink-0">
             <Megaphone className="h-4 w-4 mr-1" />
             Anúncios
