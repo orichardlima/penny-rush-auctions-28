@@ -72,18 +72,9 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
             </div>
             <p className="text-sm text-muted-foreground">
               <Star className="h-4 w-4 inline mr-1" />
-              {totalPoints} pontos (lado de menor volume)
+              {totalPoints} pontos de volume qualificado de equipes
             </p>
-            {(leftPoints > 0 || rightPoints > 0) && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Lado A: {leftPoints} pts | Lado B: {rightPoints} pts
-                {leftPoints !== rightPoints && (
-                  <span className="ml-2 text-primary">
-                    ({leftPoints < rightPoints ? 'Lado A menor' : 'Lado B menor'})
-                  </span>
-                )}
-              </p>
-            )}
+
           </div>
         </div>
 
