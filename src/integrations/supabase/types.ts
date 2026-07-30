@@ -3062,6 +3062,101 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_network_wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          bonus_type: string | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          metadata: Json | null
+          notes: string | null
+          source_id: string | null
+          source_ref: string
+          source_type: string
+          status: string
+          transaction_type: string
+          wallet_user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          bonus_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          source_id?: string | null
+          source_ref: string
+          source_type: string
+          status?: string
+          transaction_type: string
+          wallet_user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          bonus_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          source_id?: string | null
+          source_ref?: string
+          source_type?: string
+          status?: string
+          transaction_type?: string
+          wallet_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_network_wallet_transactions_wallet_user_id_fkey"
+            columns: ["wallet_user_id"]
+            isOneToOne: false
+            referencedRelation: "partner_network_wallets"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      partner_network_wallets: {
+        Row: {
+          available_balance: number
+          created_at: string
+          total_adjusted: number
+          total_credited: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_balance?: number
+          created_at?: string
+          total_adjusted?: number
+          total_credited?: number
+          total_withdrawn?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_balance?: number
+          created_at?: string
+          total_adjusted?: number
+          total_credited?: number
+          total_withdrawn?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       partner_payment_intents: {
         Row: {
           aporte_value: number
