@@ -784,7 +784,7 @@ const AdminPartnerManagement = () => {
         {/* Histórico legado (estrutura antiga, somente auditoria) */}
         <TabsContent value="binary" className="space-y-3">
           <Alert>
-            <History className="h-4 w-4" />
+            <HistoryIcon className="h-4 w-4" />
             <AlertDescription className="text-sm">
               Área histórica: estrutura antiga mantida apenas para consulta e auditoria. A operação ativa acontece
               na aba <strong>Bônus de Expansão</strong>.
