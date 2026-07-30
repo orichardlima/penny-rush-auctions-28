@@ -66,7 +66,10 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
       setAvailableBalance(balance);
     };
     loadBalance();
-  }, [calculateAvailableBalance, withdrawals]);
+    refetchBalances();
+  }, [calculateAvailableBalance, withdrawals, refetchBalances]);
+
+  const currentContractBalance = balances.contracts.find((c) => c.contract_id === contract.id);
 
   const windowStatus = isWithdrawalWindowOpen();
   const parsedAmount = parseFloat(withdrawalAmount) || 0;
