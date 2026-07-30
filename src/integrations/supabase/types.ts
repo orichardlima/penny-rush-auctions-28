@@ -5880,8 +5880,24 @@ export type Database = {
       execute_overdue_bot_bids: { Args: never; Returns: Json }
       execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
       execute_panic_bids: { Args: never; Returns: Json }
+      expansion_admin_adjustments: { Args: { _limit?: number }; Returns: Json }
+      expansion_admin_audit_log: { Args: { _limit?: number }; Returns: Json }
       expansion_admin_close_week: {
         Args: { _period_start: string; _reason: string }
+        Returns: Json
+      }
+      expansion_admin_overview: { Args: never; Returns: Json }
+      expansion_admin_periods: { Args: never; Returns: Json }
+      expansion_admin_runs: {
+        Args: { _origin?: string; _period_start?: string; _status?: string }
+        Returns: Json
+      }
+      expansion_admin_snapshots: {
+        Args: { _period_start?: string; _search?: string }
+        Returns: Json
+      }
+      expansion_admin_update_settings: {
+        Args: { _reason?: string; _settings: Json }
         Returns: Json
       }
       expansion_bahia_today: { Args: never; Returns: string }
@@ -5896,6 +5912,25 @@ export type Database = {
       expansion_credit_upgrade: {
         Args: { _upgrade_id: string }
         Returns: number
+      }
+      expansion_current_period: {
+        Args: never
+        Returns: {
+          period_end: string
+          period_start: string
+        }[]
+      }
+      expansion_get_partner_overview: {
+        Args: { _user_id?: string }
+        Returns: Json
+      }
+      expansion_get_partner_snapshots: {
+        Args: { _user_id?: string }
+        Returns: Json
+      }
+      expansion_get_partner_teams: {
+        Args: { _user_id?: string }
+        Returns: Json
       }
       expansion_last_closed_week: { Args: never; Returns: string }
       expansion_recompute_memberships: {
