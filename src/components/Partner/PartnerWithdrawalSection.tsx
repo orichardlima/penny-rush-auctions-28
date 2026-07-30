@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePartnerWithdrawals, PaymentDetails } from '@/hooks/usePartnerWithdrawals';
 import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
+import { useWithdrawalBalances } from '@/hooks/useWithdrawalBalances';
 import { PartnerContract } from '@/hooks/usePartnerContract';
 import PartnerPaymentDetailsForm from './PartnerPaymentDetailsForm';
 import PartnerWithdrawalDetailsDialog from './PartnerWithdrawalDetailsDialog';
+import WithdrawalBalancesBreakdown from './WithdrawalBalancesBreakdown';
 import {
   Wallet,
   ArrowUpRight,
