@@ -411,7 +411,7 @@ const LeaveSponsorNetwork: React.FC<Props> = ({ contractId, partnerFullName, onC
             <div>• Bônus pendentes do seu patrocinador originados de você serão <strong>cancelados</strong>.</div>
             <div>• Bônus já disponíveis e ainda não sacados serão <strong>revertidos</strong> (debitados do saldo dele).</div>
             <div>• Bônus já pagos permanecem (não há reversão).</div>
-            <div>• Você será desconectado da posição binária atual.</div>
+            <div>• Você será desconectado da sua posição atual na rede de equipes.</div>
             <div>• Você terá <strong>7 dias</strong> para escolher um novo patrocinador, senão volta para o atual.</div>
             <div>• Após concluir, só poderá sair novamente após <strong>90 dias</strong>.</div>
           </AlertDescription>

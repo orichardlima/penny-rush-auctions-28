@@ -45,8 +45,8 @@ import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerLevels } from '@/hooks/usePartnerLevels';
 import { FileText, GraduationCap, GitBranch, HelpCircle, Megaphone } from 'lucide-react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import BinaryNetworkTree from './BinaryNetworkTree';
-import BinaryBonusHistory from './BinaryBonusHistory';
+import ExpansionProgramSection from './Expansion/ExpansionProgramSection';
+
 import DailyRevenueBars from './DailyRevenueBars';
 import LeaveSponsorNetwork from './LeaveSponsorNetwork';
 import AdCenterDashboard from './AdCenterDashboard';
@@ -83,7 +83,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const { fetchPendingRequest } = usePartnerEarlyTermination();
   const { totalPoints, binaryPoints, loading: referralLoading } = usePartnerReferrals();
   
-  // Pontos para graduação = perna menor do binário
+  // Pontos para graduação = volume qualificado de equipes
   const graduationPoints = binaryPoints.weakerLegPoints;
   
   const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(graduationPoints);
@@ -92,7 +92,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const currentWeekRevenue = useCurrentWeekRevenue(contract);
   const { weekProgress } = useAdCenter(contract?.id);
 
-  // Buscar pontos binários por plano
+  // Buscar pontos de equipe por plano
   const [planBinaryPoints, setPlanBinaryPoints] = useState<Record<string, number>>({});
   useEffect(() => {
     const fetchBinaryPoints = async () => {
@@ -727,8 +727,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   <GraduationBadge totalPoints={graduationPoints} size="md" showPoints={false} />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos (lado de menor volume)</p>
-                  <p className="text-xs opacity-70">Lado A: {binaryPoints.leftPoints} | Lado B: {binaryPoints.rightPoints}</p>
+                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos de volume qualificado de equipes</p>
+
                   {getLevelProgress().nextLevel && (
                     <p className="mt-1">
                       <span className="font-medium text-primary">
@@ -876,9 +876,10 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           </TabsTrigger>
           <TabsTrigger value="binary" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <GitBranch className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">Rede de Equipe</span>
-            <span className="sm:hidden">Equipe</span>
+            <span className="hidden sm:inline">Expansão por Equipes</span>
+            <span className="sm:hidden">Expansão</span>
           </TabsTrigger>
+
         </TabsList>
 
         {/* Tab de Repasses */}
@@ -1270,14 +1271,11 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           <PartnerReferralSection planName={contract.plan_name} isDefaulting={contract.financial_status !== 'paid'} />
         </TabsContent>
 
-        {/* Tab de Rede de Equipe */}
+        {/* Tab do Programa de Expansão por Equipes */}
         <TabsContent value="binary" className="space-y-6">
-          {/* Estrutura da rede */}
-          <BinaryNetworkTree />
-          
-          {/* Histórico de bônus */}
-          <BinaryBonusHistory />
+          <ExpansionProgramSection />
         </TabsContent>
+
       </Tabs>
 
       {/* Encerramento Antecipado */}

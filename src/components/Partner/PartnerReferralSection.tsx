@@ -91,7 +91,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
       {/* Bônus de Início Rápido */}
       <FastStartProgress contractId={contractId} />
 
-      {/* Graduação / Nível do Parceiro - baseado na perna menor do binário */}
+      {/* Graduação / Nível do Parceiro - baseado no volume qualificado de equipes */}
       <PartnerLevelProgress 
         totalPoints={binaryPoints.weakerLegPoints} 
         planName={planName}
