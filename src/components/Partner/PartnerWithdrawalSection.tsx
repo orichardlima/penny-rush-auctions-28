@@ -221,13 +221,13 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              Saldo Disponível para Saque
+              Disponível neste contrato (repasses)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">{formatPrice(availableBalance)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Mínimo para saque: {formatPrice(wSettings.partnerMinWithdrawal)}
+              Contrato #{contract.id.slice(0, 8).toUpperCase()} • Mínimo para saque: {formatPrice(wSettings.partnerMinWithdrawal)}
               {wSettings.feePercentage > 0 && ` • Taxa: ${wSettings.feePercentage}%`}
             </p>
           </CardContent>
