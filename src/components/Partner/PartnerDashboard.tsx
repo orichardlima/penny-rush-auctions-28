@@ -45,8 +45,8 @@ import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerLevels } from '@/hooks/usePartnerLevels';
 import { FileText, GraduationCap, GitBranch, HelpCircle, Megaphone } from 'lucide-react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import BinaryNetworkTree from './BinaryNetworkTree';
-import BinaryBonusHistory from './BinaryBonusHistory';
+import ExpansionProgramSection from './Expansion/ExpansionProgramSection';
+
 import DailyRevenueBars from './DailyRevenueBars';
 import LeaveSponsorNetwork from './LeaveSponsorNetwork';
 import AdCenterDashboard from './AdCenterDashboard';
