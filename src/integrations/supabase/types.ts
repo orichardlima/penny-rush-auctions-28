@@ -6410,6 +6410,7 @@ export type Database = {
         }
         Returns: Json
       }
+      scan_withdrawal_integrity: { Args: never; Returns: Json }
       store_visible_for: { Args: { p_user: string }; Returns: boolean }
       tick_bot_executor: { Args: never; Returns: undefined }
       track_click: {
