@@ -5730,6 +5730,10 @@ export type Database = {
         Args: { _contract_id: string; _reason?: string }
         Returns: number
       }
+      expansion_upgrade_points_delta: {
+        Args: { _upgrade_id: string }
+        Returns: number
+      }
       expire_bid_lots: {
         Args: never
         Returns: {
