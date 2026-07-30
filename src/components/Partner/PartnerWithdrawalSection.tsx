@@ -50,6 +50,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   } = usePartnerWithdrawals(contract.id);
 
   const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+  const { balances, loading: balancesLoading, refetch: refetchBalances } = useWithdrawalBalances();
 
   const [availableBalance, setAvailableBalance] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
