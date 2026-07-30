@@ -2032,57 +2032,177 @@ export type Database = {
         }
         Relationships: []
       }
+      expansion_close_runs: {
+        Row: {
+          admin_id: string | null
+          already_closed_count: number
+          closed_count: number
+          created_at: string
+          details: Json
+          eligible_count: number
+          error_count: number
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          no_volume_count: number
+          origin: string
+          period_end: string | null
+          period_start: string | null
+          processed_count: number
+          reason: string | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          admin_id?: string | null
+          already_closed_count?: number
+          closed_count?: number
+          created_at?: string
+          details?: Json
+          eligible_count?: number
+          error_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          no_volume_count?: number
+          origin?: string
+          period_end?: string | null
+          period_start?: string | null
+          processed_count?: number
+          reason?: string | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          admin_id?: string | null
+          already_closed_count?: number
+          closed_count?: number
+          created_at?: string
+          details?: Json
+          eligible_count?: number
+          error_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          no_volume_count?: number
+          origin?: string
+          period_end?: string | null
+          period_start?: string | null
+          processed_count?: number
+          reason?: string | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       expansion_period_snapshots: {
         Row: {
+          active_contract_id: string | null
+          balances_after: Json
+          balances_before: Json
+          bonus_percent: number
+          carryforward_points: number
+          closed_at: string | null
           computation_meta: Json
           concentration_pct: number
           created_at: string
+          final_bonus: number
           id: string
+          largest_team_points: number
+          largest_team_user_id: string | null
           organizational_points: number
+          other_teams_points: number
+          payable_vqe_points: number
+          payout_reference: string | null
           period_end: string
           period_start: string
           personal_points: number
+          plan_name: string | null
           points_by_team: Json
           qualified_teams_count: number
           rank_achieved: string | null
           rank_qualified: string | null
+          released_at: string | null
+          run_id: string | null
           simulated_bonus_value: number
+          status_official: string
+          total_points_consumed: number
           user_id: string
+          vqe_points: number
           weekly_cap: number
+          weekly_cap_value: number
         }
         Insert: {
+          active_contract_id?: string | null
+          balances_after?: Json
+          balances_before?: Json
+          bonus_percent?: number
+          carryforward_points?: number
+          closed_at?: string | null
           computation_meta?: Json
           concentration_pct?: number
           created_at?: string
+          final_bonus?: number
           id?: string
+          largest_team_points?: number
+          largest_team_user_id?: string | null
           organizational_points?: number
+          other_teams_points?: number
+          payable_vqe_points?: number
+          payout_reference?: string | null
           period_end: string
           period_start: string
           personal_points?: number
+          plan_name?: string | null
           points_by_team?: Json
           qualified_teams_count?: number
           rank_achieved?: string | null
           rank_qualified?: string | null
+          released_at?: string | null
+          run_id?: string | null
           simulated_bonus_value?: number
+          status_official?: string
+          total_points_consumed?: number
           user_id: string
+          vqe_points?: number
           weekly_cap?: number
+          weekly_cap_value?: number
         }
         Update: {
+          active_contract_id?: string | null
+          balances_after?: Json
+          balances_before?: Json
+          bonus_percent?: number
+          carryforward_points?: number
+          closed_at?: string | null
           computation_meta?: Json
           concentration_pct?: number
           created_at?: string
+          final_bonus?: number
           id?: string
+          largest_team_points?: number
+          largest_team_user_id?: string | null
           organizational_points?: number
+          other_teams_points?: number
+          payable_vqe_points?: number
+          payout_reference?: string | null
           period_end?: string
           period_start?: string
           personal_points?: number
+          plan_name?: string | null
           points_by_team?: Json
           qualified_teams_count?: number
           rank_achieved?: string | null
           rank_qualified?: string | null
+          released_at?: string | null
+          run_id?: string | null
           simulated_bonus_value?: number
+          status_official?: string
+          total_points_consumed?: number
           user_id?: string
+          vqe_points?: number
           weekly_cap?: number
+          weekly_cap_value?: number
         }
         Relationships: []
       }
@@ -2145,6 +2265,56 @@ export type Database = {
             columns: ["reverses_id"]
             isOneToOne: false
             referencedRelation: "expansion_points_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expansion_team_consumptions: {
+        Row: {
+          balance_after: number
+          created_at: string
+          id: string
+          period_end: string
+          period_start: string
+          points_available: number
+          points_consumed: number
+          role: string
+          snapshot_id: string
+          team_root_user_id: string
+          user_id: string
+        }
+        Insert: {
+          balance_after?: number
+          created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          points_available?: number
+          points_consumed?: number
+          role: string
+          snapshot_id: string
+          team_root_user_id: string
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          points_available?: number
+          points_consumed?: number
+          role?: string
+          snapshot_id?: string
+          team_root_user_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expansion_team_consumptions_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "expansion_period_snapshots"
             referencedColumns: ["id"]
           },
         ]
@@ -5710,6 +5880,15 @@ export type Database = {
       execute_overdue_bot_bids: { Args: never; Returns: Json }
       execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
       execute_panic_bids: { Args: never; Returns: Json }
+      expansion_admin_close_week: {
+        Args: { _period_start: string; _reason: string }
+        Returns: Json
+      }
+      expansion_bahia_today: { Args: never; Returns: string }
+      expansion_close_partner_week: {
+        Args: { _period_start: string; _run_id?: string; _user_id: string }
+        Returns: Json
+      }
       expansion_credit_contract_activation: {
         Args: { _contract_id: string }
         Returns: number
@@ -5718,6 +5897,7 @@ export type Database = {
         Args: { _upgrade_id: string }
         Returns: number
       }
+      expansion_last_closed_week: { Args: never; Returns: string }
       expansion_recompute_memberships: {
         Args: { _contract_id: string }
         Returns: number
@@ -5729,6 +5909,24 @@ export type Database = {
       expansion_reverse_contract: {
         Args: { _contract_id: string; _reason?: string }
         Returns: number
+      }
+      expansion_run_weekly_close: {
+        Args: {
+          _admin_id?: string
+          _origin?: string
+          _period_start?: string
+          _reason?: string
+        }
+        Returns: Json
+      }
+      expansion_team_balances: {
+        Args: { _period_end: string; _user_id: string }
+        Returns: {
+          points_available: number
+          points_consumed: number
+          points_earned: number
+          team_root_user_id: string
+        }[]
       }
       expansion_upgrade_points_delta: {
         Args: { _upgrade_id: string }
