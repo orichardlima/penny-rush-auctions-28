@@ -727,8 +727,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
                   <GraduationBadge totalPoints={graduationPoints} size="md" showPoints={false} />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos (lado de menor volume)</p>
-                  <p className="text-xs opacity-70">Lado A: {binaryPoints.leftPoints} | Lado B: {binaryPoints.rightPoints}</p>
+                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos de volume qualificado de equipes</p>
+
                   {getLevelProgress().nextLevel && (
                     <p className="mt-1">
                       <span className="font-medium text-primary">
