@@ -3648,7 +3648,9 @@ export type Database = {
           rules_snapshot: Json
           status: string
           updated_at: string
+          uses_allocations: boolean
           wallet_user_id: string | null
+          withdrawal_flow_version: string
         }
         Insert: {
           amount: number
@@ -3675,7 +3677,9 @@ export type Database = {
           rules_snapshot?: Json
           status?: string
           updated_at?: string
+          uses_allocations?: boolean
           wallet_user_id?: string | null
+          withdrawal_flow_version?: string
         }
         Update: {
           amount?: number
@@ -3702,7 +3706,9 @@ export type Database = {
           rules_snapshot?: Json
           status?: string
           updated_at?: string
+          uses_allocations?: boolean
           wallet_user_id?: string | null
+          withdrawal_flow_version?: string
         }
         Relationships: [
           {
@@ -5491,6 +5497,38 @@ export type Database = {
           },
         ]
       }
+      withdrawal_integrity_issues: {
+        Row: {
+          details: Json
+          detected_at: string
+          id: string
+          issue: string
+          withdrawal_id: string
+        }
+        Insert: {
+          details?: Json
+          detected_at?: string
+          id?: string
+          issue: string
+          withdrawal_id: string
+        }
+        Update: {
+          details?: Json
+          detected_at?: string
+          id?: string
+          issue?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_integrity_issues_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "partner_withdrawals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -6396,6 +6434,10 @@ export type Database = {
       update_performance_setting: {
         Args: { p_key: string; p_value: string }
         Returns: Json
+      }
+      validate_withdrawal_composition: {
+        Args: { _raise?: boolean; _withdrawal_id: string }
+        Returns: boolean
       }
     }
     Enums: {
