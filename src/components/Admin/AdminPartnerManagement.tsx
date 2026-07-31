@@ -21,8 +21,6 @@ import DailyRevenueConfigManager from './DailyRevenueConfigManager';
 import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
 import { PartnerCashflowDashboard } from './PartnerCashflowDashboard';
-import TransferSponsorManager from './TransferSponsorManager';
-import AdminNetworkExitsTab from './AdminNetworkExitsTab';
 import AdminImpersonationLogTab from './AdminImpersonationLogTab';
 import ImpersonateActions from './ImpersonateActions';
 import { Textarea } from '@/components/ui/textarea';
@@ -750,14 +748,6 @@ const AdminPartnerManagement = () => {
             <Gift className="h-4 w-4 mr-1" />
             Bônus
           </TabsTrigger>
-          <TabsTrigger value="transfer-sponsor" className="shrink-0">
-            <Users className="h-4 w-4 mr-1" />
-            Transferir Patrocinador
-          </TabsTrigger>
-          <TabsTrigger value="network-exits" className="shrink-0">
-            <UserMinus className="h-4 w-4 mr-1" />
-            Saídas de Rede
-          </TabsTrigger>
           <TabsTrigger value="impersonation-log" className="shrink-0">
             <Shield className="h-4 w-4 mr-1" />
             Auditoria de Acessos
@@ -818,16 +808,6 @@ const AdminPartnerManagement = () => {
         {/* Bônus de Indicação Tab */}
         <TabsContent value="bonuses">
           <AdminReferralBonusesTab />
-        </TabsContent>
-
-        {/* Transferir Patrocinador Tab */}
-        <TabsContent value="transfer-sponsor">
-          <TransferSponsorManager />
-        </TabsContent>
-
-        {/* Saídas de Rede Tab */}
-        <TabsContent value="network-exits">
-          <AdminNetworkExitsTab />
         </TabsContent>
 
         {/* Auditoria de Acessos Tab */}
