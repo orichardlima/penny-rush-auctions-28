@@ -110,6 +110,24 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('payouts');
+
+  // Abertura direta por URL (?tab=expansion&secao=historico)
+  // "binary" permanece aceito apenas como compatibilidade de links históricos
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawTab = params.get('tab');
+    if (!rawTab) return;
+    const tab = rawTab === 'binary' ? 'expansion' : rawTab;
+    const valid = ['payouts', 'ads', 'withdrawals', 'referrals', 'expansion'];
+    if (!valid.includes(tab)) return;
+    setActiveTab(tab);
+    const secao = params.get('secao');
+    if (tab === 'expansion' && secao === 'historico') {
+      setTimeout(() => {
+        document.getElementById('expansao-historico')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 600);
+    }
+  }, []);
   const [creatingContract, setCreatingContract] = useState(false);
   
   // Estado para modal de pagamento PIX
@@ -873,7 +891,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <Users className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Indicações
           </TabsTrigger>
-          <TabsTrigger value="binary" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
+          <TabsTrigger value="expansion" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 whitespace-nowrap">
             <GitBranch className="h-3.5 w-3.5 md:h-4 md:w-4" />
             <span className="hidden sm:inline">Expansão por Equipes</span>
             <span className="sm:hidden">Expansão</span>
@@ -1271,7 +1289,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </TabsContent>
 
         {/* Tab do Programa de Expansão por Equipes */}
-        <TabsContent value="binary" className="space-y-6">
+        <TabsContent value="expansion" className="space-y-6">
           <ExpansionProgramSection />
         </TabsContent>
 
