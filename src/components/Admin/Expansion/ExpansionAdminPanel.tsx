@@ -20,6 +20,8 @@ import {
   Lock, RefreshCw, Settings2, ShieldCheck, Users, Wallet,
 } from 'lucide-react';
 
+import ExpansionClosePreviewDialog from './ExpansionClosePreviewDialog';
+
 const sb = supabase as any;
 
 const brl = (v: any) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
