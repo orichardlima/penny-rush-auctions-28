@@ -5935,6 +5935,10 @@ export type Database = {
         Args: { _user_id?: string }
         Returns: Json
       }
+      expansion_fmt_br: {
+        Args: { _decimals?: number; _v: number }
+        Returns: string
+      }
       expansion_get_partner_overview: {
         Args: { _user_id?: string }
         Returns: Json
