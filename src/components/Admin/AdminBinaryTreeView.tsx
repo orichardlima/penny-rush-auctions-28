@@ -803,12 +803,8 @@ const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<stri
                     <Button variant="outline" size="sm" onClick={() => onRecalculate(p)}>
                       <Calculator className="w-4 h-4 mr-1" />Recalcular
                     </Button>
-                    {isConnected && !isRoot && (
-                      <Button variant="outline" size="sm" onClick={() => onRelocate(p)} className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10">
-                        <ArrowRightLeft className="w-4 h-4 mr-1" />Realocar
-                      </Button>
-                    )}
                   </div>
+
                 </TableCell>
               </TableRow>
             );
