@@ -25,9 +25,11 @@ const MinhaParceria = () => {
       // Preservar código de referral no redirect
       const refCode = searchParams.get('ref') || getPartnerReferralCode();
       const refParam = refCode ? `&ref=${refCode}` : '';
+      // Preserva a query original (ex.: ?tab=expansion&secao=historico) no retorno pós-login
+      const returnTo = encodeURIComponent(`/minha-parceria${window.location.search || ''}`);
       const redirectUrl = preselectedPlanId 
-        ? `/auth?redirect=/minha-parceria&plan=${preselectedPlanId}${refParam}`
-        : `/auth?redirect=/minha-parceria${refParam}`;
+        ? `/auth?redirect=${returnTo}&plan=${preselectedPlanId}${refParam}`
+        : `/auth?redirect=${returnTo}${refParam}`;
       console.log('[MinhaParceria] Redirecionando para auth com ref:', refCode || 'NENHUM');
       navigate(redirectUrl);
     }
