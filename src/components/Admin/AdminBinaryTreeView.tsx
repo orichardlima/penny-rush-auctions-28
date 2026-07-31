@@ -742,11 +742,10 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
               <TableCell><Badge variant="outline">{p.planName}</Badge></TableCell>
               <TableCell className="text-center">{formatPoints(p.left_points)}</TableCell>
               <TableCell className="text-center">{formatPoints(p.right_points)}</TableCell>
-              <TableCell className="text-center">
-                <Button variant="outline" size="sm" onClick={() => onLink(p)}>
-                  <Link2 className="w-4 h-4 mr-1" />Vincular
-                </Button>
+              <TableCell className="text-center text-xs text-muted-foreground">
+                Somente leitura
               </TableCell>
+
             </TableRow>
           ))}
         </TableBody>
