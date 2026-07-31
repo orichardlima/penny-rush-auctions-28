@@ -5892,7 +5892,41 @@ export type Database = {
         Args: { _period_start: string; _reason: string }
         Returns: Json
       }
+      expansion_admin_integrity_check: {
+        Args: { _limit?: number }
+        Returns: {
+          code: string
+          detail: string
+          partner_name: string
+          period_start: string
+          reference: string
+          severity: string
+          title: string
+          user_id: string
+        }[]
+      }
       expansion_admin_overview: { Args: never; Returns: Json }
+      expansion_admin_partner_points: {
+        Args: { _limit?: number; _search?: string }
+        Returns: {
+          bonus_calculated: number
+          bonus_released_wallet: number
+          expansion_payout_total: number
+          largest_team_points: number
+          last_period_start: string
+          other_teams_points: number
+          partner_name: string
+          points_available: number
+          points_consumed: number
+          points_gross: number
+          points_reversed: number
+          snapshots_count: number
+          teams_count: number
+          user_id: string
+          vqe_estimate: number
+          wallet_credit_total: number
+        }[]
+      }
       expansion_admin_periods: { Args: never; Returns: Json }
       expansion_admin_preview_close: {
         Args: { _period_start?: string }
