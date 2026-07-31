@@ -60,13 +60,6 @@ export const AdminBinaryTreeView: React.FC = () => {
   const [recalcPoints, setRecalcPoints] = useState<number>(0);
   const [recalculating, setRecalculating] = useState(false);
 
-  // Relocate dialog state
-  const [relocateDialogOpen, setRelocateDialogOpen] = useState(false);
-  const [relocateTarget, setRelocateTarget] = useState<EnrichedPosition | null>(null);
-  const [relocateSponsorId, setRelocateSponsorId] = useState('');
-  const [relocating, setRelocating] = useState(false);
-  const [relocateSpillover, setRelocateSpillover] = useState<{ parentContractId: string; position: 'left' | 'right' } | null>(null);
-  const [relocateConfirmOpen, setRelocateConfirmOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -193,17 +186,6 @@ export const AdminBinaryTreeView: React.FC = () => {
       setSpilloverResult(null);
     }
   }, [selectedSponsorId, findNextAvailableSlot]);
-
-  // When relocate sponsor changes, compute spillover preview
-  useEffect(() => {
-    if (relocateSponsorId && relocateTarget) {
-      // Temporarily exclude the relocateTarget and its subtree from posMap for spillover calc
-      const result = findNextAvailableSlot(relocateSponsorId);
-      setRelocateSpillover(result);
-    } else {
-      setRelocateSpillover(null);
-    }
-  }, [relocateSponsorId, relocateTarget, findNextAvailableSlot]);
 
   const openLinkDialog = (pos: EnrichedPosition) => {
     setSelectedIsolated(pos);
