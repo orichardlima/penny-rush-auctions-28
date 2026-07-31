@@ -228,12 +228,8 @@ export const AdminBinaryTreeView: React.FC = () => {
     }
   };
 
-  const openRelocateDialog = (pos: EnrichedPosition) => {
-    setRelocateTarget(pos);
-    setRelocateSponsorId('');
-    setRelocateSpillover(null);
-    setRelocateDialogOpen(true);
-  };
+
+
 
   const handleRecalculate = async () => {
     if (!recalcTarget || recalcPoints <= 0) return;
