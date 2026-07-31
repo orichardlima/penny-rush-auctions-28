@@ -254,8 +254,10 @@ export default function ExpansionAdminPanel() {
 
         {/* PERÍODOS */}
         <TabsContent value="periods" className="space-y-3 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2 flex-wrap">
+            <ExpansionClosePreviewDialog defaultPeriodStart={overview?.current_period_start || ''} />
             <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
+
               <DialogTrigger asChild>
                 <Button size="sm"><CalendarClock className="h-4 w-4 mr-1" /> Fechamento manual</Button>
               </DialogTrigger>
