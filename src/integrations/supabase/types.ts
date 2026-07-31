@@ -2326,6 +2326,8 @@ export type Database = {
           depth: number
           descendant_contract_id: string | null
           descendant_user_id: string
+          effective_from: string
+          effective_to: string | null
           id: string
           team_root_user_id: string
         }
@@ -2335,6 +2337,8 @@ export type Database = {
           depth: number
           descendant_contract_id?: string | null
           descendant_user_id: string
+          effective_from?: string
+          effective_to?: string | null
           id?: string
           team_root_user_id: string
         }
@@ -2344,6 +2348,8 @@ export type Database = {
           depth?: number
           descendant_contract_id?: string | null
           descendant_user_id?: string
+          effective_from?: string
+          effective_to?: string | null
           id?: string
           team_root_user_id?: string
         }
