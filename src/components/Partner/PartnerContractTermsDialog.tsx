@@ -49,13 +49,12 @@ O PARCEIRO declara estar ciente de que:
 • O desempenho passado da plataforma não garante resultados futuros.
 • A plataforma poderá suspender ou encerrar o programa em caso de força maior ou decisão administrativa, com comunicação prévia aos parceiros.
 
-CLÁUSULA 10 — TROCA DE PATROCINADOR E SAÍDA DA REDE
-O PARCEIRO poderá solicitar a saída da rede do seu patrocinador atual, sujeito às seguintes condições:
-• A solicitação só poderá ser feita dentro do prazo de 30 (trinta) dias contados da data de cadastro do contrato. Após esse prazo, o vínculo com o patrocinador torna-se definitivo.
-• Ao confirmar a saída, todos os bônus de indicação pendentes relacionados ao PARCEIRO serão automaticamente cancelados, e os bônus já disponíveis na conta do patrocinador anterior poderão ser revertidos, conforme a política vigente.
-• Após a saída, o PARCEIRO terá o prazo de 7 (sete) dias para escolher um novo patrocinador. Caso não escolha dentro desse prazo, será automaticamente reintegrado à rede do patrocinador anterior.
-• Após o uso da opção de saída, o PARCEIRO ficará sujeito a um período de carência de 90 (noventa) dias antes de poder solicitar nova troca de patrocinador.
-• A troca de patrocinador não altera o valor do aporte, o teto de recebimento, nem o histórico de repasses já realizados.
+CLÁUSULA 10 — POSIÇÃO DEFINITIVA NA REDE
+Concluído o cadastro, o patrocinador e a posição do PARCEIRO na rede tornam-se definitivos:
+• Não é permitido trocar de patrocinador, sair da equipe, escolher outra equipe, reposicionar a conta ou transferir a sua organização.
+• Os indicados do PARCEIRO permanecem permanentemente vinculados à posição em que foram cadastrados.
+• O encerramento, cancelamento ou inatividade da conta não remove o PARCEIRO da genealogia: a posição histórica, os descendentes, os pontos e as equipes permanecem inalterados, cessando apenas os benefícios que exigem elegibilidade ativa.
+• Eventuais correções de erro cadastral comprovado dependem de análise formal e autorização expressa da plataforma, não constituindo direito de troca.
 
 CLÁUSULA 11 — PRIVACIDADE E DADOS
 Os dados pessoais do PARCEIRO serão tratados conforme a Política de Privacidade da plataforma, em conformidade com a Lei Geral de Proteção de Dados (LGPD).
