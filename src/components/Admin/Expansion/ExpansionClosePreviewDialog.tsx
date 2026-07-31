@@ -15,7 +15,6 @@ const sb = supabase as any;
 
 const brl = (v: any) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
 const pts = (v: any) => new Intl.NumberFormat('pt-BR').format(Math.round(Number(v || 0)));
-const dt = (v?: string | null) => (v ? new Date(v.length === 10 ? v + 'T12:00:00' : v).toLocaleDateString('pt-BR') : '—');
 const dtHora = (v?: string | null) =>
   v
     ? new Date(v).toLocaleString('pt-BR', {
