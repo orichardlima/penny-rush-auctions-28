@@ -282,7 +282,7 @@ export default function ExpansionProgramSection() {
       </Card>
 
       {/* Histórico de fechamentos */}
-      <Card>
+      <Card id="expansao-historico" className="scroll-mt-24">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Histórico de fechamentos</CardTitle>
           <CardDescription>Valores oficiais registrados a cada semana encerrada.</CardDescription>

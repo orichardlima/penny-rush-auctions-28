@@ -110,6 +110,24 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('payouts');
+
+  // Abertura direta por URL (?tab=expansion&secao=historico)
+  // "binary" permanece aceito apenas como compatibilidade de links históricos
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawTab = params.get('tab');
+    if (!rawTab) return;
+    const tab = rawTab === 'binary' ? 'expansion' : rawTab;
+    const valid = ['payouts', 'ads', 'withdrawals', 'referrals', 'expansion'];
+    if (!valid.includes(tab)) return;
+    setActiveTab(tab);
+    const secao = params.get('secao');
+    if (tab === 'expansion' && secao === 'historico') {
+      setTimeout(() => {
+        document.getElementById('expansao-historico')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 600);
+    }
+  }, []);
   const [creatingContract, setCreatingContract] = useState(false);
   
   // Estado para modal de pagamento PIX
