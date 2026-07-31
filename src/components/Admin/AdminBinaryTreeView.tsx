@@ -742,11 +742,10 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
               <TableCell><Badge variant="outline">{p.planName}</Badge></TableCell>
               <TableCell className="text-center">{formatPoints(p.left_points)}</TableCell>
               <TableCell className="text-center">{formatPoints(p.right_points)}</TableCell>
-              <TableCell className="text-center">
-                <Button variant="outline" size="sm" onClick={() => onLink(p)}>
-                  <Link2 className="w-4 h-4 mr-1" />Vincular
-                </Button>
+              <TableCell className="text-center text-xs text-muted-foreground">
+                Somente leitura
               </TableCell>
+
             </TableRow>
           ))}
         </TableBody>
@@ -804,12 +803,8 @@ const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<stri
                     <Button variant="outline" size="sm" onClick={() => onRecalculate(p)}>
                       <Calculator className="w-4 h-4 mr-1" />Recalcular
                     </Button>
-                    {isConnected && !isRoot && (
-                      <Button variant="outline" size="sm" onClick={() => onRelocate(p)} className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10">
-                        <ArrowRightLeft className="w-4 h-4 mr-1" />Realocar
-                      </Button>
-                    )}
                   </div>
+
                 </TableCell>
               </TableRow>
             );

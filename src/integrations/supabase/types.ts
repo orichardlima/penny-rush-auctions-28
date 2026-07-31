@@ -5948,6 +5948,7 @@ export type Database = {
         Returns: Json
       }
       expansion_last_closed_week: { Args: never; Returns: string }
+      expansion_position_override_active: { Args: never; Returns: boolean }
       expansion_recompute_memberships: {
         Args: { _contract_id: string }
         Returns: number
