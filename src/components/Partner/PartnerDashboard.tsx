@@ -1297,14 +1297,8 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
         </Card>
       )}
 
-      {/* Sair da rede do patrocinador (autoatendimento) */}
-      {contract.status === 'ACTIVE' && (
-        <LeaveSponsorNetwork
-          contractId={contract.id}
-          partnerFullName={profile?.full_name || ''}
-          onChanged={refreshData}
-        />
-      )}
+      {/* Saída/migração de equipe: exclusivo do administrador (autoatendimento desativado) */}
+
 
       {/* Aviso Legal */}
       <Alert className="border-yellow-500/20 bg-yellow-500/5">
