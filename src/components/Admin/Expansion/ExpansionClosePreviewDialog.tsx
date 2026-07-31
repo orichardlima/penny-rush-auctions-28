@@ -91,20 +91,33 @@ export default function ExpansionClosePreviewDialog({ defaultPeriodStart }: { de
           <div className="space-y-3">
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                Período simulado: <strong>{dt(data.period_start)} a {dt(data.period_end)}</strong> · Percentual: <strong>{Number(data.bonus_percent)}%</strong>
-                {Number(data.already_closed_snapshots) > 0 && (
-                  <> · <span className="text-amber-600 font-medium">Esta semana já possui {data.already_closed_snapshots} snapshot(s) — o fechamento real não seria refeito.</span></>
+              <AlertDescription className="text-sm space-y-1">
+                <div>
+                  <Badge variant={data.mode === 'official' ? 'default' : 'secondary'} className="mr-2">
+                    {data.mode === 'official' ? 'Resultado oficial' : 'Estimativa'}
+                  </Badge>
+                  Período: <strong>{dtHora(data.period_start_at)}</strong> até <strong>{dtHora(data.period_end_at)}</strong> (America/Bahia) · Percentual: <strong>{Number(data.bonus_percent)}%</strong>
+                </div>
+                {data.mode === 'official' ? (
+                  <div className="text-muted-foreground">
+                    Semana já fechada ({data.already_closed_snapshots} snapshot(s)). Os valores exibidos vêm dos snapshots oficiais — nada é recalculado com os saldos atuais.
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">
+                    Semana em aberto: os valores são uma <strong>estimativa</strong> e só serão confirmados no fechamento semanal.
+                  </div>
                 )}
               </AlertDescription>
             </Alert>
 
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
               {[
-                { l: 'Parceiros avaliados', v: pts(data.partners_count) },
+                { l: 'Parceiros analisados', v: pts(data.partners_count) },
                 { l: 'Com bônus', v: pts(data.partners_with_bonus) },
+                { l: 'VQE zero', v: pts(data.partners_zero_vqe) },
+                { l: 'Atingiram o teto', v: pts(data.partners_cap_reached) },
                 { l: 'VQE total', v: `${pts(data.total_vqe)} pts` },
-                { l: 'Bônus total', v: brl(data.total_bonus) },
+                { l: data.mode === 'official' ? 'Bônus total' : 'Bônus total estimado', v: brl(data.total_bonus) },
                 { l: 'Carryforward', v: `${pts(data.total_carryforward)} pts` },
               ].map((c) => (
                 <div key={c.l} className="rounded-lg border p-3">
@@ -113,6 +126,7 @@ export default function ExpansionClosePreviewDialog({ defaultPeriodStart }: { de
                 </div>
               ))}
             </div>
+
 
             {rows.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
