@@ -480,7 +480,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           <CardTitle className="text-lg">Todos os Registros ({positions.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <PositionsTable positions={positions} posMap={posMap} onRecalculate={openRecalcDialog} onRelocate={openRelocateDialog} />
+          <PositionsTable positions={positions} posMap={posMap} onRecalculate={openRecalcDialog} />
         </CardContent>
       </Card>
 
@@ -653,7 +653,7 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
   );
 };
 
-const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onRecalculate: (pos: EnrichedPosition) => void; onRelocate: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onRecalculate, onRelocate }) => {
+const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onRecalculate: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onRecalculate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const getName = (contractId: string | null) => {
     if (!contractId) return '—';
