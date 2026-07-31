@@ -60,13 +60,6 @@ export const AdminBinaryTreeView: React.FC = () => {
   const [recalcPoints, setRecalcPoints] = useState<number>(0);
   const [recalculating, setRecalculating] = useState(false);
 
-  // Relocate dialog state
-  const [relocateDialogOpen, setRelocateDialogOpen] = useState(false);
-  const [relocateTarget, setRelocateTarget] = useState<EnrichedPosition | null>(null);
-  const [relocateSponsorId, setRelocateSponsorId] = useState('');
-  const [relocating, setRelocating] = useState(false);
-  const [relocateSpillover, setRelocateSpillover] = useState<{ parentContractId: string; position: 'left' | 'right' } | null>(null);
-  const [relocateConfirmOpen, setRelocateConfirmOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -194,17 +187,6 @@ export const AdminBinaryTreeView: React.FC = () => {
     }
   }, [selectedSponsorId, findNextAvailableSlot]);
 
-  // When relocate sponsor changes, compute spillover preview
-  useEffect(() => {
-    if (relocateSponsorId && relocateTarget) {
-      // Temporarily exclude the relocateTarget and its subtree from posMap for spillover calc
-      const result = findNextAvailableSlot(relocateSponsorId);
-      setRelocateSpillover(result);
-    } else {
-      setRelocateSpillover(null);
-    }
-  }, [relocateSponsorId, relocateTarget, findNextAvailableSlot]);
-
   const openLinkDialog = (pos: EnrichedPosition) => {
     setSelectedIsolated(pos);
     setSelectedSponsorId('');
@@ -228,12 +210,8 @@ export const AdminBinaryTreeView: React.FC = () => {
     }
   };
 
-  const openRelocateDialog = (pos: EnrichedPosition) => {
-    setRelocateTarget(pos);
-    setRelocateSponsorId('');
-    setRelocateSpillover(null);
-    setRelocateDialogOpen(true);
-  };
+
+
 
   const handleRecalculate = async () => {
     if (!recalcTarget || recalcPoints <= 0) return;
@@ -344,91 +322,6 @@ export const AdminBinaryTreeView: React.FC = () => {
     }
   };
 
-  const handleRelocate = async () => {
-    if (!relocateTarget || !relocateSponsorId || !relocateSpillover) return;
-    setRelocateConfirmOpen(false);
-    setRelocating(true);
-    try {
-      const contractId = relocateTarget.partner_contract_id;
-      const oldParentId = relocateTarget.parent_contract_id;
-      const oldSponsorId = relocateTarget.sponsor_contract_id;
-      const oldPosition = relocateTarget.position;
-
-      // 1. Desconectar do pai antigo
-      if (oldParentId) {
-        const oldParent = posMap.get(oldParentId);
-        if (oldParent) {
-          const clearField = oldParent.left_child_id === contractId ? 'left_child_id' : 'right_child_id';
-          const { error } = await supabase
-            .from('partner_binary_positions')
-            .update({ [clearField]: null })
-            .eq('partner_contract_id', oldParentId);
-          if (error) throw error;
-        }
-      }
-
-      // 2. Atualizar o nó realocado com novo parent/sponsor/position
-      const { error: err2 } = await supabase
-        .from('partner_binary_positions')
-        .update({
-          parent_contract_id: relocateSpillover.parentContractId,
-          sponsor_contract_id: relocateSponsorId,
-          position: relocateSpillover.position,
-        })
-        .eq('partner_contract_id', contractId);
-      if (err2) throw err2;
-
-      // 3. Atualizar o novo pai com o child slot
-      const newField = relocateSpillover.position === 'left' ? 'left_child_id' : 'right_child_id';
-      const { error: err3 } = await supabase
-        .from('partner_binary_positions')
-        .update({ [newField]: contractId })
-        .eq('partner_contract_id', relocateSpillover.parentContractId);
-      if (err3) throw err3;
-
-      // 4. Registrar no audit log
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: adminProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('user_id', user.id)
-          .single();
-
-        await supabase.from('admin_audit_log').insert({
-          admin_user_id: user.id,
-          admin_name: adminProfile?.full_name || user.email || 'Admin',
-          action_type: 'RELOCATE_BINARY_NODE',
-          target_type: 'partner_binary_positions',
-          target_id: relocateTarget.id,
-          description: `Realocou ${relocateTarget.partnerName} na estrutura da rede`,
-          old_values: {
-            parent_contract_id: oldParentId,
-            sponsor_contract_id: oldSponsorId,
-            position: oldPosition,
-          },
-          new_values: {
-            parent_contract_id: relocateSpillover.parentContractId,
-            sponsor_contract_id: relocateSponsorId,
-            position: relocateSpillover.position,
-          },
-        });
-      }
-
-      toast({
-        title: 'Parceiro realocado com sucesso',
-        description: `${relocateTarget.partnerName} foi movido para a rede de ${posMap.get(relocateSponsorId)?.partnerName || 'indicador'}. Lembre-se de recalcular os pontos da rede acima antiga e nova.`,
-      });
-      setRelocateDialogOpen(false);
-      fetchData();
-    } catch (err: any) {
-      console.error('Relocate error:', err);
-      toast({ title: 'Erro ao realocar', description: err.message || 'Erro desconhecido', variant: 'destructive' });
-    } finally {
-      setRelocating(false);
-    }
-  };
-
   if (loading) {
     return <Card><CardContent className="py-8"><Skeleton className="h-48 w-full" /></CardContent></Card>;
   }
@@ -484,7 +377,7 @@ export const AdminBinaryTreeView: React.FC = () => {
           <CardTitle className="text-lg">Todos os Registros ({positions.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <PositionsTable positions={positions} posMap={posMap} onRecalculate={openRecalcDialog} onRelocate={openRelocateDialog} />
+          <PositionsTable positions={positions} posMap={posMap} onRecalculate={openRecalcDialog} />
         </CardContent>
       </Card>
 
@@ -567,106 +460,8 @@ export const AdminBinaryTreeView: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Relocate Dialog */}
-      <Dialog open={relocateDialogOpen} onOpenChange={setRelocateDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="w-5 h-5" />
-              Realocar Parceiro
-            </DialogTitle>
-            <DialogDescription>
-              Mover <strong>{relocateTarget?.partnerName}</strong> ({relocateTarget?.planName}) para a rede de outro indicador. A rede abaixo inteira será movida junto.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            {/* Current position info */}
-            {relocateTarget?.parent_contract_id && (
-              <div className="rounded-md border p-3 bg-muted text-sm space-y-1">
-                <p className="font-medium">Posição atual:</p>
-                <p>Filho <strong>{relocateTarget.position === 'left' ? 'esquerdo' : 'direito'}</strong> de <strong>{posMap.get(relocateTarget.parent_contract_id)?.partnerName || 'N/A'}</strong></p>
-                <p>Indicador: <strong>{posMap.get(relocateTarget.sponsor_contract_id || '')?.partnerName || 'N/A'}</strong></p>
-              </div>
-            )}
+      {/* Realocação removida: a posição na rede é definitiva */}
 
-            {/* New sponsor selection */}
-            <div className="space-y-2">
-              <Label>Novo Indicador</Label>
-              <Select value={relocateSponsorId} onValueChange={setRelocateSponsorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o novo indicador..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {positions
-                    .filter(p => {
-                      if (!relocateTarget) return false;
-                      // Exclude self and all descendants
-                      if (p.partner_contract_id === relocateTarget.partner_contract_id) return false;
-                      const descendants = getDescendantIds(relocateTarget.partner_contract_id);
-                      return !descendants.has(p.partner_contract_id);
-                    })
-                    .map(p => (
-                      <SelectItem key={p.partner_contract_id} value={p.partner_contract_id}>
-                        {p.partnerName} ({p.planName})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Spillover preview */}
-            {relocateSponsorId && relocateSpillover && (
-              <div className="rounded-md border p-3 bg-muted text-sm space-y-1">
-                <p className="font-medium">Novo posicionamento:</p>
-                <p>Será filho <strong>{relocateSpillover.position === 'left' ? 'esquerdo' : 'direito'}</strong> de <strong>{posMap.get(relocateSpillover.parentContractId)?.partnerName || 'N/A'}</strong></p>
-              </div>
-            )}
-
-            {relocateSponsorId && !relocateSpillover && (
-              <p className="text-sm text-destructive">Nenhuma vaga disponível na rede deste indicador.</p>
-            )}
-
-            {/* Warning */}
-            <div className="rounded-md border border-amber-500/50 p-3 bg-amber-500/10 text-sm space-y-1">
-              <p className="font-medium flex items-center gap-1 text-amber-600">
-                <AlertTriangle className="w-4 h-4" />
-                Atenção
-              </p>
-              <p className="text-muted-foreground">
-                Os pontos da rede acima antiga <strong>NÃO</strong> são recalculados automaticamente. Após a realocação, use "Recalcular Pontos" nos ancestrais afetados.
-              </p>
-            </div>
-
-            <Button
-              className="w-full"
-              onClick={() => setRelocateConfirmOpen(true)}
-              disabled={!relocateSponsorId || !relocateSpillover || relocating}
-            >
-              {relocating ? 'Realocando...' : 'Realocar Parceiro'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Relocate Confirmation */}
-      <AlertDialog open={relocateConfirmOpen} onOpenChange={setRelocateConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Realocação</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você tem certeza que deseja mover <strong>{relocateTarget?.partnerName}</strong> e toda sua rede abaixo para a rede de <strong>{posMap.get(relocateSponsorId)?.partnerName || 'N/A'}</strong>?
-              <br /><br />
-              Esta ação será registrada no log de auditoria. Os pontos da rede acima antiga precisarão ser ajustados manualmente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRelocate}>
-              Confirmar Realocação
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
@@ -755,7 +550,7 @@ const IsolatedTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<strin
   );
 };
 
-const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onRecalculate: (pos: EnrichedPosition) => void; onRelocate: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onRecalculate, onRelocate }) => {
+const PositionsTable: React.FC<{ positions: EnrichedPosition[]; posMap: Map<string, EnrichedPosition>; onRecalculate: (pos: EnrichedPosition) => void }> = ({ positions, posMap, onRecalculate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const getName = (contractId: string | null) => {
     if (!contractId) return '—';
