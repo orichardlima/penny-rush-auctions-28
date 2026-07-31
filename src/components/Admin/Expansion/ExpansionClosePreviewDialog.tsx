@@ -16,6 +16,14 @@ const sb = supabase as any;
 const brl = (v: any) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
 const pts = (v: any) => new Intl.NumberFormat('pt-BR').format(Math.round(Number(v || 0)));
 const dt = (v?: string | null) => (v ? new Date(v.length === 10 ? v + 'T12:00:00' : v).toLocaleDateString('pt-BR') : '—');
+const dtHora = (v?: string | null) =>
+  v
+    ? new Date(v).toLocaleString('pt-BR', {
+        timeZone: 'America/Bahia',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      })
+    : '—';
 
 export default function ExpansionClosePreviewDialog({ defaultPeriodStart }: { defaultPeriodStart?: string }) {
   const [open, setOpen] = useState(false);
