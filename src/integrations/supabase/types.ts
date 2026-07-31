@@ -5894,6 +5894,10 @@ export type Database = {
       }
       expansion_admin_overview: { Args: never; Returns: Json }
       expansion_admin_periods: { Args: never; Returns: Json }
+      expansion_admin_preview_close: {
+        Args: { _period_start?: string }
+        Returns: Json
+      }
       expansion_admin_runs: {
         Args: { _origin?: string; _period_start?: string; _status?: string }
         Returns: Json
