@@ -196,12 +196,21 @@ export default function ExpansionAutomationPanel() {
                 <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-1">
                   <p className="font-medium">Programa de Expansão processado</p>
                   <p>
-                    Parceiros analisados: {s.partners ?? 0} · Parceiros com bônus: {s.partners_with_bonus ?? 0} · Total
-                    liberado: {brl(s.released_total)} · Promoções: {s.promoted ?? 0} · Rebaixamentos:{' '}
-                    {s.downgraded ?? 0} · Notificações: {s.notified ?? 0}
+                    Parceiros encontrados: {s.partners_found ?? s.partners ?? 0} · Elegíveis:{' '}
+                    {s.partners_eligible ?? s.partners ?? 0} · Avaliados: {s.partners_evaluated ?? s.partners ?? 0} ·
+                    Excluídos: {s.partners_excluded ?? 0} · Principal motivo de exclusão:{' '}
+                    {(s.partners_excluded ?? 0) === 0 ? 'nenhum' : s.top_exclusion_reason || '—'}
                   </p>
+                  <p>
+                    Bônus liberado: {brl(s.released_total)} · Promoções: {s.promoted ?? 0} · Rebaixamentos:{' '}
+                    {s.downgraded ?? 0} · Status final: concluído
+                  </p>
+                  {s.reconciliation?.note && (
+                    <p className="text-muted-foreground">{s.reconciliation.note}</p>
+                  )}
                 </div>
               )}
+
 
               {attention && (
                 <Alert variant="destructive">
