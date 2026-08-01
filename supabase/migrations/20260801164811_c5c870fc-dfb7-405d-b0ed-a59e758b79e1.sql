@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.expansion_part3_selftest();
