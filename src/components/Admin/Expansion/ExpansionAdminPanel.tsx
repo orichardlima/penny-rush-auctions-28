@@ -394,6 +394,16 @@ export default function ExpansionAdminPanel() {
           </Alert>
         </TabsContent>
 
+        {/* CONSOLIDADO DE PARCEIROS */}
+        <TabsContent value="consolidated" className="mt-4">
+          <ExpansionPartnerPointsReport />
+        </TabsContent>
+
+        {/* INTEGRIDADE */}
+        <TabsContent value="integrity" className="mt-4">
+          <ExpansionIntegrityReport />
+        </TabsContent>
+
         {/* CONSUMOS */}
         <TabsContent value="consumptions" className="mt-4 space-y-2">
           {snapshots.length === 0 && <p className="text-sm text-muted-foreground">Nenhum consumo registrado.</p>}
