@@ -115,6 +115,19 @@ export default function ExpansionProgramSection() {
   const preLaunch = !overview.program.official_start_at || !overview.program.weekly_close_enabled;
   const hasTeams = teams.length > 0;
 
+  const totalReleased = snapshots
+    .filter((s) => s.status_official === 'released')
+    .reduce((acc, s) => acc + Number(s.final_bonus || 0), 0);
+  const totalPending = snapshots
+    .filter((s) => s.status_official === 'closed')
+    .reduce((acc, s) => acc + Number(s.final_bonus || 0), 0);
+  const lastReleased = snapshots.find((s) => s.status_official === 'released') || null;
+  const daysLeft = daysUntil(overview.next_close_date);
+  const capPct = Number(overview.weekly_cap) > 0
+    ? Math.min(100, (Number(overview.estimated_bonus) / Number(overview.weekly_cap)) * 100)
+    : 0;
+
+
   return (
     <div className="space-y-5">
       {/* Estado pré-lançamento */}
