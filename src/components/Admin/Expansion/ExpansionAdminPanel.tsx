@@ -405,6 +405,11 @@ export default function ExpansionAdminPanel() {
           <ExpansionIntegrityReport />
         </TabsContent>
 
+        {/* COMUNICAÇÃO */}
+        <TabsContent value="communication" className="mt-4">
+          <ExpansionCommunicationPanel />
+        </TabsContent>
+
         {/* CONSUMOS */}
         <TabsContent value="consumptions" className="mt-4 space-y-2">
           {snapshots.length === 0 && <p className="text-sm text-muted-foreground">Nenhum consumo registrado.</p>}
