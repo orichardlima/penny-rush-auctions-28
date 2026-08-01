@@ -19,11 +19,20 @@ const brl = (v: number) =>
 const pts = (v: number) => new Intl.NumberFormat('pt-BR').format(Math.round(Number(v || 0)));
 const dt = (v?: string | null) => (v ? new Date(v + (v.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('pt-BR') : '—');
 
+const daysUntil = (v?: string | null) => {
+  if (!v) return null;
+  const target = new Date(v.length === 10 ? v + 'T00:05:00-03:00' : v).getTime();
+  const diff = target - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / 86400000);
+};
+
 const STATUS_LABEL: Record<string, { label: string; variant: 'secondary' | 'default' | 'outline' }> = {
   draft: { label: 'Em processamento', variant: 'outline' },
   closed: { label: 'Fechamento concluído', variant: 'secondary' },
   released: { label: 'Crédito liberado', variant: 'default' },
 };
+
 
 function Metric({ icon: Icon, label, value, hint, accent }: {
   icon: any; label: string; value: string; hint?: string; accent?: boolean;
@@ -105,6 +114,19 @@ export default function ExpansionProgramSection() {
 
   const preLaunch = !overview.program.official_start_at || !overview.program.weekly_close_enabled;
   const hasTeams = teams.length > 0;
+
+  const totalReleased = snapshots
+    .filter((s) => s.status_official === 'released')
+    .reduce((acc, s) => acc + Number(s.final_bonus || 0), 0);
+  const totalPending = snapshots
+    .filter((s) => s.status_official === 'closed')
+    .reduce((acc, s) => acc + Number(s.final_bonus || 0), 0);
+  const lastReleased = snapshots.find((s) => s.status_official === 'released') || null;
+  const daysLeft = daysUntil(overview.next_close_date);
+  const capPct = Number(overview.weekly_cap) > 0
+    ? Math.min(100, (Number(overview.estimated_bonus) / Number(overview.weekly_cap)) * 100)
+    : 0;
+
 
   return (
     <div className="space-y-5">
@@ -189,8 +211,65 @@ export default function ExpansionProgramSection() {
               na carteira após o fechamento e a liberação financeira.
             </AlertDescription>
           </Alert>
+
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Uso do teto semanal</span>
+              <span>{brl(overview.estimated_bonus)} de {brl(overview.weekly_cap)}</span>
+            </div>
+            <Progress value={capPct} className="h-2" />
+            {capPct >= 100 && (
+              <p className="text-[11px] text-muted-foreground">
+                Teto do plano atingido nesta semana. O excedente permanece acumulado para as próximas semanas.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Fechamento e bônus recebidos */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <CalendarClock className="h-3.5 w-3.5" /> Próximo fechamento
+            </div>
+            <p className="text-lg font-bold">{dt(overview.next_close_date)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {daysLeft === null
+                ? 'Data a definir'
+                : daysLeft === 0
+                  ? 'Fechamento em andamento'
+                  : `Faltam ${daysLeft} dia(s) para o encerramento da semana`}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Bônus já recebidos
+            </div>
+            <p className="text-lg font-bold text-primary">{brl(totalReleased)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {lastReleased
+                ? `Último crédito: ${dt(lastReleased.period_start)} — ${dt(lastReleased.period_end)}`
+                : 'Nenhum crédito liberado até o momento'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Clock className="h-3.5 w-3.5" /> Aguardando liberação
+            </div>
+            <p className="text-lg font-bold">{brl(totalPending)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              Bônus já calculados no fechamento e ainda não creditados na carteira de rede.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
 
       {/* Equipes */}
       <Card>
