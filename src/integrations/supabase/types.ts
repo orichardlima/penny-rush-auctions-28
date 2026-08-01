@@ -2128,6 +2128,42 @@ export type Database = {
         }
         Relationships: []
       }
+      expansion_partner_ranks: {
+        Row: {
+          created_at: string
+          current_rank: string
+          current_rank_since: string | null
+          highest_rank_at: string | null
+          highest_rank_ever: string
+          last_evaluated_at: string | null
+          last_evaluation_reference: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_rank?: string
+          current_rank_since?: string | null
+          highest_rank_at?: string | null
+          highest_rank_ever?: string
+          last_evaluated_at?: string | null
+          last_evaluation_reference?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_rank?: string
+          current_rank_since?: string | null
+          highest_rank_at?: string | null
+          highest_rank_ever?: string
+          last_evaluated_at?: string | null
+          last_evaluation_reference?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expansion_period_snapshots: {
         Row: {
           active_contract_id: string | null
@@ -2308,6 +2344,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      expansion_rank_evaluations: {
+        Row: {
+          created_at: string
+          eligible_leaders: number
+          evaluated_at: string
+          evaluated_by: string | null
+          evaluated_rank: string
+          evaluation_reference: string
+          gross_career_points: number
+          highest_rank_after: string
+          highest_rank_before: string
+          id: string
+          largest_team_share_percent: number
+          net_career_points: number
+          previous_rank: string
+          qualified_rank_points: number
+          qualified_teams: number
+          requirements_met: boolean
+          requirements_pending: Json
+          reversed_career_points: number
+          source_id: string | null
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          eligible_leaders?: number
+          evaluated_at?: string
+          evaluated_by?: string | null
+          evaluated_rank?: string
+          evaluation_reference: string
+          gross_career_points?: number
+          highest_rank_after?: string
+          highest_rank_before?: string
+          id?: string
+          largest_team_share_percent?: number
+          net_career_points?: number
+          previous_rank?: string
+          qualified_rank_points?: number
+          qualified_teams?: number
+          requirements_met?: boolean
+          requirements_pending?: Json
+          reversed_career_points?: number
+          source_id?: string | null
+          source_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          eligible_leaders?: number
+          evaluated_at?: string
+          evaluated_by?: string | null
+          evaluated_rank?: string
+          evaluation_reference?: string
+          gross_career_points?: number
+          highest_rank_after?: string
+          highest_rank_before?: string
+          id?: string
+          largest_team_share_percent?: number
+          net_career_points?: number
+          previous_rank?: string
+          qualified_rank_points?: number
+          qualified_teams?: number
+          requirements_met?: boolean
+          requirements_pending?: Json
+          reversed_career_points?: number
+          source_id?: string | null
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       expansion_team_consumptions: {
         Row: {
@@ -6165,6 +6273,14 @@ export type Database = {
         }[]
       }
       expansion_effective_cutoff: { Args: never; Returns: string }
+      expansion_eligible_leaders: {
+        Args: { _min_rank: string; _user_id: string }
+        Returns: {
+          leader_rank: string
+          leader_user_id: string
+          team_root_user_id: string
+        }[]
+      }
       expansion_estimate_current_period: {
         Args: { _user_id?: string }
         Returns: Json
@@ -6204,6 +6320,8 @@ export type Database = {
         Returns: number
       }
       expansion_position_override_active: { Args: never; Returns: boolean }
+      expansion_preview_career: { Args: { _user_id: string }; Returns: Json }
+      expansion_rank_order: { Args: { _rank: string }; Returns: number }
       expansion_recompute_memberships: {
         Args: { _contract_id: string }
         Returns: number
@@ -6247,6 +6365,10 @@ export type Database = {
       expansion_upgrade_points_delta: {
         Args: { _upgrade_id: string }
         Returns: number
+      }
+      expansion_validate_required_leaders: {
+        Args: { _payload: Json }
+        Returns: boolean
       }
       expansion_weekly_cap_for: {
         Args: { _plan_name: string }
