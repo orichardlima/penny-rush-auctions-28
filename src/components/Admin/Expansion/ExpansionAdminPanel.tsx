@@ -401,10 +401,16 @@ export default function ExpansionAdminPanel() {
           <ExpansionPartnerPointsReport />
         </TabsContent>
 
+        {/* AUTOMAÇÃO SEMANAL */}
+        <TabsContent value="automation" className="mt-4">
+          <ExpansionAutomationPanel />
+        </TabsContent>
+
         {/* INTEGRIDADE */}
         <TabsContent value="integrity" className="mt-4">
           <ExpansionIntegrityReport />
         </TabsContent>
+
 
         {/* COMUNICAÇÃO */}
         <TabsContent value="communication" className="mt-4">
