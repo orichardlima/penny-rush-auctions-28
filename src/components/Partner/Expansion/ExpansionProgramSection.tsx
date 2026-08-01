@@ -211,8 +211,65 @@ export default function ExpansionProgramSection() {
               na carteira após o fechamento e a liberação financeira.
             </AlertDescription>
           </Alert>
+
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Uso do teto semanal</span>
+              <span>{brl(overview.estimated_bonus)} de {brl(overview.weekly_cap)}</span>
+            </div>
+            <Progress value={capPct} className="h-2" />
+            {capPct >= 100 && (
+              <p className="text-[11px] text-muted-foreground">
+                Teto do plano atingido nesta semana. O excedente permanece acumulado para as próximas semanas.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Fechamento e bônus recebidos */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <CalendarClock className="h-3.5 w-3.5" /> Próximo fechamento
+            </div>
+            <p className="text-lg font-bold">{dt(overview.next_close_date)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {daysLeft === null
+                ? 'Data a definir'
+                : daysLeft === 0
+                  ? 'Fechamento em andamento'
+                  : `Faltam ${daysLeft} dia(s) para o encerramento da semana`}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Bônus já recebidos
+            </div>
+            <p className="text-lg font-bold text-primary">{brl(totalReleased)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {lastReleased
+                ? `Último crédito: ${dt(lastReleased.period_start)} — ${dt(lastReleased.period_end)}`
+                : 'Nenhum crédito liberado até o momento'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Clock className="h-3.5 w-3.5" /> Aguardando liberação
+            </div>
+            <p className="text-lg font-bold">{brl(totalPending)}</p>
+            <p className="text-[11px] text-muted-foreground">
+              Bônus já calculados no fechamento e ainda não creditados na carteira de rede.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
 
       {/* Equipes */}
       <Card>
