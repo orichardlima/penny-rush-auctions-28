@@ -24,6 +24,8 @@ import ExpansionClosePreviewDialog from './ExpansionClosePreviewDialog';
 import ExpansionPartnerPointsReport from './ExpansionPartnerPointsReport';
 import ExpansionIntegrityReport from './ExpansionIntegrityReport';
 import ExpansionCommunicationPanel from './ExpansionCommunicationPanel';
+import ExpansionAutomationPanel from './ExpansionAutomationPanel';
+
 
 const sb = supabase as any;
 
