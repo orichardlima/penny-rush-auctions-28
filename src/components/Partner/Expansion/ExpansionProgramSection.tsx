@@ -92,6 +92,7 @@ function SnapshotDetails({ snap }: { snap: ExpansionSnapshot }) {
 export default function ExpansionProgramSection() {
   const { overview, teams, snapshots, loading } = useExpansionProgram();
   const [showHow, setShowHow] = useState(false);
+  const [openTeam, setOpenTeam] = useState<{ id: string; name: string } | null>(null);
 
   if (loading) {
     return (
