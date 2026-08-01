@@ -19,11 +19,20 @@ const brl = (v: number) =>
 const pts = (v: number) => new Intl.NumberFormat('pt-BR').format(Math.round(Number(v || 0)));
 const dt = (v?: string | null) => (v ? new Date(v + (v.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('pt-BR') : '—');
 
+const daysUntil = (v?: string | null) => {
+  if (!v) return null;
+  const target = new Date(v.length === 10 ? v + 'T00:05:00-03:00' : v).getTime();
+  const diff = target - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / 86400000);
+};
+
 const STATUS_LABEL: Record<string, { label: string; variant: 'secondary' | 'default' | 'outline' }> = {
   draft: { label: 'Em processamento', variant: 'outline' },
   closed: { label: 'Fechamento concluído', variant: 'secondary' },
   released: { label: 'Crédito liberado', variant: 'default' },
 };
+
 
 function Metric({ icon: Icon, label, value, hint, accent }: {
   icon: any; label: string; value: string; hint?: string; accent?: boolean;
