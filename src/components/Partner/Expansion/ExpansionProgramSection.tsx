@@ -10,9 +10,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import {
   Users, TrendingUp, Crown, Target, Gauge, Rocket, Info, CalendarClock,
-  Sparkles, PiggyBank, ChevronDown, HelpCircle, CheckCircle2, Clock,
+  Sparkles, PiggyBank, ChevronDown, HelpCircle, CheckCircle2, Clock, Network,
 } from 'lucide-react';
 import { useExpansionProgram, type ExpansionSnapshot } from '@/hooks/useExpansionProgram';
+import TeamNetworkDialog from './TeamNetworkDialog';
 
 const brl = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
@@ -92,6 +93,7 @@ function SnapshotDetails({ snap }: { snap: ExpansionSnapshot }) {
 export default function ExpansionProgramSection() {
   const { overview, teams, snapshots, loading } = useExpansionProgram();
   const [showHow, setShowHow] = useState(false);
+  const [openTeam, setOpenTeam] = useState<{ id: string; name: string } | null>(null);
 
   if (loading) {
     return (
@@ -312,12 +314,31 @@ export default function ExpansionProgramSection() {
                     <Progress value={Number(t.share_pct)} className="h-1.5" />
                     <span className="text-[11px] text-muted-foreground shrink-0">{Number(t.share_pct)}% do volume</span>
                   </div>
+                  <div className="mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setOpenTeam({ id: t.team_root_user_id, name: t.name })}
+                    >
+                      <Network className="h-3.5 w-3.5 mr-1.5" />
+                      Ver rede da equipe
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
+
+      <TeamNetworkDialog
+        open={openTeam !== null}
+        onOpenChange={(v) => !v && setOpenTeam(null)}
+        teamRootUserId={openTeam?.id || null}
+        teamName={openTeam?.name || ''}
+      />
+
 
       {/* Como é calculado */}
       <Card>

@@ -6607,6 +6607,10 @@ export type Database = {
         Args: { _user_id?: string }
         Returns: Json
       }
+      expansion_get_team_network: {
+        Args: { _team_root_user_id: string; _user_id?: string }
+        Returns: Json
+      }
       expansion_integrity_core: {
         Args: { _limit?: number; _period_start?: string }
         Returns: {
