@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 import ExpansionClosePreviewDialog from './ExpansionClosePreviewDialog';
+import ExpansionPartnerPointsReport from './ExpansionPartnerPointsReport';
+import ExpansionIntegrityReport from './ExpansionIntegrityReport';
 
 const sb = supabase as any;
 
@@ -179,6 +181,8 @@ export default function ExpansionAdminPanel() {
           <TabsTrigger value="periods" className="shrink-0">Períodos</TabsTrigger>
           <TabsTrigger value="partners" className="shrink-0">Parceiros</TabsTrigger>
           <TabsTrigger value="teams" className="shrink-0">Equipes</TabsTrigger>
+          <TabsTrigger value="consolidated" className="shrink-0">Consolidado</TabsTrigger>
+          <TabsTrigger value="integrity" className="shrink-0">Integridade</TabsTrigger>
           <TabsTrigger value="consumptions" className="shrink-0">Consumos</TabsTrigger>
           <TabsTrigger value="runs" className="shrink-0">Execuções</TabsTrigger>
           <TabsTrigger value="adjustments" className="shrink-0">Ajustes e reversões</TabsTrigger>
@@ -388,6 +392,16 @@ export default function ExpansionAdminPanel() {
               registradas: <strong>{pts(overview?.teams_total)}</strong> em <strong>{pts(overview?.partners_with_teams)}</strong> parceiros.
             </AlertDescription>
           </Alert>
+        </TabsContent>
+
+        {/* CONSOLIDADO DE PARCEIROS */}
+        <TabsContent value="consolidated" className="mt-4">
+          <ExpansionPartnerPointsReport />
+        </TabsContent>
+
+        {/* INTEGRIDADE */}
+        <TabsContent value="integrity" className="mt-4">
+          <ExpansionIntegrityReport />
         </TabsContent>
 
         {/* CONSUMOS */}
