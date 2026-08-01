@@ -313,12 +313,31 @@ export default function ExpansionProgramSection() {
                     <Progress value={Number(t.share_pct)} className="h-1.5" />
                     <span className="text-[11px] text-muted-foreground shrink-0">{Number(t.share_pct)}% do volume</span>
                   </div>
+                  <div className="mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setOpenTeam({ id: t.team_root_user_id, name: t.name })}
+                    >
+                      <Network className="h-3.5 w-3.5 mr-1.5" />
+                      Ver rede da equipe
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
+
+      <TeamNetworkDialog
+        open={openTeam !== null}
+        onOpenChange={(v) => !v && setOpenTeam(null)}
+        teamRootUserId={openTeam?.id || null}
+        teamName={openTeam?.name || ''}
+      />
+
 
       {/* Como é calculado */}
       <Card>
