@@ -2347,8 +2347,11 @@ export type Database = {
       }
       expansion_rank_evaluations: {
         Row: {
+          config_snapshot: Json
           created_at: string
+          distinct_leader_teams: number
           eligible_leaders: number
+          evaluated_as_of: string | null
           evaluated_at: string
           evaluated_by: string | null
           evaluated_rank: string
@@ -2365,13 +2368,17 @@ export type Database = {
           requirements_met: boolean
           requirements_pending: Json
           reversed_career_points: number
+          run_id: string | null
           source_id: string | null
           source_type: string
           user_id: string
         }
         Insert: {
+          config_snapshot?: Json
           created_at?: string
+          distinct_leader_teams?: number
           eligible_leaders?: number
+          evaluated_as_of?: string | null
           evaluated_at?: string
           evaluated_by?: string | null
           evaluated_rank?: string
@@ -2388,13 +2395,17 @@ export type Database = {
           requirements_met?: boolean
           requirements_pending?: Json
           reversed_career_points?: number
+          run_id?: string | null
           source_id?: string | null
           source_type?: string
           user_id: string
         }
         Update: {
+          config_snapshot?: Json
           created_at?: string
+          distinct_leader_teams?: number
           eligible_leaders?: number
+          evaluated_as_of?: string | null
           evaluated_at?: string
           evaluated_by?: string | null
           evaluated_rank?: string
@@ -2411,9 +2422,85 @@ export type Database = {
           requirements_met?: boolean
           requirements_pending?: Json
           reversed_career_points?: number
+          run_id?: string | null
           source_id?: string | null
           source_type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      expansion_rank_runs: {
+        Row: {
+          config_snapshot: Json
+          created_at: string
+          downgraded_partners: number
+          error_summary: string | null
+          evaluated_as_of: string
+          evaluated_partners: number
+          failed_partners: number
+          finished_at: string | null
+          id: string
+          metadata: Json
+          mode: string
+          pass_count: number
+          period_end: string | null
+          period_start: string | null
+          promoted_partners: number
+          run_reference: string
+          run_type: string
+          started_at: string
+          status: string
+          total_partners: number
+          triggered_by: string | null
+          unchanged_partners: number
+        }
+        Insert: {
+          config_snapshot?: Json
+          created_at?: string
+          downgraded_partners?: number
+          error_summary?: string | null
+          evaluated_as_of: string
+          evaluated_partners?: number
+          failed_partners?: number
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          mode?: string
+          pass_count?: number
+          period_end?: string | null
+          period_start?: string | null
+          promoted_partners?: number
+          run_reference: string
+          run_type?: string
+          started_at?: string
+          status?: string
+          total_partners?: number
+          triggered_by?: string | null
+          unchanged_partners?: number
+        }
+        Update: {
+          config_snapshot?: Json
+          created_at?: string
+          downgraded_partners?: number
+          error_summary?: string | null
+          evaluated_as_of?: string
+          evaluated_partners?: number
+          failed_partners?: number
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          mode?: string
+          pass_count?: number
+          period_end?: string | null
+          period_start?: string | null
+          promoted_partners?: number
+          run_reference?: string
+          run_type?: string
+          started_at?: string
+          status?: string
+          total_partners?: number
+          triggered_by?: string | null
+          unchanged_partners?: number
         }
         Relationships: []
       }
@@ -6142,6 +6229,10 @@ export type Database = {
         Args: { _limit?: number }
         Returns: Json
       }
+      expansion_admin_evaluate_career: {
+        Args: { _mode?: string; _reason?: string; _user_id?: string }
+        Returns: Json
+      }
       expansion_admin_integrity_check: {
         Args: { _limit?: number }
         Returns: {
@@ -6195,8 +6286,29 @@ export type Database = {
         Returns: Json
       }
       expansion_bahia_today: { Args: never; Returns: string }
+      expansion_career_config_snapshot: { Args: never; Returns: Json }
       expansion_career_ledger_net_rows: {
         Args: never
+        Returns: {
+          classification: string
+          contract_id: string
+          event_created_at: string
+          gross_points: number
+          has_reversal_anomaly: boolean
+          is_fully_reversed: boolean
+          ledger_id: string
+          net_points: number
+          plan_name_canonical: string
+          reversal_count: number
+          reversed_points: number
+          source_id: string
+          source_ref: string
+          source_type: string
+          user_id: string
+        }[]
+      }
+      expansion_career_ledger_net_rows_as_of: {
+        Args: { _as_of: string }
         Returns: {
           classification: string
           contract_id: string
@@ -6233,6 +6345,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      expansion_career_points_as_of: {
+        Args: { _as_of: string; _user_id: string }
+        Returns: {
+          calculated_at: string
+          gross_career_points: number
+          largest_team_points: number
+          largest_team_share_percent: number
+          net_career_points: number
+          other_teams_points: number
+          qualified_teams: number
+          reversed_career_points: number
+          teams_with_positive_points: number
+          user_id: string
+        }[]
+      }
       expansion_career_points_by_team: {
         Args: { _user_id?: string }
         Returns: {
@@ -6249,8 +6376,32 @@ export type Database = {
           team_root_user_id: string
         }[]
       }
+      expansion_career_points_by_team_as_of: {
+        Args: { _as_of: string; _user_id: string }
+        Returns: {
+          ancestor_user_id: string
+          first_valid_event_at: string
+          gross_career_points: number
+          is_qualified_team: boolean
+          last_valid_event_at: string
+          net_career_points: number
+          real_active_partner_count: number
+          reversed_career_points: number
+          share_of_total_percent: number
+          team_public_name: string
+          team_root_user_id: string
+        }[]
+      }
       expansion_close_partner_week: {
         Args: { _period_start: string; _run_id?: string; _user_id: string }
+        Returns: Json
+      }
+      expansion_compute_career_state: {
+        Args: {
+          _evaluated_as_of?: string
+          _rank_context?: Json
+          _user_id: string
+        }
         Returns: Json
       }
       expansion_compute_week: {
@@ -6281,8 +6432,35 @@ export type Database = {
           team_root_user_id: string
         }[]
       }
+      expansion_eligible_leaders_ctx: {
+        Args: {
+          _as_of: string
+          _min_rank: string
+          _rank_context?: Json
+          _user_id: string
+        }
+        Returns: {
+          leader_rank: string
+          leader_user_id: string
+          team_root_user_id: string
+        }[]
+      }
       expansion_estimate_current_period: {
         Args: { _user_id?: string }
+        Returns: Json
+      }
+      expansion_evaluate_career_internal: {
+        Args: {
+          _calculated_rank_context?: Json
+          _config_snapshot?: Json
+          _evaluated_as_of: string
+          _evaluated_by?: string
+          _evaluation_reference: string
+          _run_id: string
+          _source_id: string
+          _source_type: string
+          _user_id: string
+        }
         Returns: Json
       }
       expansion_fmt_br: {
@@ -6307,6 +6485,10 @@ export type Database = {
         Returns: string
       }
       expansion_notify_cap_alerts: { Args: never; Returns: Json }
+      expansion_notify_rank_change: {
+        Args: { _evaluation_id: string }
+        Returns: undefined
+      }
       expansion_notify_snapshot: {
         Args: { _kind: string; _snapshot_id: string }
         Returns: undefined
@@ -6342,6 +6524,16 @@ export type Database = {
       expansion_reverse_contract: {
         Args: { _contract_id: string; _reason?: string }
         Returns: number
+      }
+      expansion_run_career_evaluation: {
+        Args: {
+          _evaluated_as_of?: string
+          _mode?: string
+          _period_start?: string
+          _reference?: string
+          _triggered_by?: string
+        }
+        Returns: Json
       }
       expansion_run_weekly_close: {
         Args: {
