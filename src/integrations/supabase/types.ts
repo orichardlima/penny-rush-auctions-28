@@ -5790,6 +5790,40 @@ export type Database = {
           },
         ]
       }
+      expansion_career_ledger_net: {
+        Row: {
+          classification: string | null
+          contract_id: string | null
+          event_created_at: string | null
+          gross_points: number | null
+          has_reversal_anomaly: boolean | null
+          is_fully_reversed: boolean | null
+          ledger_id: string | null
+          net_points: number | null
+          plan_name_canonical: string | null
+          reversal_count: number | null
+          reversed_points: number | null
+          source_id: string | null
+          source_ref: string | null
+          source_type: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      expansion_career_reversal_anomalies: {
+        Row: {
+          anomaly_type: string | null
+          excess_points: number | null
+          original_ledger_id: string | null
+          original_points: number | null
+          recommendation: string | null
+          reversal_ledger_ids: string[] | null
+          severity: string | null
+          total_reversed_points: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       expansion_plan_name_alerts: {
         Row: {
           normalized_value: string | null
@@ -6053,6 +6087,60 @@ export type Database = {
         Returns: Json
       }
       expansion_bahia_today: { Args: never; Returns: string }
+      expansion_career_ledger_net_rows: {
+        Args: never
+        Returns: {
+          classification: string
+          contract_id: string
+          event_created_at: string
+          gross_points: number
+          has_reversal_anomaly: boolean
+          is_fully_reversed: boolean
+          ledger_id: string
+          net_points: number
+          plan_name_canonical: string
+          reversal_count: number
+          reversed_points: number
+          source_id: string
+          source_ref: string
+          source_type: string
+          user_id: string
+        }[]
+      }
+      expansion_career_points: {
+        Args: { _user_id?: string }
+        Returns: {
+          authorized_prelaunch_event_count: number
+          calculated_at: string
+          gross_career_points: number
+          largest_team_points: number
+          largest_team_share_percent: number
+          net_career_points: number
+          official_event_count: number
+          other_teams_points: number
+          qualified_teams: number
+          reversal_count: number
+          reversed_career_points: number
+          teams_with_positive_points: number
+          user_id: string
+        }[]
+      }
+      expansion_career_points_by_team: {
+        Args: { _user_id?: string }
+        Returns: {
+          ancestor_user_id: string
+          first_valid_event_at: string
+          gross_career_points: number
+          is_qualified_team: boolean
+          last_valid_event_at: string
+          net_career_points: number
+          real_active_partner_count: number
+          reversed_career_points: number
+          share_of_total_percent: number
+          team_public_name: string
+          team_root_user_id: string
+        }[]
+      }
       expansion_close_partner_week: {
         Args: { _period_start: string; _run_id?: string; _user_id: string }
         Returns: Json
