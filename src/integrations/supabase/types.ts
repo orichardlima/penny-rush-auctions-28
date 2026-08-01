@@ -2128,6 +2128,90 @@ export type Database = {
         }
         Relationships: []
       }
+      expansion_orchestration_runs: {
+        Row: {
+          career_dry_run_status: string
+          career_official_status: string
+          career_run_id: string | null
+          close_run_id: string | null
+          close_status: string
+          created_at: string
+          current_stage: string | null
+          error_summary: string | null
+          final_audit_status: string
+          financial_audit_status: string
+          finished_at: string | null
+          id: string
+          metadata: Json
+          next_retry_at: string | null
+          notification_status: string
+          orchestration_reference: string
+          period_end: string
+          period_start: string
+          release_status: string
+          retry_count: number
+          stages: Json
+          started_at: string
+          status: string
+          summary: Json
+          updated_at: string
+        }
+        Insert: {
+          career_dry_run_status?: string
+          career_official_status?: string
+          career_run_id?: string | null
+          close_run_id?: string | null
+          close_status?: string
+          created_at?: string
+          current_stage?: string | null
+          error_summary?: string | null
+          final_audit_status?: string
+          financial_audit_status?: string
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          next_retry_at?: string | null
+          notification_status?: string
+          orchestration_reference: string
+          period_end: string
+          period_start: string
+          release_status?: string
+          retry_count?: number
+          stages?: Json
+          started_at?: string
+          status?: string
+          summary?: Json
+          updated_at?: string
+        }
+        Update: {
+          career_dry_run_status?: string
+          career_official_status?: string
+          career_run_id?: string | null
+          close_run_id?: string | null
+          close_status?: string
+          created_at?: string
+          current_stage?: string | null
+          error_summary?: string | null
+          final_audit_status?: string
+          financial_audit_status?: string
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          next_retry_at?: string | null
+          notification_status?: string
+          orchestration_reference?: string
+          period_end?: string
+          period_start?: string
+          release_status?: string
+          retry_count?: number
+          stages?: Json
+          started_at?: string
+          status?: string
+          summary?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expansion_partner_ranks: {
         Row: {
           created_at: string
@@ -6211,6 +6295,10 @@ export type Database = {
       execute_overdue_bot_bids_safe: { Args: never; Returns: undefined }
       execute_panic_bids: { Args: never; Returns: Json }
       expansion_admin_adjustments: { Args: { _limit?: number }; Returns: Json }
+      expansion_admin_alert: {
+        Args: { _message: string; _ref: string; _title: string }
+        Returns: number
+      }
       expansion_admin_audit_log: { Args: { _limit?: number }; Returns: Json }
       expansion_admin_broadcast: {
         Args: {
@@ -6245,6 +6333,46 @@ export type Database = {
           title: string
           user_id: string
         }[]
+      }
+      expansion_admin_orchestration: {
+        Args: { _limit?: number }
+        Returns: {
+          career_dry_run_status: string
+          career_official_status: string
+          career_run_id: string | null
+          close_run_id: string | null
+          close_status: string
+          created_at: string
+          current_stage: string | null
+          error_summary: string | null
+          final_audit_status: string
+          financial_audit_status: string
+          finished_at: string | null
+          id: string
+          metadata: Json
+          next_retry_at: string | null
+          notification_status: string
+          orchestration_reference: string
+          period_end: string
+          period_start: string
+          release_status: string
+          retry_count: number
+          stages: Json
+          started_at: string
+          status: string
+          summary: Json
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "expansion_orchestration_runs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      expansion_admin_orchestration_action: {
+        Args: { _action?: string; _period_start: string }
+        Returns: Json
       }
       expansion_admin_overview: { Args: never; Returns: Json }
       expansion_admin_partner_points: {
@@ -6479,6 +6607,32 @@ export type Database = {
         Args: { _user_id?: string }
         Returns: Json
       }
+      expansion_integrity_core: {
+        Args: { _limit?: number; _period_start?: string }
+        Returns: {
+          code: string
+          detail: string
+          partner_name: string
+          period_start: string
+          reference: string
+          severity: string
+          title: string
+          user_id: string
+        }[]
+      }
+      expansion_integrity_rows: {
+        Args: { _limit?: number }
+        Returns: {
+          code: string
+          detail: string
+          partner_name: string
+          period_start: string
+          reference: string
+          severity: string
+          title: string
+          user_id: string
+        }[]
+      }
       expansion_last_closed_week: { Args: never; Returns: string }
       expansion_normalize_plan_name: {
         Args: { _plan_name: string }
@@ -6491,6 +6645,21 @@ export type Database = {
       }
       expansion_notify_snapshot: {
         Args: { _kind: string; _snapshot_id: string }
+        Returns: undefined
+      }
+      expansion_orch_stage_begin: {
+        Args: { _run_id: string; _stage: string }
+        Returns: number
+      }
+      expansion_orch_stage_end: {
+        Args: {
+          _error?: string
+          _next_retry?: string
+          _result?: Json
+          _run_id: string
+          _stage: string
+          _status: string
+        }
         Returns: undefined
       }
       expansion_plan_points_for: {
@@ -6508,6 +6677,7 @@ export type Database = {
         Args: { _contract_id: string }
         Returns: number
       }
+      expansion_recover_weekly_orchestration: { Args: never; Returns: Json }
       expansion_release_bonus: {
         Args: { _payout_reference: string; _snapshot_id: string }
         Returns: string
@@ -6542,6 +6712,10 @@ export type Database = {
           _period_start?: string
           _reason?: string
         }
+        Returns: Json
+      }
+      expansion_run_weekly_orchestration: {
+        Args: { _period_start?: string; _reference?: string }
         Returns: Json
       }
       expansion_structural_lock_active: { Args: never; Returns: boolean }
