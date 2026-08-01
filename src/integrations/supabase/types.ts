@@ -2297,6 +2297,13 @@ export type Database = {
             foreignKeyName: "expansion_points_ledger_reverses_id_fkey"
             columns: ["reverses_id"]
             isOneToOne: false
+            referencedRelation: "expansion_career_ledger_events"
+            referencedColumns: ["ledger_id"]
+          },
+          {
+            foreignKeyName: "expansion_points_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
             referencedRelation: "expansion_points_ledger"
             referencedColumns: ["id"]
           },
@@ -5740,7 +5747,62 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      expansion_career_ledger_events: {
+        Row: {
+          classification: string | null
+          contract_id: string | null
+          counts_as_career_gross: boolean | null
+          created_at: string | null
+          cutoff_at: string | null
+          has_reversal_line: boolean | null
+          ledger_id: string | null
+          plan_name_canonical: string | null
+          plan_name_original: string | null
+          points: number | null
+          recommendation: string | null
+          reverses_id: string | null
+          source: string | null
+          source_ref: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expansion_points_ledger_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "partner_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expansion_points_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "expansion_career_ledger_events"
+            referencedColumns: ["ledger_id"]
+          },
+          {
+            foreignKeyName: "expansion_points_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "expansion_points_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expansion_plan_name_alerts: {
+        Row: {
+          normalized_value: string | null
+          occurrences: number | null
+          original_value: string | null
+          recommendation: string | null
+          sample_record_id: string | null
+          severity: string | null
+          source_column: string | null
+          source_table: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _bot_finalize_auction: {
@@ -6036,10 +6098,22 @@ export type Database = {
         Returns: Json
       }
       expansion_last_closed_week: { Args: never; Returns: string }
+      expansion_normalize_plan_name: {
+        Args: { _plan_name: string }
+        Returns: string
+      }
       expansion_notify_cap_alerts: { Args: never; Returns: Json }
       expansion_notify_snapshot: {
         Args: { _kind: string; _snapshot_id: string }
         Returns: undefined
+      }
+      expansion_plan_points_for: {
+        Args: { _plan_name: string }
+        Returns: number
+      }
+      expansion_plan_setting_value: {
+        Args: { _plan_name: string; _setting_key: string }
+        Returns: number
       }
       expansion_position_override_active: { Args: never; Returns: boolean }
       expansion_recompute_memberships: {
@@ -6084,6 +6158,10 @@ export type Database = {
       }
       expansion_upgrade_points_delta: {
         Args: { _upgrade_id: string }
+        Returns: number
+      }
+      expansion_weekly_cap_for: {
+        Args: { _plan_name: string }
         Returns: number
       }
       expire_bid_lots: {
