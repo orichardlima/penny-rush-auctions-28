@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.expansion_part3_selftest() TO service_role, postgres, authenticated;
