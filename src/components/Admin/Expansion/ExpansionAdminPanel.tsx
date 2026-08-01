@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 import ExpansionClosePreviewDialog from './ExpansionClosePreviewDialog';
+import ExpansionPartnerPointsReport from './ExpansionPartnerPointsReport';
+import ExpansionIntegrityReport from './ExpansionIntegrityReport';
 
 const sb = supabase as any;
 
