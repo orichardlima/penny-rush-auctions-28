@@ -2095,6 +2095,39 @@ export type Database = {
         }
         Relationships: []
       }
+      expansion_communications: {
+        Row: {
+          audience: string
+          created_at: string
+          created_by: string | null
+          id: string
+          link: string | null
+          message: string
+          recipients_count: number
+          title: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string | null
+          message: string
+          recipients_count?: number
+          title: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string | null
+          message?: string
+          recipients_count?: number
+          title?: string
+        }
+        Relationships: []
+      }
       expansion_period_snapshots: {
         Row: {
           active_contract_id: string | null
@@ -5888,8 +5921,21 @@ export type Database = {
       execute_panic_bids: { Args: never; Returns: Json }
       expansion_admin_adjustments: { Args: { _limit?: number }; Returns: Json }
       expansion_admin_audit_log: { Args: { _limit?: number }; Returns: Json }
+      expansion_admin_broadcast: {
+        Args: {
+          _audience?: string
+          _link?: string
+          _message: string
+          _title: string
+        }
+        Returns: Json
+      }
       expansion_admin_close_week: {
         Args: { _period_start: string; _reason: string }
+        Returns: Json
+      }
+      expansion_admin_communications: {
+        Args: { _limit?: number }
         Returns: Json
       }
       expansion_admin_integrity_check: {
@@ -5990,6 +6036,7 @@ export type Database = {
         Returns: Json
       }
       expansion_last_closed_week: { Args: never; Returns: string }
+      expansion_notify_cap_alerts: { Args: never; Returns: Json }
       expansion_notify_snapshot: {
         Args: { _kind: string; _snapshot_id: string }
         Returns: undefined
