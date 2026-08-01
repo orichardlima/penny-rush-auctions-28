@@ -185,7 +185,9 @@ export default function ExpansionAdminPanel() {
           <TabsTrigger value="partners" className="shrink-0">Parceiros</TabsTrigger>
           <TabsTrigger value="teams" className="shrink-0">Equipes</TabsTrigger>
           <TabsTrigger value="consolidated" className="shrink-0">Consolidado</TabsTrigger>
+          <TabsTrigger value="automation" className="shrink-0">Automação Semanal</TabsTrigger>
           <TabsTrigger value="integrity" className="shrink-0">Integridade</TabsTrigger>
+
           <TabsTrigger value="communication" className="shrink-0">Comunicação</TabsTrigger>
           <TabsTrigger value="consumptions" className="shrink-0">Consumos</TabsTrigger>
           <TabsTrigger value="runs" className="shrink-0">Execuções</TabsTrigger>
