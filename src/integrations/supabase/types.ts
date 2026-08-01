@@ -6311,6 +6311,7 @@ export type Database = {
         Args: { _kind: string; _snapshot_id: string }
         Returns: undefined
       }
+      expansion_part3_selftest: { Args: never; Returns: Json }
       expansion_plan_points_for: {
         Args: { _plan_name: string }
         Returns: number
