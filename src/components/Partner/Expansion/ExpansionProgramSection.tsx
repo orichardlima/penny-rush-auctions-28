@@ -10,9 +10,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import {
   Users, TrendingUp, Crown, Target, Gauge, Rocket, Info, CalendarClock,
-  Sparkles, PiggyBank, ChevronDown, HelpCircle, CheckCircle2, Clock,
+  Sparkles, PiggyBank, ChevronDown, HelpCircle, CheckCircle2, Clock, Network,
 } from 'lucide-react';
 import { useExpansionProgram, type ExpansionSnapshot } from '@/hooks/useExpansionProgram';
+import TeamNetworkDialog from './TeamNetworkDialog';
 
 const brl = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
