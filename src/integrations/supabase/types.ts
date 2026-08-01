@@ -6677,7 +6677,10 @@ export type Database = {
         Args: { _contract_id: string }
         Returns: number
       }
-      expansion_recover_weekly_orchestration: { Args: never; Returns: Json }
+      expansion_recover_weekly_orchestration: {
+        Args: { _enforce_window?: boolean }
+        Returns: Json
+      }
       expansion_release_bonus: {
         Args: { _payout_reference: string; _snapshot_id: string }
         Returns: string
