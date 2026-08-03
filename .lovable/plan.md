@@ -1,29 +1,39 @@
-## Problema
+# Por que a tela da Géssica mostra R$ 0,00 em Repasses
 
-No `index.html`, as tags de preview social apontam para a imagem da Lovable:
+## O que os dados mostram (consulta somente leitura)
 
-```html
-<meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-<meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-```
+Contrato Diamond `#F143036A` (ACTIVE, aporte R$ 25.000, teto R$ 55.000, teto semanal R$ 625).
 
-É por isso que o WhatsApp mostra o banner "Build apps and websites by chatting with AI".
+- Total de repasses **creditados** (payouts PAID): **R$ 10.425,00**
+- Total **sacado** (saques PAID): **R$ 12.625,00**
+- Saldo = 10.425 − 12.625 = **−2.200** → a função de saldo limita em zero, por isso a tela mostra **R$ 0,00**
 
-## Solução
+Ou seja: a tela não perdeu valores, ela está refletindo um saldo negativo real no contrato.
 
-1. Gerar uma imagem de preview 1200x630 com a identidade Show de Lances (logo, fundo escuro com o roxo/primário da marca e a chamada "Ganhe produtos incríveis por centavos").
-2. Publicar a imagem em `public/og-image.jpg` (URL absoluta `https://showdelances.com/og-image.jpg`, o domínio principal do projeto).
-3. Atualizar `index.html`:
-   - `og:image` e `twitter:image` para a nova URL absoluta;
-   - adicionar `og:image:width` (1200), `og:image:height` (630) e `og:image:alt`;
-   - adicionar `og:url` e `og:site_name` com o domínio oficial;
-   - remover `twitter:site` `@lovable_dev`.
-4. Ajustar `src/components/SEOHead.tsx` para usar a mesma imagem absoluta como padrão (hoje o default é um caminho relativo, que crawlers não resolvem).
+## Por que ficou negativo
 
-## Observação importante
+O bônus de indicação de R$ 4.000 (payout `98790e60`, ainda PENDING) foi pago de forma manual em 10/06 como se fosse repasse semanal (payout `66b986e1`, tipo `partnership_weekly_repass`, R$ 4.000). Depois foram pagos dois saques de R$ 4.000 (15/06 e 22/06) mais R$ 2.950 e R$ 450, totalizando saques acima do que foi creditado no contrato.
 
-O WhatsApp guarda cache do preview por link. Depois da publicação, o link antigo pode continuar mostrando a imagem antiga por algumas horas; compartilhar com um parâmetro novo (ex.: `showdelances.com/?v=2`) força a atualização imediata.
+Resultado: déficit de R$ 2.200 no contrato. Os repasses semanais recentes (13/07 R$ 525, 20/07 R$ 500, 27/07 R$ 250, 03/08 R$ 525 = R$ 1.800) estão sendo absorvidos por esse déficit e por isso não aparecem como disponíveis.
 
-## Escopo
+Em paralelo, o mesmo bônus de R$ 4.000 foi migrado em 30/07 para a nova Carteira de Rede — é o valor azul que ela vê. Como o bônus já havia sido pago em 10/06 via contrato, esse saldo de rede é uma **duplicidade**.
 
-Somente metadados de `<head>` e o novo arquivo de imagem. Nenhuma mudança de UI, fluxo ou lógica de negócio.
+## Opções de correção (precisa da sua decisão)
+
+1. **Regularizar as duas pontas (recomendado)**
+   - Estornar os R$ 4.000 duplicados da carteira de rede (lançamento de ajuste, sem apagar histórico) e marcar o payout `98790e60` como PAID/liquidado em 10/06.
+   - Lançar um crédito de correção de R$ 2.200 no contrato para zerar o déficit, de modo que os repasses semanais voltem a ficar disponíveis normalmente.
+   - Efeito para a Géssica: Bônus de Rede volta a R$ 0,00 (já foi pago) e Repasses passam a mostrar o acumulado das últimas semanas.
+
+2. **Regularizar só o contrato**
+   - Crédito de correção de R$ 2.200 no contrato e manter os R$ 4.000 na carteira de rede.
+   - Efeito: ela receberia R$ 4.000 duas vezes pelo mesmo bônus (não recomendado).
+
+3. **Congelar**
+   - Bloquear o saque da carteira de rede dela até decisão, sem alterar nada agora.
+
+## Detalhes técnicos
+
+- Fonte do valor exibido: RPC `partner_get_withdrawal_balances` → `repass_available = max(0, credited − withdrawn − reserved)`.
+- Consumido pelo hook `useWithdrawalBalances` e renderizado em `WithdrawalBalancesBreakdown.tsx`. Nenhuma alteração de UI é necessária — o problema é de dados.
+- Qualquer correção será feita por lançamentos de ajuste auditáveis (`partner_manual_credits` / `partner_network_wallet_transactions`), sem deletar registros históricos.
