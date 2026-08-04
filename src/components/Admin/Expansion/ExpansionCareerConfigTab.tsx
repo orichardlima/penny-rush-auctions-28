@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Save, Play, RefreshCw, AlertCircle, Info, CheckCircle2, History } from 'lucide-react';
+import { Loader2, Save, Play, RefreshCw, AlertCircle, Info, CheckCircle2, History, Lock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -71,42 +71,8 @@ export default function ExpansionCareerConfigTab() {
   };
 
   const save = async () => {
-    if (!reason.trim()) {
-      toast.error('Informe o motivo da alteração para auditoria.');
-      return;
-    }
-    setSaving(true);
-    try {
-      // Requisito 8: Usar wrapper administrativo. 
-      // Atualmente expansion_admin_update_settings lida com system_settings. 
-      // Para career_config, vamos atualizar a tabela diretamente ou via rpc se existisse.
-      // O requisito 8 pede expansion_admin_publish_career_config. Vamos assumir que precisamos criá-la na migration.
-      // Por enquanto, atualizamos os registros.
-      for (const item of draft) {
-        const { error } = await supabase
-          .from('expansion_career_config')
-          .update({
-            rank_label: item.rank_label,
-            min_organizational_points: item.min_organizational_points,
-            min_qualified_teams: item.min_qualified_teams,
-            max_team_concentration_pct: item.max_team_concentration_pct,
-            min_active_partners_per_team: item.min_active_partners_per_team,
-            is_active: item.is_active,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.id);
-        if (error) throw error;
-      }
-
-      toast.success('Configurações publicadas com sucesso!');
-      setIsEditing(false);
-      setReason('');
-      load();
-    } catch (e: any) {
-      toast.error('Erro ao salvar: ' + e.message);
-    } finally {
-      setSaving(false);
-    }
+    toast.info('Publicação bloqueada: Aguardando aprovação do backend versionado (Etapa Final).');
+    console.log('Publicação direta desativada conforme Requisito 1 da especificação Etapa Final.');
   };
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -116,7 +82,7 @@ export default function ExpansionCareerConfigTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold">Configuração de Carreira</h3>
-          <p className="text-sm text-muted-foreground">Fonte oficial: expansion_career_config</p>
+          <p className="text-sm text-muted-foreground">Fonte oficial: expansion_career_config (Versão Legada v1)</p>
         </div>
         <div className="flex gap-2">
           {!isEditing ? (
@@ -124,9 +90,9 @@ export default function ExpansionCareerConfigTab() {
           ) : (
             <>
               <Button variant="outline" onClick={() => { setIsEditing(false); setDraft(JSON.parse(JSON.stringify(configs))); }} size="sm">Cancelar</Button>
-              <Button onClick={save} disabled={saving} size="sm" className="bg-green-600 hover:bg-green-700">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Publicar Alterações
+              <Button onClick={save} disabled={saving} size="sm" className="bg-muted text-muted-foreground cursor-not-allowed">
+                <Lock className="h-4 w-4 mr-2" />
+                Publicar (Bloqueado)
               </Button>
             </>
           )}
