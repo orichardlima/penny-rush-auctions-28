@@ -2032,6 +2032,60 @@ export type Database = {
         }
         Relationships: []
       }
+      expansion_career_config_versions: {
+        Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          change_reason: string
+          config_data: Json
+          config_hash: string
+          created_at: string | null
+          created_by: string | null
+          dry_run_impact_snapshot: Json | null
+          effective_from: string
+          id: string
+          published_at: string | null
+          published_by: string | null
+          status: Database["public"]["Enums"]["expansion_config_status"]
+          version_number: number
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          change_reason: string
+          config_data: Json
+          config_hash: string
+          created_at?: string | null
+          created_by?: string | null
+          dry_run_impact_snapshot?: Json | null
+          effective_from: string
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          status?: Database["public"]["Enums"]["expansion_config_status"]
+          version_number: number
+        }
+        Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          change_reason?: string
+          config_data?: Json
+          config_hash?: string
+          created_at?: string | null
+          created_by?: string | null
+          dry_run_impact_snapshot?: Json | null
+          effective_from?: string
+          id?: string
+          published_at?: string | null
+          published_by?: string | null
+          status?: Database["public"]["Enums"]["expansion_config_status"]
+          version_number?: number
+        }
+        Relationships: []
+      }
       expansion_close_runs: {
         Row: {
           admin_id: string | null
@@ -7465,6 +7519,11 @@ export type Database = {
         | "kit_divulgacao"
         | "regulamento"
         | "outros"
+      expansion_config_status:
+        | "DRAFT"
+        | "PUBLISHED"
+        | "SUPERSEDED"
+        | "CANCELLED"
       points_inventory_movement_type:
         | "ENTRY"
         | "RESERVE"
@@ -7650,6 +7709,12 @@ export const Constants = {
         "kit_divulgacao",
         "regulamento",
         "outros",
+      ],
+      expansion_config_status: [
+        "DRAFT",
+        "PUBLISHED",
+        "SUPERSEDED",
+        "CANCELLED",
       ],
       points_inventory_movement_type: [
         "ENTRY",
