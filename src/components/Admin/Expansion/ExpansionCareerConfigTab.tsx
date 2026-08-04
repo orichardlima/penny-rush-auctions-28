@@ -82,7 +82,7 @@ export default function ExpansionCareerConfigTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold">Configuração de Carreira</h3>
-          <p className="text-sm text-muted-foreground">Fonte oficial: expansion_career_config</p>
+          <p className="text-sm text-muted-foreground">Fonte oficial: expansion_career_config (Versão Legada v1)</p>
         </div>
         <div className="flex gap-2">
           {!isEditing ? (
@@ -90,9 +90,9 @@ export default function ExpansionCareerConfigTab() {
           ) : (
             <>
               <Button variant="outline" onClick={() => { setIsEditing(false); setDraft(JSON.parse(JSON.stringify(configs))); }} size="sm">Cancelar</Button>
-              <Button onClick={save} disabled={saving} size="sm" className="bg-green-600 hover:bg-green-700">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Publicar Alterações
+              <Button onClick={save} disabled={saving} size="sm" className="bg-muted text-muted-foreground cursor-not-allowed">
+                <Lock className="h-4 w-4 mr-2" />
+                Publicar (Bloqueado)
               </Button>
             </>
           )}
