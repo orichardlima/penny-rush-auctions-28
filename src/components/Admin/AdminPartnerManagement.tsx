@@ -17,6 +17,8 @@ import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
 import PartnerGraduationManager from './PartnerGraduationManager';
+import ExpansionCareerRankBadge from '@/components/Partner/ExpansionCareerRankBadge';
+
 import DailyRevenueConfigManager from './DailyRevenueConfigManager';
 import DailyPayoutPreview from './DailyPayoutPreview';
 import { RevenueProjectionDashboard } from './RevenueProjectionDashboard';
@@ -423,6 +425,8 @@ const AdminPartnerManagement = () => {
       const matchesStatus = contractStatusFilter === 'all' || contract.status === contractStatusFilter;
       const matchesPlan = contractPlanFilter === 'all' || contract.plan_name === contractPlanFilter;
       const matchesFinancial = financialStatusFilter === 'all' || contract.financial_status === financialStatusFilter;
+...
+
       return matchesSearch && matchesStatus && matchesPlan && matchesFinancial;
     });
   }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter, financialStatusFilter]);

@@ -25,6 +25,8 @@ import ExpansionPartnerPointsReport from './ExpansionPartnerPointsReport';
 import ExpansionIntegrityReport from './ExpansionIntegrityReport';
 import ExpansionCommunicationPanel from './ExpansionCommunicationPanel';
 import ExpansionAutomationPanel from './ExpansionAutomationPanel';
+import ExpansionCareerConfigTab from './ExpansionCareerConfigTab';
+
 
 
 const sb = supabase as any;
@@ -187,6 +189,8 @@ export default function ExpansionAdminPanel() {
           <TabsTrigger value="consolidated" className="shrink-0">Consolidado</TabsTrigger>
           <TabsTrigger value="automation" className="shrink-0">Automação Semanal</TabsTrigger>
           <TabsTrigger value="integrity" className="shrink-0">Integridade</TabsTrigger>
+          <TabsTrigger value="career_config" className="shrink-0">Configuração de Carreira</TabsTrigger>
+
 
           <TabsTrigger value="communication" className="shrink-0">Comunicação</TabsTrigger>
           <TabsTrigger value="consumptions" className="shrink-0">Consumos</TabsTrigger>
@@ -341,6 +345,13 @@ export default function ExpansionAdminPanel() {
             {periodFilter && <Button variant="ghost" size="sm" onClick={() => setPeriodFilter('')}>Limpar período</Button>}
           </div>
           {snapshots.length === 0 && <p className="text-sm text-muted-foreground">Nenhum snapshot encontrado.</p>}
+        </TabsContent>
+
+        {/* CONFIGURAÇÃO DE CARREIRA */}
+        <TabsContent value="career_config" className="mt-4">
+          <ExpansionCareerConfigTab />
+        </TabsContent>
+
           <Accordion type="single" collapsible>
             {snapshots.map((sp: any) => (
               <AccordionItem key={sp.id} value={sp.id}>
