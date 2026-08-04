@@ -425,10 +425,10 @@ const AdminPartnerManagement = () => {
       const matchesStatus = contractStatusFilter === 'all' || contract.status === contractStatusFilter;
       const matchesPlan = contractPlanFilter === 'all' || contract.plan_name === contractPlanFilter;
       const matchesFinancial = financialStatusFilter === 'all' || contract.financial_status === financialStatusFilter;
-...
 
       return matchesSearch && matchesStatus && matchesPlan && matchesFinancial;
     });
+
   }, [contracts, contractSearch, contractStatusFilter, contractPlanFilter, financialStatusFilter]);
 
   const hasActiveFilters = contractSearch !== '' || contractStatusFilter !== 'all' || contractPlanFilter !== 'all' || financialStatusFilter !== 'all';
