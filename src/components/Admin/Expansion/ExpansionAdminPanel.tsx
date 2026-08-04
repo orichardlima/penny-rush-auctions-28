@@ -565,7 +565,13 @@ export default function ExpansionAdminPanel() {
             </div>
           ))}
         </TabsContent>
+
+        {/* CONFIGURAÇÃO DE CARREIRA */}
+        <TabsContent value="career_config" className="mt-4">
+          <ExpansionCareerConfigTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
+
