@@ -345,15 +345,10 @@ export default function ExpansionAdminPanel() {
             {periodFilter && <Button variant="ghost" size="sm" onClick={() => setPeriodFilter('')}>Limpar período</Button>}
           </div>
           {snapshots.length === 0 && <p className="text-sm text-muted-foreground">Nenhum snapshot encontrado.</p>}
-        </TabsContent>
-
-        {/* CONFIGURAÇÃO DE CARREIRA */}
-        <TabsContent value="career_config" className="mt-4">
-          <ExpansionCareerConfigTab />
-        </TabsContent>
 
           <Accordion type="single" collapsible>
             {snapshots.map((sp: any) => (
+
               <AccordionItem key={sp.id} value={sp.id}>
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-left w-full pr-2 text-sm">
