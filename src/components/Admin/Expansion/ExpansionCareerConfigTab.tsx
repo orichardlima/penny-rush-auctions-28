@@ -71,42 +71,8 @@ export default function ExpansionCareerConfigTab() {
   };
 
   const save = async () => {
-    if (!reason.trim()) {
-      toast.error('Informe o motivo da alteração para auditoria.');
-      return;
-    }
-    setSaving(true);
-    try {
-      // Requisito 8: Usar wrapper administrativo. 
-      // Atualmente expansion_admin_update_settings lida com system_settings. 
-      // Para career_config, vamos atualizar a tabela diretamente ou via rpc se existisse.
-      // O requisito 8 pede expansion_admin_publish_career_config. Vamos assumir que precisamos criá-la na migration.
-      // Por enquanto, atualizamos os registros.
-      for (const item of draft) {
-        const { error } = await supabase
-          .from('expansion_career_config')
-          .update({
-            rank_label: item.rank_label,
-            min_organizational_points: item.min_organizational_points,
-            min_qualified_teams: item.min_qualified_teams,
-            max_team_concentration_pct: item.max_team_concentration_pct,
-            min_active_partners_per_team: item.min_active_partners_per_team,
-            is_active: item.is_active,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.id);
-        if (error) throw error;
-      }
-
-      toast.success('Configurações publicadas com sucesso!');
-      setIsEditing(false);
-      setReason('');
-      load();
-    } catch (e: any) {
-      toast.error('Erro ao salvar: ' + e.message);
-    } finally {
-      setSaving(false);
-    }
+    toast.info('Publicação bloqueada: Aguardando aprovação do backend versionado (Etapa Final).');
+    console.log('Publicação direta desativada conforme Requisito 1 da especificação Etapa Final.');
   };
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin" /></div>;
