@@ -133,7 +133,7 @@ export default function ExpansionCareerConfigTab() {
         </div>
       </div>
 
-      <Alert variant="info" className="bg-blue-50 border-blue-200">
+      <Alert className="bg-blue-50 border-blue-200">
         <Info className="h-4 w-4 text-blue-600" />
         <AlertTitle className="text-blue-800">Como funciona a qualificação</AlertTitle>
         <AlertDescription className="text-blue-700 text-xs space-y-2">
