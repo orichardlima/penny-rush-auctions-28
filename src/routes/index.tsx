@@ -3,7 +3,7 @@ import Index from "../pages/Index";
 const Routes = () => {
   return (
     <body>
-      Como baixo esse arquivo para enviar ao CHATGPT?
+      Me envie aqui o arquivo para inspecionar.
     </body>
   );
 };
