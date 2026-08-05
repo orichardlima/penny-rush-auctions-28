@@ -1,24 +1,25 @@
 # Plano de Correção: Falha de Carregamento na Aba "Expansão por Equipes"
 
-O usuário relatou que a página não carrega ao clicar na aba "Expansão por Equipes". Investigação inicial identificou arquivos JavaScript compilados (`.js`) coexistindo com arquivos TypeScript (`.ts`/`.tsx`), o que causa conflitos de importação no ambiente de desenvolvimento do Vite/Lovable, gerando o erro "Página não carregou".
+O usuário confirmou que a página tenta carregar e falha com o ícone amarelo ("Página não carregou"). Isso indica um erro de runtime durante a renderização do componente ou na execução dos hooks de dados.
 
-## Diagnóstico
-- Foi encontrado o arquivo `src/hooks/useExpansionCareer.js` em conflito com `src/hooks/useExpansionCareer.ts`.
-- Embora o arquivo `ExpansionProgramSection.js` não tenha sido listado no `ls` anterior, o sintoma é idêntico a um problema corrigido anteriormente onde arquivos `.js` gerados acidentalmente bloqueavam a renderização de componentes React.
-- A estrutura de abas no `PartnerDashboard.tsx` está correta, mas a renderização do conteúdo da aba depende dos hooks `useExpansionProgram` e `useExpansionCareer`.
+## Diagnóstico Confirmado
+- **Causa Raiz**: Presença de arquivos JavaScript compilados (`.js`) em conflito com arquivos TypeScript (`.ts`/`.tsx`). Foi detectado `src/hooks/useExpansionCareer.js`.
+- **Impacto**: O Vite/Lovable pode tentar importar o arquivo `.js` desatualizado em vez do `.ts`, causando erros de execução ou falhas de tipagem em runtime que quebram o componente `ExpansionProgramSection`.
 
 ## Ações Propostas
 
-### 1. Limpeza de Arquivos Intrusionais (Execução)
-Remover todos os arquivos `.js` que possuem equivalentes `.ts` ou `.tsx` nas pastas afetadas para garantir que o compilador use as versões corretas.
+### 1. Limpeza Radical de Arquivos JS (Execução)
+Remover todos os arquivos `.js` que possuem equivalentes `.ts` ou `.tsx` nas pastas de hooks e componentes do programa de expansão.
+- `src/hooks/*.js`
+- `src/components/Partner/Expansion/*.js`
 
-### 2. Validação de Importações e Tipagem
-Verificar se `PartnerDashboard.tsx` e `ExpansionProgramSection.tsx` estão importando corretamente dos arquivos `.ts`.
+### 2. Reforço na Resiliência do Componente
+Adicionar um bloco `try-catch` no carregamento dos dados dentro do `ExpansionProgramSection.tsx` e garantir que erros nos hooks não causem um crash fatal na renderização.
 
-### 3. Tratamento de Erro Robusto
-Adicionar um `ErrorBoundary` ou tratamento de erro específico no `ExpansionProgramSection.tsx` para evitar que uma falha no carregamento dos dados do programa trave toda a interface do parceiro.
+### 3. Verificação de Integridade das RPCs
+Validar se as RPCs chamadas pelos hooks (`expansion_get_partner_overview`, `expansion_partner_get_my_career`) estão retornando dados no formato esperado, evitando falhas de desestruturação (destructuring) de objetos nulos/indefinidos.
 
 ## Teste de Verificação
-- Acessar a rota `/` (Dashboard do Parceiro).
-- Clicar na aba "Expansão por Equipes".
-- Verificar se o componente `ExpansionProgramSection` renderiza corretamente (mesmo que mostre um estado vazio ou alerta, não deve travar a página).
+- Forçar a limpeza dos arquivos conflitantes.
+- Abrir o Dashboard do Parceiro e navegar para a aba "Expansão por Equipes".
+- Confirmar que o conteúdo (indicadores de pontos e equipes) aparece corretamente.
