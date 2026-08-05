@@ -275,10 +275,10 @@ export default function ExpansionProgramSection() {
                   Requisitos cumpridos
                 </h4>
                 <div className="space-y-2">
-                  {career.requirements_met.length === 0 ? (
+                  {(!career.requirements_met || career.requirements_met.length === 0) ? (
                     <p className="text-xs text-muted-foreground">Nenhum requisito concluído ainda.</p>
                   ) : (
-                    career.requirements_met.map((req, idx) => (
+                    Array.isArray(career.requirements_met) && career.requirements_met.map((req, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-xs text-green-600 bg-green-500/5 p-2 rounded-md border border-green-500/10">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         {req}
@@ -294,10 +294,10 @@ export default function ExpansionProgramSection() {
                   Requisitos pendentes
                 </h4>
                 <div className="space-y-2">
-                  {career.requirements_pending.length === 0 ? (
+                  {(!career.requirements_pending || career.requirements_pending.length === 0) ? (
                     <p className="text-xs text-green-600">Todos os requisitos para a graduação atual foram atendidos!</p>
                   ) : (
-                    career.requirements_pending.map((req, idx) => (
+                    Array.isArray(career.requirements_pending) && career.requirements_pending.map((req, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-xs text-amber-600 bg-amber-500/5 p-2 rounded-md border border-amber-500/10">
                         <Clock className="h-3.5 w-3.5" />
                         {req}
