@@ -190,6 +190,177 @@ export default function ExpansionProgramSection() {
         </CardContent>
       </Card>
 
+      {/* Seção Plano de Carreira */}
+      {career && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-primary" />
+                  Plano de Carreira
+                </CardTitle>
+                <CardDescription>
+                  Sua evolução oficial por equipes qualificados e volume equilibrado.
+                </CardDescription>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Graduação atual</p>
+                <p className="text-xl font-bold text-primary">{career.rank_label || 'Sem graduação'}</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Metric 
+                icon={TrendingUp} 
+                label="Pontos de Carreira totais" 
+                value={pts(career.net_career_points)} 
+                hint="Volume acumulado da organização"
+              />
+              <Metric 
+                icon={ShieldCheck} 
+                label="Pontos válidos para graduação" 
+                value={pts(career.next_rank_qualified_points)} 
+                hint={`Meta ${career.next_rank_label || 'Bronze'}: ${pts(career.next_rank_required_points)}`}
+                accent
+              />
+              <Metric 
+                icon={Users} 
+                label="Equipes qualificadas" 
+                value={`${career.qualified_teams} de ${career.next_rank ? '2+' : '—'}`} 
+                hint="Diretos com volume"
+              />
+              <Metric 
+                icon={Target} 
+                label="Maior equipe" 
+                value={`${career.largest_team_share_percent.toFixed(2)}%`} 
+                hint={`Teto: ${career.largest_team_share_percent > 70 ? 'Excedido' : 'OK'}`}
+              />
+            </div>
+
+            <Alert className="bg-background/60">
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Os Pontos de Carreira totais representam o volume acumulado da sua organização. Para a graduação, cada equipe possui um limite máximo de participação, promovendo crescimento equilibrado.
+              </AlertDescription>
+            </Alert>
+
+            {career.next_rank && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-end text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Progresso para </span>
+                    <span className="font-bold text-primary">{career.next_rank_label}</span>
+                  </div>
+                  <span className="font-mono font-bold">
+                    {Math.min(100, (career.next_rank_qualified_points / career.next_rank_required_points) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={(career.next_rank_qualified_points / career.next_rank_required_points) * 100} 
+                  className="h-3" 
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>{pts(career.next_rank_qualified_points)} pts válidos</span>
+                  <span>Meta: {pts(career.next_rank_required_points)} pts</span>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Requisitos cumpridos
+                </h4>
+                <div className="space-y-2">
+                  {career.requirements_met.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum requisito concluído ainda.</p>
+                  ) : (
+                    career.requirements_met.map((req, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs text-green-600 bg-green-500/5 p-2 rounded-md border border-green-500/10">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {req}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  Requisitos pendentes
+                </h4>
+                <div className="space-y-2">
+                  {career.requirements_pending.length === 0 ? (
+                    <p className="text-xs text-green-600">Todos os requisitos para a graduação atual foram atendidos!</p>
+                  ) : (
+                    career.requirements_pending.map((req, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs text-amber-600 bg-amber-500/5 p-2 rounded-md border border-amber-500/10">
+                        <Clock className="h-3.5 w-3.5" />
+                        {req}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="ranks" className="border-none">
+                <AccordionTrigger className="hover:no-underline py-2 text-sm text-muted-foreground">
+                  Ver todas as graduações e regras
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mt-2">
+                    {career.all_ranks?.map((r) => {
+                      const isAchieved = career.net_career_points >= r.min_points;
+                      const isCurrent = career.rank_key === r.key;
+                      return (
+                        <div 
+                          key={r.key} 
+                          className={cn(
+                            "p-3 rounded-lg border text-xs space-y-2 relative overflow-hidden",
+                            isCurrent ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card"
+                          )}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-sm">{r.label}</span>
+                            {isCurrent && <Badge className="text-[10px] h-4">Atual</Badge>}
+                          </div>
+                          <div className="space-y-1 text-muted-foreground">
+                            <div className="flex justify-between">
+                              <span>Pontos:</span>
+                              <span className="font-medium text-foreground">{pts(r.min_points)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Equipes:</span>
+                              <span className="font-medium text-foreground">{r.min_teams}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Concentração:</span>
+                              <span className="font-medium text-foreground">{r.max_concentration_pct}%</span>
+                            </div>
+                            {r.min_rank_required && (
+                              <div className="flex justify-between">
+                                <span>Líder {r.min_rank_required}:</span>
+                                <span className="font-medium text-foreground">{r.min_rank_count}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Card de estimativa */}
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader className="pb-2">
