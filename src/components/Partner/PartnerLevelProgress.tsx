@@ -113,7 +113,7 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
               
               return (
                 <div 
-                  key={rank.key} 
+                  key={rank?.key ?? idx} 
                   className={`relative p-3 rounded-lg border transition-all ${
                     isCurrent 
                       ? 'ring-2 ring-primary bg-primary/5 border-primary' 
