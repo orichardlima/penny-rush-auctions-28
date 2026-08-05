@@ -506,7 +506,9 @@ export default function ExpansionCareerConfigTab() {
               <div key={v.id} className="rounded-md border p-3 text-xs space-y-1">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">Versão {v.version_number}</span>
+                    <span className="font-bold text-sm">
+                      {isV1Baseline(v) ? 'V1 — Baseline histórico da semana de 27/07/2026' : `Versão ${v.version_number}`}
+                    </span>
                     <Badge variant="outline" className={st.cls}>{st.label}</Badge>
                   </div>
                   <div className="flex gap-2">
