@@ -6363,6 +6363,36 @@ export type Database = {
         }
         Returns: Json
       }
+      expansion_admin_cancel_career_config: {
+        Args: { _reason: string; _version_id: string }
+        Returns: Json
+      }
+      expansion_admin_career_config_versions: {
+        Args: never
+        Returns: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          change_reason: string
+          config_data: Json
+          config_hash: string
+          created_at: string | null
+          created_by: string | null
+          dry_run_impact_snapshot: Json | null
+          effective_from: string
+          id: string
+          published_at: string | null
+          published_by: string | null
+          status: Database["public"]["Enums"]["expansion_config_status"]
+          version_number: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "expansion_career_config_versions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       expansion_admin_close_week: {
         Args: { _period_start: string; _reason: string }
         Returns: Json
@@ -6371,8 +6401,20 @@ export type Database = {
         Args: { _limit?: number }
         Returns: Json
       }
+      expansion_admin_create_career_config_draft: {
+        Args: {
+          _change_reason: string
+          _config_data: Json
+          _effective_from: string
+        }
+        Returns: string
+      }
       expansion_admin_evaluate_career: {
         Args: { _mode?: string; _reason?: string; _user_id?: string }
+        Returns: Json
+      }
+      expansion_admin_get_career_preview: {
+        Args: { _as_of?: string; _user_id: string }
         Returns: Json
       }
       expansion_admin_integrity_check: {
@@ -6455,6 +6497,14 @@ export type Database = {
         Args: { _period_start?: string }
         Returns: Json
       }
+      expansion_admin_preview_config_impact: {
+        Args: { _draft_id: string }
+        Returns: Json
+      }
+      expansion_admin_publish_career_config: {
+        Args: { _change_reason: string; _draft_id: string }
+        Returns: Json
+      }
       expansion_admin_runs: {
         Args: { _origin?: string; _period_start?: string; _status?: string }
         Returns: Json
@@ -6468,7 +6518,12 @@ export type Database = {
         Returns: Json
       }
       expansion_bahia_today: { Args: never; Returns: string }
+      expansion_career_config_at: { Args: { _as_of?: string }; Returns: Json }
       expansion_career_config_snapshot: { Args: never; Returns: Json }
+      expansion_career_config_validate_json: {
+        Args: { _config: Json }
+        Returns: Json
+      }
       expansion_career_ledger_net_rows: {
         Args: never
         Returns: {
@@ -6580,6 +6635,15 @@ export type Database = {
       }
       expansion_compute_career_state: {
         Args: {
+          _evaluated_as_of?: string
+          _rank_context?: Json
+          _user_id: string
+        }
+        Returns: Json
+      }
+      expansion_compute_career_state_internal: {
+        Args: {
+          _config_override?: Json
           _evaluated_as_of?: string
           _rank_context?: Json
           _user_id: string
@@ -6720,6 +6784,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      expansion_partner_get_my_career: { Args: never; Returns: Json }
       expansion_plan_points_for: {
         Args: { _plan_name: string }
         Returns: number
