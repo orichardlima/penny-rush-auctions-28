@@ -46,6 +46,23 @@ const fmtBahia = (iso?: string | null) => {
   }
 };
 
+const fmtBahiaTechnical = (iso?: string | null) => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3, hour12: false,
+    } as any).formatToParts(d);
+    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+    return `${g('weekday')}, ${g('day')}/${g('month')}/${g('year')} às ${g('hour')}:${g('minute')}:${g('second')}.${g('fractionalSecond')}`;
+  } catch {
+    return '—';
+  }
+};
+
+const isV1Baseline = (v: Version | null) => !!v && v.version_number === 1;
+
 // Bahia é UTC-3 fixo (sem horário de verão)
 const bahiaLocalToIso = (local: string) => new Date(`${local}:00-03:00`).toISOString();
 const isBahiaMondayMidnight = (local: string) => {
@@ -305,14 +322,25 @@ export default function ExpansionCareerConfigTab() {
           <CardHeader className="py-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <CardTitle className="text-base">Configuração vigente — Versão {current.version_number}</CardTitle>
+                <CardTitle className="text-base">
+                  {isV1Baseline(current)
+                    ? 'V1 — Baseline histórico da semana de 27/07/2026'
+                    : `Configuração vigente — Versão ${current.version_number}`}
+                </CardTitle>
                 <CardDescription className="text-xs">
-                  Vigência: {fmtBahia(current.effective_from)} · Publicada em: {fmtBahia(current.published_at)}
+                  {isV1Baseline(current)
+                    ? `Vigência técnica: ${fmtBahiaTechnical(current.effective_from)} — America/Bahia`
+                    : `Vigência: ${fmtBahia(current.effective_from)} · Publicada em: ${fmtBahia(current.published_at)}`}
                 </CardDescription>
               </div>
               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">{current.status === 'SUPERSEDED' ? 'Vigente (Substituída)' : 'Vigente'}</Badge>
             </div>
             <div className="text-[11px] text-muted-foreground space-y-0.5 pt-2">
+              {isV1Baseline(current) && (
+                <div className="italic text-amber-700">
+                  Baseline definido imediatamente antes do primeiro corte histórico para garantir cobertura integral das avaliações iniciais.
+                </div>
+              )}
               <div>Hash: <span className="font-mono break-all">{current.config_hash || '—'}</span></div>
               <div>Motivo: {current.change_reason || '—'}</div>
             </div>
@@ -478,7 +506,9 @@ export default function ExpansionCareerConfigTab() {
               <div key={v.id} className="rounded-md border p-3 text-xs space-y-1">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">Versão {v.version_number}</span>
+                    <span className="font-bold text-sm">
+                      {isV1Baseline(v) ? 'V1 — Baseline histórico da semana de 27/07/2026' : `Versão ${v.version_number}`}
+                    </span>
                     <Badge variant="outline" className={st.cls}>{st.label}</Badge>
                   </div>
                   <div className="flex gap-2">
@@ -497,7 +527,9 @@ export default function ExpansionCareerConfigTab() {
                     )}
                   </div>
                 </div>
-                <div className="text-muted-foreground">Vigência: {fmtBahia(v.effective_from)}</div>
+                <div className="text-muted-foreground">
+                  Vigência: {isV1Baseline(v) ? `${fmtBahiaTechnical(v.effective_from)} — America/Bahia` : fmtBahia(v.effective_from)}
+                </div>
                 <div className="text-muted-foreground">Criada em: {fmtBahia(v.created_at)} · Publicada em: {fmtBahia(v.published_at)}</div>
                 <div className="text-muted-foreground">Motivo: {v.change_reason || '—'}</div>
                 <div className="text-muted-foreground break-all">Hash: <span className="font-mono">{v.config_hash || '—'}</span></div>
