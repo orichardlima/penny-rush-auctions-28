@@ -106,9 +106,10 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Requisitos oficiais da carreira</h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {career.all_ranks?.map((rank) => {
-              const isAchieved = career.rank_key !== 'NONE' && rank.min_points <= (career.qualified_rank_points || 0);
-              const isCurrent = career.rank_key === rank.key;
+            {(Array.isArray(career.all_ranks) ? career.all_ranks : []).map((rank: any, idx: number) => {
+              const minPoints = Number(rank?.min_points) || 0;
+              const isAchieved = career.rank_key !== 'NONE' && minPoints <= (career.qualified_rank_points || 0);
+              const isCurrent = career.rank_key === rank?.key;
               
               return (
                 <div 
