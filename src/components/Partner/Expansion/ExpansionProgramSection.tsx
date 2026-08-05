@@ -315,7 +315,7 @@ export default function ExpansionProgramSection() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mt-2">
-                    {career.all_ranks?.map((r) => {
+                    {Array.isArray(career.all_ranks) && career.all_ranks.map((r) => {
                       const isAchieved = career.net_career_points >= r.min_points;
                       const isCurrent = career.rank_key === r.key;
                       return (
