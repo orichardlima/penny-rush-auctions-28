@@ -134,8 +134,8 @@ export const PartnerPlanCard: React.FC<PartnerPlanCardProps> = ({
                 <GitBranch className="h-4 w-4 text-purple-600" />
               </div>
               <div>
-                <span className="font-medium">Pontos de Equipe</span>
-                <p className="text-xs text-primary font-semibold">{totalBinaryPoints.toLocaleString('pt-BR')} pontos na rede</p>
+                <span className="font-medium">Pontos de Carreira</span>
+                <p className="text-xs text-primary font-semibold">{totalBinaryPoints.toLocaleString('pt-BR')} Pontos de Carreira gerados</p>
                 {cotas > 1 && (
                   <p className="text-xs text-muted-foreground">({binaryPoints} pts por cota)</p>
                 )}

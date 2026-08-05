@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,9 +40,9 @@ import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
 import PartnerWithdrawalSection from './PartnerWithdrawalSection';
 import PartnerUpgradeDialog from './PartnerUpgradeDialog';
 import { PartnerBadge } from './PartnerBadge';
-import { GraduationBadge } from './GraduationBadge';
+import { PartnerCareerRankBadge } from './PartnerCareerRankBadge';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
-import { usePartnerLevels } from '@/hooks/usePartnerLevels';
+import { useExpansionCareer } from '@/hooks/useExpansionCareer';
 import { FileText, GraduationCap, GitBranch, HelpCircle, Megaphone } from 'lucide-react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import ExpansionProgramSection from './Expansion/ExpansionProgramSection';
@@ -80,31 +80,32 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   
   const { getSettingValue } = useSystemSettings();
   const { fetchPendingRequest } = usePartnerEarlyTermination();
-  const { totalPoints, binaryPoints, loading: referralLoading } = usePartnerReferrals();
+  const { totalPoints, loading: referralLoading } = usePartnerReferrals();
+  const { career, loading: careerLoading } = useExpansionCareer();
   
-  // Pontos para graduação = volume qualificado de equipes
-  const graduationPoints = binaryPoints.weakerLegPoints;
-  
-  const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(graduationPoints);
+  // Pontos para graduação = volume qualificado oficial
+  const graduationPoints = career?.next_rank_qualified_points ?? 0;
+  const graduationRequired = career?.next_rank_required_points ?? 0;
+  const levelProgress = graduationRequired > 0 ? (graduationPoints / graduationRequired) * 100 : 0;
   
   // Current week revenue for animated bars
   const currentWeekRevenue = useCurrentWeekRevenue(contract);
   const { weekProgress } = useAdCenter(contract?.id);
 
-  // Buscar pontos de equipe por plano
-  const [planBinaryPoints, setPlanBinaryPoints] = useState<Record<string, number>>({});
+  // Buscar pontos de carreira por plano
+  const [planCareerPoints, setPlanCareerPoints] = useState<Record<string, number>>({});
   useEffect(() => {
-    const fetchBinaryPoints = async () => {
+    const fetchCareerPoints = async () => {
       const { data } = await supabase
         .from('partner_level_points')
         .select('plan_name, points');
       if (data) {
         const map: Record<string, number> = {};
         data.forEach((row: any) => { map[row.plan_name] = row.points; });
-        setPlanBinaryPoints(map);
+        setPlanCareerPoints(map);
       }
     };
-    fetchBinaryPoints();
+    fetchCareerPoints();
   }, []);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
@@ -514,7 +515,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             <PartnerPlanCard
               key={plan.id}
               plan={plan}
-              binaryPoints={planBinaryPoints[plan.name] || 0}
+              binaryPoints={planCareerPoints[plan.name] || 0}
               onSelect={(planId, cotas) => {
                 const referralCode = getEffectiveReferralCode();
                 console.log('[PartnerDashboard] Selecionando plano manualmente com referral:', referralCode, 'cotas:', cotas);
@@ -741,16 +742,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">Seu Nível de Parceria</p>
                 <div className="flex items-center gap-2 mb-2">
-                  <GraduationBadge totalPoints={graduationPoints} size="md" showPoints={false} />
+                  <PartnerCareerRankBadge size="md" />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos de volume qualificado de equipes</p>
+                  <p><span className="font-medium text-foreground">{graduationPoints.toLocaleString('pt-BR')}</span> pontos de volume qualificado</p>
 
-                  {getLevelProgress().nextLevel && (
+                  {career?.next_rank && (
                     <p className="mt-1">
                       <span className="font-medium text-primary">
-                        {getLevelProgress().pointsToNextLevel} pts
-                      </span> para {getLevelProgress().nextLevel?.display_name}
+                        {(graduationRequired - graduationPoints).toLocaleString('pt-BR')} pts
+                      </span> para {career.next_rank_label}
                     </p>
                   )}
                 </div>

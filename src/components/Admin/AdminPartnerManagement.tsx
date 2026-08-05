@@ -16,7 +16,7 @@ import { useAdminPartners, ManualPayoutOptions, getWeeksGroupedByMonth, formatWe
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
-import PartnerGraduationManager from './PartnerGraduationManager';
+
 import ExpansionCareerRankBadge from '@/components/Partner/ExpansionCareerRankBadge';
 
 import DailyRevenueConfigManager from './DailyRevenueConfigManager';
@@ -66,7 +66,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import ExpansionAdminPanel from './Expansion/ExpansionAdminPanel';
-import BinaryNetworkManager from './BinaryNetworkManager';
+
 
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
@@ -717,9 +717,9 @@ const AdminPartnerManagement = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="levels" className="shrink-0">Níveis</TabsTrigger>
-          <TabsTrigger value="graduations" className="shrink-0">
-            <Trophy className="h-4 w-4 mr-1" />
-            Graduações
+          <TabsTrigger value="expansion" className="shrink-0">
+            <TrendingUp className="h-4 w-4 mr-1" />
+            Carreira
           </TabsTrigger>
           <TabsTrigger value="projections" className="shrink-0">
             <BarChart3 className="h-4 w-4 mr-1" />
@@ -731,10 +731,6 @@ const AdminPartnerManagement = () => {
           </TabsTrigger>
           <TabsTrigger value="reports" className="shrink-0">Relatórios</TabsTrigger>
           <TabsTrigger value="process" className="shrink-0">Processar</TabsTrigger>
-          <TabsTrigger value="expansion" className="shrink-0">
-            <GitBranch className="h-4 w-4 mr-1" />
-            Bônus de Expansão
-          </TabsTrigger>
           <TabsTrigger value="binary" className="shrink-0">
             <GitBranch className="h-4 w-4 mr-1" />
             Histórico legado
@@ -765,10 +761,6 @@ const AdminPartnerManagement = () => {
           <ReferralLevelConfigManager />
         </TabsContent>
 
-        {/* Graduações Tab */}
-        <TabsContent value="graduations">
-          <PartnerGraduationManager />
-        </TabsContent>
 
         {/* Bônus de Expansão Tab */}
         <TabsContent value="expansion">
@@ -784,7 +776,7 @@ const AdminPartnerManagement = () => {
               na aba <strong>Bônus de Expansão</strong>.
             </AlertDescription>
           </Alert>
-          <BinaryNetworkManager />
+          <p className="text-xs text-muted-foreground">Sistema binário desativado em favor do Programa de Expansão.</p>
         </TabsContent>
 
 

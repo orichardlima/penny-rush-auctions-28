@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
 import { usePartnerContract } from '@/hooks/usePartnerContract';
+import { useExpansionCareer } from '@/hooks/useExpansionCareer';
 import PartnerLevelProgress from './PartnerLevelProgress';
 import ReferralNetworkTree from './ReferralNetworkTree';
 import FastStartProgress from './FastStartProgress';
@@ -36,9 +37,8 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
     bonuses, 
     referralCode,
     contractId,
-    binaryPoints,
     stats, 
-    loading,
+    loading: referralsLoading,
     getReferralLink,
     copyReferralLink,
     getStatusLabel,
@@ -48,6 +48,8 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
   } = usePartnerReferrals();
   
   const { plans, contract, refreshData } = usePartnerContract();
+  const { career, loading: careerLoading } = useExpansionCareer();
+  const loading = referralsLoading || careerLoading;
   const currentPlan = plans.find(p => p.name === planName);
   const referralBonusPercentage = currentPlan?.referral_bonus_percentage || 10;
   const [sponsorDialogOpen, setSponsorDialogOpen] = useState(false);
@@ -93,10 +95,8 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
       {/* Graduação / Nível do Parceiro - baseado no volume qualificado de equipes */}
       <PartnerLevelProgress 
-        totalPoints={binaryPoints.weakerLegPoints} 
+        totalPoints={career?.net_career_points ?? 0} 
         planName={planName}
-        leftPoints={binaryPoints.leftPoints}
-        rightPoints={binaryPoints.rightPoints}
       />
 
       {/* Link de Indicação */}
@@ -241,7 +241,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                   <TableHead>Plano</TableHead>
                   <TableHead>Valor do Aporte</TableHead>
                   <TableHead>Bônus</TableHead>
-                  <TableHead>Pontos</TableHead>
+                  <TableHead>Pontos de Carreira</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Liberação</TableHead>
                   <TableHead>Status</TableHead>
