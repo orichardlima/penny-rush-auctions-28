@@ -16,7 +16,7 @@ import { useAdminPartners, ManualPayoutOptions, getWeeksGroupedByMonth, formatWe
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { PartnerAnalyticsCharts } from './PartnerAnalyticsCharts';
 import ReferralLevelConfigManager from './ReferralLevelConfigManager';
-import PartnerGraduationManager from './PartnerGraduationManager';
+
 import ExpansionCareerRankBadge from '@/components/Partner/ExpansionCareerRankBadge';
 
 import DailyRevenueConfigManager from './DailyRevenueConfigManager';
@@ -66,7 +66,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import ExpansionAdminPanel from './Expansion/ExpansionAdminPanel';
-import BinaryNetworkManager from './BinaryNetworkManager';
+
 
 import PartnerDetailModal from './PartnerDetailModal';
 import AdCenterMaterialsManager from './AdCenterMaterialsManager';
