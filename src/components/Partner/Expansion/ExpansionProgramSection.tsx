@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -11,9 +11,12 @@ import { Button } from '@/components/ui/button';
 import {
   Users, TrendingUp, Crown, Target, Gauge, Rocket, Info, CalendarClock,
   Sparkles, PiggyBank, ChevronDown, HelpCircle, CheckCircle2, Clock, Network,
+  GraduationCap, AlertCircle, CheckCircle, ShieldCheck
 } from 'lucide-react';
 import { useExpansionProgram, type ExpansionSnapshot } from '@/hooks/useExpansionProgram';
+import { useExpansionCareer } from '@/hooks/useExpansionCareer';
 import TeamNetworkDialog from './TeamNetworkDialog';
+import { cn } from '@/lib/utils';
 
 const brl = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0));
