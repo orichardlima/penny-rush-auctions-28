@@ -46,6 +46,23 @@ const fmtBahia = (iso?: string | null) => {
   }
 };
 
+const fmtBahiaTechnical = (iso?: string | null) => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3, hour12: false,
+    }).formatToParts(d);
+    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+    return `${g('weekday')}, ${g('day')}/${g('month')}/${g('year')} às ${g('hour')}:${g('minute')}:${g('second')}.${g('fractionalSecond')}`;
+  } catch {
+    return '—';
+  }
+};
+
+const isV1Baseline = (v: Version | null) => !!v && v.version_number === 1;
+
 // Bahia é UTC-3 fixo (sem horário de verão)
 const bahiaLocalToIso = (local: string) => new Date(`${local}:00-03:00`).toISOString();
 const isBahiaMondayMidnight = (local: string) => {
