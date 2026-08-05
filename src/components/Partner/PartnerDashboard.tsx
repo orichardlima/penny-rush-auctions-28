@@ -92,20 +92,20 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   const currentWeekRevenue = useCurrentWeekRevenue(contract);
   const { weekProgress } = useAdCenter(contract?.id);
 
-  // Buscar pontos de equipe por plano
-  const [planBinaryPoints, setPlanBinaryPoints] = useState<Record<string, number>>({});
+  // Buscar pontos de carreira por plano
+  const [planCareerPoints, setPlanCareerPoints] = useState<Record<string, number>>({});
   useEffect(() => {
-    const fetchBinaryPoints = async () => {
+    const fetchCareerPoints = async () => {
       const { data } = await supabase
         .from('partner_level_points')
         .select('plan_name, points');
       if (data) {
         const map: Record<string, number> = {};
         data.forEach((row: any) => { map[row.plan_name] = row.points; });
-        setPlanBinaryPoints(map);
+        setPlanCareerPoints(map);
       }
     };
-    fetchBinaryPoints();
+    fetchCareerPoints();
   }, []);
   
   const weeklyPaymentDay = getSettingValue('partner_weekly_payment_day', 5);
