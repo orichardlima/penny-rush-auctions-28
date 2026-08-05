@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,9 +40,9 @@ import PartnerEarlyTerminationDialog from './PartnerEarlyTerminationDialog';
 import PartnerWithdrawalSection from './PartnerWithdrawalSection';
 import PartnerUpgradeDialog from './PartnerUpgradeDialog';
 import { PartnerBadge } from './PartnerBadge';
-import { GraduationBadge } from './GraduationBadge';
+import { PartnerCareerRankBadge } from './PartnerCareerRankBadge';
 import { usePartnerReferrals } from '@/hooks/usePartnerReferrals';
-import { usePartnerLevels } from '@/hooks/usePartnerLevels';
+import { useExpansionCareer } from '@/hooks/useExpansionCareer';
 import { FileText, GraduationCap, GitBranch, HelpCircle, Megaphone } from 'lucide-react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import ExpansionProgramSection from './Expansion/ExpansionProgramSection';
@@ -80,12 +80,13 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
   
   const { getSettingValue } = useSystemSettings();
   const { fetchPendingRequest } = usePartnerEarlyTermination();
-  const { totalPoints, binaryPoints, loading: referralLoading } = usePartnerReferrals();
+  const { totalPoints, loading: referralLoading } = usePartnerReferrals();
+  const { career, loading: careerLoading } = useExpansionCareer();
   
-  // Pontos para graduação = volume qualificado de equipes
-  const graduationPoints = binaryPoints.weakerLegPoints;
-  
-  const { getCurrentLevel, getProgress: getLevelProgress } = usePartnerLevels(graduationPoints);
+  // Pontos para graduação = volume qualificado oficial
+  const graduationPoints = career?.next_rank_qualified_points ?? 0;
+  const graduationRequired = career?.next_rank_required_points ?? 0;
+  const levelProgress = graduationRequired > 0 ? (graduationPoints / graduationRequired) * 100 : 0;
   
   // Current week revenue for animated bars
   const currentWeekRevenue = useCurrentWeekRevenue(contract);

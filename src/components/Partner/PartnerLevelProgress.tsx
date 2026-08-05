@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { usePartnerLevels, PartnerLevel } from '@/hooks/usePartnerLevels';
+import { useExpansionCareer } from '@/hooks/useExpansionCareer';
 import { Trophy, Star, TrendingUp } from 'lucide-react';
 
 interface PartnerLevelProgressProps {
@@ -15,17 +15,8 @@ interface PartnerLevelProgressProps {
 const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({ 
   totalPoints,
   planName,
-  leftPoints = 0,
-  rightPoints = 0
 }) => {
-  const { 
-    levels, 
-    loading, 
-    getProgress, 
-    getLevelColor,
-    getPointsForPlan,
-    levelPoints
-  } = usePartnerLevels(totalPoints);
+  const { career, loading } = useExpansionCareer();
 
   if (loading) {
     return (
@@ -39,110 +30,98 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
     );
   }
 
-  const progress = getProgress();
-  const { currentLevel, nextLevel, pointsToNextLevel, progressPercentage } = progress;
-
-  if (!currentLevel) {
+  if (!career) {
     return null;
   }
+
+  const progressPercentage = career.next_rank_required_points > 0 
+    ? (career.next_rank_qualified_points / career.next_rank_required_points) * 100 
+    : 0;
 
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5" />
-          Seu Nível de Parceria
+          Sua Evolução de Carreira
         </CardTitle>
         <CardDescription>
-          Indique parceiros e suba de nível para conquistar premiações incríveis!
+          Expanda sua equipe equilibradamente e alcance novos patamares no Programa de Expansão!
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current Level Display */}
         <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-xl">
-          <div className="text-5xl">{currentLevel.icon}</div>
+          <div className="text-5xl">🏆</div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-xl font-bold">{currentLevel.display_name}</h3>
-              {currentLevel.reward_type && currentLevel.reward_type !== 'none' && (
-                <Badge variant="secondary" className="text-xs">
-                  {currentLevel.reward_icon} Premiação
-                </Badge>
-              )}
+              <h3 className="text-xl font-bold">{career.rank_label || 'Sem graduação'}</h3>
             </div>
             <p className="text-sm text-muted-foreground">
               <Star className="h-4 w-4 inline mr-1" />
-              {totalPoints} pontos de volume qualificado de equipes
+              {career.net_career_points.toLocaleString('pt-BR')} Pontos de Carreira totais
             </p>
-
           </div>
         </div>
 
         {/* Progress to Next Level */}
-        {nextLevel && (
+        {career.next_rank && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                Próximo nível: {nextLevel.icon} {nextLevel.display_name}
+                Próximo nível: {career.next_rank_label}
               </span>
               <span className="font-medium">
-                {pointsToNextLevel} pts restantes
+                {Math.max(0, career.next_rank_required_points - career.next_rank_qualified_points).toLocaleString('pt-BR')} pts válidos restantes
               </span>
             </div>
             <Progress value={progressPercentage} className="h-3" />
             <p className="text-xs text-muted-foreground text-center">
-              {totalPoints} / {nextLevel.min_points} pontos
+              {career.next_rank_qualified_points.toLocaleString('pt-BR')} / {career.next_rank_required_points.toLocaleString('pt-BR')} pontos válidos
             </p>
           </div>
         )}
 
-        {!nextLevel && (
+        {!career.next_rank && career.rank_key !== 'NONE' && (
           <div className="text-center p-4 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-lg border border-cyan-500/20">
             <p className="text-sm font-medium text-cyan-600">
-              🎉 Parabéns! Você atingiu o nível máximo!
+              🎉 Parabéns! Você atingiu o nível máximo da carreira!
             </p>
           </div>
         )}
 
-        {/* Points Per Plan */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Pontos por indicação
-          </h4>
-          <div className="grid grid-cols-3 gap-2">
-            {levelPoints.map((lp) => (
-              <div 
-                key={lp.id} 
-                className="text-center p-3 bg-muted/50 rounded-lg border"
-              >
-                <p className="text-lg font-bold text-primary">+{lp.points}</p>
-                <p className="text-xs text-muted-foreground uppercase">{lp.plan_name}</p>
-              </div>
-            ))}
+        <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="p-3 bg-muted/30 rounded-lg border">
+            <p className="text-xs text-muted-foreground mb-1 uppercase font-semibold">Volume Qualificado</p>
+            <p className="text-lg font-bold">{career.next_rank_qualified_points.toLocaleString('pt-BR')} pts</p>
+            <p className="text-[10px] text-muted-foreground">Volume contável para graduação (após concentração)</p>
+          </div>
+          <div className="p-3 bg-muted/30 rounded-lg border">
+            <p className="text-xs text-muted-foreground mb-1 uppercase font-semibold">Equipes com volume</p>
+            <p className="text-lg font-bold">{career.qualified_teams}</p>
+            <p className="text-[10px] text-muted-foreground">Indicações diretas qualificadas no período</p>
           </div>
         </div>
 
-        {/* All Levels */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">Todos os níveis</h4>
+          <h4 className="text-sm font-medium">Requisitos oficiais da carreira</h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {levels.map((level) => {
-              const isCurrentLevel = level.name === currentLevel.name;
-              const isAchieved = totalPoints >= level.min_points;
+            {career.all_ranks?.map((rank) => {
+              const isAchieved = career.rank_key !== 'NONE' && rank.min_points <= (career.qualified_rank_points || 0);
+              const isCurrent = career.rank_key === rank.key;
               
               return (
                 <div 
-                  key={level.id} 
+                  key={rank.key} 
                   className={`relative p-3 rounded-lg border transition-all ${
-                    isCurrentLevel 
+                    isCurrent 
                       ? 'ring-2 ring-primary bg-primary/5 border-primary' 
                       : isAchieved
-                        ? 'bg-muted/50 border-muted-foreground/20'
-                        : 'bg-muted/20 border-dashed opacity-60'
+                        ? 'bg-muted/50 border-muted-foreground/20 opacity-80'
+                        : 'bg-muted/20 border-dashed opacity-50'
                   }`}
                 >
-                  {isCurrentLevel && (
+                  {isCurrent && (
                     <Badge 
                       className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0"
                       variant="default"
@@ -151,18 +130,11 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
                     </Badge>
                   )}
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">{level.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{level.display_name}</p>
-                      <p className="text-xs text-muted-foreground">{level.min_points} pts</p>
+                      <p className="text-sm font-medium truncate">{rank.label}</p>
+                      <p className="text-xs text-muted-foreground">{rank.min_points.toLocaleString('pt-BR')} pts</p>
                     </div>
                   </div>
-                  {level.reward_type && level.reward_type !== 'none' && (
-                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1 truncate">
-                      <span>{level.reward_icon}</span>
-                      <span className="truncate">{level.reward_description || 'Premiação'}</span>
-                    </p>
-                  )}
                 </div>
               );
             })}
