@@ -742,16 +742,16 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">Seu Nível de Parceria</p>
                 <div className="flex items-center gap-2 mb-2">
-                  <GraduationBadge totalPoints={graduationPoints} size="md" showPoints={false} />
+                  <PartnerCareerRankBadge size="md" />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p><span className="font-medium text-foreground">{graduationPoints}</span> pontos de volume qualificado de equipes</p>
+                  <p><span className="font-medium text-foreground">{graduationPoints.toLocaleString('pt-BR')}</span> pontos de volume qualificado</p>
 
-                  {getLevelProgress().nextLevel && (
+                  {career?.next_rank && (
                     <p className="mt-1">
                       <span className="font-medium text-primary">
-                        {getLevelProgress().pointsToNextLevel} pts
-                      </span> para {getLevelProgress().nextLevel?.display_name}
+                        {(graduationRequired - graduationPoints).toLocaleString('pt-BR')} pts
+                      </span> para {career.next_rank_label}
                     </p>
                   )}
                 </div>
