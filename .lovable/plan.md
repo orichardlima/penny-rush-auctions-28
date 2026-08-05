@@ -1,25 +1,21 @@
-# Plano de Correção: Falha de Carregamento na Aba "Expansão por Equipes"
+# Plano de Correção: Erro de Renderização na Aba "Expansão por Equipes"
 
-O usuário confirmou que a página tenta carregar e falha com o ícone amarelo ("Página não carregou"). Isso indica um erro de runtime durante a renderização do componente ou na execução dos hooks de dados.
+O erro identificado no console (`TypeError: o.requirements_met.map is not a function`) confirmou que o componente estava tentando iterar sobre propriedades que não são arrays, provavelmente devido a um retorno inesperado ou nulo da RPC do banco de dados.
 
 ## Diagnóstico Confirmado
-- **Causa Raiz**: Presença de arquivos JavaScript compilados (`.js`) em conflito com arquivos TypeScript (`.ts`/`.tsx`). Foi detectado `src/hooks/useExpansionCareer.js`.
-- **Impacto**: O Vite/Lovable pode tentar importar o arquivo `.js` desatualizado em vez do `.ts`, causando erros de execução ou falhas de tipagem em runtime que quebram o componente `ExpansionProgramSection`.
+- **Causa Raiz**: Falta de programação defensiva ao lidar com as propriedades `requirements_met` e `requirements_pending` do objeto `career`.
+- **Impacto**: Quando o usuário não possui requisitos concluídos ou pendentes (retornando `null` ou `undefined`), o componente crashava ao tentar acessar `.length` ou `.map()`.
 
-## Ações Propostas
+## Ações Realizadas
 
-### 1. Limpeza Radical de Arquivos JS (Execução)
-Remover todos os arquivos `.js` que possuem equivalentes `.ts` ou `.tsx` nas pastas de hooks e componentes do programa de expansão.
-- `src/hooks/*.js`
-- `src/components/Partner/Expansion/*.js`
+### 1. Limpeza de Arquivos JS (Concluído)
+- Removido `src/hooks/useExpansionCareer.js` que causava conflitos de importação.
 
-### 2. Reforço na Resiliência do Componente
-Adicionar um bloco `try-catch` no carregamento dos dados dentro do `ExpansionProgramSection.tsx` e garantir que erros nos hooks não causem um crash fatal na renderização.
+### 2. Implementação de Programação Defensiva (Concluído)
+- Atualizado `ExpansionProgramSection.tsx` para verificar se `requirements_met` e `requirements_pending` são arrays válidos antes de tentar renderizá-los.
+- Adicionada verificação de existência para evitar erros de leitura de propriedade em valores nulos.
 
-### 3. Verificação de Integridade das RPCs
-Validar se as RPCs chamadas pelos hooks (`expansion_get_partner_overview`, `expansion_partner_get_my_career`) estão retornando dados no formato esperado, evitando falhas de desestruturação (destructuring) de objetos nulos/indefinidos.
+## Próximos Passos
+- Monitorar se o componente agora renderiza corretamente sem travar a interface.
+- Validar se `career.all_ranks` também precisa de proteção similar (já possui optional chaining `?.`).
 
-## Teste de Verificação
-- Forçar a limpeza dos arquivos conflitantes.
-- Abrir o Dashboard do Parceiro e navegar para a aba "Expansão por Equipes".
-- Confirmar que o conteúdo (indicadores de pontos e equipes) aparece corretamente.
