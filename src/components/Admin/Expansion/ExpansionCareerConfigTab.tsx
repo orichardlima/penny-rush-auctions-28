@@ -53,7 +53,7 @@ const fmtBahiaTechnical = (iso?: string | null) => {
     const parts = new Intl.DateTimeFormat('pt-BR', {
       timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3, hour12: false,
-    }).formatToParts(d);
+    } as any).formatToParts(d);
     const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
     return `${g('weekday')}, ${g('day')}/${g('month')}/${g('year')} às ${g('hour')}:${g('minute')}:${g('second')}.${g('fractionalSecond')}`;
   } catch {
