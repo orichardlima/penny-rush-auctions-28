@@ -527,7 +527,9 @@ export default function ExpansionCareerConfigTab() {
                     )}
                   </div>
                 </div>
-                <div className="text-muted-foreground">Vigência: {fmtBahia(v.effective_from)}</div>
+                <div className="text-muted-foreground">
+                  Vigência: {isV1Baseline(v) ? `${fmtBahiaTechnical(v.effective_from)} — America/Bahia` : fmtBahia(v.effective_from)}
+                </div>
                 <div className="text-muted-foreground">Criada em: {fmtBahia(v.created_at)} · Publicada em: {fmtBahia(v.published_at)}</div>
                 <div className="text-muted-foreground">Motivo: {v.change_reason || '—'}</div>
                 <div className="text-muted-foreground break-all">Hash: <span className="font-mono">{v.config_hash || '—'}</span></div>
