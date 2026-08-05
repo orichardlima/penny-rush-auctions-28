@@ -717,9 +717,9 @@ const AdminPartnerManagement = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="levels" className="shrink-0">Níveis</TabsTrigger>
-          <TabsTrigger value="graduations" className="shrink-0">
-            <Trophy className="h-4 w-4 mr-1" />
-            Graduações
+          <TabsTrigger value="expansion" className="shrink-0">
+            <TrendingUp className="h-4 w-4 mr-1" />
+            Carreira
           </TabsTrigger>
           <TabsTrigger value="projections" className="shrink-0">
             <BarChart3 className="h-4 w-4 mr-1" />
@@ -765,10 +765,6 @@ const AdminPartnerManagement = () => {
           <ReferralLevelConfigManager />
         </TabsContent>
 
-        {/* Graduações Tab */}
-        <TabsContent value="graduations">
-          <PartnerGraduationManager />
-        </TabsContent>
 
         {/* Bônus de Expansão Tab */}
         <TabsContent value="expansion">
@@ -784,7 +780,7 @@ const AdminPartnerManagement = () => {
               na aba <strong>Bônus de Expansão</strong>.
             </AlertDescription>
           </Alert>
-          <BinaryNetworkManager />
+          <p className="text-xs text-muted-foreground">Sistema binário desativado em favor do Programa de Expansão.</p>
         </TabsContent>
 
 
