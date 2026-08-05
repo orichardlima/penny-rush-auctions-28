@@ -132,8 +132,8 @@ const PartnerLevelProgress: React.FC<PartnerLevelProgressProps> = ({
                   )}
                   <div className="flex items-center gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{rank.label}</p>
-                      <p className="text-xs text-muted-foreground">{rank.min_points.toLocaleString('pt-BR')} pts</p>
+                      <p className="text-sm font-medium truncate">{rank?.label ?? rank?.key ?? '-'}</p>
+                      <p className="text-xs text-muted-foreground">{minPoints.toLocaleString('pt-BR')} pts</p>
                     </div>
                   </div>
                 </div>
