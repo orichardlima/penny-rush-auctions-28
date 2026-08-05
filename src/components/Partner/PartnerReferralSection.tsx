@@ -241,7 +241,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                   <TableHead>Plano</TableHead>
                   <TableHead>Valor do Aporte</TableHead>
                   <TableHead>Bônus</TableHead>
-                  <TableHead>Pontos</TableHead>
+                  <TableHead>Pontos de Carreira</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Liberação</TableHead>
                   <TableHead>Status</TableHead>
