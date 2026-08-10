@@ -362,6 +362,8 @@ Deno.serve(async (req) => {
             weekly_cap_applied: weeklyCapApplied,
             total_cap_applied: totalCapApplied,
             status: 'PAID',
+            source: 'weekly_aporte',
+            payout_type: 'partnership_weekly_repass',
             paid_at: new Date().toISOString()
           })
 
