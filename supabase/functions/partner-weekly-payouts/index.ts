@@ -216,12 +216,17 @@ Deno.serve(async (req) => {
       console.log(`[partner-weekly-payouts] Processando contrato ${contract.id} (${contract.plan_name})`)
       
       try {
-        // 1. Verificar idempotência - já existe payout para esta semana?
+        // 1. Verificar idempotência - já existe repasse semanal para esta semana?
+        // IMPORTANTE: filtrar por source/payout_type para que lançamentos manuais
+        // (bônus, antecipações, regularizações) gravados com o mesmo period_start
+        // não bloqueiem o repasse semanal do parceiro.
         const { data: existingPayout, error: existingError } = await supabase
           .from('partner_payouts')
           .select('id')
           .eq('partner_contract_id', contract.id)
           .eq('period_start', weekStartStr)
+          .eq('source', 'weekly_aporte')
+          .eq('payout_type', 'partnership_weekly_repass')
           .maybeSingle()
 
         if (existingError) {
@@ -230,13 +235,13 @@ Deno.serve(async (req) => {
         }
 
         if (existingPayout) {
-          console.log(`[partner-weekly-payouts] Contrato ${contract.id} já tem payout para ${weekStartStr}. Pulando.`)
+          console.log(`[partner-weekly-payouts] Contrato ${contract.id} já tem repasse semanal para ${weekStartStr}. Pulando.`)
           results.push({
             contract_id: contract.id,
             user_id: contract.user_id,
             plan_name: contract.plan_name,
             status: 'skipped',
-            reason: 'Payout já existe para este período'
+            reason: 'Repasse semanal já existe para este período'
           })
           continue
         }
@@ -357,6 +362,8 @@ Deno.serve(async (req) => {
             weekly_cap_applied: weeklyCapApplied,
             total_cap_applied: totalCapApplied,
             status: 'PAID',
+            source: 'weekly_aporte',
+            payout_type: 'partnership_weekly_repass',
             paid_at: new Date().toISOString()
           })
 
