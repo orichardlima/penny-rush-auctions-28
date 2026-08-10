@@ -235,13 +235,13 @@ Deno.serve(async (req) => {
         }
 
         if (existingPayout) {
-          console.log(`[partner-weekly-payouts] Contrato ${contract.id} já tem payout para ${weekStartStr}. Pulando.`)
+          console.log(`[partner-weekly-payouts] Contrato ${contract.id} já tem repasse semanal para ${weekStartStr}. Pulando.`)
           results.push({
             contract_id: contract.id,
             user_id: contract.user_id,
             plan_name: contract.plan_name,
             status: 'skipped',
-            reason: 'Payout já existe para este período'
+            reason: 'Repasse semanal já existe para este período'
           })
           continue
         }
