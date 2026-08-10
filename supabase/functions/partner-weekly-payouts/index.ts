@@ -216,12 +216,17 @@ Deno.serve(async (req) => {
       console.log(`[partner-weekly-payouts] Processando contrato ${contract.id} (${contract.plan_name})`)
       
       try {
-        // 1. Verificar idempotência - já existe payout para esta semana?
+        // 1. Verificar idempotência - já existe repasse semanal para esta semana?
+        // IMPORTANTE: filtrar por source/payout_type para que lançamentos manuais
+        // (bônus, antecipações, regularizações) gravados com o mesmo period_start
+        // não bloqueiem o repasse semanal do parceiro.
         const { data: existingPayout, error: existingError } = await supabase
           .from('partner_payouts')
           .select('id')
           .eq('partner_contract_id', contract.id)
           .eq('period_start', weekStartStr)
+          .eq('source', 'weekly_aporte')
+          .eq('payout_type', 'partnership_weekly_repass')
           .maybeSingle()
 
         if (existingError) {
