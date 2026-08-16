@@ -22,6 +22,8 @@ export default function ProdutoShow() {
   const { wallet } = useStoreCatalog();
   const { items: cartItems, totalItems, addItem } = useStoreCart();
   const [item, setItem] = useState<any>(null);
+  const [images, setImages] = useState<string[]>([]);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const availablePoints = Number(wallet?.available_points ?? 0);
@@ -41,6 +43,17 @@ export default function ProdutoShow() {
         .eq("status", "ACTIVE")
         .maybeSingle();
       setItem(data);
+      setActiveImage(data?.main_image_url || null);
+      if (data?.id) {
+        const { data: imgs } = await sb
+          .from("points_store_item_images")
+          .select("url")
+          .eq("item_id", data.id)
+          .order("sort_order", { ascending: true });
+        setImages((imgs || []).map((r: any) => r.url));
+      } else {
+        setImages([]);
+      }
       setLoading(false);
     })();
   }, [slug]);
