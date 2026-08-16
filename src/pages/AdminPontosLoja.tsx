@@ -601,7 +601,14 @@ function ItemsTab() {
                     {["DRAFT", "ACTIVE", "PAUSED", "OUT_OF_STOCK", "ARCHIVED"].map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
                   </select>
                 </div>
-                <div className="md:col-span-2"><Label>URL da imagem principal</Label><Input value={form.main_image_url || ""} onChange={e => setForm({ ...form, main_image_url: e.target.value })} /></div>
+                <div className="md:col-span-2">
+                  <MainImageUploader value={form.main_image_url || ""} onChange={(url) => setForm({ ...form, main_image_url: url })} />
+                </div>
+                {editing && (
+                  <div className="md:col-span-2 border-t pt-3">
+                    <StoreItemImagesManager itemId={editing.id} onMainChange={(url) => setForm({ ...form, main_image_url: url })} />
+                  </div>
+                )}
               </div>
               <DialogFooter><Button onClick={save}>{editing ? "Salvar alterações" : "Criar item"}</Button></DialogFooter>
             </DialogContent>
