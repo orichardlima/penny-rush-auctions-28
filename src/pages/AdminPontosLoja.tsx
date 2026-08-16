@@ -15,6 +15,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { MainImageUploader, StoreItemImagesManager } from "@/components/Admin/StoreItemImagesManager";
+import { RedemptionDetailDialog } from "@/components/Admin/RedemptionDetailDialog";
+import { Truck, PackageCheck } from "lucide-react";
 import {
   Settings2, Sparkles, Tag, Package, ShoppingBag, Home, ArrowLeft,
   Sliders, CalendarClock, Braces, Info, Lightbulb, ShieldCheck, Rocket,
@@ -601,7 +604,14 @@ function ItemsTab() {
                     {["DRAFT", "ACTIVE", "PAUSED", "OUT_OF_STOCK", "ARCHIVED"].map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
                   </select>
                 </div>
-                <div className="md:col-span-2"><Label>URL da imagem principal</Label><Input value={form.main_image_url || ""} onChange={e => setForm({ ...form, main_image_url: e.target.value })} /></div>
+                <div className="md:col-span-2">
+                  <MainImageUploader value={form.main_image_url || ""} onChange={(url) => setForm({ ...form, main_image_url: url })} />
+                </div>
+                {editing && (
+                  <div className="md:col-span-2 border-t pt-3">
+                    <StoreItemImagesManager itemId={editing.id} onMainChange={(url) => setForm({ ...form, main_image_url: url })} />
+                  </div>
+                )}
               </div>
               <DialogFooter><Button onClick={save}>{editing ? "Salvar alterações" : "Criar item"}</Button></DialogFooter>
             </DialogContent>
@@ -653,6 +663,8 @@ function RedemptionsTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("PENDING");
+  const [detail, setDetail] = useState<any>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -672,10 +684,22 @@ function RedemptionsTab() {
     const { error } = await sb.rpc("redeem_reject", { p_redemption: id, p_admin: user?.id, p_reason: reason });
     if (error) toast.error(error.message); else { toast.success("Resgate rejeitado"); await load(); }
   };
+  const ship = async (id: string) => {
+    const tracking = prompt("Código de rastreio (opcional):") || null;
+    const carrier = prompt("Transportadora (opcional):") || null;
+    const { error } = await sb.rpc("redeem_mark_shipped", { p_redemption: id, p_admin: user?.id, p_tracking: tracking, p_carrier: carrier });
+    if (error) toast.error(error.message); else { toast.success("Pedido marcado como enviado"); await load(); }
+  };
+  const deliver = async (id: string) => {
+    const { error } = await sb.rpc("redeem_mark_delivered", { p_redemption: id, p_admin: user?.id, p_notes: null });
+    if (error) toast.error(error.message); else { toast.success("Pedido marcado como entregue"); await load(); }
+  };
 
   const filters: Array<{ key: string; label: string; icon: any; className: string }> = [
     { key: "PENDING", label: "Pendentes", icon: Clock, className: "" },
     { key: "APPROVED", label: "Aprovados", icon: CheckCircle2, className: "" },
+    { key: "SHIPPED", label: "Enviados", icon: Truck, className: "" },
+    { key: "DELIVERED", label: "Entregues", icon: PackageCheck, className: "" },
     { key: "REJECTED", label: "Rejeitados", icon: XCircle, className: "" },
     { key: "ALL", label: "Todos", icon: Trophy, className: "" },
   ];
@@ -684,6 +708,9 @@ function RedemptionsTab() {
     if (s === "APPROVED") return <Badge className="bg-success text-success-foreground">Aprovado</Badge>;
     if (s === "REJECTED") return <Badge variant="destructive">Rejeitado</Badge>;
     if (s === "PENDING") return <Badge className="bg-warning text-warning-foreground">Pendente</Badge>;
+    if (s === "SHIPPED") return <Badge className="bg-primary text-primary-foreground">Enviado</Badge>;
+    if (s === "DELIVERED") return <Badge className="bg-success text-success-foreground">Entregue</Badge>;
+    if (s === "SEPARATING") return <Badge variant="secondary">Em separação</Badge>;
     return <Badge variant="secondary">{s}</Badge>;
   };
 
@@ -726,12 +753,21 @@ function RedemptionsTab() {
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell>
-                        {r.status === "PENDING" && (
-                          <div className="flex gap-1">
-                            <Button size="sm" onClick={() => approve(r.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>
-                            <Button size="sm" variant="destructive" onClick={() => reject(r.id)}><XCircle className="h-4 w-4 mr-1" />Rejeitar</Button>
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" onClick={() => { setDetail(r); setDetailOpen(true); }}>Detalhes</Button>
+                          {r.status === "PENDING" && (
+                            <>
+                              <Button size="sm" onClick={() => approve(r.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>
+                              <Button size="sm" variant="destructive" onClick={() => reject(r.id)}><XCircle className="h-4 w-4 mr-1" />Rejeitar</Button>
+                            </>
+                          )}
+                          {(r.status === "APPROVED" || r.status === "SEPARATING") && (
+                            <Button size="sm" onClick={() => ship(r.id)}><Truck className="h-4 w-4 mr-1" />Marcar enviado</Button>
+                          )}
+                          {r.status === "SHIPPED" && (
+                            <Button size="sm" onClick={() => deliver(r.id)}><PackageCheck className="h-4 w-4 mr-1" />Marcar entregue</Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -742,6 +778,8 @@ function RedemptionsTab() {
           )}
         </CardContent>
       </Card>
+
+      <RedemptionDetailDialog redemption={detail} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   );
 }
