@@ -7494,6 +7494,19 @@ export type Database = {
         Args: { p_idem: string; p_items: Json; p_shipping: Json }
         Returns: string
       }
+      redeem_mark_delivered: {
+        Args: { p_admin: string; p_notes?: string; p_redemption: string }
+        Returns: undefined
+      }
+      redeem_mark_shipped: {
+        Args: {
+          p_admin: string
+          p_carrier?: string
+          p_redemption: string
+          p_tracking?: string
+        }
+        Returns: undefined
+      }
       redeem_reject: {
         Args: { p_admin: string; p_reason: string; p_redemption: string }
         Returns: undefined
