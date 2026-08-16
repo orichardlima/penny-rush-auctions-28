@@ -64,17 +64,24 @@ export function MainImageUploader({
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
               <Upload className="h-4 w-4 mr-1" />
               {busy ? "Enviando..." : "Enviar imagem"}
             </Button>
+            <CatalogImagePicker
+              onSelect={(url) => {
+                onChange(url);
+                toast.success("Imagem importada do catálogo");
+              }}
+            />
             {value && (
               <Button type="button" size="sm" variant="ghost" onClick={() => onChange("")}>
                 Remover
               </Button>
             )}
           </div>
+
           <input
             ref={inputRef}
             type="file"
