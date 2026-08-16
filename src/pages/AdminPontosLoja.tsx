@@ -734,12 +734,21 @@ function RedemptionsTab() {
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell>
-                        {r.status === "PENDING" && (
-                          <div className="flex gap-1">
-                            <Button size="sm" onClick={() => approve(r.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>
-                            <Button size="sm" variant="destructive" onClick={() => reject(r.id)}><XCircle className="h-4 w-4 mr-1" />Rejeitar</Button>
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" onClick={() => { setDetail(r); setDetailOpen(true); }}>Detalhes</Button>
+                          {r.status === "PENDING" && (
+                            <>
+                              <Button size="sm" onClick={() => approve(r.id)}><CheckCircle2 className="h-4 w-4 mr-1" />Aprovar</Button>
+                              <Button size="sm" variant="destructive" onClick={() => reject(r.id)}><XCircle className="h-4 w-4 mr-1" />Rejeitar</Button>
+                            </>
+                          )}
+                          {(r.status === "APPROVED" || r.status === "SEPARATING") && (
+                            <Button size="sm" onClick={() => ship(r.id)}><Truck className="h-4 w-4 mr-1" />Marcar enviado</Button>
+                          )}
+                          {r.status === "SHIPPED" && (
+                            <Button size="sm" onClick={() => deliver(r.id)}><PackageCheck className="h-4 w-4 mr-1" />Marcar entregue</Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
