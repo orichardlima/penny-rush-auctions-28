@@ -778,6 +778,8 @@ function RedemptionsTab() {
           )}
         </CardContent>
       </Card>
+
+      <RedemptionDetailDialog redemption={detail} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   );
 }
