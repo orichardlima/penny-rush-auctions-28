@@ -682,10 +682,22 @@ function RedemptionsTab() {
     const { error } = await sb.rpc("redeem_reject", { p_redemption: id, p_admin: user?.id, p_reason: reason });
     if (error) toast.error(error.message); else { toast.success("Resgate rejeitado"); await load(); }
   };
+  const ship = async (id: string) => {
+    const tracking = prompt("Código de rastreio (opcional):") || null;
+    const carrier = prompt("Transportadora (opcional):") || null;
+    const { error } = await sb.rpc("redeem_mark_shipped", { p_redemption: id, p_admin: user?.id, p_tracking: tracking, p_carrier: carrier });
+    if (error) toast.error(error.message); else { toast.success("Pedido marcado como enviado"); await load(); }
+  };
+  const deliver = async (id: string) => {
+    const { error } = await sb.rpc("redeem_mark_delivered", { p_redemption: id, p_admin: user?.id, p_notes: null });
+    if (error) toast.error(error.message); else { toast.success("Pedido marcado como entregue"); await load(); }
+  };
 
   const filters: Array<{ key: string; label: string; icon: any; className: string }> = [
     { key: "PENDING", label: "Pendentes", icon: Clock, className: "" },
     { key: "APPROVED", label: "Aprovados", icon: CheckCircle2, className: "" },
+    { key: "SHIPPED", label: "Enviados", icon: Truck, className: "" },
+    { key: "DELIVERED", label: "Entregues", icon: PackageCheck, className: "" },
     { key: "REJECTED", label: "Rejeitados", icon: XCircle, className: "" },
     { key: "ALL", label: "Todos", icon: Trophy, className: "" },
   ];
