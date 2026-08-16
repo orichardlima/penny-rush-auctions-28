@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { MainImageUploader, StoreItemImagesManager } from "@/components/Admin/StoreItemImagesManager";
+import { RedemptionDetailDialog } from "@/components/Admin/RedemptionDetailDialog";
+import { Truck, PackageCheck } from "lucide-react";
 import {
   Settings2, Sparkles, Tag, Package, ShoppingBag, Home, ArrowLeft,
   Sliders, CalendarClock, Braces, Info, Lightbulb, ShieldCheck, Rocket,
