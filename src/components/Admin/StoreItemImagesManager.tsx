@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Upload, Trash2, Star, ImagePlus } from "lucide-react";
+import { CatalogImagePicker } from "@/components/Admin/CatalogImagePicker";
+
 
 const sb = supabase as any;
 const BUCKET = "product-images";
