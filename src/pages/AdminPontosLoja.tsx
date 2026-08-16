@@ -708,6 +708,9 @@ function RedemptionsTab() {
     if (s === "APPROVED") return <Badge className="bg-success text-success-foreground">Aprovado</Badge>;
     if (s === "REJECTED") return <Badge variant="destructive">Rejeitado</Badge>;
     if (s === "PENDING") return <Badge className="bg-warning text-warning-foreground">Pendente</Badge>;
+    if (s === "SHIPPED") return <Badge className="bg-primary text-primary-foreground">Enviado</Badge>;
+    if (s === "DELIVERED") return <Badge className="bg-success text-success-foreground">Entregue</Badge>;
+    if (s === "SEPARATING") return <Badge variant="secondary">Em separação</Badge>;
     return <Badge variant="secondary">{s}</Badge>;
   };
 
