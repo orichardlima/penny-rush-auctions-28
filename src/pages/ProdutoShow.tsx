@@ -87,11 +87,28 @@ export default function ProdutoShow() {
           </Link>
 
           <div className="grid md:grid-cols-2 gap-10 lg:gap-16">
-            <div className="bg-[hsl(45_40%_97%)] aspect-square border border-primary/10 overflow-hidden">
-              {item.main_image_url ? (
-                <img src={item.main_image_url} alt={item.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">Sem imagem</div>
+            <div className="space-y-3">
+              <div className="bg-[hsl(45_40%_97%)] aspect-square border border-primary/10 overflow-hidden">
+                {activeImage ? (
+                  <img src={activeImage} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">Sem imagem</div>
+                )}
+              </div>
+              {gallery.length > 1 && (
+                <div className="grid grid-cols-5 gap-2">
+                  {gallery.map((url) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => setActiveImage(url)}
+                      aria-label={`Ver imagem de ${item.name}`}
+                      className={`aspect-square overflow-hidden border transition-colors ${activeImage === url ? "border-primary" : "border-primary/10 hover:border-primary/40"}`}
+                    >
+                      <img src={url} alt={`${item.name} - miniatura`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
