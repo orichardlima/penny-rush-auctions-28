@@ -661,6 +661,8 @@ function RedemptionsTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("PENDING");
+  const [detail, setDetail] = useState<any>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
