@@ -85,6 +85,7 @@ export default function ProdutoShow() {
   const inCart = cartItems.find(c => c.item_id === item.id);
   const soldOut = item.stock_available < 1;
   const canAfford = availablePoints >= item.cost_points;
+  const gallery = Array.from(new Set([item.main_image_url, ...images].filter(Boolean))) as string[];
 
   return (
     <>
