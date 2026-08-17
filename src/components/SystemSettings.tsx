@@ -163,6 +163,7 @@ export const SystemSettings: React.FC = () => {
       setWithdrawalStartHour(getSettingValue('withdrawal_start_hour', 8).toString());
       setWithdrawalEndHour(getSettingValue('withdrawal_end_hour', 18).toString());
       setWithdrawalFeePercentage(getSettingValue('withdrawal_fee_percentage', 0).toString());
+      setWithdrawalZeroFeeLastMonday(getSettingValue('withdrawal_zero_fee_last_monday', false) === true);
       setPartnerMinWithdrawal(getSettingValue('partner_min_withdrawal', 50).toString());
       setAffiliateMinWithdrawal(getSettingValue('affiliate_min_withdrawal', 50).toString());
       
