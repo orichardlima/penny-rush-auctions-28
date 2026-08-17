@@ -8,9 +8,21 @@ export interface WithdrawalSettings {
   feePercentage: number;
   partnerMinWithdrawal: number;
   affiliateMinWithdrawal: number;
+  zeroFeeLastMonday: boolean;
 }
 
 const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// Data (em America/Sao_Paulo) da última segunda-feira do mês de referência
+const getLastMondayOfMonth = (ref: Date): Date => {
+  const last = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+  const back = (last.getDay() - 1 + 7) % 7;
+  last.setDate(last.getDate() - back);
+  last.setHours(0, 0, 0, 0);
+  return last;
+};
+
+const nowBrt = (): Date => new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
 
 export const useWithdrawalSettings = () => {
   const [settings, setSettings] = useState<WithdrawalSettings>({
@@ -20,7 +32,9 @@ export const useWithdrawalSettings = () => {
     feePercentage: 0,
     partnerMinWithdrawal: 50,
     affiliateMinWithdrawal: 50,
+    zeroFeeLastMonday: false,
   });
+
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = useCallback(async () => {
