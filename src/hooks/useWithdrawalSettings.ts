@@ -108,8 +108,32 @@ export const useWithdrawalSettings = () => {
     return { open: true };
   }, [settings]);
 
+  // Última segunda-feira do mês atual (ou do próximo, se a deste mês já passou)
+  const nextZeroFeeDate = useMemo((): Date | null => {
+    if (!settings.zeroFeeLastMonday) return null;
+    const brt = nowBrt();
+    const today = new Date(brt.getFullYear(), brt.getMonth(), brt.getDate());
+    const thisMonth = getLastMondayOfMonth(brt);
+    if (thisMonth >= today) return thisMonth;
+    return getLastMondayOfMonth(new Date(brt.getFullYear(), brt.getMonth() + 1, 1));
+  }, [settings.zeroFeeLastMonday]);
+
+  const isZeroFeeDay = useMemo((): boolean => {
+    if (!settings.zeroFeeLastMonday) return false;
+    const brt = nowBrt();
+    const last = getLastMondayOfMonth(brt);
+    return (
+      brt.getDate() === last.getDate() &&
+      brt.getMonth() === last.getMonth() &&
+      brt.getFullYear() === last.getFullYear()
+    );
+  }, [settings.zeroFeeLastMonday]);
+
   const calculateFee = useCallback(
     (amount: number): { feeAmount: number; netAmount: number; feePercentage: number } => {
+      if (isZeroFeeDay) {
+        return { feePercentage: 0, feeAmount: 0, netAmount: Math.round(amount * 100) / 100 };
+      }
       const feeAmount = Math.round(amount * settings.feePercentage) / 100;
       return {
         feePercentage: settings.feePercentage,
@@ -117,7 +141,7 @@ export const useWithdrawalSettings = () => {
         netAmount: Math.round((amount - feeAmount) * 100) / 100,
       };
     },
-    [settings.feePercentage]
+    [settings.feePercentage, isZeroFeeDay]
   );
 
   return {
@@ -125,8 +149,11 @@ export const useWithdrawalSettings = () => {
     loading,
     isWithdrawalWindowOpen,
     calculateFee,
+    isZeroFeeDay,
+    nextZeroFeeDate,
     refetch: fetchSettings,
   };
 };
+
 
 export { DAY_NAMES };
