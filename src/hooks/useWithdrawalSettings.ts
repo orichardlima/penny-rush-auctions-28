@@ -49,6 +49,8 @@ export const useWithdrawalSettings = () => {
           'withdrawal_fee_percentage',
           'partner_min_withdrawal',
           'affiliate_min_withdrawal',
+          'withdrawal_zero_fee_last_monday',
+
         ]);
 
       if (error) throw error;
