@@ -49,7 +49,11 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
     hasPendingWithdrawal
   } = useAffiliateWithdrawals(affiliateId);
 
-  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee, isZeroFeeDay, nextZeroFeeDate } = useWithdrawalSettings();
+  const effectiveFeePct = isZeroFeeDay ? 0 : wSettings.feePercentage;
+  const nextZeroFeeLabel = nextZeroFeeDate
+    ? nextZeroFeeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    : null;
 
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
@@ -115,6 +119,22 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
         </Alert>
       )}
 
+      {/* Segunda Taxa Zero */}
+      {isZeroFeeDay && (
+        <Alert className="bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800">
+          <AlertDescription className="text-sm text-green-700 dark:text-green-400">
+            <strong>Hoje é Segunda Taxa Zero!</strong> Saques solicitados hoje não têm taxa.
+          </AlertDescription>
+        </Alert>
+      )}
+      {!isZeroFeeDay && nextZeroFeeLabel && wSettings.feePercentage > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Próxima Segunda Taxa Zero: <strong>{nextZeroFeeLabel}</strong> — saques nesse dia ficam sem taxa.
+        </p>
+      )}
+
+
+
       {/* Cards de resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
@@ -126,7 +146,7 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
             <div className="text-3xl font-bold text-primary">{formatPrice(commissionBalance)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Mínimo para saque: {formatPrice(effectiveMin)}
-              {wSettings.feePercentage > 0 && ` • Taxa: ${wSettings.feePercentage}%`}
+              {effectiveFeePct > 0 && ` • Taxa: ${effectiveFeePct}%`}
             </p>
           </CardContent>
         </Card>
@@ -272,11 +292,11 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
             </div>
 
             {/* Fee preview */}
-            {parsedAmount > 0 && wSettings.feePercentage > 0 && (
+            {parsedAmount > 0 && effectiveFeePct > 0 && (
               <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-sm border border-amber-200 dark:border-amber-800 space-y-1">
                 <p className="font-medium text-amber-700 dark:text-amber-400">Detalhamento da taxa:</p>
                 <p>Valor solicitado: {formatPrice(parsedAmount)}</p>
-                <p>Taxa ({wSettings.feePercentage}%): -{formatPrice(feeInfo.feeAmount)}</p>
+                <p>Taxa ({effectiveFeePct}%): -{formatPrice(feeInfo.feeAmount)}</p>
                 <p className="font-bold">Você recebe: {formatPrice(feeInfo.netAmount)}</p>
               </div>
             )}

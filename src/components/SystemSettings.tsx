@@ -82,6 +82,7 @@ export const SystemSettings: React.FC = () => {
   const [withdrawalStartHour, setWithdrawalStartHour] = useState<string>('8');
   const [withdrawalEndHour, setWithdrawalEndHour] = useState<string>('18');
   const [withdrawalFeePercentage, setWithdrawalFeePercentage] = useState<string>('0');
+  const [withdrawalZeroFeeLastMonday, setWithdrawalZeroFeeLastMonday] = useState<boolean>(false);
   const [partnerMinWithdrawal, setPartnerMinWithdrawal] = useState<string>('50');
   const [affiliateMinWithdrawal, setAffiliateMinWithdrawal] = useState<string>('50');
   const [savingWithdrawal, setSavingWithdrawal] = useState(false);
@@ -162,6 +163,7 @@ export const SystemSettings: React.FC = () => {
       setWithdrawalStartHour(getSettingValue('withdrawal_start_hour', 8).toString());
       setWithdrawalEndHour(getSettingValue('withdrawal_end_hour', 18).toString());
       setWithdrawalFeePercentage(getSettingValue('withdrawal_fee_percentage', 0).toString());
+      setWithdrawalZeroFeeLastMonday(getSettingValue('withdrawal_zero_fee_last_monday', false) === true);
       setPartnerMinWithdrawal(getSettingValue('partner_min_withdrawal', 50).toString());
       setAffiliateMinWithdrawal(getSettingValue('affiliate_min_withdrawal', 50).toString());
       
@@ -294,6 +296,7 @@ export const SystemSettings: React.FC = () => {
         updateSetting('withdrawal_start_hour', withdrawalStartHour),
         updateSetting('withdrawal_end_hour', withdrawalEndHour),
         updateSetting('withdrawal_fee_percentage', withdrawalFeePercentage),
+        updateSetting('withdrawal_zero_fee_last_monday', withdrawalZeroFeeLastMonday.toString()),
         updateSetting('partner_min_withdrawal', partnerMinWithdrawal),
         updateSetting('affiliate_min_withdrawal', affiliateMinWithdrawal)
       ]);
@@ -1598,6 +1601,21 @@ export const SystemSettings: React.FC = () => {
               </div>
             )}
           </div>
+
+          <div className="flex items-center justify-between gap-4 p-3 rounded-lg border">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Segunda Taxa Zero (última segunda do mês)</Label>
+              <p className="text-xs text-muted-foreground">
+                Quando ativo, saques solicitados na última segunda-feira de cada mês não têm taxa.
+              </p>
+            </div>
+            <Switch
+              checked={withdrawalZeroFeeLastMonday}
+              onCheckedChange={setWithdrawalZeroFeeLastMonday}
+            />
+          </div>
+
+
 
           <Separator />
 

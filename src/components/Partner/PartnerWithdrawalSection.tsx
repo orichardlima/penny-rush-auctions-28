@@ -52,7 +52,11 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     hasPendingWithdrawal
   } = usePartnerWithdrawals(contract.id);
 
-  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee, isZeroFeeDay, nextZeroFeeDate } = useWithdrawalSettings();
+  const effectiveFeePct = isZeroFeeDay ? 0 : wSettings.feePercentage;
+  const nextZeroFeeLabel = nextZeroFeeDate
+    ? nextZeroFeeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    : null;
   const { balances, loading: balancesLoading, refetch: refetchBalances } = useWithdrawalBalances();
 
   const [availableBalance, setAvailableBalance] = useState(0);
@@ -193,6 +197,22 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         </Alert>
       )}
 
+      {/* Segunda Taxa Zero */}
+      {isZeroFeeDay && (
+        <Alert className="bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800">
+          <AlertDescription className="text-sm text-green-700 dark:text-green-400">
+            <strong>Hoje é Segunda Taxa Zero!</strong> Saques solicitados hoje não têm taxa.
+          </AlertDescription>
+        </Alert>
+      )}
+      {!isZeroFeeDay && nextZeroFeeLabel && wSettings.feePercentage > 0 && (
+        <p className="text-xs text-muted-foreground text-center">
+          Próxima Segunda Taxa Zero: <strong>{nextZeroFeeLabel}</strong> — saques nesse dia ficam sem taxa.
+        </p>
+      )}
+
+
+
       {/* Fluxo Visual */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-3 px-4 bg-muted/50 rounded-lg border border-dashed">
         <div className="flex items-center gap-1.5">
@@ -231,7 +251,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
             <div className="text-3xl font-bold text-primary">{formatPrice(availableBalance)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Contrato #{contract.id.slice(0, 8).toUpperCase()} • Mínimo para saque: {formatPrice(wSettings.partnerMinWithdrawal)}
-              {wSettings.feePercentage > 0 && ` • Taxa: ${wSettings.feePercentage}%`}
+              {effectiveFeePct > 0 && ` • Taxa: ${effectiveFeePct}%`}
             </p>
           </CardContent>
         </Card>
@@ -266,7 +286,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
       </div>
 
       {/* Visualizador / Simulador de Taxa */}
-      {wSettings.feePercentage > 0 && (
+      {effectiveFeePct > 0 && (
         <Card className="border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -275,7 +295,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
             </CardTitle>
             <CardDescription className="flex items-center gap-1.5">
               <Percent className="h-3 w-3" />
-              Taxa atual: <strong>{wSettings.feePercentage}%</strong> sobre o valor solicitado
+              Taxa atual: <strong>{effectiveFeePct}%</strong> sobre o valor solicitado
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -308,7 +328,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                 <p className="font-bold text-foreground mt-1">{formatPrice(parsedSimulator)}</p>
               </div>
               <div className="p-3 rounded-lg bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center">
-                <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400">Taxa ({wSettings.feePercentage}%)</p>
+                <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400">Taxa ({effectiveFeePct}%)</p>
                 <p className="font-bold text-amber-700 dark:text-amber-400 mt-1">-{formatPrice(simulatorFee.feeAmount)}</p>
               </div>
               <div className="p-3 rounded-lg bg-green-100/60 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-center">
@@ -411,11 +431,11 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   </div>
 
                   {/* Fee preview */}
-                  {parsedAmount > 0 && wSettings.feePercentage > 0 && (
+                  {parsedAmount > 0 && effectiveFeePct > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                         <Calculator className="h-3.5 w-3.5" />
-                        Detalhamento da taxa ({wSettings.feePercentage}%)
+                        Detalhamento da taxa ({effectiveFeePct}%)
                       </p>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="p-2.5 rounded-lg bg-muted border text-center">

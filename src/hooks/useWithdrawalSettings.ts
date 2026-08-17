@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface WithdrawalSettings {
@@ -8,9 +8,21 @@ export interface WithdrawalSettings {
   feePercentage: number;
   partnerMinWithdrawal: number;
   affiliateMinWithdrawal: number;
+  zeroFeeLastMonday: boolean;
 }
 
 const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// Data (em America/Sao_Paulo) da última segunda-feira do mês de referência
+const getLastMondayOfMonth = (ref: Date): Date => {
+  const last = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+  const back = (last.getDay() - 1 + 7) % 7;
+  last.setDate(last.getDate() - back);
+  last.setHours(0, 0, 0, 0);
+  return last;
+};
+
+const nowBrt = (): Date => new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
 
 export const useWithdrawalSettings = () => {
   const [settings, setSettings] = useState<WithdrawalSettings>({
@@ -20,7 +32,9 @@ export const useWithdrawalSettings = () => {
     feePercentage: 0,
     partnerMinWithdrawal: 50,
     affiliateMinWithdrawal: 50,
+    zeroFeeLastMonday: false,
   });
+
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = useCallback(async () => {
@@ -35,6 +49,8 @@ export const useWithdrawalSettings = () => {
           'withdrawal_fee_percentage',
           'partner_min_withdrawal',
           'affiliate_min_withdrawal',
+          'withdrawal_zero_fee_last_monday',
+
         ]);
 
       if (error) throw error;
@@ -53,7 +69,9 @@ export const useWithdrawalSettings = () => {
         feePercentage: parseFloat(map['withdrawal_fee_percentage']) || 0,
         partnerMinWithdrawal: parseFloat(map['partner_min_withdrawal']) || 50,
         affiliateMinWithdrawal: parseFloat(map['affiliate_min_withdrawal']) || 50,
+        zeroFeeLastMonday: map['withdrawal_zero_fee_last_monday'] === 'true',
       });
+
     } catch (error) {
       console.error('Error fetching withdrawal settings:', error);
     } finally {
@@ -90,8 +108,32 @@ export const useWithdrawalSettings = () => {
     return { open: true };
   }, [settings]);
 
+  // Última segunda-feira do mês atual (ou do próximo, se a deste mês já passou)
+  const nextZeroFeeDate = useMemo((): Date | null => {
+    if (!settings.zeroFeeLastMonday) return null;
+    const brt = nowBrt();
+    const today = new Date(brt.getFullYear(), brt.getMonth(), brt.getDate());
+    const thisMonth = getLastMondayOfMonth(brt);
+    if (thisMonth >= today) return thisMonth;
+    return getLastMondayOfMonth(new Date(brt.getFullYear(), brt.getMonth() + 1, 1));
+  }, [settings.zeroFeeLastMonday]);
+
+  const isZeroFeeDay = useMemo((): boolean => {
+    if (!settings.zeroFeeLastMonday) return false;
+    const brt = nowBrt();
+    const last = getLastMondayOfMonth(brt);
+    return (
+      brt.getDate() === last.getDate() &&
+      brt.getMonth() === last.getMonth() &&
+      brt.getFullYear() === last.getFullYear()
+    );
+  }, [settings.zeroFeeLastMonday]);
+
   const calculateFee = useCallback(
     (amount: number): { feeAmount: number; netAmount: number; feePercentage: number } => {
+      if (isZeroFeeDay) {
+        return { feePercentage: 0, feeAmount: 0, netAmount: Math.round(amount * 100) / 100 };
+      }
       const feeAmount = Math.round(amount * settings.feePercentage) / 100;
       return {
         feePercentage: settings.feePercentage,
@@ -99,7 +141,7 @@ export const useWithdrawalSettings = () => {
         netAmount: Math.round((amount - feeAmount) * 100) / 100,
       };
     },
-    [settings.feePercentage]
+    [settings.feePercentage, isZeroFeeDay]
   );
 
   return {
@@ -107,8 +149,11 @@ export const useWithdrawalSettings = () => {
     loading,
     isWithdrawalWindowOpen,
     calculateFee,
+    isZeroFeeDay,
+    nextZeroFeeDate,
     refetch: fetchSettings,
   };
 };
+
 
 export { DAY_NAMES };
