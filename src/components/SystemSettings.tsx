@@ -1602,6 +1602,21 @@ export const SystemSettings: React.FC = () => {
             )}
           </div>
 
+          <div className="flex items-center justify-between gap-4 p-3 rounded-lg border">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Segunda Taxa Zero (última segunda do mês)</Label>
+              <p className="text-xs text-muted-foreground">
+                Quando ativo, saques solicitados na última segunda-feira de cada mês não têm taxa.
+              </p>
+            </div>
+            <Switch
+              checked={withdrawalZeroFeeLastMonday}
+              onCheckedChange={setWithdrawalZeroFeeLastMonday}
+            />
+          </div>
+
+
+
           <Separator />
 
           {/* Valores mínimos */}
