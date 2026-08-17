@@ -49,7 +49,11 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
     hasPendingWithdrawal
   } = useAffiliateWithdrawals(affiliateId);
 
-  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee, isZeroFeeDay, nextZeroFeeDate } = useWithdrawalSettings();
+  const effectiveFeePct = isZeroFeeDay ? 0 : wSettings.feePercentage;
+  const nextZeroFeeLabel = nextZeroFeeDate
+    ? nextZeroFeeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    : null;
 
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
