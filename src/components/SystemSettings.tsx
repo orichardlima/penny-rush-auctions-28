@@ -296,6 +296,7 @@ export const SystemSettings: React.FC = () => {
         updateSetting('withdrawal_start_hour', withdrawalStartHour),
         updateSetting('withdrawal_end_hour', withdrawalEndHour),
         updateSetting('withdrawal_fee_percentage', withdrawalFeePercentage),
+        updateSetting('withdrawal_zero_fee_last_monday', withdrawalZeroFeeLastMonday.toString()),
         updateSetting('partner_min_withdrawal', partnerMinWithdrawal),
         updateSetting('affiliate_min_withdrawal', affiliateMinWithdrawal)
       ]);
