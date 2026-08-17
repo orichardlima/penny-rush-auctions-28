@@ -126,7 +126,7 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
             <div className="text-3xl font-bold text-primary">{formatPrice(commissionBalance)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Mínimo para saque: {formatPrice(effectiveMin)}
-              {wSettings.feePercentage > 0 && ` • Taxa: ${wSettings.feePercentage}%`}
+              {effectiveFeePct > 0 && ` • Taxa: ${effectiveFeePct}%`}
             </p>
           </CardContent>
         </Card>
@@ -272,11 +272,11 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
             </div>
 
             {/* Fee preview */}
-            {parsedAmount > 0 && wSettings.feePercentage > 0 && (
+            {parsedAmount > 0 && effectiveFeePct > 0 && (
               <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-sm border border-amber-200 dark:border-amber-800 space-y-1">
                 <p className="font-medium text-amber-700 dark:text-amber-400">Detalhamento da taxa:</p>
                 <p>Valor solicitado: {formatPrice(parsedAmount)}</p>
-                <p>Taxa ({wSettings.feePercentage}%): -{formatPrice(feeInfo.feeAmount)}</p>
+                <p>Taxa ({effectiveFeePct}%): -{formatPrice(feeInfo.feeAmount)}</p>
                 <p className="font-bold">Você recebe: {formatPrice(feeInfo.netAmount)}</p>
               </div>
             )}
