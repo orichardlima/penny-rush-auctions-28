@@ -119,6 +119,22 @@ export function AffiliateWithdrawalSection({ affiliateId, commissionBalance, pix
         </Alert>
       )}
 
+      {/* Segunda Taxa Zero */}
+      {isZeroFeeDay && (
+        <Alert className="bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800">
+          <AlertDescription className="text-sm text-green-700 dark:text-green-400">
+            <strong>Hoje é Segunda Taxa Zero!</strong> Saques solicitados hoje não têm taxa.
+          </AlertDescription>
+        </Alert>
+      )}
+      {!isZeroFeeDay && nextZeroFeeLabel && wSettings.feePercentage > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Próxima Segunda Taxa Zero: <strong>{nextZeroFeeLabel}</strong> — saques nesse dia ficam sem taxa.
+        </p>
+      )}
+
+
+
       {/* Cards de resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
