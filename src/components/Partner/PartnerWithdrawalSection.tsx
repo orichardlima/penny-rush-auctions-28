@@ -197,6 +197,22 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         </Alert>
       )}
 
+      {/* Segunda Taxa Zero */}
+      {isZeroFeeDay && (
+        <Alert className="bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800">
+          <AlertDescription className="text-sm text-green-700 dark:text-green-400">
+            <strong>Hoje é Segunda Taxa Zero!</strong> Saques solicitados hoje não têm taxa.
+          </AlertDescription>
+        </Alert>
+      )}
+      {!isZeroFeeDay && nextZeroFeeLabel && wSettings.feePercentage > 0 && (
+        <p className="text-xs text-muted-foreground text-center">
+          Próxima Segunda Taxa Zero: <strong>{nextZeroFeeLabel}</strong> — saques nesse dia ficam sem taxa.
+        </p>
+      )}
+
+
+
       {/* Fluxo Visual */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-3 px-4 bg-muted/50 rounded-lg border border-dashed">
         <div className="flex items-center gap-1.5">
