@@ -82,6 +82,7 @@ export const SystemSettings: React.FC = () => {
   const [withdrawalStartHour, setWithdrawalStartHour] = useState<string>('8');
   const [withdrawalEndHour, setWithdrawalEndHour] = useState<string>('18');
   const [withdrawalFeePercentage, setWithdrawalFeePercentage] = useState<string>('0');
+  const [withdrawalZeroFeeLastMonday, setWithdrawalZeroFeeLastMonday] = useState<boolean>(false);
   const [partnerMinWithdrawal, setPartnerMinWithdrawal] = useState<string>('50');
   const [affiliateMinWithdrawal, setAffiliateMinWithdrawal] = useState<string>('50');
   const [savingWithdrawal, setSavingWithdrawal] = useState(false);
