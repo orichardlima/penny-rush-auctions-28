@@ -69,7 +69,9 @@ export const useWithdrawalSettings = () => {
         feePercentage: parseFloat(map['withdrawal_fee_percentage']) || 0,
         partnerMinWithdrawal: parseFloat(map['partner_min_withdrawal']) || 50,
         affiliateMinWithdrawal: parseFloat(map['affiliate_min_withdrawal']) || 50,
+        zeroFeeLastMonday: map['withdrawal_zero_fee_last_monday'] === 'true',
       });
+
     } catch (error) {
       console.error('Error fetching withdrawal settings:', error);
     } finally {
