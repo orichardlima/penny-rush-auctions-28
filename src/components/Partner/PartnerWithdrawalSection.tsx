@@ -52,7 +52,11 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     hasPendingWithdrawal
   } = usePartnerWithdrawals(contract.id);
 
-  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee } = useWithdrawalSettings();
+  const { settings: wSettings, isWithdrawalWindowOpen, calculateFee, isZeroFeeDay, nextZeroFeeDate } = useWithdrawalSettings();
+  const effectiveFeePct = isZeroFeeDay ? 0 : wSettings.feePercentage;
+  const nextZeroFeeLabel = nextZeroFeeDate
+    ? nextZeroFeeDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    : null;
   const { balances, loading: balancesLoading, refetch: refetchBalances } = useWithdrawalBalances();
 
   const [availableBalance, setAvailableBalance] = useState(0);
