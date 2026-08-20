@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
-import { DollarSign, UserPlus, Loader2, Minus, Plus } from 'lucide-react';
+import { usePartnerCredit } from '@/hooks/usePartnerCredit';
+import { DollarSign, UserPlus, Loader2, Minus, Plus, HandCoins, AlertTriangle } from 'lucide-react';
 
 interface SponsorActivateDialogProps {
   open: boolean;
@@ -25,15 +26,20 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
   onSuccess,
 }) => {
   const { toast } = useToast();
+  const { hasCredit, availableCredit, isBlocked, refetch: refetchCredit } = usePartnerCredit();
   const [email, setEmail] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [cotas, setCotas] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentSource, setPaymentSource] = useState<'balance' | 'credit'>('balance');
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   const maxCotas = selectedPlan?.max_cotas || 1;
   const totalAporte = selectedPlan ? selectedPlan.aporte_value * cotas : 0;
-  const hasSufficientBalance = selectedPlan ? availableBalance >= totalAporte : false;
+  const sourceBalance = paymentSource === 'credit' ? availableCredit : availableBalance;
+  const hasSufficientBalance = selectedPlan
+    ? sourceBalance >= totalAporte && !(paymentSource === 'credit' && isBlocked)
+    : false;
 
   const formatPrice = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -44,6 +50,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
     setCotas(1);
   };
 
+
   const handleSubmit = async () => {
     if (!email.trim() || !selectedPlanId) {
       toast({ variant: 'destructive', title: 'Preencha todos os campos' });
@@ -53,7 +60,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
-        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas },
+        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas, paymentSource },
       });
 
       if (error) throw new Error(error.message);
@@ -68,6 +75,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       setSelectedPlanId('');
       setCotas(1);
       onOpenChange(false);
+      refetchCredit();
       onSuccess();
     } catch (err: any) {
       toast({
@@ -95,22 +103,65 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Ativar Indicado com Saldo
+            Ativar Indicado
           </DialogTitle>
           <DialogDescription>
-            Use seu saldo disponível para ativar o plano de um parceiro indicado.
+            Use seu saldo disponível{hasCredit ? ' ou o crédito de confiança' : ''} para ativar o plano de um parceiro indicado.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Fonte de pagamento */}
+          {hasCredit && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fonte do pagamento</label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={paymentSource === 'balance' ? 'default' : 'outline'}
+                  className="h-auto py-2 flex-col items-start"
+                  onClick={() => setPaymentSource('balance')}
+                  disabled={submitting}
+                >
+                  <span className="text-xs">Saldo próprio</span>
+                  <span className="text-sm font-bold">{formatPrice(availableBalance)}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentSource === 'credit' ? 'default' : 'outline'}
+                  className="h-auto py-2 flex-col items-start"
+                  onClick={() => setPaymentSource('credit')}
+                  disabled={submitting || isBlocked}
+                >
+                  <span className="text-xs flex items-center gap-1"><HandCoins className="h-3 w-3" /> Crédito</span>
+                  <span className="text-sm font-bold">{formatPrice(availableCredit)}</span>
+                </Button>
+              </div>
+              {isBlocked && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Crédito bloqueado: existe devolução vencida em aberto.
+                </p>
+              )}
+              {paymentSource === 'credit' && !isBlocked && (
+                <p className="text-xs text-muted-foreground">
+                  O valor usado vira uma devolução a ser paga via PIX no prazo combinado.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Saldo atual */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <span className="text-sm text-muted-foreground">Seu saldo disponível:</span>
+            <span className="text-sm text-muted-foreground">
+              {paymentSource === 'credit' ? 'Crédito disponível:' : 'Seu saldo disponível:'}
+            </span>
             <Badge variant="secondary" className="text-base font-bold">
               <DollarSign className="h-4 w-4 mr-1" />
-              {formatPrice(availableBalance)}
+              {formatPrice(sourceBalance)}
             </Badge>
           </div>
+
 
           {/* Email */}
           <div className="space-y-2">
@@ -186,13 +237,16 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
                 <span className="font-medium">{formatPrice(totalAporte)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Saldo após ativação:</span>
+                <span className="text-muted-foreground">
+                  {paymentSource === 'credit' ? 'Crédito após ativação:' : 'Saldo após ativação:'}
+                </span>
                 <span className={`font-medium ${hasSufficientBalance ? 'text-green-600' : 'text-destructive'}`}>
                   {hasSufficientBalance
-                    ? formatPrice(availableBalance - totalAporte)
-                    : 'Saldo insuficiente'}
+                    ? formatPrice(sourceBalance - totalAporte)
+                    : paymentSource === 'credit' ? 'Crédito insuficiente' : 'Saldo insuficiente'}
                 </span>
               </div>
+
               {(selectedPlan.bonus_bids || 0) * cotas > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bônus de lances:</span>

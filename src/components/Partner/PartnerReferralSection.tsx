@@ -12,6 +12,8 @@ import PartnerLevelProgress from './PartnerLevelProgress';
 import ReferralNetworkTree from './ReferralNetworkTree';
 import FastStartProgress from './FastStartProgress';
 import SponsorActivateDialog from './SponsorActivateDialog';
+import PartnerCreditCard from './PartnerCreditCard';
+import { usePartnerCredit } from '@/hooks/usePartnerCredit';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Users, 
@@ -54,6 +56,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
   const referralBonusPercentage = currentPlan?.referral_bonus_percentage || 10;
   const [sponsorDialogOpen, setSponsorDialogOpen] = useState(false);
   const availableBalance = contract?.available_balance ?? 0;
+  const { availableCredit: creditAvailable } = usePartnerCredit();
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -125,8 +128,8 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
             </Button>
           </div>
 
-          {/* Botão Ativar Indicado com Saldo */}
-          {availableBalance > 0 && contract?.status === 'ACTIVE' && (
+          {/* Botão Ativar Indicado com Saldo ou Crédito */}
+          {(availableBalance > 0 || creditAvailable > 0) && contract?.status === 'ACTIVE' && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -138,7 +141,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                       disabled={contract.financial_status !== 'paid'}
                     >
                       <UserPlus className="h-4 w-4" />
-                      Ativar indicado com saldo ({formatPrice(availableBalance)})
+                      {availableBalance > 0
+                        ? `Ativar indicado com saldo (${formatPrice(availableBalance)})`
+                        : `Ativar indicado com crédito (${formatPrice(creditAvailable)})`}
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -150,6 +155,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               </Tooltip>
             </TooltipProvider>
           )}
+
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Seu código:</span>
@@ -223,6 +229,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
           )}
         </CardContent>
       </Card>
+
+      {/* Caixa de Crédito de Confiança */}
+      <PartnerCreditCard />
 
 
       {/* Histórico de Indicações */}
