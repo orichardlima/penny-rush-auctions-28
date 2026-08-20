@@ -318,22 +318,28 @@ Deno.serve(async (req) => {
       .eq('user_id', referredUser.id)
       .eq('payment_status', 'pending');
 
-    // 11. Audit log in partner_manual_credits
-    await adminClient
-      .from('partner_manual_credits')
-      .insert({
-        partner_contract_id: sponsorContract.id,
-        amount: -aporteValue,
-        credit_type: 'sponsor_activation',
-        description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
-        created_by: sponsorUserId,
-        consumes_cap: false,
-      });
+    // 11. Audit log in partner_manual_credits (apenas quando usa saldo próprio)
+    if (paymentSource === 'balance') {
+      await adminClient
+        .from('partner_manual_credits')
+        .insert({
+          partner_contract_id: sponsorContract.id,
+          amount: -aporteValue,
+          credit_type: 'sponsor_activation',
+          description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
+          created_by: sponsorUserId,
+          consumes_cap: false,
+        });
+    }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Parceiro ${referredEmail} ativado com sucesso no plano ${plan.display_name}!`,
+      message: paymentSource === 'credit'
+        ? `Parceiro ${referredEmail} ativado com crédito de confiança no plano ${plan.display_name}!`
+        : `Parceiro ${referredEmail} ativado com sucesso no plano ${plan.display_name}!`,
       newBalance,
+      paymentSource,
+      debtId,
       contractId: newContract.id,
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
