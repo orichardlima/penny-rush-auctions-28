@@ -202,6 +202,36 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fallback: código de parceiro gravado no perfil no momento do cadastro
+    if (!actualReferrerId) {
+      const { data: referredProfile } = await adminClient
+        .from('profiles')
+        .select('referred_by_partner_code')
+        .eq('user_id', referredUser.id)
+        .maybeSingle()
+
+      const partnerCode = referredProfile?.referred_by_partner_code
+      if (partnerCode) {
+        const { data: refContract } = await adminClient
+          .from('partner_contracts')
+          .select('user_id')
+          .eq('referral_code', partnerCode)
+          .eq('status', 'ACTIVE')
+          .maybeSingle()
+
+        if (refContract?.user_id && refContract.user_id !== referredUser.id) {
+          actualReferrerId = refContract.user_id
+          console.log('✅ Referrer encontrado via profiles.referred_by_partner_code:', partnerCode, actualReferrerId)
+        }
+      }
+    }
+
+    if (!actualReferrerId) {
+      console.warn('⚠️ Ativação sem indicador identificado para', referredUser.id, '- contrato ficará sem vínculo de rede')
+    }
+
+
+
     // 6. Check if referred already has ACTIVE contract
     const { data: existingContract } = await adminClient
       .from('partner_contracts')
