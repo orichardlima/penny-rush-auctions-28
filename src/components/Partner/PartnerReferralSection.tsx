@@ -12,6 +12,8 @@ import PartnerLevelProgress from './PartnerLevelProgress';
 import ReferralNetworkTree from './ReferralNetworkTree';
 import FastStartProgress from './FastStartProgress';
 import SponsorActivateDialog from './SponsorActivateDialog';
+import PartnerCreditCard from './PartnerCreditCard';
+import { usePartnerCredit } from '@/hooks/usePartnerCredit';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Users, 
