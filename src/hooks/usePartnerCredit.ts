@@ -10,6 +10,7 @@ export interface PartnerCreditLine {
   default_term_days: number;
   status: string;
   notes: string | null;
+  valid_until?: string | null;
 }
 
 export interface PartnerCreditDebt {
@@ -18,11 +19,14 @@ export interface PartnerCreditDebt {
   user_id: string;
   referred_email: string | null;
   amount: number;
+  paid_amount?: number | null;
+  term_days?: number | null;
   due_date: string;
   status: string;
   paid_at: string | null;
   created_at: string;
 }
+
 
 export const usePartnerCredit = () => {
   const { user } = useAuth();
