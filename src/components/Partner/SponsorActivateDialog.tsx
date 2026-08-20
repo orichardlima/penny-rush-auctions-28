@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerPlan } from '@/hooks/usePartnerContract';
-import { DollarSign, UserPlus, Loader2, Minus, Plus } from 'lucide-react';
+import { usePartnerCredit } from '@/hooks/usePartnerCredit';
+import { DollarSign, UserPlus, Loader2, Minus, Plus, HandCoins, AlertTriangle } from 'lucide-react';
 
 interface SponsorActivateDialogProps {
   open: boolean;
@@ -25,15 +26,20 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
   onSuccess,
 }) => {
   const { toast } = useToast();
+  const { hasCredit, availableCredit, isBlocked, refetch: refetchCredit } = usePartnerCredit();
   const [email, setEmail] = useState('');
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [cotas, setCotas] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentSource, setPaymentSource] = useState<'balance' | 'credit'>('balance');
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   const maxCotas = selectedPlan?.max_cotas || 1;
   const totalAporte = selectedPlan ? selectedPlan.aporte_value * cotas : 0;
-  const hasSufficientBalance = selectedPlan ? availableBalance >= totalAporte : false;
+  const sourceBalance = paymentSource === 'credit' ? availableCredit : availableBalance;
+  const hasSufficientBalance = selectedPlan
+    ? sourceBalance >= totalAporte && !(paymentSource === 'credit' && isBlocked)
+    : false;
 
   const formatPrice = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -43,6 +49,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
     setSelectedPlanId(planId);
     setCotas(1);
   };
+
 
   const handleSubmit = async () => {
     if (!email.trim() || !selectedPlanId) {
