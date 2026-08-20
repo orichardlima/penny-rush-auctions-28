@@ -5,6 +5,83 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Localiza o usuário indicado pelo email (perfil primeiro, auth paginado como fallback)
+async function findUserIdByEmail(adminClient: any, email: string): Promise<string | null> {
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  const { data: profileMatch, error: profileErr } = await adminClient
+    .from('profiles')
+    .select('user_id')
+    .ilike('email', normalizedEmail)
+    .limit(1)
+    .maybeSingle();
+  if (profileErr) throw profileErr;
+  if (profileMatch?.user_id) return profileMatch.user_id;
+
+  for (let page = 1; page <= 40; page++) {
+    const { data: pageData, error: usersError } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (usersError) throw usersError;
+    const found = pageData?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
+    if (found) return found.id;
+    if (!pageData?.users?.length || pageData.users.length < 1000) break;
+  }
+  return null;
+}
+
+// Resolve quem indicou o usuário (nunca é necessariamente quem está pagando).
+// Prioridade: intenção de pagamento > contrato anterior > afiliado > código gravado no perfil.
+async function resolveReferrer(adminClient: any, referredUserId: string): Promise<string | null> {
+  const { data: previousIntent } = await adminClient
+    .from('partner_payment_intents')
+    .select('referred_by_user_id')
+    .eq('user_id', referredUserId)
+    .not('referred_by_user_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (previousIntent?.referred_by_user_id) return previousIntent.referred_by_user_id;
+
+  const { data: previousContract } = await adminClient
+    .from('partner_contracts')
+    .select('referred_by_user_id')
+    .eq('user_id', referredUserId)
+    .not('referred_by_user_id', 'is', null)
+    .in('status', ['SUSPENDED', 'CLOSED'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (previousContract?.referred_by_user_id) return previousContract.referred_by_user_id;
+
+  const { data: affiliateRef } = await adminClient
+    .from('affiliate_referrals')
+    .select('affiliate_id, affiliates!inner(user_id)')
+    .eq('referred_user_id', referredUserId)
+    .eq('converted', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (affiliateRef?.affiliates?.user_id) return affiliateRef.affiliates.user_id;
+
+  const { data: referredProfile } = await adminClient
+    .from('profiles')
+    .select('referred_by_partner_code')
+    .eq('user_id', referredUserId)
+    .maybeSingle();
+
+  const partnerCode = referredProfile?.referred_by_partner_code;
+  if (partnerCode) {
+    const { data: refContract } = await adminClient
+      .from('partner_contracts')
+      .select('user_id')
+      .eq('referral_code', partnerCode)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+    if (refContract?.user_id && refContract.user_id !== referredUserId) return refContract.user_id;
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
