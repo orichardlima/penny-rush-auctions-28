@@ -358,7 +358,15 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !email.trim() || !selectedPlanId || !hasSufficientBalance}
+            disabled={
+              submitting ||
+              checkingReferrer ||
+              !email.trim() ||
+              !selectedPlanId ||
+              !hasSufficientBalance ||
+              (referrerInfo?.userFound === true && !referrerInfo.referrerId && !referralCode.trim())
+            }
+
           >
             {submitting ? (
               <>
