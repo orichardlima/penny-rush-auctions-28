@@ -62,7 +62,9 @@ import {
   ArrowUp,
   ArrowDown
   , UserMinus, Shield, History as HistoryIcon,
+  HandCoins,
 } from 'lucide-react';
+import PartnerCreditManagement from './PartnerCreditManagement';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import ExpansionAdminPanel from './Expansion/ExpansionAdminPanel';
