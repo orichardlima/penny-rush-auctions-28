@@ -22,6 +22,7 @@ interface CreditLineRow {
   default_term_days: number;
   status: string;
   notes: string | null;
+  valid_until: string | null;
   name?: string;
   email?: string;
 }
@@ -31,6 +32,8 @@ interface DebtRow {
   user_id: string;
   referred_email: string | null;
   amount: number;
+  paid_amount: number | null;
+  term_days: number | null;
   due_date: string;
   status: string;
   created_at: string;
@@ -48,6 +51,8 @@ const PartnerCreditManagement: React.FC = () => {
   const [email, setEmail] = useState('');
   const [limitAmount, setLimitAmount] = useState('');
   const [termDays, setTermDays] = useState('7');
+  const [validUntil, setValidUntil] = useState('');
+
   const [notes, setNotes] = useState('');
 
   const fetchData = useCallback(async () => {
