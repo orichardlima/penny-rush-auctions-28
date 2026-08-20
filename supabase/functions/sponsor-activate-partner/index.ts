@@ -26,12 +26,23 @@ Deno.serve(async (req) => {
     });
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Token inválido' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    let sponsorUserId: string | null = null;
+    try {
+      const { data: claimsData } = await authClient.auth.getClaims(token);
+      sponsorUserId = (claimsData?.claims?.sub as string) || null;
+    } catch (_e) {
+      sponsorUserId = null;
     }
 
-    const sponsorUserId = claimsData.claims.sub as string;
+    if (!sponsorUserId) {
+      // Fallback: validação direta do token (cobre chaves legadas/assimétricas)
+      const { data: userData, error: userErr } = await authClient.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Token inválido' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      sponsorUserId = userData.user.id;
+    }
 
     // Service client for all operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
