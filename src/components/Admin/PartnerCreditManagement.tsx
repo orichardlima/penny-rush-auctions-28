@@ -295,9 +295,6 @@ const PartnerCreditManagement: React.FC = () => {
           )}
         </CardContent>
 
-            </Table>
-          )}
-        </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
