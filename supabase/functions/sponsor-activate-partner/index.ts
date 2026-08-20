@@ -124,11 +124,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Find referred user by email
-    const { data: { users }, error: usersError } = await adminClient.auth.admin.listUsers();
-    if (usersError) throw usersError;
+    // 4. Find referred user by email (lookup direto — listUsel() paginado não encontra contas novas)
+    const normalizedEmail = String(referredEmail).trim().toLowerCase();
 
-    const referredUser = users?.find((u: any) => u.email?.toLowerCase() === referredEmail.toLowerCase());
+    let referredUser: { id: string } | null = null;
+
+    const { data: profileMatch, error: profileErr } = await adminClient
+      .from('profiles')
+      .select('user_id, email')
+      .ilike('email', normalizedEmail)
+      .limit(1)
+      .maybeSingle();
+
+    if (profileErr) throw profileErr;
+    if (profileMatch?.user_id) {
+      referredUser = { id: profileMatch.user_id };
+    } else {
+      // Fallback: busca paginada no auth (perfil pode não existir ainda)
+      for (let page = 1; page <= 40 && !referredUser; page++) {
+        const { data: pageData, error: usersError } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+        if (usersError) throw usersError;
+        const found = pageData?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
+        if (found) referredUser = { id: found.id };
+        if (!pageData?.users?.length || pageData.users.length < 1000) break;
+      }
+    }
+
     if (!referredUser) {
       return new Response(JSON.stringify({ error: 'Usuário indicado não encontrado. Ele precisa estar cadastrado na plataforma.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }

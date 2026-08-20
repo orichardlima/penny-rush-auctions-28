@@ -63,7 +63,18 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
         body: { referredEmail: email.trim(), planId: selectedPlanId, cotas, paymentSource },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Extrai a mensagem real retornada pela edge function (evita "non-2xx status code")
+        let backendMessage = '';
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            backendMessage = body?.error || '';
+          }
+        } catch { /* corpo não é JSON */ }
+        throw new Error(backendMessage || error.message);
+      }
       if (data?.error) throw new Error(data.error);
 
       toast({
