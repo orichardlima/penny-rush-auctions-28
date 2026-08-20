@@ -230,6 +230,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
         </CardContent>
       </Card>
 
+      {/* Caixa de Crédito de Confiança */}
+      <PartnerCreditCard />
+
 
       {/* Histórico de Indicações */}
       {bonuses.length > 0 && (
