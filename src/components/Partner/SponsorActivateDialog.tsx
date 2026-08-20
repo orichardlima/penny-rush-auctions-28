@@ -64,14 +64,13 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
         throw new Error('Sua sessão expirou. Entre novamente e tente de novo.');
       }
 
-      let accessToken = sessionData.session.access_token;
-      if (sessionData.session.expires_at && sessionData.session.expires_at * 1000 <= Date.now() + 30_000) {
-        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshed.session) {
-          throw new Error('Sua sessão expirou. Entre novamente e tente de novo.');
-        }
-        accessToken = refreshed.session.access_token;
+      // Renova sempre antes desta operação financeira para não reutilizar um JWT
+      // antigo que ainda esteja persistido no navegador.
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        throw new Error('Sua sessão expirou. Entre novamente e tente de novo.');
       }
+      const accessToken = refreshed.session.access_token;
 
       const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
         body: { referredEmail: email.trim(), planId: selectedPlanId, cotas, paymentSource },
