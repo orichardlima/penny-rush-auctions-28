@@ -748,11 +748,22 @@ const AdminPartnerManagement = () => {
             <Gift className="h-4 w-4 mr-1" />
             Bônus
           </TabsTrigger>
+          <TabsTrigger value="credit" className="shrink-0">
+            <HandCoins className="h-4 w-4 mr-1" />
+            Crédito de Confiança
+          </TabsTrigger>
           <TabsTrigger value="impersonation-log" className="shrink-0">
             <Shield className="h-4 w-4 mr-1" />
             Auditoria de Acessos
           </TabsTrigger>
         </TabsList>
+
+        {/* Crédito de Confiança Tab */}
+        <TabsContent value="credit">
+          <PartnerCreditManagement />
+        </TabsContent>
+
+
 
 
 
