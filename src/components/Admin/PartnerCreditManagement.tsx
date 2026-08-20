@@ -319,7 +319,18 @@ const PartnerCreditManagement: React.FC = () => {
             <div className="space-y-1">
               <Label>Prazo de devolução (dias)</Label>
               <Input type="number" value={termDays} onChange={(e) => setTermDays(e.target.value)} />
+              <p className="text-xs text-muted-foreground">
+                Só começa a contar quando o líder usa o crédito.
+              </p>
             </div>
+            <div className="space-y-1">
+              <Label>Limite válido para uso até (opcional)</Label>
+              <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+              <p className="text-xs text-muted-foreground">
+                Em branco = sem prazo de validade. Devoluções em aberto não são afetadas.
+              </p>
+            </div>
+
             <div className="space-y-1">
               <Label>Observações</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
