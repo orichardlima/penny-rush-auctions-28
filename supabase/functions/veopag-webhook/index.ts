@@ -89,6 +89,11 @@ serve(async (req) => {
       return await processRegularizationPayment(supabase, isApproved, isRejected, external_id)
     }
 
+    if (external_id.startsWith('credit:')) {
+      return await processCreditRepayment(supabase, isApproved, external_id, transaction_id)
+    }
+
+
     if (external_id.startsWith('withdrawal:')) {
       return await processWithdrawalCallback(supabase, isApproved, isRejected, external_id, transaction_id)
     }
