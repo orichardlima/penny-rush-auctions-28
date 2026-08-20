@@ -153,78 +153,8 @@ Deno.serve(async (req) => {
     }
 
     // 5b. Determine the actual referrer (who referred the user, not who is paying)
-    // Priority: 1) Existing intent with referred_by_user_id, 2) Previous contract. Payer is NEVER the referrer.
-    let actualReferrerId: string | null = null;
+    let actualReferrerId: string | null = await resolveReferrer(adminClient, referredUser.id);
 
-    // Check partner_payment_intents for a previous referral link
-    const { data: previousIntent } = await adminClient
-      .from('partner_payment_intents')
-      .select('referred_by_user_id')
-      .eq('user_id', referredUser.id)
-      .not('referred_by_user_id', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (previousIntent?.referred_by_user_id) {
-      actualReferrerId = previousIntent.referred_by_user_id;
-    } else {
-      // Check previous contracts (SUSPENDED/CLOSED) for referral info
-      const { data: previousContract } = await adminClient
-        .from('partner_contracts')
-        .select('referred_by_user_id')
-        .eq('user_id', referredUser.id)
-        .not('referred_by_user_id', 'is', null)
-        .in('status', ['SUSPENDED', 'CLOSED'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (previousContract?.referred_by_user_id) {
-        actualReferrerId = previousContract.referred_by_user_id;
-      }
-    }
-
-    // Fallback: buscar indicação via affiliate_referrals
-    if (!actualReferrerId) {
-      const { data: affiliateRef } = await adminClient
-        .from('affiliate_referrals')
-        .select('affiliate_id, affiliates!inner(user_id)')
-        .eq('referred_user_id', referredUser.id)
-        .eq('converted', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (affiliateRef?.affiliates?.user_id) {
-        actualReferrerId = affiliateRef.affiliates.user_id
-        console.log('✅ Referrer encontrado via affiliate_referrals:', actualReferrerId)
-      }
-    }
-
-    // Fallback: código de parceiro gravado no perfil no momento do cadastro
-    if (!actualReferrerId) {
-      const { data: referredProfile } = await adminClient
-        .from('profiles')
-        .select('referred_by_partner_code')
-        .eq('user_id', referredUser.id)
-        .maybeSingle()
-
-      const partnerCode = referredProfile?.referred_by_partner_code
-      if (partnerCode) {
-        const { data: refContract } = await adminClient
-          .from('partner_contracts')
-          .select('user_id')
-          .eq('referral_code', partnerCode)
-          .eq('status', 'ACTIVE')
-          .maybeSingle()
-
-        if (refContract?.user_id && refContract.user_id !== referredUser.id) {
-          actualReferrerId = refContract.user_id
-          console.log('✅ Referrer encontrado via profiles.referred_by_partner_code:', partnerCode, actualReferrerId)
-        }
-      }
-    }
 
     // Fallback final: código informado manualmente pelo patrocinador no modal
     if (!actualReferrerId && referralCodeOverride) {
