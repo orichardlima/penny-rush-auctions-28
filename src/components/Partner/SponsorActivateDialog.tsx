@@ -127,6 +127,9 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       setEmail('');
       setSelectedPlanId('');
       setCotas(1);
+      setReferrerInfo(null);
+      setReferralCode('');
+
       onOpenChange(false);
       refetchCredit();
       onSuccess();
