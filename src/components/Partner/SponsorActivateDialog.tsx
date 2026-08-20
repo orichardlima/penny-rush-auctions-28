@@ -75,6 +75,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       setSelectedPlanId('');
       setCotas(1);
       onOpenChange(false);
+      refetchCredit();
       onSuccess();
     } catch (err: any) {
       toast({
