@@ -32,6 +32,27 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
   const [cotas, setCotas] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [paymentSource, setPaymentSource] = useState<'balance' | 'credit'>('balance');
+  const [checkingReferrer, setCheckingReferrer] = useState(false);
+  const [referrerInfo, setReferrerInfo] = useState<{ userFound: boolean; referrerId: string | null; referrerName: string | null } | null>(null);
+  const [referralCode, setReferralCode] = useState('');
+
+  const checkReferrer = async () => {
+    const value = email.trim();
+    if (!value) { setReferrerInfo(null); return; }
+    setCheckingReferrer(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
+        body: { action: 'preview', referredEmail: value },
+      });
+      if (error) throw error;
+      setReferrerInfo(data);
+    } catch {
+      setReferrerInfo(null);
+    } finally {
+      setCheckingReferrer(false);
+    }
+  };
+
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   const maxCotas = selectedPlan?.max_cotas || 1;
@@ -73,9 +94,16 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       const accessToken = refreshed.session.access_token;
 
       const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
-        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas, paymentSource },
+        body: {
+          referredEmail: email.trim(),
+          planId: selectedPlanId,
+          cotas,
+          paymentSource,
+          ...(referralCode.trim() ? { referralCode: referralCode.trim() } : {}),
+        },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+
 
       if (error) {
         // Extrai a mensagem real retornada pela edge function (evita "non-2xx status code")
@@ -99,6 +127,9 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       setEmail('');
       setSelectedPlanId('');
       setCotas(1);
+      setReferrerInfo(null);
+      setReferralCode('');
+
       onOpenChange(false);
       refetchCredit();
       onSuccess();
@@ -118,6 +149,9 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       setEmail('');
       setSelectedPlanId('');
       setCotas(1);
+      setReferrerInfo(null);
+      setReferralCode('');
+
       onOpenChange(false);
     }
   };
@@ -195,10 +229,46 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
               type="email"
               placeholder="parceiro@email.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setReferrerInfo(null); }}
+              onBlur={checkReferrer}
               disabled={submitting}
             />
+            {checkingReferrer && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Verificando vínculo de indicação...
+              </p>
+            )}
+            {!checkingReferrer && referrerInfo?.userFound && referrerInfo.referrerId && (
+              <p className="text-xs text-green-600">
+                Indicador que será registrado: <strong>{referrerInfo.referrerName || 'Parceiro identificado'}</strong>
+              </p>
+            )}
+            {!checkingReferrer && referrerInfo?.userFound === false && (
+              <p className="text-xs text-destructive">
+                Usuário não encontrado. Ele precisa estar cadastrado na plataforma.
+              </p>
+            )}
           </div>
+
+          {/* Código de indicação (quando não há vínculo identificado) */}
+          {!checkingReferrer && referrerInfo?.userFound && !referrerInfo.referrerId && (
+            <div className="space-y-2">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                <p className="text-xs text-destructive">
+                  Este cadastro não tem indicador vinculado. Informe o código de indicação para que o contrato entre corretamente na rede.
+                </p>
+              </div>
+              <label className="text-sm font-medium">Código de indicação</label>
+              <Input
+                placeholder="Ex.: A1B2C3D4"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                disabled={submitting}
+              />
+            </div>
+          )}
+
 
           {/* Seletor de plano */}
           <div className="space-y-2">
@@ -288,7 +358,15 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !email.trim() || !selectedPlanId || !hasSufficientBalance}
+            disabled={
+              submitting ||
+              checkingReferrer ||
+              !email.trim() ||
+              !selectedPlanId ||
+              !hasSufficientBalance ||
+              (referrerInfo?.userFound === true && !referrerInfo.referrerId && !referralCode.trim())
+            }
+
           >
             {submitting ? (
               <>

@@ -5,6 +5,83 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Localiza o usuário indicado pelo email (perfil primeiro, auth paginado como fallback)
+async function findUserIdByEmail(adminClient: any, email: string): Promise<string | null> {
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  const { data: profileMatch, error: profileErr } = await adminClient
+    .from('profiles')
+    .select('user_id')
+    .ilike('email', normalizedEmail)
+    .limit(1)
+    .maybeSingle();
+  if (profileErr) throw profileErr;
+  if (profileMatch?.user_id) return profileMatch.user_id;
+
+  for (let page = 1; page <= 40; page++) {
+    const { data: pageData, error: usersError } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (usersError) throw usersError;
+    const found = pageData?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
+    if (found) return found.id;
+    if (!pageData?.users?.length || pageData.users.length < 1000) break;
+  }
+  return null;
+}
+
+// Resolve quem indicou o usuário (nunca é necessariamente quem está pagando).
+// Prioridade: intenção de pagamento > contrato anterior > afiliado > código gravado no perfil.
+async function resolveReferrer(adminClient: any, referredUserId: string): Promise<string | null> {
+  const { data: previousIntent } = await adminClient
+    .from('partner_payment_intents')
+    .select('referred_by_user_id')
+    .eq('user_id', referredUserId)
+    .not('referred_by_user_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (previousIntent?.referred_by_user_id) return previousIntent.referred_by_user_id;
+
+  const { data: previousContract } = await adminClient
+    .from('partner_contracts')
+    .select('referred_by_user_id')
+    .eq('user_id', referredUserId)
+    .not('referred_by_user_id', 'is', null)
+    .in('status', ['SUSPENDED', 'CLOSED'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (previousContract?.referred_by_user_id) return previousContract.referred_by_user_id;
+
+  const { data: affiliateRef } = await adminClient
+    .from('affiliate_referrals')
+    .select('affiliate_id, affiliates!inner(user_id)')
+    .eq('referred_user_id', referredUserId)
+    .eq('converted', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (affiliateRef?.affiliates?.user_id) return affiliateRef.affiliates.user_id;
+
+  const { data: referredProfile } = await adminClient
+    .from('profiles')
+    .select('referred_by_partner_code')
+    .eq('user_id', referredUserId)
+    .maybeSingle();
+
+  const partnerCode = referredProfile?.referred_by_partner_code;
+  if (partnerCode) {
+    const { data: refContract } = await adminClient
+      .from('partner_contracts')
+      .select('user_id')
+      .eq('referral_code', partnerCode)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+    if (refContract?.user_id && refContract.user_id !== referredUserId) return refContract.user_id;
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,13 +106,36 @@ Deno.serve(async (req) => {
     }
     const sponsorUserId = userData.user.id;
 
-    const { referredEmail, planId, cotas: rawCotas, paymentSource: rawSource } = await req.json();
+    const { referredEmail, planId, cotas: rawCotas, paymentSource: rawSource, action, referralCode: referralCodeOverride } = await req.json();
     const cotas = rawCotas || 1;
     const paymentSource: 'balance' | 'credit' = rawSource === 'credit' ? 'credit' : 'balance';
+
+    // Pré-consulta: informa ao patrocinador quem será registrado como indicador
+    if (action === 'preview') {
+      if (!referredEmail) {
+        return new Response(JSON.stringify({ error: 'Email do indicado é obrigatório' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const previewUserId = await findUserIdByEmail(adminClient, referredEmail);
+      if (!previewUserId) {
+        return new Response(JSON.stringify({ userFound: false, referrerId: null, referrerName: null }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const previewReferrerId = await resolveReferrer(adminClient, previewUserId);
+      let referrerName: string | null = null;
+      if (previewReferrerId) {
+        const { data: refProfile } = await adminClient
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', previewReferrerId)
+          .maybeSingle();
+        referrerName = refProfile?.full_name || refProfile?.email || null;
+      }
+      return new Response(JSON.stringify({ userFound: true, referrerId: previewReferrerId, referrerName }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (!referredEmail || !planId) {
       return new Response(JSON.stringify({ error: 'Email do indicado e plano são obrigatórios' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
 
     // 1. Fetch the plan
     const { data: plan, error: planError } = await adminClient
@@ -153,82 +253,34 @@ Deno.serve(async (req) => {
     }
 
     // 5b. Determine the actual referrer (who referred the user, not who is paying)
-    // Priority: 1) Existing intent with referred_by_user_id, 2) Previous contract. Payer is NEVER the referrer.
-    let actualReferrerId: string | null = null;
+    let actualReferrerId: string | null = await resolveReferrer(adminClient, referredUser.id);
 
-    // Check partner_payment_intents for a previous referral link
-    const { data: previousIntent } = await adminClient
-      .from('partner_payment_intents')
-      .select('referred_by_user_id')
-      .eq('user_id', referredUser.id)
-      .not('referred_by_user_id', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
 
-    if (previousIntent?.referred_by_user_id) {
-      actualReferrerId = previousIntent.referred_by_user_id;
-    } else {
-      // Check previous contracts (SUSPENDED/CLOSED) for referral info
-      const { data: previousContract } = await adminClient
+    // Fallback final: código informado manualmente pelo patrocinador no modal
+    if (!actualReferrerId && referralCodeOverride) {
+      const code = String(referralCodeOverride).trim().toUpperCase()
+      const { data: overrideContract } = await adminClient
         .from('partner_contracts')
-        .select('referred_by_user_id')
-        .eq('user_id', referredUser.id)
-        .not('referred_by_user_id', 'is', null)
-        .in('status', ['SUSPENDED', 'CLOSED'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (previousContract?.referred_by_user_id) {
-        actualReferrerId = previousContract.referred_by_user_id;
-      }
-    }
-
-    // Fallback: buscar indicação via affiliate_referrals
-    if (!actualReferrerId) {
-      const { data: affiliateRef } = await adminClient
-        .from('affiliate_referrals')
-        .select('affiliate_id, affiliates!inner(user_id)')
-        .eq('referred_user_id', referredUser.id)
-        .eq('converted', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .select('user_id')
+        .eq('referral_code', code)
+        .eq('status', 'ACTIVE')
         .maybeSingle()
 
-      if (affiliateRef?.affiliates?.user_id) {
-        actualReferrerId = affiliateRef.affiliates.user_id
-        console.log('✅ Referrer encontrado via affiliate_referrals:', actualReferrerId)
+      if (!overrideContract?.user_id || overrideContract.user_id === referredUser.id) {
+        return new Response(JSON.stringify({ error: 'Código de indicação inválido ou de um parceiro sem contrato ativo.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-    }
-
-    // Fallback: código de parceiro gravado no perfil no momento do cadastro
-    if (!actualReferrerId) {
-      const { data: referredProfile } = await adminClient
-        .from('profiles')
-        .select('referred_by_partner_code')
-        .eq('user_id', referredUser.id)
-        .maybeSingle()
-
-      const partnerCode = referredProfile?.referred_by_partner_code
-      if (partnerCode) {
-        const { data: refContract } = await adminClient
-          .from('partner_contracts')
-          .select('user_id')
-          .eq('referral_code', partnerCode)
-          .eq('status', 'ACTIVE')
-          .maybeSingle()
-
-        if (refContract?.user_id && refContract.user_id !== referredUser.id) {
-          actualReferrerId = refContract.user_id
-          console.log('✅ Referrer encontrado via profiles.referred_by_partner_code:', partnerCode, actualReferrerId)
-        }
-      }
+      actualReferrerId = overrideContract.user_id
+      console.log('✅ Referrer definido manualmente pelo patrocinador:', code, actualReferrerId)
     }
 
     if (!actualReferrerId) {
-      console.warn('⚠️ Ativação sem indicador identificado para', referredUser.id, '- contrato ficará sem vínculo de rede')
+      console.warn('⚠️ Ativação bloqueada: nenhum indicador identificado para', referredUser.id)
+      return new Response(JSON.stringify({
+        error: 'Não foi possível identificar quem indicou este usuário. Informe o código de indicação para vincular o contrato à rede.',
+        code: 'REFERRER_REQUIRED',
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
 
 
 
