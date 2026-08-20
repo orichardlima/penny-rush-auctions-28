@@ -36,8 +36,9 @@ Deno.serve(async (req) => {
     // Service client for all operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { referredEmail, planId, cotas: rawCotas } = await req.json();
+    const { referredEmail, planId, cotas: rawCotas, paymentSource: rawSource } = await req.json();
     const cotas = rawCotas || 1;
+    const paymentSource: 'balance' | 'credit' = rawSource === 'credit' ? 'credit' : 'balance';
 
     if (!referredEmail || !planId) {
       return new Response(JSON.stringify({ error: 'Email do indicado e plano são obrigatórios' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -82,12 +83,37 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Você não possui um contrato ativo' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 3. Check balance (using cents to avoid floating point issues)
-    const balanceCents = Math.round(sponsorContract.available_balance * 100);
+    // 3. Check funding source (using cents to avoid floating point issues)
     const aporteCents = Math.round(aporteValue * 100);
+    let creditLine: any = null;
 
-    if (balanceCents < aporteCents) {
-      return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (paymentSource === 'credit') {
+      const { data: line } = await adminClient
+        .from('partner_credit_lines')
+        .select('*')
+        .eq('user_id', sponsorUserId)
+        .maybeSingle();
+
+      if (!line || line.status !== 'ACTIVE') {
+        return new Response(JSON.stringify({ error: 'Você não possui crédito de confiança ativo.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: blocked } = await adminClient.rpc('partner_credit_is_blocked', { _user_id: sponsorUserId });
+      if (blocked) {
+        return new Response(JSON.stringify({ error: 'Crédito bloqueado: existe dívida vencida em aberto. Regularize para continuar.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const availableCredit = Math.round((line.limit_amount - line.used_amount) * 100);
+      if (availableCredit < aporteCents) {
+        return new Response(JSON.stringify({ error: `Crédito insuficiente. Disponível: R$ ${((availableCredit) / 100).toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      creditLine = line;
+    } else {
+      const balanceCents = Math.round(sponsorContract.available_balance * 100);
+      if (balanceCents < aporteCents) {
+        return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     // 4. Find referred user by email
@@ -194,14 +220,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 8. Debit sponsor balance
-    const newBalance = sponsorContract.available_balance - aporteValue;
-    const { error: debitError } = await adminClient
-      .from('partner_contracts')
-      .update({ available_balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', sponsorContract.id);
+    // 8. Debit funding source
+    let newBalance = sponsorContract.available_balance;
 
-    if (debitError) throw debitError;
+    if (paymentSource === 'credit') {
+      const { error: creditError } = await adminClient
+        .from('partner_credit_lines')
+        .update({ used_amount: creditLine.used_amount + aporteValue, updated_at: new Date().toISOString() })
+        .eq('id', creditLine.id);
+      if (creditError) throw creditError;
+    } else {
+      newBalance = sponsorContract.available_balance - aporteValue;
+      const { error: debitError } = await adminClient
+        .from('partner_contracts')
+        .update({ available_balance: newBalance, updated_at: new Date().toISOString() })
+        .eq('id', sponsorContract.id);
+
+      if (debitError) throw debitError;
+    }
 
     // 9. Create ACTIVE contract for referred
     const { data: newContract, error: createError } = await adminClient
@@ -223,12 +259,54 @@ Deno.serve(async (req) => {
       .single();
 
     if (createError) {
-      // Rollback: restore sponsor balance
-      await adminClient
-        .from('partner_contracts')
-        .update({ available_balance: sponsorContract.available_balance })
-        .eq('id', sponsorContract.id);
+      // Rollback funding source
+      if (paymentSource === 'credit') {
+        await adminClient
+          .from('partner_credit_lines')
+          .update({ used_amount: creditLine.used_amount })
+          .eq('id', creditLine.id);
+      } else {
+        await adminClient
+          .from('partner_contracts')
+          .update({ available_balance: sponsorContract.available_balance })
+          .eq('id', sponsorContract.id);
+      }
       throw createError;
+    }
+
+    // 9b. Registrar dívida do crédito de confiança
+    let debtId: string | null = null;
+    if (paymentSource === 'credit') {
+      const termDays = creditLine.default_term_days || 7;
+      const dueDate = new Date(Date.now() + termDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+      const { data: debt } = await adminClient
+        .from('partner_credit_debts')
+        .insert({
+          credit_line_id: creditLine.id,
+          user_id: sponsorUserId,
+          contract_id: newContract.id,
+          referred_email: referredEmail,
+          amount: aporteValue,
+          due_date: dueDate,
+          status: 'OPEN',
+        })
+        .select('id')
+        .single();
+
+      debtId = debt?.id || null;
+
+      await adminClient
+        .from('partner_credit_transactions')
+        .insert({
+          credit_line_id: creditLine.id,
+          user_id: sponsorUserId,
+          debt_id: debtId,
+          tx_type: 'USE',
+          amount: aporteValue,
+          description: `Ativação de ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
+          created_by: sponsorUserId,
+        });
     }
 
     // 10. Lances bônus são creditados automaticamente pelo trigger trg_credit_bonus_bids_on_contract
@@ -240,22 +318,28 @@ Deno.serve(async (req) => {
       .eq('user_id', referredUser.id)
       .eq('payment_status', 'pending');
 
-    // 11. Audit log in partner_manual_credits
-    await adminClient
-      .from('partner_manual_credits')
-      .insert({
-        partner_contract_id: sponsorContract.id,
-        amount: -aporteValue,
-        credit_type: 'sponsor_activation',
-        description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
-        created_by: sponsorUserId,
-        consumes_cap: false,
-      });
+    // 11. Audit log in partner_manual_credits (apenas quando usa saldo próprio)
+    if (paymentSource === 'balance') {
+      await adminClient
+        .from('partner_manual_credits')
+        .insert({
+          partner_contract_id: sponsorContract.id,
+          amount: -aporteValue,
+          credit_type: 'sponsor_activation',
+          description: `Ativação do parceiro ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
+          created_by: sponsorUserId,
+          consumes_cap: false,
+        });
+    }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Parceiro ${referredEmail} ativado com sucesso no plano ${plan.display_name}!`,
+      message: paymentSource === 'credit'
+        ? `Parceiro ${referredEmail} ativado com crédito de confiança no plano ${plan.display_name}!`
+        : `Parceiro ${referredEmail} ativado com sucesso no plano ${plan.display_name}!`,
       newBalance,
+      paymentSource,
+      debtId,
       contractId: newContract.id,
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

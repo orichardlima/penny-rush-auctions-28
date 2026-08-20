@@ -89,6 +89,11 @@ serve(async (req) => {
       return await processRegularizationPayment(supabase, isApproved, isRejected, external_id)
     }
 
+    if (external_id.startsWith('credit:')) {
+      return await processCreditRepayment(supabase, isApproved, external_id, transaction_id)
+    }
+
+
     if (external_id.startsWith('withdrawal:')) {
       return await processWithdrawalCallback(supabase, isApproved, isRejected, external_id, transaction_id)
     }
@@ -149,6 +154,73 @@ serve(async (req) => {
     return new Response('Internal error', { status: 500, headers: corsHeaders })
   }
 })
+
+// ===== CREDIT REPAYMENT (Caixa de Crédito de Confiança) =====
+async function processCreditRepayment(supabase: any, isApproved: boolean, externalId: string, transactionId: string) {
+  const debtId = externalId.replace('credit:', '')
+  console.log('🤝 Processing CREDIT repayment for debt:', debtId)
+
+  if (!isApproved) {
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  const { data: debt } = await supabase
+    .from('partner_credit_debts')
+    .select('*')
+    .eq('id', debtId)
+    .maybeSingle()
+
+  if (!debt) {
+    console.error('❌ Credit debt not found:', debtId)
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  if (debt.status === 'PAID' || debt.status === 'WRITTEN_OFF') {
+    console.log('ℹ️ Debt already settled, ignoring')
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  await supabase
+    .from('partner_credit_debts')
+    .update({
+      status: 'PAID',
+      paid_at: new Date().toISOString(),
+      payment_transaction_id: transactionId || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', debtId)
+
+  const { data: line } = await supabase
+    .from('partner_credit_lines')
+    .select('id, used_amount')
+    .eq('id', debt.credit_line_id)
+    .maybeSingle()
+
+  if (line) {
+    await supabase
+      .from('partner_credit_lines')
+      .update({
+        used_amount: Math.max(0, Number(line.used_amount) - Number(debt.amount)),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', line.id)
+  }
+
+  await supabase
+    .from('partner_credit_transactions')
+    .insert({
+      credit_line_id: debt.credit_line_id,
+      user_id: debt.user_id,
+      debt_id: debtId,
+      tx_type: 'REPAYMENT',
+      amount: debt.amount,
+      description: `Devolução via PIX${transactionId ? ` (tx ${transactionId})` : ''}`,
+    })
+
+  console.log('✅ Credit debt settled:', debtId)
+  return new Response('OK', { status: 200, headers: corsHeaders })
+}
+
 
 // ===== ORDER PAYMENT =====
 async function processOrderPayment(supabase: any, isApproved: boolean, isRejected: boolean, externalId: string) {
