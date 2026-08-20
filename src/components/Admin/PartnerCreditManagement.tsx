@@ -96,14 +96,24 @@ const PartnerCreditManagement: React.FC = () => {
 
     setSaving(true);
     try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('email', email.trim().toLowerCase())
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      if (!profile) throw new Error('Usuário não encontrado com este e-mail');
+
       const { data, error } = await supabase.rpc('admin_set_credit_line', {
-        _email: email.trim(),
+        _user_id: (profile as any).user_id,
         _limit_amount: amount,
         _default_term_days: parseInt(termDays) || 7,
-        _notes: notes.trim() || null,
+        _notes: notes.trim() || undefined,
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
+
 
       toast({ title: '✅ Limite de crédito atualizado' });
       setDialogOpen(false);
