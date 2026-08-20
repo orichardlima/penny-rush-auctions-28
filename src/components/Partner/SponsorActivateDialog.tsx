@@ -223,10 +223,46 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
               type="email"
               placeholder="parceiro@email.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setReferrerInfo(null); }}
+              onBlur={checkReferrer}
               disabled={submitting}
             />
+            {checkingReferrer && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Verificando vínculo de indicação...
+              </p>
+            )}
+            {!checkingReferrer && referrerInfo?.userFound && referrerInfo.referrerId && (
+              <p className="text-xs text-green-600">
+                Indicador que será registrado: <strong>{referrerInfo.referrerName || 'Parceiro identificado'}</strong>
+              </p>
+            )}
+            {!checkingReferrer && referrerInfo?.userFound === false && (
+              <p className="text-xs text-destructive">
+                Usuário não encontrado. Ele precisa estar cadastrado na plataforma.
+              </p>
+            )}
           </div>
+
+          {/* Código de indicação (quando não há vínculo identificado) */}
+          {!checkingReferrer && referrerInfo?.userFound && !referrerInfo.referrerId && (
+            <div className="space-y-2">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                <p className="text-xs text-destructive">
+                  Este cadastro não tem indicador vinculado. Informe o código de indicação para que o contrato entre corretamente na rede.
+                </p>
+              </div>
+              <label className="text-sm font-medium">Código de indicação</label>
+              <Input
+                placeholder="Ex.: A1B2C3D4"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                disabled={submitting}
+              />
+            </div>
+          )}
+
 
           {/* Seletor de plano */}
           <div className="space-y-2">
