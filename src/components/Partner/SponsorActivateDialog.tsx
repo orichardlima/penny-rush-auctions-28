@@ -103,22 +103,65 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Ativar Indicado com Saldo
+            Ativar Indicado
           </DialogTitle>
           <DialogDescription>
-            Use seu saldo disponível para ativar o plano de um parceiro indicado.
+            Use seu saldo disponível{hasCredit ? ' ou o crédito de confiança' : ''} para ativar o plano de um parceiro indicado.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Fonte de pagamento */}
+          {hasCredit && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fonte do pagamento</label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={paymentSource === 'balance' ? 'default' : 'outline'}
+                  className="h-auto py-2 flex-col items-start"
+                  onClick={() => setPaymentSource('balance')}
+                  disabled={submitting}
+                >
+                  <span className="text-xs">Saldo próprio</span>
+                  <span className="text-sm font-bold">{formatPrice(availableBalance)}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentSource === 'credit' ? 'default' : 'outline'}
+                  className="h-auto py-2 flex-col items-start"
+                  onClick={() => setPaymentSource('credit')}
+                  disabled={submitting || isBlocked}
+                >
+                  <span className="text-xs flex items-center gap-1"><HandCoins className="h-3 w-3" /> Crédito</span>
+                  <span className="text-sm font-bold">{formatPrice(availableCredit)}</span>
+                </Button>
+              </div>
+              {isBlocked && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Crédito bloqueado: existe devolução vencida em aberto.
+                </p>
+              )}
+              {paymentSource === 'credit' && !isBlocked && (
+                <p className="text-xs text-muted-foreground">
+                  O valor usado vira uma devolução a ser paga via PIX no prazo combinado.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Saldo atual */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <span className="text-sm text-muted-foreground">Seu saldo disponível:</span>
+            <span className="text-sm text-muted-foreground">
+              {paymentSource === 'credit' ? 'Crédito disponível:' : 'Seu saldo disponível:'}
+            </span>
             <Badge variant="secondary" className="text-base font-bold">
               <DollarSign className="h-4 w-4 mr-1" />
-              {formatPrice(availableBalance)}
+              {formatPrice(sourceBalance)}
             </Badge>
           </div>
+
 
           {/* Email */}
           <div className="space-y-2">
