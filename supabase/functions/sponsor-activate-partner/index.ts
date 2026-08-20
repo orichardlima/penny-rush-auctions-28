@@ -83,12 +83,37 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Você não possui um contrato ativo' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 3. Check balance (using cents to avoid floating point issues)
-    const balanceCents = Math.round(sponsorContract.available_balance * 100);
+    // 3. Check funding source (using cents to avoid floating point issues)
     const aporteCents = Math.round(aporteValue * 100);
+    let creditLine: any = null;
 
-    if (balanceCents < aporteCents) {
-      return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (paymentSource === 'credit') {
+      const { data: line } = await adminClient
+        .from('partner_credit_lines')
+        .select('*')
+        .eq('user_id', sponsorUserId)
+        .maybeSingle();
+
+      if (!line || line.status !== 'ACTIVE') {
+        return new Response(JSON.stringify({ error: 'Você não possui crédito de confiança ativo.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { data: blocked } = await adminClient.rpc('partner_credit_is_blocked', { _user_id: sponsorUserId });
+      if (blocked) {
+        return new Response(JSON.stringify({ error: 'Crédito bloqueado: existe dívida vencida em aberto. Regularize para continuar.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const availableCredit = Math.round((line.limit_amount - line.used_amount) * 100);
+      if (availableCredit < aporteCents) {
+        return new Response(JSON.stringify({ error: `Crédito insuficiente. Disponível: R$ ${((availableCredit) / 100).toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      creditLine = line;
+    } else {
+      const balanceCents = Math.round(sponsorContract.available_balance * 100);
+      if (balanceCents < aporteCents) {
+        return new Response(JSON.stringify({ error: `Saldo insuficiente. Disponível: R$ ${sponsorContract.available_balance.toFixed(2)}, Necessário: R$ ${aporteValue.toFixed(2)}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     // 4. Find referred user by email
