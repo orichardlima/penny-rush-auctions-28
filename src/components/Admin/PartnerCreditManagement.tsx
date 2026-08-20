@@ -176,6 +176,8 @@ const PartnerCreditManagement: React.FC = () => {
     return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
 
+  const todayBahia = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
   return (
     <div className="space-y-6">
       <Card>
