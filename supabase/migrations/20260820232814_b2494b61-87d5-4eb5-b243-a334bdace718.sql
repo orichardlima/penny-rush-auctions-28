@@ -1,0 +1,1 @@
+SELECT public.expansion_recompute_memberships('5a3833c8-2152-4090-b707-b590b92f08a9'::uuid);
