@@ -54,6 +54,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
   const referralBonusPercentage = currentPlan?.referral_bonus_percentage || 10;
   const [sponsorDialogOpen, setSponsorDialogOpen] = useState(false);
   const availableBalance = contract?.available_balance ?? 0;
+  const { availableCredit: creditAvailable } = usePartnerCredit();
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
