@@ -98,6 +98,14 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Você não possui crédito de confiança ativo.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
+      if (line.valid_until) {
+        const todayBahia = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        if (line.valid_until < todayBahia) {
+          return new Response(JSON.stringify({ error: `Seu limite de crédito expirou em ${line.valid_until.split('-').reverse().join('/')}. Fale com o administrador.` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+
+
       const { data: blocked } = await adminClient.rpc('partner_credit_is_blocked', { _user_id: sponsorUserId });
       if (blocked) {
         return new Response(JSON.stringify({ error: 'Crédito bloqueado: existe dívida vencida em aberto. Regularize para continuar.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -289,10 +297,13 @@ Deno.serve(async (req) => {
           referred_email: referredEmail,
           amount: aporteValue,
           due_date: dueDate,
+          term_days: termDays,
+          paid_amount: 0,
           status: 'OPEN',
         })
         .select('id')
         .single();
+
 
       debtId = debt?.id || null;
 

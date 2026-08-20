@@ -22,6 +22,7 @@ interface CreditLineRow {
   default_term_days: number;
   status: string;
   notes: string | null;
+  valid_until: string | null;
   name?: string;
   email?: string;
 }
@@ -31,6 +32,8 @@ interface DebtRow {
   user_id: string;
   referred_email: string | null;
   amount: number;
+  paid_amount: number | null;
+  term_days: number | null;
   due_date: string;
   status: string;
   created_at: string;
@@ -48,6 +51,8 @@ const PartnerCreditManagement: React.FC = () => {
   const [email, setEmail] = useState('');
   const [limitAmount, setLimitAmount] = useState('');
   const [termDays, setTermDays] = useState('7');
+  const [validUntil, setValidUntil] = useState('');
+
   const [notes, setNotes] = useState('');
 
   const fetchData = useCallback(async () => {
@@ -110,14 +115,15 @@ const PartnerCreditManagement: React.FC = () => {
         _limit_amount: amount,
         _default_term_days: parseInt(termDays) || 7,
         _notes: notes.trim() || undefined,
+        _valid_until: validUntil || undefined,
+        _clear_valid_until: !validUntil,
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
 
-
       toast({ title: '✅ Limite de crédito atualizado' });
       setDialogOpen(false);
-      setEmail(''); setLimitAmount(''); setTermDays('7'); setNotes('');
+      setEmail(''); setLimitAmount(''); setTermDays('7'); setNotes(''); setValidUntil('');
       fetchData();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: err.message });
@@ -126,21 +132,38 @@ const PartnerCreditManagement: React.FC = () => {
     }
   };
 
-  const handleSettle = async (debtId: string) => {
-    if (!confirm('Confirmar baixa manual desta devolução?')) return;
+  const handleSettle = async (debt: DebtRow, partial = false) => {
+    const remaining = Math.max(0, Number(debt.amount) - Number(debt.paid_amount || 0));
+    let amount: number | undefined;
+
+    if (partial) {
+      const input = prompt(`Valor recebido (saldo devedor ${formatPrice(remaining)}):`);
+      if (!input) return;
+      const parsed = parseFloat(input.replace(',', '.'));
+      if (isNaN(parsed) || parsed <= 0 || parsed > remaining + 0.009) {
+        toast({ variant: 'destructive', title: 'Valor inválido' });
+        return;
+      }
+      amount = parsed;
+    } else if (!confirm(`Confirmar baixa total de ${formatPrice(remaining)}?`)) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase.rpc('admin_settle_credit_debt', {
-        _debt_id: debtId,
-        _notes: 'Baixa manual pelo administrador',
+        _debt_id: debt.id,
+        _notes: partial ? 'Baixa parcial manual pelo administrador' : 'Baixa manual pelo administrador',
+        ...(amount ? { _amount: amount } : {}),
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast({ title: '✅ Devolução quitada' });
+      toast({ title: partial ? '✅ Baixa parcial registrada' : '✅ Devolução quitada' });
       fetchData();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: err.message });
     }
   };
+
 
   const statusBadge = (status: string) => {
     if (status === 'PAID') return <Badge variant="secondary">Quitada</Badge>;
@@ -152,6 +175,8 @@ const PartnerCreditManagement: React.FC = () => {
   if (loading) {
     return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
+
+  const todayBahia = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -182,27 +207,39 @@ const PartnerCreditManagement: React.FC = () => {
                   <TableHead>Em uso</TableHead>
                   <TableHead>Disponível</TableHead>
                   <TableHead>Prazo</TableHead>
+                  <TableHead>Validade</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell>
-                      <div className="font-medium">{l.name}</div>
-                      <div className="text-xs text-muted-foreground">{l.email}</div>
-                    </TableCell>
-                    <TableCell>{formatPrice(l.limit_amount)}</TableCell>
-                    <TableCell>{formatPrice(l.used_amount)}</TableCell>
-                    <TableCell className="text-green-600 font-medium">
-                      {formatPrice(Number(l.limit_amount) - Number(l.used_amount))}
-                    </TableCell>
-                    <TableCell>{l.default_term_days}d</TableCell>
-                    <TableCell>
-                      <Badge variant={l.status === 'ACTIVE' ? 'default' : 'outline'}>{l.status}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {lines.map((l) => {
+                  const idle = Number(l.used_amount) === 0 && Number(l.limit_amount) > 0;
+                  const expired = !!l.valid_until && l.valid_until < todayBahia;
+                  return (
+                    <TableRow key={l.id}>
+                      <TableCell>
+                        <div className="font-medium">{l.name}</div>
+                        <div className="text-xs text-muted-foreground">{l.email}</div>
+                      </TableCell>
+                      <TableCell>{formatPrice(l.limit_amount)}</TableCell>
+                      <TableCell>{formatPrice(l.used_amount)}</TableCell>
+                      <TableCell className="text-green-600 font-medium">
+                        {formatPrice(Number(l.limit_amount) - Number(l.used_amount))}
+                      </TableCell>
+                      <TableCell>{l.default_term_days}d</TableCell>
+                      <TableCell className="text-sm">
+                        {l.valid_until
+                          ? new Date(l.valid_until + 'T12:00:00').toLocaleDateString('pt-BR')
+                          : 'Sem prazo'}
+                      </TableCell>
+                      <TableCell className="space-x-1">
+                        <Badge variant={l.status === 'ACTIVE' ? 'default' : 'outline'}>{l.status}</Badge>
+                        {expired && <Badge variant="destructive">Expirado</Badge>}
+                        {idle && !expired && <Badge variant="outline">Ocioso</Badge>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -224,6 +261,8 @@ const PartnerCreditManagement: React.FC = () => {
                   <TableHead>Líder</TableHead>
                   <TableHead>Indicado</TableHead>
                   <TableHead>Valor</TableHead>
+                  <TableHead>Devolvido</TableHead>
+                  <TableHead>Usado em</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
@@ -235,13 +274,20 @@ const PartnerCreditManagement: React.FC = () => {
                     <TableCell className="font-medium">{d.name}</TableCell>
                     <TableCell className="text-sm">{d.referred_email || '—'}</TableCell>
                     <TableCell>{formatPrice(d.amount)}</TableCell>
+                    <TableCell>{formatPrice(Number(d.paid_amount || 0))}</TableCell>
+                    <TableCell className="text-sm">{new Date(d.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{new Date(d.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{statusBadge(d.status)}</TableCell>
                     <TableCell>
                       {(d.status === 'OPEN' || d.status === 'OVERDUE') && (
-                        <Button size="sm" variant="outline" onClick={() => handleSettle(d.id)}>
-                          <CheckCircle2 className="h-4 w-4 mr-1" /> Dar baixa
-                        </Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" onClick={() => handleSettle(d, true)}>
+                            Parcial
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleSettle(d)}>
+                            <CheckCircle2 className="h-4 w-4 mr-1" /> Dar baixa
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -250,6 +296,7 @@ const PartnerCreditManagement: React.FC = () => {
             </Table>
           )}
         </CardContent>
+
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -272,7 +319,18 @@ const PartnerCreditManagement: React.FC = () => {
             <div className="space-y-1">
               <Label>Prazo de devolução (dias)</Label>
               <Input type="number" value={termDays} onChange={(e) => setTermDays(e.target.value)} />
+              <p className="text-xs text-muted-foreground">
+                Só começa a contar quando o líder usa o crédito.
+              </p>
             </div>
+            <div className="space-y-1">
+              <Label>Limite válido para uso até (opcional)</Label>
+              <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+              <p className="text-xs text-muted-foreground">
+                Em branco = sem prazo de validade. Devoluções em aberto não são afetadas.
+              </p>
+            </div>
+
             <div className="space-y-1">
               <Label>Observações</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />

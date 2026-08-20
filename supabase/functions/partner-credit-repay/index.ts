@@ -34,14 +34,14 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { debtId, userCpf, userName, userEmail } = await req.json()
+    const { debtId, userCpf, userName, userEmail, amount: rawAmount } = await req.json()
     if (!debtId || !userCpf) {
       return new Response(JSON.stringify({ error: 'debtId e userCpf são obrigatórios' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const { data: debt, error: debtError } = await supabase
       .from('partner_credit_debts')
-      .select('id, user_id, amount, status, referred_email')
+      .select('id, user_id, amount, paid_amount, status, referred_email')
       .eq('id', debtId)
       .single()
 
@@ -55,12 +55,32 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Esta dívida já foi quitada' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const externalId = `credit:${debt.id}`
+    const remaining = Math.max(0, Number(debt.amount) - Number(debt.paid_amount || 0))
+    if (remaining <= 0) {
+      return new Response(JSON.stringify({ error: 'Esta dívida já foi quitada' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    let payAmount = remaining
+    if (rawAmount !== undefined && rawAmount !== null && rawAmount !== '') {
+      const parsed = Number(rawAmount)
+      if (isNaN(parsed) || parsed <= 0) {
+        return new Response(JSON.stringify({ error: 'Valor inválido' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      if (parsed > remaining + 0.009) {
+        return new Response(JSON.stringify({ error: `Valor acima do saldo devedor (R$ ${remaining.toFixed(2)})` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      payAmount = Math.round(parsed * 100) / 100
+    }
+
+    const isPartial = (remaining - payAmount) > 0.009
+    const externalId = isPartial
+      ? `credit:${debt.id}:${Math.round(payAmount * 100)}`
+      : `credit:${debt.id}`
 
     const depositResult = await createDeposit(supabase, {
-      amount: debt.amount,
+      amount: payAmount,
       externalId,
-      description: `Devolução de crédito de confiança${debt.referred_email ? ` - ${debt.referred_email}` : ''}`,
+      description: `Devolução ${isPartial ? 'parcial ' : ''}de crédito de confiança${debt.referred_email ? ` - ${debt.referred_email}` : ''}`,
       payerName: userName || 'Usuario',
       payerEmail: userEmail || '',
       payerDocument: userCpf
@@ -70,8 +90,11 @@ serve(async (req) => {
       paymentId: depositResult.transactionId,
       qrCodeBase64: depositResult.qrCodeBase64,
       pixCopyPaste: depositResult.pixCopyPaste || null,
-      amount: debt.amount,
+      amount: payAmount,
+      remaining,
+      partial: isPartial,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+
 
   } catch (error: any) {
     console.error('❌ partner-credit-repay error:', error)
