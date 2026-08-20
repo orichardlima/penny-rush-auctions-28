@@ -18,34 +18,16 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
-
-    // Auth client to validate user
-    const authClient = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
     const token = authHeader.replace('Bearer ', '');
-
-    let sponsorUserId: string | null = null;
-    try {
-      const { data: claimsData } = await authClient.auth.getClaims(token);
-      sponsorUserId = (claimsData?.claims?.sub as string) || null;
-    } catch (_e) {
-      sponsorUserId = null;
-    }
-
-    if (!sponsorUserId) {
-      // Fallback: validação direta do token (cobre chaves legadas/assimétricas)
-      const { data: userData, error: userErr } = await authClient.auth.getUser(token);
-      if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: 'Token inválido' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      sponsorUserId = userData.user.id;
-    }
-
-    // Service client for all operations
+    // O cliente administrativo valida o access token diretamente no Auth.
+    // Isso funciona tanto com JWT legado quanto com signing keys assimétricas.
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: userData, error: userErr } = await adminClient.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      console.error('Falha ao validar sessão do patrocinador:', userErr?.message);
+      return new Response(JSON.stringify({ error: 'Sua sessão expirou. Entre novamente e tente de novo.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const sponsorUserId = userData.user.id;
 
     const { referredEmail, planId, cotas: rawCotas, paymentSource: rawSource } = await req.json();
     const cotas = rawCotas || 1;
