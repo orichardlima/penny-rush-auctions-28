@@ -205,27 +205,39 @@ const PartnerCreditManagement: React.FC = () => {
                   <TableHead>Em uso</TableHead>
                   <TableHead>Disponível</TableHead>
                   <TableHead>Prazo</TableHead>
+                  <TableHead>Validade</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lines.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell>
-                      <div className="font-medium">{l.name}</div>
-                      <div className="text-xs text-muted-foreground">{l.email}</div>
-                    </TableCell>
-                    <TableCell>{formatPrice(l.limit_amount)}</TableCell>
-                    <TableCell>{formatPrice(l.used_amount)}</TableCell>
-                    <TableCell className="text-green-600 font-medium">
-                      {formatPrice(Number(l.limit_amount) - Number(l.used_amount))}
-                    </TableCell>
-                    <TableCell>{l.default_term_days}d</TableCell>
-                    <TableCell>
-                      <Badge variant={l.status === 'ACTIVE' ? 'default' : 'outline'}>{l.status}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {lines.map((l) => {
+                  const idle = Number(l.used_amount) === 0 && Number(l.limit_amount) > 0;
+                  const expired = !!l.valid_until && l.valid_until < todayBahia;
+                  return (
+                    <TableRow key={l.id}>
+                      <TableCell>
+                        <div className="font-medium">{l.name}</div>
+                        <div className="text-xs text-muted-foreground">{l.email}</div>
+                      </TableCell>
+                      <TableCell>{formatPrice(l.limit_amount)}</TableCell>
+                      <TableCell>{formatPrice(l.used_amount)}</TableCell>
+                      <TableCell className="text-green-600 font-medium">
+                        {formatPrice(Number(l.limit_amount) - Number(l.used_amount))}
+                      </TableCell>
+                      <TableCell>{l.default_term_days}d</TableCell>
+                      <TableCell className="text-sm">
+                        {l.valid_until
+                          ? new Date(l.valid_until + 'T12:00:00').toLocaleDateString('pt-BR')
+                          : 'Sem prazo'}
+                      </TableCell>
+                      <TableCell className="space-x-1">
+                        <Badge variant={l.status === 'ACTIVE' ? 'default' : 'outline'}>{l.status}</Badge>
+                        {expired && <Badge variant="destructive">Expirado</Badge>}
+                        {idle && !expired && <Badge variant="outline">Ocioso</Badge>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -247,6 +259,8 @@ const PartnerCreditManagement: React.FC = () => {
                   <TableHead>Líder</TableHead>
                   <TableHead>Indicado</TableHead>
                   <TableHead>Valor</TableHead>
+                  <TableHead>Devolvido</TableHead>
+                  <TableHead>Usado em</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
@@ -258,18 +272,29 @@ const PartnerCreditManagement: React.FC = () => {
                     <TableCell className="font-medium">{d.name}</TableCell>
                     <TableCell className="text-sm">{d.referred_email || '—'}</TableCell>
                     <TableCell>{formatPrice(d.amount)}</TableCell>
+                    <TableCell>{formatPrice(Number(d.paid_amount || 0))}</TableCell>
+                    <TableCell className="text-sm">{new Date(d.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{new Date(d.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{statusBadge(d.status)}</TableCell>
                     <TableCell>
                       {(d.status === 'OPEN' || d.status === 'OVERDUE') && (
-                        <Button size="sm" variant="outline" onClick={() => handleSettle(d.id)}>
-                          <CheckCircle2 className="h-4 w-4 mr-1" /> Dar baixa
-                        </Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" onClick={() => handleSettle(d, true)}>
+                            Parcial
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleSettle(d)}>
+                            <CheckCircle2 className="h-4 w-4 mr-1" /> Dar baixa
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
+            </Table>
+          )}
+        </CardContent>
+
             </Table>
           )}
         </CardContent>
