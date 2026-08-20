@@ -106,13 +106,36 @@ Deno.serve(async (req) => {
     }
     const sponsorUserId = userData.user.id;
 
-    const { referredEmail, planId, cotas: rawCotas, paymentSource: rawSource } = await req.json();
+    const { referredEmail, planId, cotas: rawCotas, paymentSource: rawSource, action, referralCode: referralCodeOverride } = await req.json();
     const cotas = rawCotas || 1;
     const paymentSource: 'balance' | 'credit' = rawSource === 'credit' ? 'credit' : 'balance';
+
+    // Pré-consulta: informa ao patrocinador quem será registrado como indicador
+    if (action === 'preview') {
+      if (!referredEmail) {
+        return new Response(JSON.stringify({ error: 'Email do indicado é obrigatório' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const previewUserId = await findUserIdByEmail(adminClient, referredEmail);
+      if (!previewUserId) {
+        return new Response(JSON.stringify({ userFound: false, referrerId: null, referrerName: null }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const previewReferrerId = await resolveReferrer(adminClient, previewUserId);
+      let referrerName: string | null = null;
+      if (previewReferrerId) {
+        const { data: refProfile } = await adminClient
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', previewReferrerId)
+          .maybeSingle();
+        referrerName = refProfile?.full_name || refProfile?.email || null;
+      }
+      return new Response(JSON.stringify({ userFound: true, referrerId: previewReferrerId, referrerName }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (!referredEmail || !planId) {
       return new Response(JSON.stringify({ error: 'Email do indicado e plano são obrigatórios' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
 
     // 1. Fetch the plan
     const { data: plan, error: planError } = await adminClient
