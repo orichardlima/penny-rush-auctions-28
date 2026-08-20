@@ -289,10 +289,13 @@ Deno.serve(async (req) => {
           referred_email: referredEmail,
           amount: aporteValue,
           due_date: dueDate,
+          term_days: termDays,
+          paid_amount: 0,
           status: 'OPEN',
         })
         .select('id')
         .single();
+
 
       debtId = debt?.id || null;
 
