@@ -237,13 +237,16 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
                 <span className="font-medium">{formatPrice(totalAporte)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Saldo após ativação:</span>
+                <span className="text-muted-foreground">
+                  {paymentSource === 'credit' ? 'Crédito após ativação:' : 'Saldo após ativação:'}
+                </span>
                 <span className={`font-medium ${hasSufficientBalance ? 'text-green-600' : 'text-destructive'}`}>
                   {hasSufficientBalance
-                    ? formatPrice(availableBalance - totalAporte)
-                    : 'Saldo insuficiente'}
+                    ? formatPrice(sourceBalance - totalAporte)
+                    : paymentSource === 'credit' ? 'Crédito insuficiente' : 'Saldo insuficiente'}
                 </span>
               </div>
+
               {(selectedPlan.bonus_bids || 0) * cotas > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bônus de lances:</span>
