@@ -3381,6 +3381,152 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_credit_debts: {
+        Row: {
+          amount: number
+          contract_id: string | null
+          created_at: string
+          credit_line_id: string
+          due_date: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_transaction_id: string | null
+          referred_email: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          contract_id?: string | null
+          created_at?: string
+          credit_line_id: string
+          due_date: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_transaction_id?: string | null
+          referred_email?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string | null
+          created_at?: string
+          credit_line_id?: string
+          due_date?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_transaction_id?: string | null
+          referred_email?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_credit_debts_credit_line_id_fkey"
+            columns: ["credit_line_id"]
+            isOneToOne: false
+            referencedRelation: "partner_credit_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_credit_lines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_term_days: number
+          id: string
+          limit_amount: number
+          notes: string | null
+          status: string
+          updated_at: string
+          used_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_term_days?: number
+          id?: string
+          limit_amount?: number
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          used_amount?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_term_days?: number
+          id?: string
+          limit_amount?: number
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          used_amount?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      partner_credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          credit_line_id: string
+          debt_id: string | null
+          description: string | null
+          id: string
+          tx_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          credit_line_id: string
+          debt_id?: string | null
+          description?: string | null
+          id?: string
+          tx_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_line_id?: string
+          debt_id?: string | null
+          description?: string | null
+          id?: string
+          tx_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_credit_transactions_credit_line_id_fkey"
+            columns: ["credit_line_id"]
+            isOneToOne: false
+            referencedRelation: "partner_credit_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_credit_transactions_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "partner_credit_debts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_early_terminations: {
         Row: {
           admin_notes: string | null
@@ -6232,6 +6378,20 @@ export type Database = {
           new_ends_at: string
         }[]
       }
+      admin_set_credit_line: {
+        Args: {
+          _default_term_days?: number
+          _limit_amount: number
+          _notes?: string
+          _status?: string
+          _user_id: string
+        }
+        Returns: string
+      }
+      admin_settle_credit_debt: {
+        Args: { _debt_id: string; _notes?: string; _write_off?: boolean }
+        Returns: boolean
+      }
       admin_transfer_partner_sponsor: {
         Args: {
           p_cancel_pending_bonuses?: boolean
@@ -7282,6 +7442,12 @@ export type Database = {
         Args: { p_contract_id: string; p_new_sponsor_user_id: string }
         Returns: Json
       }
+      partner_credit_available: { Args: { _user_id: string }; Returns: number }
+      partner_credit_is_blocked: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      partner_credit_mark_overdue: { Args: never; Returns: number }
       partner_get_binary_downline: {
         Args: { p_contract_id: string }
         Returns: {
