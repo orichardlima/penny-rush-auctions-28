@@ -65,10 +65,6 @@ export const usePartnerCredit = () => {
     fetchData();
   }, [fetchData]);
 
-  const availableCredit = creditLine && creditLine.status === 'ACTIVE'
-    ? Math.max(0, Number(creditLine.limit_amount) - Number(creditLine.used_amount))
-    : 0;
-
   const todayBahia = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const isExpired = !!creditLine?.valid_until && creditLine.valid_until < todayBahia;
 
@@ -86,8 +82,8 @@ export const usePartnerCredit = () => {
   return {
     creditLine,
     isExpired,
-
     debts,
+
     openDebts,
     availableCredit,
     isBlocked,
