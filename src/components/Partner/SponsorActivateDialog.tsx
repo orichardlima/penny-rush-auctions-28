@@ -32,6 +32,27 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
   const [cotas, setCotas] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [paymentSource, setPaymentSource] = useState<'balance' | 'credit'>('balance');
+  const [checkingReferrer, setCheckingReferrer] = useState(false);
+  const [referrerInfo, setReferrerInfo] = useState<{ userFound: boolean; referrerId: string | null; referrerName: string | null } | null>(null);
+  const [referralCode, setReferralCode] = useState('');
+
+  const checkReferrer = async () => {
+    const value = email.trim();
+    if (!value) { setReferrerInfo(null); return; }
+    setCheckingReferrer(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
+        body: { action: 'preview', referredEmail: value },
+      });
+      if (error) throw error;
+      setReferrerInfo(data);
+    } catch {
+      setReferrerInfo(null);
+    } finally {
+      setCheckingReferrer(false);
+    }
+  };
+
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   const maxCotas = selectedPlan?.max_cotas || 1;
