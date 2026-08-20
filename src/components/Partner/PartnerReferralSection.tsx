@@ -125,8 +125,8 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
             </Button>
           </div>
 
-          {/* Botão Ativar Indicado com Saldo */}
-          {availableBalance > 0 && contract?.status === 'ACTIVE' && (
+          {/* Botão Ativar Indicado com Saldo ou Crédito */}
+          {(availableBalance > 0 || creditAvailable > 0) && contract?.status === 'ACTIVE' && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -138,7 +138,9 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                       disabled={contract.financial_status !== 'paid'}
                     >
                       <UserPlus className="h-4 w-4" />
-                      Ativar indicado com saldo ({formatPrice(availableBalance)})
+                      {availableBalance > 0
+                        ? `Ativar indicado com saldo (${formatPrice(availableBalance)})`
+                        : `Ativar indicado com crédito (${formatPrice(creditAvailable)})`}
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -150,6 +152,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
               </Tooltip>
             </TooltipProvider>
           )}
+
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Seu código:</span>
