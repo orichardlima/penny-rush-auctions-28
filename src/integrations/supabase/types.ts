@@ -3390,10 +3390,12 @@ export type Database = {
           due_date: string
           id: string
           notes: string | null
+          paid_amount: number
           paid_at: string | null
           payment_transaction_id: string | null
           referred_email: string | null
           status: string
+          term_days: number | null
           updated_at: string
           user_id: string
         }
@@ -3405,10 +3407,12 @@ export type Database = {
           due_date: string
           id?: string
           notes?: string | null
+          paid_amount?: number
           paid_at?: string | null
           payment_transaction_id?: string | null
           referred_email?: string | null
           status?: string
+          term_days?: number | null
           updated_at?: string
           user_id: string
         }
@@ -3420,10 +3424,12 @@ export type Database = {
           due_date?: string
           id?: string
           notes?: string | null
+          paid_amount?: number
           paid_at?: string | null
           payment_transaction_id?: string | null
           referred_email?: string | null
           status?: string
+          term_days?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -3449,6 +3455,7 @@ export type Database = {
           updated_at: string
           used_amount: number
           user_id: string
+          valid_until: string | null
         }
         Insert: {
           created_at?: string
@@ -3461,6 +3468,7 @@ export type Database = {
           updated_at?: string
           used_amount?: number
           user_id: string
+          valid_until?: string | null
         }
         Update: {
           created_at?: string
@@ -3473,6 +3481,7 @@ export type Database = {
           updated_at?: string
           used_amount?: number
           user_id?: string
+          valid_until?: string | null
         }
         Relationships: []
       }
@@ -6378,20 +6387,43 @@ export type Database = {
           new_ends_at: string
         }[]
       }
-      admin_set_credit_line: {
-        Args: {
-          _default_term_days?: number
-          _limit_amount: number
-          _notes?: string
-          _status?: string
-          _user_id: string
-        }
-        Returns: string
-      }
-      admin_settle_credit_debt: {
-        Args: { _debt_id: string; _notes?: string; _write_off?: boolean }
-        Returns: boolean
-      }
+      admin_set_credit_line:
+        | {
+            Args: {
+              _default_term_days?: number
+              _limit_amount: number
+              _notes?: string
+              _status?: string
+              _user_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _clear_valid_until?: boolean
+              _default_term_days?: number
+              _limit_amount: number
+              _notes?: string
+              _status?: string
+              _user_id: string
+              _valid_until?: string
+            }
+            Returns: string
+          }
+      admin_settle_credit_debt:
+        | {
+            Args: { _debt_id: string; _notes?: string; _write_off?: boolean }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _amount?: number
+              _debt_id: string
+              _notes?: string
+              _write_off?: boolean
+            }
+            Returns: boolean
+          }
       admin_transfer_partner_sponsor: {
         Args: {
           p_cancel_pending_bonuses?: boolean
