@@ -220,14 +220,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 8. Debit sponsor balance
-    const newBalance = sponsorContract.available_balance - aporteValue;
-    const { error: debitError } = await adminClient
-      .from('partner_contracts')
-      .update({ available_balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', sponsorContract.id);
+    // 8. Debit funding source
+    let newBalance = sponsorContract.available_balance;
 
-    if (debitError) throw debitError;
+    if (paymentSource === 'credit') {
+      const { error: creditError } = await adminClient
+        .from('partner_credit_lines')
+        .update({ used_amount: creditLine.used_amount + aporteValue, updated_at: new Date().toISOString() })
+        .eq('id', creditLine.id);
+      if (creditError) throw creditError;
+    } else {
+      newBalance = sponsorContract.available_balance - aporteValue;
+      const { error: debitError } = await adminClient
+        .from('partner_contracts')
+        .update({ available_balance: newBalance, updated_at: new Date().toISOString() })
+        .eq('id', sponsorContract.id);
+
+      if (debitError) throw debitError;
+    }
 
     // 9. Create ACTIVE contract for referred
     const { data: newContract, error: createError } = await adminClient
@@ -249,12 +259,54 @@ Deno.serve(async (req) => {
       .single();
 
     if (createError) {
-      // Rollback: restore sponsor balance
-      await adminClient
-        .from('partner_contracts')
-        .update({ available_balance: sponsorContract.available_balance })
-        .eq('id', sponsorContract.id);
+      // Rollback funding source
+      if (paymentSource === 'credit') {
+        await adminClient
+          .from('partner_credit_lines')
+          .update({ used_amount: creditLine.used_amount })
+          .eq('id', creditLine.id);
+      } else {
+        await adminClient
+          .from('partner_contracts')
+          .update({ available_balance: sponsorContract.available_balance })
+          .eq('id', sponsorContract.id);
+      }
       throw createError;
+    }
+
+    // 9b. Registrar dívida do crédito de confiança
+    let debtId: string | null = null;
+    if (paymentSource === 'credit') {
+      const termDays = creditLine.default_term_days || 7;
+      const dueDate = new Date(Date.now() + termDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+      const { data: debt } = await adminClient
+        .from('partner_credit_debts')
+        .insert({
+          credit_line_id: creditLine.id,
+          user_id: sponsorUserId,
+          contract_id: newContract.id,
+          referred_email: referredEmail,
+          amount: aporteValue,
+          due_date: dueDate,
+          status: 'OPEN',
+        })
+        .select('id')
+        .single();
+
+      debtId = debt?.id || null;
+
+      await adminClient
+        .from('partner_credit_transactions')
+        .insert({
+          credit_line_id: creditLine.id,
+          user_id: sponsorUserId,
+          debt_id: debtId,
+          tx_type: 'USE',
+          amount: aporteValue,
+          description: `Ativação de ${referredEmail} - Plano ${plan.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''}`,
+          created_by: sponsorUserId,
+        });
     }
 
     // 10. Lances bônus são creditados automaticamente pelo trigger trg_credit_bonus_bids_on_contract
