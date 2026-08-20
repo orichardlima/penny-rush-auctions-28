@@ -156,9 +156,12 @@ serve(async (req) => {
 })
 
 // ===== CREDIT REPAYMENT (Caixa de Crédito de Confiança) =====
+// externalId: credit:{debtId} (total) OR credit:{debtId}:{amountCents} (parcial)
 async function processCreditRepayment(supabase: any, isApproved: boolean, externalId: string, transactionId: string) {
-  const debtId = externalId.replace('credit:', '')
-  console.log('🤝 Processing CREDIT repayment for debt:', debtId)
+  const rest = externalId.replace('credit:', '')
+  const [debtId, centsRaw] = rest.split(':')
+  const paidCents = centsRaw ? parseInt(centsRaw, 10) : null
+  console.log('🤝 Processing CREDIT repayment for debt:', debtId, 'cents:', paidCents)
 
   if (!isApproved) {
     return new Response('OK', { status: 200, headers: corsHeaders })
@@ -180,12 +183,25 @@ async function processCreditRepayment(supabase: any, isApproved: boolean, extern
     return new Response('OK', { status: 200, headers: corsHeaders })
   }
 
+  const remaining = Math.max(0, Number(debt.amount) - Number(debt.paid_amount || 0))
+  const requested = paidCents && paidCents > 0 ? paidCents / 100 : remaining
+  const payAmount = Math.min(requested, remaining)
+
+  if (payAmount <= 0) {
+    console.log('ℹ️ Nothing remaining to settle')
+    return new Response('OK', { status: 200, headers: corsHeaders })
+  }
+
+  const newPaid = Number(debt.paid_amount || 0) + payAmount
+  const isFull = (Number(debt.amount) - newPaid) <= 0.009
+
   await supabase
     .from('partner_credit_debts')
     .update({
-      status: 'PAID',
-      paid_at: new Date().toISOString(),
-      payment_transaction_id: transactionId || null,
+      paid_amount: newPaid,
+      status: isFull ? 'PAID' : debt.status,
+      paid_at: isFull ? new Date().toISOString() : debt.paid_at,
+      payment_transaction_id: transactionId || debt.payment_transaction_id || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', debtId)
@@ -200,7 +216,7 @@ async function processCreditRepayment(supabase: any, isApproved: boolean, extern
     await supabase
       .from('partner_credit_lines')
       .update({
-        used_amount: Math.max(0, Number(line.used_amount) - Number(debt.amount)),
+        used_amount: Math.max(0, Number(line.used_amount) - payAmount),
         updated_at: new Date().toISOString(),
       })
       .eq('id', line.id)
@@ -213,13 +229,14 @@ async function processCreditRepayment(supabase: any, isApproved: boolean, extern
       user_id: debt.user_id,
       debt_id: debtId,
       tx_type: 'REPAYMENT',
-      amount: debt.amount,
-      description: `Devolução via PIX${transactionId ? ` (tx ${transactionId})` : ''}`,
+      amount: payAmount,
+      description: `Devolução ${isFull ? 'total' : 'parcial'} via PIX${transactionId ? ` (tx ${transactionId})` : ''}`,
     })
 
-  console.log('✅ Credit debt settled:', debtId)
+  console.log(`✅ Credit debt ${isFull ? 'settled' : 'partially paid'}:`, debtId, payAmount)
   return new Response('OK', { status: 200, headers: corsHeaders })
 }
+
 
 
 // ===== ORDER PAYMENT =====
