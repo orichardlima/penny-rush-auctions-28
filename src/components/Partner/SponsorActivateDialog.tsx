@@ -60,7 +60,7 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
-        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas },
+        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas, paymentSource },
       });
 
       if (error) throw new Error(error.message);
