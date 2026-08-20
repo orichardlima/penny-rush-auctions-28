@@ -115,14 +115,15 @@ const PartnerCreditManagement: React.FC = () => {
         _limit_amount: amount,
         _default_term_days: parseInt(termDays) || 7,
         _notes: notes.trim() || undefined,
+        _valid_until: validUntil || undefined,
+        _clear_valid_until: !validUntil,
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
 
-
       toast({ title: '✅ Limite de crédito atualizado' });
       setDialogOpen(false);
-      setEmail(''); setLimitAmount(''); setTermDays('7'); setNotes('');
+      setEmail(''); setLimitAmount(''); setTermDays('7'); setNotes(''); setValidUntil('');
       fetchData();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: err.message });
@@ -131,21 +132,38 @@ const PartnerCreditManagement: React.FC = () => {
     }
   };
 
-  const handleSettle = async (debtId: string) => {
-    if (!confirm('Confirmar baixa manual desta devolução?')) return;
+  const handleSettle = async (debt: DebtRow, partial = false) => {
+    const remaining = Math.max(0, Number(debt.amount) - Number(debt.paid_amount || 0));
+    let amount: number | undefined;
+
+    if (partial) {
+      const input = prompt(`Valor recebido (saldo devedor ${formatPrice(remaining)}):`);
+      if (!input) return;
+      const parsed = parseFloat(input.replace(',', '.'));
+      if (isNaN(parsed) || parsed <= 0 || parsed > remaining + 0.009) {
+        toast({ variant: 'destructive', title: 'Valor inválido' });
+        return;
+      }
+      amount = parsed;
+    } else if (!confirm(`Confirmar baixa total de ${formatPrice(remaining)}?`)) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase.rpc('admin_settle_credit_debt', {
-        _debt_id: debtId,
-        _notes: 'Baixa manual pelo administrador',
+        _debt_id: debt.id,
+        _notes: partial ? 'Baixa parcial manual pelo administrador' : 'Baixa manual pelo administrador',
+        ...(amount ? { _amount: amount } : {}),
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast({ title: '✅ Devolução quitada' });
+      toast({ title: partial ? '✅ Baixa parcial registrada' : '✅ Devolução quitada' });
       fetchData();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: err.message });
     }
   };
+
 
   const statusBadge = (status: string) => {
     if (status === 'PAID') return <Badge variant="secondary">Quitada</Badge>;
