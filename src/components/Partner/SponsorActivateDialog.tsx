@@ -94,9 +94,16 @@ const SponsorActivateDialog: React.FC<SponsorActivateDialogProps> = ({
       const accessToken = refreshed.session.access_token;
 
       const { data, error } = await supabase.functions.invoke('sponsor-activate-partner', {
-        body: { referredEmail: email.trim(), planId: selectedPlanId, cotas, paymentSource },
+        body: {
+          referredEmail: email.trim(),
+          planId: selectedPlanId,
+          cotas,
+          paymentSource,
+          ...(referralCode.trim() ? { referralCode: referralCode.trim() } : {}),
+        },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+
 
       if (error) {
         // Extrai a mensagem real retornada pela edge function (evita "non-2xx status code")
