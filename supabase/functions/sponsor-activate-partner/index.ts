@@ -226,9 +226,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!actualReferrerId) {
-      console.warn('⚠️ Ativação sem indicador identificado para', referredUser.id, '- contrato ficará sem vínculo de rede')
+    // Fallback final: código informado manualmente pelo patrocinador no modal
+    if (!actualReferrerId && referralCodeOverride) {
+      const code = String(referralCodeOverride).trim().toUpperCase()
+      const { data: overrideContract } = await adminClient
+        .from('partner_contracts')
+        .select('user_id')
+        .eq('referral_code', code)
+        .eq('status', 'ACTIVE')
+        .maybeSingle()
+
+      if (!overrideContract?.user_id || overrideContract.user_id === referredUser.id) {
+        return new Response(JSON.stringify({ error: 'Código de indicação inválido ou de um parceiro sem contrato ativo.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      actualReferrerId = overrideContract.user_id
+      console.log('✅ Referrer definido manualmente pelo patrocinador:', code, actualReferrerId)
     }
+
+    if (!actualReferrerId) {
+      console.warn('⚠️ Ativação bloqueada: nenhum indicador identificado para', referredUser.id)
+      return new Response(JSON.stringify({
+        error: 'Não foi possível identificar quem indicou este usuário. Informe o código de indicação para vincular o contrato à rede.',
+        code: 'REFERRER_REQUIRED',
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
 
 
 
