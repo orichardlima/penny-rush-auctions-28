@@ -587,7 +587,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
+                  <TableHead>Origem</TableHead>
                   <TableHead>Valor Bruto</TableHead>
+
                   <TableHead>Taxa</TableHead>
                   <TableHead>Líquido (recebido)</TableHead>
                   <TableHead>PIX</TableHead>
