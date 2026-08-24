@@ -25,7 +25,15 @@ export interface PartnerWithdrawal {
   approved_at: string | null;
   paid_at: string | null;
   created_at: string;
+  balance_source?: string | null;
+  repass_amount?: number | null;
+  bonus_amount?: number | null;
 }
+
+
+
+export type WithdrawalSource = 'partnership_repass' | 'network_bonus' | 'mixed';
+
 
 export interface PaymentDetails {
   pix_key: string;
@@ -99,7 +107,12 @@ export const usePartnerWithdrawals = (contractId?: string) => {
     }
   }, [contractId]);
 
-  const requestWithdrawal = async (amount: number, paymentDetails: PaymentDetails, withdrawalSettings?: { feePercentage: number; feeAmount: number; netAmount: number }) => {
+  const requestWithdrawal = async (
+    amount: number,
+    paymentDetails: PaymentDetails,
+    withdrawalSettings?: { feePercentage: number; feeAmount: number; netAmount: number },
+    source: WithdrawalSource = 'partnership_repass'
+  ) => {
     if (!contractId || !profile?.user_id) {
       toast({
         variant: "destructive",
@@ -134,39 +147,32 @@ export const usePartnerWithdrawals = (contractId?: string) => {
       return { success: false };
     }
 
-    // Verificar saldo disponível (re-calculado já considera APPROVED/PENDING comprometidos)
-    const availableBalance = await calculateAvailableBalance();
-    if (Math.round(amount * 100) > Math.round(availableBalance * 100)) {
-      toast({
-        variant: "destructive",
-        title: "Saldo insuficiente",
-        description: `Saldo disponível: R$ ${availableBalance.toFixed(2)}`
-      });
-      return { success: false };
+    // Para saques de repasse, revalida localmente o saldo do contrato (a RPC revalida no servidor de qualquer forma)
+    if (source === 'partnership_repass') {
+      const availableBalance = await calculateAvailableBalance();
+      if (Math.round(amount * 100) > Math.round(availableBalance * 100)) {
+        toast({
+          variant: "destructive",
+          title: "Saldo insuficiente",
+          description: `Saldo disponível: R$ ${availableBalance.toFixed(2)}`
+        });
+        return { success: false };
+      }
     }
 
     setSubmitting(true);
     try {
-      const feePercentage = withdrawalSettings?.feePercentage ?? 0;
-      const feeAmount = withdrawalSettings?.feeAmount ?? 0;
-      const netAmount = withdrawalSettings?.netAmount ?? amount;
+      const clientRequestId = `${contractId}:${source}:${Math.round(amount * 100)}:${Date.now()}`;
 
-      const { error } = await supabase
-        .from('partner_withdrawals')
-        .insert([{
-          partner_contract_id: contractId,
-          amount,
-          payment_method: 'pix',
-          payment_details: JSON.parse(JSON.stringify(paymentDetails)),
-          status: 'APPROVED',
-          approved_at: new Date().toISOString(),
-          fee_percentage: feePercentage,
-          fee_amount: feeAmount,
-          net_amount: netAmount
-        }]);
+      const { data, error } = await supabase.rpc('partner_request_withdrawal', {
+        _amount: amount,
+        _source: source,
+        _payment_details: JSON.parse(JSON.stringify(paymentDetails)),
+        _client_request_id: clientRequestId,
+        _contract_id: contractId
+      });
 
       if (error) {
-        // Trata violação do índice único parcial (uniq_partner_active_withdrawal) como duplicata
         const msg = (error.message || '').toLowerCase();
         if (error.code === '23505' || msg.includes('uniq_partner_active_withdrawal') || msg.includes('duplicate key')) {
           toast({
@@ -180,11 +186,23 @@ export const usePartnerWithdrawals = (contractId?: string) => {
         throw error;
       }
 
+      const result = (data ?? {}) as Record<string, any>;
+      const feeAmount = Number(result.withdrawal_fee ?? withdrawalSettings?.feeAmount ?? 0);
+      const netAmount = Number(result.net_payment_amount ?? withdrawalSettings?.netAmount ?? amount);
+      const fromRepass = Number(result.amount_reserved_from_repasses ?? 0);
+      const fromBonus = Number(result.amount_reserved_from_network_bonus ?? 0);
+
+      const originLabel = fromRepass > 0 && fromBonus > 0
+        ? `Repasses R$ ${fromRepass.toFixed(2)} + Bônus de Rede R$ ${fromBonus.toFixed(2)}. `
+        : fromBonus > 0
+          ? 'Origem: Bônus de Rede. '
+          : 'Origem: Repasses da Parceria. ';
+
       toast({
         title: "Saque solicitado!",
         description: feeAmount > 0
-          ? `Solicitação aprovada. Taxa: R$ ${feeAmount.toFixed(2)}. Valor líquido: R$ ${netAmount.toFixed(2)}`
-          : "Sua solicitação foi aprovada e aguarda pagamento."
+          ? `${originLabel}Taxa: R$ ${feeAmount.toFixed(2)}. Valor líquido: R$ ${netAmount.toFixed(2)}`
+          : `${originLabel}Sua solicitação foi aprovada e aguarda pagamento.`
       });
 
       await fetchWithdrawals();
@@ -201,6 +219,7 @@ export const usePartnerWithdrawals = (contractId?: string) => {
       setSubmitting(false);
     }
   };
+
 
   const updateContractPaymentDetails = async (paymentDetails: PaymentDetails) => {
     if (!contractId) return { success: false };

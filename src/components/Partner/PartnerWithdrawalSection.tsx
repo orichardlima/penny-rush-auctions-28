@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { usePartnerWithdrawals, PaymentDetails } from '@/hooks/usePartnerWithdrawals';
+import { usePartnerWithdrawals, PaymentDetails, WithdrawalSource } from '@/hooks/usePartnerWithdrawals';
 import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
 import { useWithdrawalBalances } from '@/hooks/useWithdrawalBalances';
 import { PartnerContract } from '@/hooks/usePartnerContract';
@@ -61,6 +61,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
   const [availableBalance, setAvailableBalance] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalSource, setWithdrawalSource] = useState<WithdrawalSource>('partnership_repass');
   const [simulatorAmount, setSimulatorAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -83,6 +84,26 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const feeInfo = calculateFee(parsedAmount);
   const parsedSimulator = parseFloat(simulatorAmount) || 0;
   const simulatorFee = calculateFee(parsedSimulator);
+
+  const bonusAvailable = balances.bonus_available;
+  const sourceMax =
+    withdrawalSource === 'partnership_repass'
+      ? availableBalance
+      : withdrawalSource === 'network_bonus'
+        ? bonusAvailable
+        : availableBalance + bonusAvailable;
+  const totalWithdrawable = availableBalance + bonusAvailable;
+
+  // Ajusta automaticamente a origem selecionada quando só há saldo de bônus
+  useEffect(() => {
+    if (!isWithdrawDialogOpen) {
+      if (availableBalance <= 0 && bonusAvailable > 0) {
+        setWithdrawalSource('network_bonus');
+      } else if (availableBalance > 0 && bonusAvailable <= 0) {
+        setWithdrawalSource('partnership_repass');
+      }
+    }
+  }, [availableBalance, bonusAvailable, isWithdrawDialogOpen]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -114,8 +135,23 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     }
   };
 
+  const getSourceBadge = (w: PartnerWithdrawal) => {
+    const src = w.balance_source || 'partnership_repass';
+    if (src === 'network_bonus') {
+      return <Badge variant="outline" className="text-blue-600 border-blue-500/30"><Network className="h-3 w-3 mr-1" />Bônus de Rede</Badge>;
+    }
+    if (src === 'mixed') {
+      return (
+        <Badge variant="outline" className="text-purple-600 border-purple-500/30">
+          Misto
+        </Badge>
+      );
+    }
+    return <Badge variant="outline" className="text-primary border-primary/30"><Handshake className="h-3 w-3 mr-1" />Repasse</Badge>;
+  };
+
   const hasPaymentDetails = !!contract.pix_key;
-  const isButtonDisabled = availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid' || !windowStatus.open || availableBalance < wSettings.partnerMinWithdrawal;
+  const isButtonDisabled = totalWithdrawable <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid' || !windowStatus.open || totalWithdrawable < wSettings.partnerMinWithdrawal;
 
   const handleRequestWithdrawal = async () => {
     // Trava sincrônica imediata contra duplo-clique (antes de qualquer await/setState async)
@@ -141,20 +177,27 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         holder_name: contract.bank_details?.holder_name
       };
 
-      const result = await requestWithdrawal(amount, paymentDetails, {
-        feePercentage: fee.feePercentage,
-        feeAmount: fee.feeAmount,
-        netAmount: fee.netAmount
-      });
+      const result = await requestWithdrawal(
+        amount,
+        paymentDetails,
+        {
+          feePercentage: fee.feePercentage,
+          feeAmount: fee.feeAmount,
+          netAmount: fee.netAmount
+        },
+        withdrawalSource
+      );
       if (result.success) {
         setWithdrawalAmount('');
         setIsWithdrawDialogOpen(false);
+        await refetchBalances();
         onRefresh?.();
       }
     } finally {
       isSubmittingRef.current = false;
     }
   };
+
 
   const handleSavePaymentDetails = async (data: PaymentDetails) => {
     const result = await updateContractPaymentDetails(data);
@@ -373,13 +416,22 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                 <DialogHeader>
                   <DialogTitle>Solicitar Saque</DialogTitle>
                   <DialogDescription>
-                    Confira as duas origens de saldo antes de confirmar a solicitação.
+                    Escolha a origem do saldo e confirme a solicitação.
                   </DialogDescription>
                 </DialogHeader>
 
-                {/* Origens de saldo — visão clara antes de confirmar */}
+                {/* Origens de saldo — seleção */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawalSource('partnership_repass')}
+                    disabled={availableBalance <= 0}
+                    className={`text-left rounded-lg border px-3 py-2 transition ${
+                      withdrawalSource === 'partnership_repass'
+                        ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                        : 'border-border bg-muted/30'
+                    } disabled:opacity-50`}
+                  >
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                       <Handshake className="h-3 w-3" /> Repasses da Parceria
                     </p>
@@ -389,22 +441,46 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                       {currentContractBalance && currentContractBalance.repass_reserved > 0 &&
                         ` • ${formatPrice(currentContractBalance.repass_reserved)} reservado`}
                     </p>
-                    <p className="text-[10px] text-primary/80 mt-1 font-medium">Origem desta solicitação</p>
-                  </div>
-                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawalSource('network_bonus')}
+                    disabled={bonusAvailable <= 0}
+                    className={`text-left rounded-lg border px-3 py-2 transition ${
+                      withdrawalSource === 'network_bonus'
+                        ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500'
+                        : 'border-border bg-muted/30'
+                    } disabled:opacity-50`}
+                  >
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                       <Network className="h-3 w-3" /> Bônus de Rede
                     </p>
                     <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-0.5">
-                      {formatPrice(balances.bonus_available)}
+                      {formatPrice(bonusAvailable)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      Carteira independente
+                      Carteira independente (não consome teto)
                       {balances.bonus_reserved > 0 && ` • ${formatPrice(balances.bonus_reserved)} reservado`}
                     </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Não incluído nesta solicitação</p>
-                  </div>
+                  </button>
                 </div>
+
+                {availableBalance > 0 && bonusAvailable > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawalSource('mixed')}
+                    className={`w-full text-left rounded-lg border px-3 py-2 transition ${
+                      withdrawalSource === 'mixed'
+                        ? 'border-purple-500 bg-purple-500/10 ring-1 ring-purple-500'
+                        : 'border-border bg-muted/30'
+                    }`}
+                  >
+                    <p className="text-xs font-medium">Usar as duas origens (misto)</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Total disponível: {formatPrice(totalWithdrawable)} — consome primeiro os repasses.
+                    </p>
+                  </button>
+                )}
 
                 {!hasPaymentDetails && (
                   <Alert>
@@ -423,12 +499,21 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                       type="number"
                       step="0.01"
                       min={wSettings.partnerMinWithdrawal}
-                      max={availableBalance}
+                      max={sourceMax}
                       value={withdrawalAmount}
                       onChange={(e) => setWithdrawalAmount(e.target.value)}
                       placeholder={`Mínimo ${wSettings.partnerMinWithdrawal.toFixed(2)}`}
                     />
+                    <p className="text-[11px] text-muted-foreground">
+                      Disponível nesta origem: {formatPrice(sourceMax)}
+                    </p>
+                    {parsedAmount > sourceMax && (
+                      <p className="text-[11px] text-destructive">
+                        Valor acima do saldo disponível na origem selecionada.
+                      </p>
+                    )}
                   </div>
+
 
                   {/* Fee preview */}
                   {parsedAmount > 0 && effectiveFeePct > 0 && (
@@ -466,7 +551,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                     variant="link" 
                     size="sm" 
                     className="p-0"
-                    onClick={() => setWithdrawalAmount((Math.round(availableBalance * 100) / 100).toFixed(2))}
+                    onClick={() => setWithdrawalAmount((Math.round(sourceMax * 100) / 100).toFixed(2))}
                   >
                     Usar saldo total
                   </Button>
@@ -478,8 +563,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   </Button>
                   <Button 
                     onClick={handleRequestWithdrawal}
-                    disabled={submitting || !withdrawalAmount || parsedAmount < wSettings.partnerMinWithdrawal || Math.round(parsedAmount * 100) > Math.round(availableBalance * 100)}
+                    disabled={submitting || !withdrawalAmount || parsedAmount < wSettings.partnerMinWithdrawal || Math.round(parsedAmount * 100) > Math.round(sourceMax * 100)}
                   >
+
                     {submitting ? 'Enviando...' : hasPaymentDetails ? 'Confirmar Saque' : 'Cadastrar PIX'}
                   </Button>
                 </DialogFooter>
@@ -501,7 +587,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
+                  <TableHead>Origem</TableHead>
                   <TableHead>Valor Bruto</TableHead>
+
                   <TableHead>Taxa</TableHead>
                   <TableHead>Líquido (recebido)</TableHead>
                   <TableHead>PIX</TableHead>
@@ -520,7 +608,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   return (
                     <TableRow key={withdrawal.id}>
                       <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
+                      <TableCell>{getSourceBadge(withdrawal)}</TableCell>
                       <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
+
                       <TableCell className="text-sm">
                         {feeAmt > 0 ? (
                           <span className="text-amber-600 dark:text-amber-400">

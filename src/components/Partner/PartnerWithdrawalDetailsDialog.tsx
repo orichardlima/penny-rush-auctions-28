@@ -113,13 +113,31 @@ const PartnerWithdrawalDetailsDialog: React.FC<Props> = ({
           </DialogDescription>
         </DialogHeader>
 
+        {withdrawal && (Number((withdrawal as any).bonus_amount || 0) > 0 || Number((withdrawal as any).repass_amount || 0) > 0) && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-xs text-muted-foreground">Origem: Repasses da Parceria</p>
+              <p className="text-lg font-bold text-primary">
+                {formatPrice(Number((withdrawal as any).repass_amount || 0))}
+              </p>
+            </div>
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3">
+              <p className="text-xs text-muted-foreground">Origem: Bônus de Rede</p>
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {formatPrice(Number((withdrawal as any).bonus_amount || 0))}
+              </p>
+            </div>
+          </div>
+        )}
+
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription className="text-sm">
             Este saque foi composto pelos repasses creditados no período entre o saque anterior (ou início do contrato)
-            e a data desta solicitação.
+            e a data desta solicitação. Valores oriundos do Bônus de Rede não consomem o teto do contrato.
           </AlertDescription>
         </Alert>
+
 
         <div className="grid grid-cols-3 gap-3 my-4">
           <div className="rounded-lg border p-3">
