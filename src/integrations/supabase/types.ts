@@ -7500,6 +7500,7 @@ export type Database = {
         Returns: Json
       }
       partner_process_expired_network_exits: { Args: never; Returns: Json }
+      partner_release_my_due_referral_bonuses: { Args: never; Returns: number }
       partner_request_leave_sponsor: {
         Args: { p_contract_id: string; p_ip?: string; p_reason?: string }
         Returns: Json

@@ -67,10 +67,18 @@ export const useWithdrawalBalances = () => {
       return;
     }
     try {
+      // Rede de segurança: libera bônus de indicação já vencidos antes de ler os saldos
+      try {
+        await supabase.rpc('partner_release_my_due_referral_bonuses');
+      } catch (releaseErr) {
+        console.warn('Falha ao liberar bônus vencidos:', releaseErr);
+      }
+
       const { data, error } = await supabase.rpc('partner_get_withdrawal_balances', {
         _user_id: profile.user_id,
       });
       if (error) throw error;
+
 
       const raw = (data ?? {}) as Record<string, any>;
       setBalances({
