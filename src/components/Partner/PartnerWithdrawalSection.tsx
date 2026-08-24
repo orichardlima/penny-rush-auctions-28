@@ -608,7 +608,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   return (
                     <TableRow key={withdrawal.id}>
                       <TableCell className="text-sm">{formatDate(withdrawal.requested_at)}</TableCell>
+                      <TableCell>{getSourceBadge(withdrawal)}</TableCell>
                       <TableCell className="font-medium">{formatPrice(withdrawal.amount)}</TableCell>
+
                       <TableCell className="text-sm">
                         {feeAmt > 0 ? (
                           <span className="text-amber-600 dark:text-amber-400">
