@@ -28,6 +28,8 @@ export interface PartnerWithdrawal {
   balance_source?: string | null;
   repass_amount?: number | null;
   bonus_amount?: number | null;
+}
+
 
 
 export type WithdrawalSource = 'partnership_repass' | 'network_bonus' | 'mixed';
