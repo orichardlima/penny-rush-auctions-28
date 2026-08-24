@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { usePartnerWithdrawals, PaymentDetails } from '@/hooks/usePartnerWithdrawals';
+import { usePartnerWithdrawals, PaymentDetails, WithdrawalSource } from '@/hooks/usePartnerWithdrawals';
 import { useWithdrawalSettings } from '@/hooks/useWithdrawalSettings';
 import { useWithdrawalBalances } from '@/hooks/useWithdrawalBalances';
 import { PartnerContract } from '@/hooks/usePartnerContract';
