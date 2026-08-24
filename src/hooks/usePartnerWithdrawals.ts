@@ -27,6 +27,9 @@ export interface PartnerWithdrawal {
   created_at: string;
 }
 
+export type WithdrawalSource = 'partnership_repass' | 'network_bonus' | 'mixed';
+
+
 export interface PaymentDetails {
   pix_key: string;
   pix_key_type: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
