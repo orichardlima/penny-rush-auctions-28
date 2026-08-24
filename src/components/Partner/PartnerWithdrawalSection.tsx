@@ -61,6 +61,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
 
   const [availableBalance, setAvailableBalance] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalSource, setWithdrawalSource] = useState<WithdrawalSource>('partnership_repass');
   const [simulatorAmount, setSimulatorAmount] = useState('');
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -83,6 +84,26 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const feeInfo = calculateFee(parsedAmount);
   const parsedSimulator = parseFloat(simulatorAmount) || 0;
   const simulatorFee = calculateFee(parsedSimulator);
+
+  const bonusAvailable = balances.bonus_available;
+  const sourceMax =
+    withdrawalSource === 'partnership_repass'
+      ? availableBalance
+      : withdrawalSource === 'network_bonus'
+        ? bonusAvailable
+        : availableBalance + bonusAvailable;
+  const totalWithdrawable = availableBalance + bonusAvailable;
+
+  // Ajusta automaticamente a origem selecionada quando só há saldo de bônus
+  useEffect(() => {
+    if (!isWithdrawDialogOpen) {
+      if (availableBalance <= 0 && bonusAvailable > 0) {
+        setWithdrawalSource('network_bonus');
+      } else if (availableBalance > 0 && bonusAvailable <= 0) {
+        setWithdrawalSource('partnership_repass');
+      }
+    }
+  }, [availableBalance, bonusAvailable, isWithdrawDialogOpen]);
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -114,8 +135,23 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     }
   };
 
+  const getSourceBadge = (w: PartnerWithdrawal) => {
+    const src = w.balance_source || 'partnership_repass';
+    if (src === 'network_bonus') {
+      return <Badge variant="outline" className="text-blue-600 border-blue-500/30"><Network className="h-3 w-3 mr-1" />Bônus de Rede</Badge>;
+    }
+    if (src === 'mixed') {
+      return (
+        <Badge variant="outline" className="text-purple-600 border-purple-500/30">
+          Misto
+        </Badge>
+      );
+    }
+    return <Badge variant="outline" className="text-primary border-primary/30"><Handshake className="h-3 w-3 mr-1" />Repasse</Badge>;
+  };
+
   const hasPaymentDetails = !!contract.pix_key;
-  const isButtonDisabled = availableBalance <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid' || !windowStatus.open || availableBalance < wSettings.partnerMinWithdrawal;
+  const isButtonDisabled = totalWithdrawable <= 0 || hasPendingWithdrawal || contract.status !== 'ACTIVE' || (contract as any).financial_status !== 'paid' || !windowStatus.open || totalWithdrawable < wSettings.partnerMinWithdrawal;
 
   const handleRequestWithdrawal = async () => {
     // Trava sincrônica imediata contra duplo-clique (antes de qualquer await/setState async)
@@ -141,20 +177,27 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         holder_name: contract.bank_details?.holder_name
       };
 
-      const result = await requestWithdrawal(amount, paymentDetails, {
-        feePercentage: fee.feePercentage,
-        feeAmount: fee.feeAmount,
-        netAmount: fee.netAmount
-      });
+      const result = await requestWithdrawal(
+        amount,
+        paymentDetails,
+        {
+          feePercentage: fee.feePercentage,
+          feeAmount: fee.feeAmount,
+          netAmount: fee.netAmount
+        },
+        withdrawalSource
+      );
       if (result.success) {
         setWithdrawalAmount('');
         setIsWithdrawDialogOpen(false);
+        await refetchBalances();
         onRefresh?.();
       }
     } finally {
       isSubmittingRef.current = false;
     }
   };
+
 
   const handleSavePaymentDetails = async (data: PaymentDetails) => {
     const result = await updateContractPaymentDetails(data);
