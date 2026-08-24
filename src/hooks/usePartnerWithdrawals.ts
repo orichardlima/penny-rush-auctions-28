@@ -25,7 +25,10 @@ export interface PartnerWithdrawal {
   approved_at: string | null;
   paid_at: string | null;
   created_at: string;
-}
+  balance_source?: string | null;
+  repass_amount?: number | null;
+  bonus_amount?: number | null;
+
 
 export type WithdrawalSource = 'partnership_repass' | 'network_bonus' | 'mixed';
 
