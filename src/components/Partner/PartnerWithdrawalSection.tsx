@@ -551,7 +551,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                     variant="link" 
                     size="sm" 
                     className="p-0"
-                    onClick={() => setWithdrawalAmount((Math.round(availableBalance * 100) / 100).toFixed(2))}
+                    onClick={() => setWithdrawalAmount((Math.round(sourceMax * 100) / 100).toFixed(2))}
                   >
                     Usar saldo total
                   </Button>
@@ -563,8 +563,9 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
                   </Button>
                   <Button 
                     onClick={handleRequestWithdrawal}
-                    disabled={submitting || !withdrawalAmount || parsedAmount < wSettings.partnerMinWithdrawal || Math.round(parsedAmount * 100) > Math.round(availableBalance * 100)}
+                    disabled={submitting || !withdrawalAmount || parsedAmount < wSettings.partnerMinWithdrawal || Math.round(parsedAmount * 100) > Math.round(sourceMax * 100)}
                   >
+
                     {submitting ? 'Enviando...' : hasPaymentDetails ? 'Confirmar Saque' : 'Cadastrar PIX'}
                   </Button>
                 </DialogFooter>
