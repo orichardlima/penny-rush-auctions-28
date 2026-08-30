@@ -360,13 +360,14 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                   <Menu className="w-5 h-5" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[350px]">
+              <SheetContent side="right" className="w-[300px] sm:w-[350px] flex flex-col h-full p-0">
                 <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
                 <SheetDescription className="sr-only">
                   Navegue pelas páginas do Show de Lances
                 </SheetDescription>
-                
-                <div className="flex flex-col space-y-4 mt-6">
+
+                <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-6 pb-4">
+                <div className="flex flex-col space-y-4">
                   {user && profile && (
                     <>
                       {/* Enhanced User Info in Mobile Menu */}
@@ -527,22 +528,24 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                     </div>
                   </nav>
                   
-                  {user && (
-                    <div className="space-y-2 pt-4 border-t border-border">
-                      <Button 
-                        onClick={() => {
-                          handleSignOut();
-                          setMobileMenuOpen(false);
-                        }} 
-                        variant="ghost" 
-                        className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 text-base font-medium"
-                      >
-                        <LogOut className="w-5 h-5 mr-3" aria-hidden="true" />
-                        Sair da Conta
-                      </Button>
-                    </div>
-                  )}
                 </div>
+                </div>
+
+                {user && (
+                  <div className="shrink-0 border-t border-border px-6 py-4 bg-background">
+                    <Button
+                      onClick={() => {
+                        handleSignOut();
+                        setMobileMenuOpen(false);
+                      }}
+                      variant="ghost"
+                      className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 text-base font-medium"
+                    >
+                      <LogOut className="w-5 h-5 mr-3" aria-hidden="true" />
+                      Sair da Conta
+                    </Button>
+                  </div>
+                )}
               </SheetContent>
             </Sheet>
           </div>
