@@ -528,22 +528,24 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                     </div>
                   </nav>
                   
-                  {user && (
-                    <div className="space-y-2 pt-4 border-t border-border">
-                      <Button 
-                        onClick={() => {
-                          handleSignOut();
-                          setMobileMenuOpen(false);
-                        }} 
-                        variant="ghost" 
-                        className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 text-base font-medium"
-                      >
-                        <LogOut className="w-5 h-5 mr-3" aria-hidden="true" />
-                        Sair da Conta
-                      </Button>
-                    </div>
-                  )}
                 </div>
+                </div>
+
+                {user && (
+                  <div className="shrink-0 border-t border-border px-6 py-4 bg-background">
+                    <Button
+                      onClick={() => {
+                        handleSignOut();
+                        setMobileMenuOpen(false);
+                      }}
+                      variant="ghost"
+                      className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 text-base font-medium"
+                    >
+                      <LogOut className="w-5 h-5 mr-3" aria-hidden="true" />
+                      Sair da Conta
+                    </Button>
+                  </div>
+                )}
               </SheetContent>
             </Sheet>
           </div>
