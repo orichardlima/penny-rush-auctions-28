@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { countByLevel, isActiveReferralBonus } from '@/lib/referralCounts';
 
 export interface ReferralNode {
   id: string;
@@ -229,12 +230,16 @@ export const useReferralNetwork = () => {
       setNetworkTree(tree);
 
       // Calculate stats
-      const totalNodes = allBonuses.length;
-      const totalBonusValue = allBonuses.reduce((sum, b) => sum + b.bonus_value, 0);
+      // Contagem por PESSOAS únicas (ignora bônus cancelados) — mesma regra da aba de indicações
+      const levelCounts = countByLevel(allBonuses as any);
+      const totalNodes = levelCounts.total;
+      const totalBonusValue = allBonuses
+        .filter(b => isActiveReferralBonus(b as any))
+        .reduce((sum, b) => sum + b.bonus_value, 0);
       const nodesByLevel = {
-        level1: level1Bonuses.length,
-        level2: level2Bonuses.length,
-        level3: level3Bonuses.length
+        level1: levelCounts.level1,
+        level2: levelCounts.level2,
+        level3: levelCounts.level3
       };
 
       setStats({ totalNodes, totalBonusValue, nodesByLevel });

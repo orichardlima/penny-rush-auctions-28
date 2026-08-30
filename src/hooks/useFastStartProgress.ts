@@ -75,7 +75,7 @@ export const useFastStartProgress = (contractId: string | null) => {
           .eq('processed', true),
         supabase
           .from('partner_referral_bonuses')
-          .select('id')
+          .select('referred_user_id')
           .eq('referrer_contract_id', contractId)
           .eq('referral_level', 1)
           .neq('status', 'CANCELLED')
@@ -96,7 +96,10 @@ export const useFastStartProgress = (contractId: string | null) => {
 
       const tiers = (tiersRes.data || []) as FastStartTier[];
       const achievements = (achievementsRes.data || []) as FastStartAchievement[];
-      const currentReferrals = referralsRes.data?.length || 0;
+      // Conta PESSOAS únicas (um indicado pode gerar mais de um bônus de nível 1)
+      const currentReferrals = new Set(
+        (referralsRes.data || []).map((r: any) => r.referred_user_id)
+      ).size;
 
       // Determine current and next tier
       const achievedMaxPct = Math.max(0, ...achievements.map(a => a.extra_percentage_applied));
