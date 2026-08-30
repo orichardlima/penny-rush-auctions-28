@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { countUniqueReferrals } from '@/lib/referralCounts';
 
 export interface PartnerReferralBonus {
   id: string;
@@ -12,7 +13,7 @@ export interface PartnerReferralBonus {
   bonus_percentage: number;
   bonus_value: number;
   referral_level: number;
-  status: 'PENDING' | 'AVAILABLE' | 'PAID' | 'CANCELLED' | 'SUSPENDED';
+  status: 'PENDING' | 'AVAILABLE' | 'PAID' | 'CREDITED' | 'CANCELLED' | 'SUSPENDED';
   available_at: string | null;
   suspended_expires_at: string | null;
   paid_at: string | null;
@@ -173,14 +174,13 @@ export const usePartnerReferrals = () => {
 
   // Contagem de PESSOAS únicas (um mesmo indicado pode gerar vários registros de bônus,
   // por exemplo os bônus retroativos do Início Rápido)
-  const uniquePeople = (list: typeof activeBonuses) =>
-    new Set(list.map(b => b.referred_user_id)).size;
+  const uniquePeople = (list: typeof activeBonuses) => countUniqueReferrals(list);
 
   const stats = {
     total: uniquePeople(activeBonuses),
     pending: bonuses.filter(b => b.status === 'PENDING').length,
     available: bonuses.filter(b => b.status === 'AVAILABLE').length,
-    paid: bonuses.filter(b => b.status === 'PAID').length,
+    paid: bonuses.filter(b => b.status === 'PAID' || b.status === 'CREDITED').length,
     suspended: bonuses.filter(b => b.status === 'SUSPENDED').length,
     cancelled: bonuses.filter(b => b.status === 'CANCELLED').length,
     totalValue: activeBonuses.reduce((sum, b) => sum + b.bonus_value, 0),
@@ -216,6 +216,7 @@ export const usePartnerReferrals = () => {
       case 'PENDING': return 'Em validação';
       case 'AVAILABLE': return 'Disponível';
       case 'PAID': return 'Pago';
+      case 'CREDITED': return 'Creditado';
       case 'CANCELLED': return 'Cancelado';
       case 'SUSPENDED': {
         if (suspendedExpiresAt) {
@@ -238,6 +239,7 @@ export const usePartnerReferrals = () => {
       case 'PENDING': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
       case 'AVAILABLE': return 'bg-green-500/10 text-green-600 border-green-500/20';
       case 'PAID': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+      case 'CREDITED': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'CANCELLED': return 'bg-red-500/10 text-red-600 border-red-500/20';
       case 'SUSPENDED': return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
       default: return '';
