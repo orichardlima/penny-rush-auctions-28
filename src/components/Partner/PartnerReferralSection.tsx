@@ -172,13 +172,14 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <Clock className="h-5 w-5 mx-auto mb-1 text-yellow-600" />
               <p className="text-2xl font-bold">{stats.pending}</p>
-              <p className="text-xs text-muted-foreground">Em validação</p>
+              <p className="text-xs text-muted-foreground">Bônus em validação</p>
             </div>
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <Gift className="h-5 w-5 mx-auto mb-1 text-green-600" />
               <p className="text-2xl font-bold">{stats.available}</p>
-              <p className="text-xs text-muted-foreground">Disponíveis</p>
+              <p className="text-xs text-muted-foreground">Bônus disponíveis</p>
             </div>
+
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <DollarSign className="h-5 w-5 mx-auto mb-1 text-primary" />
               <p className="text-2xl font-bold">{formatPrice(stats.totalValue)}</p>
