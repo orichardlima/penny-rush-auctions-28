@@ -171,8 +171,13 @@ export const usePartnerReferrals = () => {
   const level2Bonuses = activeBonuses.filter(b => b.referral_level === 2);
   const level3Bonuses = activeBonuses.filter(b => b.referral_level === 3);
 
+  // Contagem de PESSOAS únicas (um mesmo indicado pode gerar vários registros de bônus,
+  // por exemplo os bônus retroativos do Início Rápido)
+  const uniquePeople = (list: typeof activeBonuses) =>
+    new Set(list.map(b => b.referred_user_id)).size;
+
   const stats = {
-    total: activeBonuses.length,
+    total: uniquePeople(activeBonuses),
     pending: bonuses.filter(b => b.status === 'PENDING').length,
     available: bonuses.filter(b => b.status === 'AVAILABLE').length,
     paid: bonuses.filter(b => b.status === 'PAID').length,
@@ -180,22 +185,26 @@ export const usePartnerReferrals = () => {
     cancelled: bonuses.filter(b => b.status === 'CANCELLED').length,
     totalValue: activeBonuses.reduce((sum, b) => sum + b.bonus_value, 0),
     availableValue: bonuses.filter(b => b.status === 'AVAILABLE').reduce((sum, b) => sum + b.bonus_value, 0),
-    // Estatísticas por nível
+    // Estatísticas por nível (count = pessoas únicas, bonusCount = registros de bônus)
     byLevel: {
       level1: {
-        count: level1Bonuses.length,
+        count: uniquePeople(level1Bonuses),
+        bonusCount: level1Bonuses.length,
         value: level1Bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
       },
       level2: {
-        count: level2Bonuses.length,
+        count: uniquePeople(level2Bonuses),
+        bonusCount: level2Bonuses.length,
         value: level2Bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
       },
       level3: {
-        count: level3Bonuses.length,
+        count: uniquePeople(level3Bonuses),
+        bonusCount: level3Bonuses.length,
         value: level3Bonuses.reduce((sum, b) => sum + b.bonus_value, 0),
       },
     }
   };
+
 
   const getReferralLink = useCallback(() => {
     if (!referralCode) return null;
