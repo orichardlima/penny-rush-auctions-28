@@ -360,13 +360,14 @@ export const Header = ({ userBids, onBuyBids }: HeaderProps) => {
                   <Menu className="w-5 h-5" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[350px]">
+              <SheetContent side="right" className="w-[300px] sm:w-[350px] flex flex-col h-full p-0">
                 <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
                 <SheetDescription className="sr-only">
                   Navegue pelas páginas do Show de Lances
                 </SheetDescription>
-                
-                <div className="flex flex-col space-y-4 mt-6">
+
+                <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-6 pb-4">
+                <div className="flex flex-col space-y-4">
                   {user && profile && (
                     <>
                       {/* Enhanced User Info in Mobile Menu */}
