@@ -123,8 +123,18 @@ const ReferralBonusList = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {bonus.available_at ? formatDate(bonus.available_at) : '-'}
+                      {bonus.available_at ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm">{formatReleaseDateTime(bonus.available_at)}</span>
+                          {bonus.status === 'PENDING' && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeUntilRelease(bonus.available_at)}
+                            </span>
+                          )}
+                        </div>
+                      ) : '-'}
                     </TableCell>
+
                     <TableCell>{formatDate(bonus.created_at)}</TableCell>
                   </TableRow>
                 ))}
