@@ -343,7 +343,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
       {/* Disclaimer */}
       <p className="text-xs text-center text-muted-foreground">
-        O bônus de indicação possui um período de carência de 7 dias antes de ficar disponível.
+        O bônus de indicação possui um período de carência de 7 dias corridos (168 horas), contados a partir do horário exato da ativação — por isso a liberação ocorre no mesmo horário do 7º dia.
         Este é um benefício comercial independente do seu contrato de participação.
       </p>
 
