@@ -1,33 +1,19 @@
-# Lançamento automático de leilões: restaurado + blindagem contra nova parada
+# Mostrar data E horário da liberação dos bônus
 
-## Confirmação — está funcionando de novo
+A carência de 7 dias vence na **hora exata** da geração do bônus (168 horas), não à meia-noite. Hoje o painel do parceiro mostra só a data, o que dá a impressão de atraso quando o horário ainda não chegou.
 
-Verificado agora (13:00 UTC / 10:00 Bahia):
+## O que muda (apenas exibição)
 
-- O cron externo voltou a chamar a função: log `AUTO_REPLENISH_AUTH_DIAGNOSTIC` com `match: true` (o segredo está correto).
-- Novo leilão criado às 13:00:13 — "Smart TV 43\" 4K UHD" (`07d7bf78…`), término previsto 20:16 UTC.
-- Estado atual: **2 leilões ativos + 1 aguardando** (mínimo configurado = 3). O motor está repondo sozinho.
-- Templates disponíveis: 62 no total, 38 elegíveis no momento (o resto em cooldown de 4h).
+Na aba de Indicações do painel do parceiro, coluna "Liberação":
 
-Ou seja: a causa da parada foi a pausa do banco por pagamento, que fez o cron-job.org falhar por DNS e se autodesativar. Com o banco e o cron reativados, o fluxo normalizou sem nenhuma alteração de código.
+- Bônus PENDENTE passa a exibir **data + hora** no fuso da Bahia (America/Bahia), ex.: `31/08/2026 às 19:09`.
+- Abaixo, uma linha curta com o tempo restante, ex.: `faltam 8h` ou `faltam 2 dias`.
+- Tooltip do status "Em validação" passa a explicar: carência de 7 dias corridos (168 horas) contados a partir do horário exato da ativação, com liberação automática logo após.
 
-## O que ainda vale corrigir (para não depender de um único gatilho)
+Mesmo tratamento no card/lista de bônus de rede quando exibe a data de liberação, para ficar consistente.
 
-### 1. Gatilho interno de reserva no banco
-Hoje existe um `pg_cron` chamado `auto-replenish-auctions` que **nunca funciona**: todas as execuções terminam em `job startup timeout` e nenhuma requisição chega à função. Além disso, o comando dele **não envia o cabeçalho `x-replenish-secret`** — e o segredo está ativo, então ele receberia 401 mesmo se rodasse.
+## Detalhes técnicos
 
-Correção: incluir o cabeçalho no comando e reagendá-lo em cadência baixa (a cada 15 min) e em janela deslocada, apenas como rede de segurança caso o cron externo caia de novo. A trava de 60s já existente na função impede execução duplicada com o cron externo.
-
-### 2. Desafogar o agendador do banco
-Há **72+ jobs disparando a cada minuto** (`bot-exec-XX` ×60, `bot-tick-XX` ×12, `sync-timers-protection-XX`), o que satura os workers do pg_cron e é a razão dos `job startup timeout`.
-
-Correção: consolidar os `bot-exec-XX` em poucos jobs por minuto que varrem os lances pendentes em laço interno curto, preservando exatamente a mesma cadência e o mesmo comportamento dos bots. Mesmo tratamento para `bot-tick-XX` e `sync-timers-protection-XX`.
-
-### 3. Alerta de "sem leilões"
-Registrar um alerta administrativo quando `active + waiting` ficar em zero por mais de alguns minutos, para que uma nova pausa, falha de pagamento ou queda do cron externo apareça de imediato em vez de ficar horas sem leilão.
-
-## Notas técnicas
-
-- Nenhuma regra de negócio muda: lances, bots vencedores, pontos, receita e finalização permanecem exatamente como estão.
-- As alterações ficam restritas a `cron.job` (comando e agendamento) e a uma verificação de alerta.
-- Se você preferir manter apenas o cron externo como gatilho, dá para fazer só os itens 2 e 3.
+- Novo helper de formatação (data + hora em America/Bahia, usando `date-fns-tz`, já presente no projeto) e cálculo de tempo restante.
+- Ajustes em `src/components/Partner/PartnerReferralSection.tsx` (coluna Liberação e tooltip) e no componente equivalente de listagem de bônus.
+- Nenhuma alteração de regra financeira, RPC, migration ou fluxo: só apresentação.
