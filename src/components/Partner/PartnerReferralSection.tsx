@@ -323,7 +323,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="max-w-xs">Bônus em período de carência de 7 dias. Será liberado automaticamente após a validação.</p>
+                              <p className="max-w-xs">Carência de 7 dias corridos (168 horas) contados a partir do horário exato da ativação. A liberação acontece automaticamente logo após esse horário.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
