@@ -295,12 +295,22 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                     </TableCell>
                     <TableCell>
                       {bonus.status === 'PENDING' && (bonus as any).available_at
-                        ? <span className="text-yellow-600 text-sm">{formatDate((bonus as any).available_at)}</span>
+                        ? (
+                          <div className="flex flex-col">
+                            <span className="text-yellow-600 text-sm">
+                              {formatReleaseDateTime((bonus as any).available_at)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeUntilRelease((bonus as any).available_at)}
+                            </span>
+                          </div>
+                        )
                         : (bonus.status === 'AVAILABLE' || bonus.status === 'PAID')
                           ? <CheckCircle2 className="h-4 w-4 text-green-600" />
                           : <span className="text-muted-foreground">-</span>
                       }
                     </TableCell>
+
                     <TableCell>
                       {bonus.status === 'PENDING' ? (
                         <TooltipProvider>
