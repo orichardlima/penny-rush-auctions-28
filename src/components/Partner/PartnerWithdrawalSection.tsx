@@ -59,7 +59,6 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
     : null;
   const { balances, loading: balancesLoading, refetch: refetchBalances } = useWithdrawalBalances();
 
-  const [availableBalance, setAvailableBalance] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalSource, setWithdrawalSource] = useState<WithdrawalSource>('partnership_repass');
   const [simulatorAmount, setSimulatorAmount] = useState('');
@@ -69,15 +68,13 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
-    const loadBalance = async () => {
-      const balance = await calculateAvailableBalance();
-      setAvailableBalance(balance);
-    };
-    loadBalance();
     refetchBalances();
-  }, [calculateAvailableBalance, withdrawals, refetchBalances]);
+  }, [withdrawals, refetchBalances]);
 
   const currentContractBalance = balances.contracts.find((c) => c.contract_id === contract.id);
+
+  // Fonte oficial: saldo de repasse do contrato (partner_get_withdrawal_balances)
+  const availableBalance = currentContractBalance?.available ?? 0;
 
   const windowStatus = isWithdrawalWindowOpen();
   const parsedAmount = parseFloat(withdrawalAmount) || 0;
@@ -93,6 +90,7 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
         ? bonusAvailable
         : availableBalance + bonusAvailable;
   const totalWithdrawable = availableBalance + bonusAvailable;
+
 
   // Ajusta automaticamente a origem selecionada quando só há saldo de bônus
   useEffect(() => {

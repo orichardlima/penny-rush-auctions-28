@@ -147,9 +147,14 @@ export const usePartnerWithdrawals = (contractId?: string) => {
       return { success: false };
     }
 
-    // Para saques de repasse, revalida localmente o saldo do contrato (a RPC revalida no servidor de qualquer forma)
+    // Para saques de repasse, revalida o saldo pela fonte oficial (a RPC revalida no servidor de qualquer forma)
     if (source === 'partnership_repass') {
-      const availableBalance = await calculateAvailableBalance();
+      const { data: balData } = await supabase.rpc('partner_get_withdrawal_balances', {
+        _user_id: profile.user_id,
+      });
+      const raw = (balData ?? {}) as Record<string, any>;
+      const contractRow = (raw.contracts ?? []).find((c: Record<string, any>) => c.contract_id === contractId);
+      const availableBalance = Number(contractRow?.available ?? 0) || 0;
       if (Math.round(amount * 100) > Math.round(availableBalance * 100)) {
         toast({
           variant: "destructive",
@@ -159,6 +164,7 @@ export const usePartnerWithdrawals = (contractId?: string) => {
         return { success: false };
       }
     }
+
 
     setSubmitting(true);
     try {
