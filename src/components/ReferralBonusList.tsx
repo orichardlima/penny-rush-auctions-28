@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useReferralBonuses } from '@/hooks/useReferralBonuses';
+import { formatReleaseDateTime, formatTimeUntilRelease } from '@/lib/releaseTime';
+
 import { 
   Gift, 
   Clock, 
