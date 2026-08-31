@@ -15,6 +15,8 @@ import SponsorActivateDialog from './SponsorActivateDialog';
 import PartnerCreditCard from './PartnerCreditCard';
 import { usePartnerCredit } from '@/hooks/usePartnerCredit';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatReleaseDateTime, formatTimeUntilRelease } from '@/lib/releaseTime';
+
 import { 
   Users, 
   Copy, 
@@ -295,12 +297,22 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                     </TableCell>
                     <TableCell>
                       {bonus.status === 'PENDING' && (bonus as any).available_at
-                        ? <span className="text-yellow-600 text-sm">{formatDate((bonus as any).available_at)}</span>
+                        ? (
+                          <div className="flex flex-col">
+                            <span className="text-yellow-600 text-sm">
+                              {formatReleaseDateTime((bonus as any).available_at)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeUntilRelease((bonus as any).available_at)}
+                            </span>
+                          </div>
+                        )
                         : (bonus.status === 'AVAILABLE' || bonus.status === 'PAID')
                           ? <CheckCircle2 className="h-4 w-4 text-green-600" />
                           : <span className="text-muted-foreground">-</span>
                       }
                     </TableCell>
+
                     <TableCell>
                       {bonus.status === 'PENDING' ? (
                         <TooltipProvider>
@@ -311,7 +323,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="max-w-xs">Bônus em período de carência de 7 dias. Será liberado automaticamente após a validação.</p>
+                              <p className="max-w-xs">Carência de 7 dias corridos (168 horas) contados a partir do horário exato da ativação. A liberação acontece automaticamente logo após esse horário.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -331,7 +343,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
       {/* Disclaimer */}
       <p className="text-xs text-center text-muted-foreground">
-        O bônus de indicação possui um período de carência de 7 dias antes de ficar disponível.
+        O bônus de indicação possui um período de carência de 7 dias corridos (168 horas), contados a partir do horário exato da ativação — por isso a liberação ocorre no mesmo horário do 7º dia.
         Este é um benefício comercial independente do seu contrato de participação.
       </p>
 

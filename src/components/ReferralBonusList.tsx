@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useReferralBonuses } from '@/hooks/useReferralBonuses';
+import { formatReleaseDateTime, formatTimeUntilRelease } from '@/lib/releaseTime';
+
 import { 
   Gift, 
   Clock, 
@@ -123,8 +125,18 @@ const ReferralBonusList = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {bonus.available_at ? formatDate(bonus.available_at) : '-'}
+                      {bonus.available_at ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm">{formatReleaseDateTime(bonus.available_at)}</span>
+                          {bonus.status === 'PENDING' && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeUntilRelease(bonus.available_at)}
+                            </span>
+                          )}
+                        </div>
+                      ) : '-'}
                     </TableCell>
+
                     <TableCell>{formatDate(bonus.created_at)}</TableCell>
                   </TableRow>
                 ))}
