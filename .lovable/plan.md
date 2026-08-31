@@ -1,36 +1,34 @@
-# Retomar o lançamento automático de leilões após a reativação do banco
+# Leilões parados: o agendador externo (cron-job.org) foi desativado
 
-## Situação verificada agora (12:28 UTC / 09:28 Bahia)
+## O que os dados mostram
 
-- **Continua sem nenhum leilão no ar:** a consulta por leilões `active` ou `waiting` retorna zero. O último leilão criado foi hoje às 03:05 UTC.
-- **A pausa do Supabase explica a parada** — durante o período pausado nada rodou.
-- **Mas o agendador ainda não se recuperou sozinho.** Nos últimos 6 minutos, já com o banco reativado, a maioria das execuções de cron continua com `job startup timeout` (ex.: `bot-exec-03`, `bot-exec-06`, `bot-exec-10`, `bot-tick-05`, `bot-tick-10`, `sync-timers-protection-05/10/20`). Apenas parte dos jobs conclui.
-- **O `auto-replenish-auctions` não rodou no horário previsto das 12:27** — as últimas tentativas registradas (12:22 e 12:23) falharam com `job startup timeout`.
-- **Causa da não recuperação:** há **72+ jobs disparando a cada minuto** (60 `bot-exec-XX`, 12 `bot-tick-XX`, mais os `sync-timers-protection-XX`). O pg_cron tem um número limitado de workers; com todos ocupados, os jobs restantes — inclusive o de reposição de leilões — nem chegam a iniciar.
+- **Nenhum leilão no ar agora:** 0 `active` e 0 `waiting`. O último leilão criado foi hoje às **03:05 UTC**.
+- **A última execução bem-sucedida da reposição foi às 03:25 UTC** (`auto_replenish_last_run = 2026-08-31T03:25:02Z`). Depois disso, nada mais rodou.
+- **O disparo real vem de fora, pelo cron-job.org.** No print: o job "Show de Lances - Auto Replenish Auctions" apontando para `.../functions/v1/auto-replenish-auctions` aparece como **Failed (DNS lookup)**, o painel mostra **0 enabled / 1 disabled** e **"No upcoming executions"**. Ou seja, o cron-job.org desabilitou o job automaticamente após as falhas ocorridas enquanto o Supabase estava pausado.
+- **O cron interno do banco existe mas não substitui o externo:** o job `auto-replenish-auctions` (pg_cron, a cada 5 min) só registra `job startup timeout` — nunca chega a chamar a função (não há um único log na edge function). Além disso, o comando dele **não envia o cabeçalho `x-replenish-secret`**, então, se `REPLENISH_TRIGGER_SECRET` estiver configurado, a função responderia 401 mesmo se o job rodasse.
+- **A configuração está correta e ligada:** `auto_replenish_enabled = true`, mínimo 3 leilões, lote de 2, duração 6–8h.
 
-Ou seja: a pausa derrubou os leilões, e a lotação do agendador está impedindo que o sistema volte sozinho.
+Conclusão: os leilões não voltaram sozinhos porque o gatilho externo está desativado desde a pausa, e o gatilho interno de reserva está quebrado.
 
 ## Plano
 
-### Passo 1 — Repor os leilões imediatamente
-Disparar a rotina de reposição manualmente para recriar o lote mínimo de leilões e confirmar que voltaram a aparecer na home e em `/leiloes`.
+### Passo 1 — Repor os leilões agora
+Chamar a função `auto-replenish-auctions` diretamente para recriar o lote mínimo e confirmar que os leilões voltam a aparecer na home e em `/leiloes`.
 
-### Passo 2 — Desafogar o agendador (para o sistema voltar a se sustentar sozinho)
-Consolidar os jobs por minuto sem mudar a cadência efetiva dos bots:
+### Passo 2 — Reativar o disparo externo
+Você reabilita o job no cron-job.org (ele está apenas desativado, a URL continua correta). Depois disso confirmo pelos logs da edge function que as execuções voltaram.
 
-- Substituir os 60 `bot-exec-XX` por poucos jobs (4 a 6 por minuto) que varrem os lances pendentes em laço curto interno, preservando o timing natural atual.
-- Reduzir de forma equivalente os `bot-tick-XX` e os `sync-timers-protection-XX`.
-- Manter todas as travas e a idempotência existentes; nenhuma regra de lance, de vencedor ou de faturamento muda.
-
-### Passo 3 — Blindar o cron de reposição
-- Rodar o `auto-replenish-auctions` em janela deslocada, fora do pico dos jobs de bot.
-- Verificar se `REPLENISH_TRIGGER_SECRET` está configurado: o comando do cron hoje **não** envia o cabeçalho `x-replenish-secret`, o que faria a função responder 401 mesmo quando o job conseguisse rodar. Se o segredo existir, incluir o cabeçalho no comando.
+### Passo 3 — Corrigir o gatilho interno como reserva
+Para não depender de um único agendador:
+- Ajustar o comando do cron interno para enviar o `x-replenish-secret` (confirmando antes se o segredo existe).
+- Reagendar esse job em janela deslocada e cadência menor, fora do pico dos jobs de bot — hoje há 72+ jobs por minuto (`bot-exec-XX`, `bot-tick-XX`, `sync-timers-protection-XX`) saturando os workers do pg_cron e causando os `job startup timeout`.
+- Consolidar esses jobs de bot em poucos jobs por minuto, preservando exatamente a cadência e o comportamento atual dos lances.
 
 ### Passo 4 — Alerta de "sem leilões"
-Verificação simples que registra um alerta administrativo quando o total de leilões `active` + `waiting` ficar em zero por mais de alguns minutos — assim uma nova pausa ou falha aparece imediatamente em vez de passar despercebida.
+Registrar um alerta administrativo quando `active + waiting` ficar em zero por mais de alguns minutos, para que uma nova pausa ou queda do agendador apareça imediatamente.
 
 ## Notas técnicas
 
-- Nenhuma alteração de regra de negócio: lances, bots vencedores, pontos, receita e finalização permanecem como estão.
-- As mudanças ficam em `cron.job` (unschedule dos jobs redundantes + schedule dos consolidados, em uma única migration) e no comando HTTP do job de reposição.
-- A reposição usa `product_templates` ativos, respeitando cooldown por título e o mínimo configurado em `system_settings`.
+- Nenhuma regra de negócio muda: lances, bots vencedores, pontos, receita e finalização permanecem iguais.
+- As alterações se limitam ao agendamento (`cron.job`) e ao comando HTTP do job de reposição.
+- A reposição usa `product_templates` ativos com cooldown de 4h por título e mínimo de 3 leilões, conforme `system_settings`.
