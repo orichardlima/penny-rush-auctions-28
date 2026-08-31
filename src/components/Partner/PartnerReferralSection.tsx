@@ -15,6 +15,8 @@ import SponsorActivateDialog from './SponsorActivateDialog';
 import PartnerCreditCard from './PartnerCreditCard';
 import { usePartnerCredit } from '@/hooks/usePartnerCredit';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatReleaseDateTime, formatTimeUntilRelease } from '@/lib/releaseTime';
+
 import { 
   Users, 
   Copy, 
