@@ -1,34 +1,33 @@
-# Leilões parados: o agendador externo (cron-job.org) foi desativado
+# Lançamento automático de leilões: restaurado + blindagem contra nova parada
 
-## O que os dados mostram
+## Confirmação — está funcionando de novo
 
-- **Nenhum leilão no ar agora:** 0 `active` e 0 `waiting`. O último leilão criado foi hoje às **03:05 UTC**.
-- **A última execução bem-sucedida da reposição foi às 03:25 UTC** (`auto_replenish_last_run = 2026-08-31T03:25:02Z`). Depois disso, nada mais rodou.
-- **O disparo real vem de fora, pelo cron-job.org.** No print: o job "Show de Lances - Auto Replenish Auctions" apontando para `.../functions/v1/auto-replenish-auctions` aparece como **Failed (DNS lookup)**, o painel mostra **0 enabled / 1 disabled** e **"No upcoming executions"**. Ou seja, o cron-job.org desabilitou o job automaticamente após as falhas ocorridas enquanto o Supabase estava pausado.
-- **O cron interno do banco existe mas não substitui o externo:** o job `auto-replenish-auctions` (pg_cron, a cada 5 min) só registra `job startup timeout` — nunca chega a chamar a função (não há um único log na edge function). Além disso, o comando dele **não envia o cabeçalho `x-replenish-secret`**, então, se `REPLENISH_TRIGGER_SECRET` estiver configurado, a função responderia 401 mesmo se o job rodasse.
-- **A configuração está correta e ligada:** `auto_replenish_enabled = true`, mínimo 3 leilões, lote de 2, duração 6–8h.
+Verificado agora (13:00 UTC / 10:00 Bahia):
 
-Conclusão: os leilões não voltaram sozinhos porque o gatilho externo está desativado desde a pausa, e o gatilho interno de reserva está quebrado.
+- O cron externo voltou a chamar a função: log `AUTO_REPLENISH_AUTH_DIAGNOSTIC` com `match: true` (o segredo está correto).
+- Novo leilão criado às 13:00:13 — "Smart TV 43\" 4K UHD" (`07d7bf78…`), término previsto 20:16 UTC.
+- Estado atual: **2 leilões ativos + 1 aguardando** (mínimo configurado = 3). O motor está repondo sozinho.
+- Templates disponíveis: 62 no total, 38 elegíveis no momento (o resto em cooldown de 4h).
 
-## Plano
+Ou seja: a causa da parada foi a pausa do banco por pagamento, que fez o cron-job.org falhar por DNS e se autodesativar. Com o banco e o cron reativados, o fluxo normalizou sem nenhuma alteração de código.
 
-### Passo 1 — Repor os leilões agora
-Chamar a função `auto-replenish-auctions` diretamente para recriar o lote mínimo e confirmar que os leilões voltam a aparecer na home e em `/leiloes`.
+## O que ainda vale corrigir (para não depender de um único gatilho)
 
-### Passo 2 — Reativar o disparo externo
-Você reabilita o job no cron-job.org (ele está apenas desativado, a URL continua correta). Depois disso confirmo pelos logs da edge function que as execuções voltaram.
+### 1. Gatilho interno de reserva no banco
+Hoje existe um `pg_cron` chamado `auto-replenish-auctions` que **nunca funciona**: todas as execuções terminam em `job startup timeout` e nenhuma requisição chega à função. Além disso, o comando dele **não envia o cabeçalho `x-replenish-secret`** — e o segredo está ativo, então ele receberia 401 mesmo se rodasse.
 
-### Passo 3 — Corrigir o gatilho interno como reserva
-Para não depender de um único agendador:
-- Ajustar o comando do cron interno para enviar o `x-replenish-secret` (confirmando antes se o segredo existe).
-- Reagendar esse job em janela deslocada e cadência menor, fora do pico dos jobs de bot — hoje há 72+ jobs por minuto (`bot-exec-XX`, `bot-tick-XX`, `sync-timers-protection-XX`) saturando os workers do pg_cron e causando os `job startup timeout`.
-- Consolidar esses jobs de bot em poucos jobs por minuto, preservando exatamente a cadência e o comportamento atual dos lances.
+Correção: incluir o cabeçalho no comando e reagendá-lo em cadência baixa (a cada 15 min) e em janela deslocada, apenas como rede de segurança caso o cron externo caia de novo. A trava de 60s já existente na função impede execução duplicada com o cron externo.
 
-### Passo 4 — Alerta de "sem leilões"
-Registrar um alerta administrativo quando `active + waiting` ficar em zero por mais de alguns minutos, para que uma nova pausa ou queda do agendador apareça imediatamente.
+### 2. Desafogar o agendador do banco
+Há **72+ jobs disparando a cada minuto** (`bot-exec-XX` ×60, `bot-tick-XX` ×12, `sync-timers-protection-XX`), o que satura os workers do pg_cron e é a razão dos `job startup timeout`.
+
+Correção: consolidar os `bot-exec-XX` em poucos jobs por minuto que varrem os lances pendentes em laço interno curto, preservando exatamente a mesma cadência e o mesmo comportamento dos bots. Mesmo tratamento para `bot-tick-XX` e `sync-timers-protection-XX`.
+
+### 3. Alerta de "sem leilões"
+Registrar um alerta administrativo quando `active + waiting` ficar em zero por mais de alguns minutos, para que uma nova pausa, falha de pagamento ou queda do cron externo apareça de imediato em vez de ficar horas sem leilão.
 
 ## Notas técnicas
 
-- Nenhuma regra de negócio muda: lances, bots vencedores, pontos, receita e finalização permanecem iguais.
-- As alterações se limitam ao agendamento (`cron.job`) e ao comando HTTP do job de reposição.
-- A reposição usa `product_templates` ativos com cooldown de 4h por título e mínimo de 3 leilões, conforme `system_settings`.
+- Nenhuma regra de negócio muda: lances, bots vencedores, pontos, receita e finalização permanecem exatamente como estão.
+- As alterações ficam restritas a `cron.job` (comando e agendamento) e a uma verificação de alerta.
+- Se você preferir manter apenas o cron externo como gatilho, dá para fazer só os itens 2 e 3.
