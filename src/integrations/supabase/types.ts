@@ -1530,6 +1530,42 @@ export type Database = {
           },
         ]
       }
+      bonus_maintenance_runs: {
+        Row: {
+          created_at: string
+          errors: Json
+          expired_count: number
+          finished_at: string | null
+          id: string
+          released_count: number
+          started_at: string
+          status: string
+          trigger_source: string
+        }
+        Insert: {
+          created_at?: string
+          errors?: Json
+          expired_count?: number
+          finished_at?: string | null
+          id?: string
+          released_count?: number
+          started_at?: string
+          status?: string
+          trigger_source?: string
+        }
+        Update: {
+          created_at?: string
+          errors?: Json
+          expired_count?: number
+          finished_at?: string | null
+          id?: string
+          released_count?: number
+          started_at?: string
+          status?: string
+          trigger_source?: string
+        }
+        Relationships: []
+      }
       bot_webhook_logs: {
         Row: {
           auction_id: string
@@ -7758,6 +7794,8 @@ export type Database = {
         }
         Returns: Json
       }
+      run_bonus_maintenance: { Args: { _source?: string }; Returns: Json }
+      run_bonus_maintenance_fallback: { Args: never; Returns: Json }
       scan_withdrawal_integrity: { Args: never; Returns: Json }
       store_visible_for: { Args: { p_user: string }; Returns: boolean }
       tick_bot_executor: { Args: never; Returns: undefined }
