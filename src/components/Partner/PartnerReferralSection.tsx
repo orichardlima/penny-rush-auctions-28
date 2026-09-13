@@ -323,7 +323,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="max-w-xs">Carência de 7 dias corridos (168 horas) contados a partir do horário exato da ativação. A liberação acontece automaticamente logo após esse horário.</p>
+                              <p className="max-w-xs">Carência de 7 dias úteis (segunda a sexta), contados a partir do horário exato da ativação. Sábados e domingos não contam. A liberação acontece automaticamente logo após esse horário.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -343,7 +343,7 @@ const PartnerReferralSection: React.FC<PartnerReferralSectionProps> = ({ planNam
 
       {/* Disclaimer */}
       <p className="text-xs text-center text-muted-foreground">
-        O bônus de indicação possui um período de carência de 7 dias corridos (168 horas), contados a partir do horário exato da ativação — por isso a liberação ocorre no mesmo horário do 7º dia.
+        O bônus de indicação possui um período de carência de 7 dias úteis (segunda a sexta; sábados e domingos não contam), contados a partir do horário exato da ativação — por isso a liberação ocorre no mesmo horário do 7º dia útil.
         Este é um benefício comercial independente do seu contrato de participação.
       </p>
 

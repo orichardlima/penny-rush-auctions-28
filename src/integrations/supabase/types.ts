@@ -6377,6 +6377,10 @@ export type Database = {
         Args: { p_auction_id: string; p_reason: string; p_title: string }
         Returns: string
       }
+      add_business_days: {
+        Args: { p_days: number; p_ts: string }
+        Returns: string
+      }
       admin_adjust_affiliate_balance: {
         Args: {
           _admin_name: string
