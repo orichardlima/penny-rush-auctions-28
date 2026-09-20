@@ -368,8 +368,12 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
         const baseValue = config.calculation_base === 'weekly_cap' 
           ? valuesAtDate.weeklyCap 
           : valuesAtDate.aporte;
-        
-        let dayValue = baseValue * (Number(config.percentage) / 100);
+
+        const effectivePercentage = hasOverride
+          ? (overridePercentage as number) / 7
+          : Number(config.percentage);
+
+        let dayValue = baseValue * (effectivePercentage / 100);
         
         // Apply weekly cap if base is aporte
         if (config.calculation_base === 'aporte' && dayValue > valuesAtDate.weeklyCap) {
@@ -379,7 +383,7 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
 
         dailyBreakdown.push({
           date: config.date,
-          percentage: Number(config.percentage),
+          percentage: effectivePercentage,
           baseValue,
           dayValue,
           skipped: false
