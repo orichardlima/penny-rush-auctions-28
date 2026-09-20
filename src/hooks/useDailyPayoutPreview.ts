@@ -181,6 +181,7 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
   const [contractUpgrades, setContractUpgrades] = useState<Map<string, any[]>>(new Map());
   const [profiles, setProfiles] = useState<Map<string, any>>(new Map());
   const [partnerPlans, setPartnerPlans] = useState<Map<string, any>>(new Map());
+  const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
 
   // Calculate week end from week start using local date parsing
   const weekEnd = useMemo(() => {
@@ -302,6 +303,16 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
           plansMap.set(plan.name, plan);
         });
         setPartnerPlans(plansMap);
+
+        // Fetch active per-partner weekly percentage overrides
+        const { data: overridesData } = await supabase
+          .from('partner_revenue_overrides')
+          .select('user_id, weekly_percentage')
+          .eq('is_active', true);
+
+        const overridesMap = new Map<string, number>();
+        overridesData?.forEach(o => overridesMap.set(o.user_id, Number(o.weekly_percentage)));
+        setOverrides(overridesMap);
       } catch (error) {
         console.error('Error fetching daily payout preview data:', error);
       } finally {
