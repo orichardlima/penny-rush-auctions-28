@@ -344,6 +344,10 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
       let totalCalculated = 0;
       let weeklyCapApplied = false;
 
+      // Per-partner weekly percentage override (replaces the general config, spread across the 7 days)
+      const overridePercentage = overrides.get(contract.user_id) ?? null;
+      const hasOverride = overridePercentage !== null && overridePercentage > 0;
+
       for (const config of dailyConfigs) {
         const configDate = parseLocalDate(config.date);
         
