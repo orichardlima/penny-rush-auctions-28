@@ -4216,6 +4216,78 @@ export type Database = {
           },
         ]
       }
+      partner_revenue_override_audit: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_is_active: boolean | null
+          new_percentage: number | null
+          note: string | null
+          old_is_active: boolean | null
+          old_percentage: number | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_is_active?: boolean | null
+          new_percentage?: number | null
+          note?: string | null
+          old_is_active?: boolean | null
+          old_percentage?: number | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_is_active?: boolean | null
+          new_percentage?: number | null
+          note?: string | null
+          old_is_active?: boolean | null
+          old_percentage?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      partner_revenue_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          note: string | null
+          updated_at: string
+          user_id: string
+          weekly_percentage: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_percentage: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_percentage?: number
+        }
+        Relationships: []
+      }
       partner_upgrades: {
         Row: {
           created_at: string
