@@ -35,6 +35,8 @@ interface ContractPayoutPreview {
   eligibleDays: number;
   proRataApplied: boolean;
   dailyBreakdown: DailyBreakdownItem[];
+  hasOverride: boolean;
+  overridePercentage: number | null;
 }
 
 interface PlanTotal {

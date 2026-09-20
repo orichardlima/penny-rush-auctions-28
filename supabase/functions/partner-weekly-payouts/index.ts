@@ -387,6 +387,7 @@ Deno.serve(async (req) => {
             status: 'PAID',
             source: 'weekly_aporte',
             payout_type: 'partnership_weekly_repass',
+            source_ref: hasOverride ? `override:${overridePercentage}%` : null,
             paid_at: new Date().toISOString()
           })
 
