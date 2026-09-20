@@ -282,15 +282,24 @@ Deno.serve(async (req) => {
         // 3. Calcular rendimento total da semana (Pro Rata)
         const eligibleDates = getDateRange(effectiveStart, weekEnd)
         let totalPercentage = 0
-        
-        for (const dateStr of eligibleDates) {
-          const revenue = revenueByDate.get(dateStr)
-          if (revenue) {
-            totalPercentage += Number(revenue.percentage)
+        const overridePercentage = overrideByUser.get(contract.user_id)
+        const hasOverride = overridePercentage !== undefined && overridePercentage > 0
+
+        if (hasOverride) {
+          // Percentual semanal específico do parceiro (substitui o percentual geral),
+          // aplicado proporcionalmente aos dias elegíveis da semana (pró-rata).
+          const proRataRatio = Math.min(1, eligibleDates.length / 7)
+          totalPercentage = Number(overridePercentage) * proRataRatio
+        } else {
+          for (const dateStr of eligibleDates) {
+            const revenue = revenueByDate.get(dateStr)
+            if (revenue) {
+              totalPercentage += Number(revenue.percentage)
+            }
           }
         }
 
-        console.log(`[partner-weekly-payouts] Contrato ${contract.id}: ${eligibleDates.length} dias elegíveis, ${totalPercentage}% total`)
+        console.log(`[partner-weekly-payouts] Contrato ${contract.id}: ${eligibleDates.length} dias elegíveis, ${totalPercentage}% total${hasOverride ? ` (percentual específico ${overridePercentage}%)` : ''}`)
 
         if (totalPercentage === 0) {
           console.log(`[partner-weekly-payouts] Contrato ${contract.id} sem rendimento configurado. Pulando.`)
