@@ -319,7 +319,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     }
     
     return result;
-  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate, closingHour]);
+  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate, closingHour, overridePercentage]);
 
   // Calculate totals - only include days that are "closed" (past the closing hour)
   const totalPartnerShare = useMemo(() => {
