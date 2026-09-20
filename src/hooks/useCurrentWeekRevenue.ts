@@ -114,8 +114,8 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         const mondayStr = weekBounds.monday.toISOString().split('T')[0];
         const sundayStr = weekBounds.sunday.toISOString().split('T')[0];
 
-        // Fetch daily revenue configs, upgrades, and closing hour setting in parallel
-        const [configsResult, upgradesResult, closingHourResult] = await Promise.all([
+        // Fetch daily revenue configs, upgrades, closing hour and per-partner override in parallel
+        const [configsResult, upgradesResult, closingHourResult, overrideResult] = await Promise.all([
           supabase
             .from('daily_revenue_config')
             .select('date, percentage, calculation_base')
@@ -130,7 +130,15 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
             .from('system_settings')
             .select('setting_value')
             .eq('setting_key', 'partner_daily_closing_time')
-            .single()
+            .single(),
+          contractUserId
+            ? supabase
+                .from('partner_revenue_overrides')
+                .select('weekly_percentage')
+                .eq('user_id', contractUserId)
+                .eq('is_active', true)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null } as any)
         ]);
 
         if (configsResult.error) throw configsResult.error;
