@@ -196,6 +196,20 @@ Deno.serve(async (req) => {
       revenueByDate.set(r.date, r as DailyRevenue)
     })
 
+    // Buscar percentuais específicos por parceiro (exceções ativas)
+    const overrideByUser = new Map<string, number>()
+    const { data: overrides, error: overridesError } = await supabase
+      .from('partner_revenue_overrides')
+      .select('user_id, weekly_percentage')
+      .eq('is_active', true)
+
+    if (overridesError) {
+      console.error('[partner-weekly-payouts] Erro ao buscar partner_revenue_overrides:', overridesError)
+    } else {
+      overrides?.forEach(o => overrideByUser.set(o.user_id, Number(o.weekly_percentage)))
+      console.log(`[partner-weekly-payouts] ${overrideByUser.size} parceiros com percentual específico.`)
+    }
+
     // Processar cada contrato
     const results: ProcessResult[] = []
     
