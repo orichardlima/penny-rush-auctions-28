@@ -11,6 +11,7 @@ import DailyRevenueBars from '@/components/Partner/DailyRevenueBars';
 import { Button } from '@/components/ui/button';
 import EmergencyWithdrawalDialog from '@/components/Admin/EmergencyWithdrawalDialog';
 import { PartnerEvidencePanel } from '@/components/Admin/PartnerEvidencePanel';
+import PartnerRevenueOverrideCard from '@/components/Admin/PartnerRevenueOverrideCard';
 
 interface PartnerDetailModalProps {
   contract: any;
@@ -337,6 +338,11 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                   )}
                 </CardContent>
               </Card>
+            )}
+
+            {/* Percentual semanal específico (exceção por parceiro) */}
+            {contract?.user_id && (
+              <PartnerRevenueOverrideCard userId={contract.user_id} />
             )}
 
             {/* Tabs with history */}

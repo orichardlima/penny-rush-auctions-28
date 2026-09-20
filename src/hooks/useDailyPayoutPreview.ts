@@ -35,6 +35,8 @@ interface ContractPayoutPreview {
   eligibleDays: number;
   proRataApplied: boolean;
   dailyBreakdown: DailyBreakdownItem[];
+  hasOverride: boolean;
+  overridePercentage: number | null;
 }
 
 interface PlanTotal {
@@ -179,6 +181,7 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
   const [contractUpgrades, setContractUpgrades] = useState<Map<string, any[]>>(new Map());
   const [profiles, setProfiles] = useState<Map<string, any>>(new Map());
   const [partnerPlans, setPartnerPlans] = useState<Map<string, any>>(new Map());
+  const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
 
   // Calculate week end from week start using local date parsing
   const weekEnd = useMemo(() => {
@@ -300,6 +303,16 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
           plansMap.set(plan.name, plan);
         });
         setPartnerPlans(plansMap);
+
+        // Fetch active per-partner weekly percentage overrides
+        const { data: overridesData } = await supabase
+          .from('partner_revenue_overrides')
+          .select('user_id, weekly_percentage')
+          .eq('is_active', true);
+
+        const overridesMap = new Map<string, number>();
+        overridesData?.forEach(o => overridesMap.set(o.user_id, Number(o.weekly_percentage)));
+        setOverrides(overridesMap);
       } catch (error) {
         console.error('Error fetching daily payout preview data:', error);
       } finally {
@@ -331,6 +344,10 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
       let totalCalculated = 0;
       let weeklyCapApplied = false;
 
+      // Per-partner weekly percentage override (replaces the general config, spread across the 7 days)
+      const overridePercentage = overrides.get(contract.user_id) ?? null;
+      const hasOverride = overridePercentage !== null && overridePercentage > 0;
+
       for (const config of dailyConfigs) {
         const configDate = parseLocalDate(config.date);
         
@@ -351,8 +368,12 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
         const baseValue = config.calculation_base === 'weekly_cap' 
           ? valuesAtDate.weeklyCap 
           : valuesAtDate.aporte;
-        
-        let dayValue = baseValue * (Number(config.percentage) / 100);
+
+        const effectivePercentage = hasOverride
+          ? (overridePercentage as number) / 7
+          : Number(config.percentage);
+
+        let dayValue = baseValue * (effectivePercentage / 100);
         
         // Apply weekly cap if base is aporte
         if (config.calculation_base === 'aporte' && dayValue > valuesAtDate.weeklyCap) {
@@ -362,7 +383,7 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
 
         dailyBreakdown.push({
           date: config.date,
-          percentage: Number(config.percentage),
+          percentage: effectivePercentage,
           baseValue,
           dayValue,
           skipped: false
@@ -399,12 +420,14 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
         eligibleFrom: eligibility.eligibleFrom ? formatLocalDate(eligibility.eligibleFrom) : null,
         eligibleDays: eligibility.eligibleDays,
         proRataApplied: eligibility.isProRata,
-        dailyBreakdown
+        dailyBreakdown,
+        hasOverride,
+        overridePercentage
       });
     }
 
     return previews.sort((a, b) => b.finalAmount - a.finalAmount);
-  }, [dailyConfigs, contracts, contractUpgrades, profiles, selectedWeek, weekEnd]);
+  }, [dailyConfigs, contracts, contractUpgrades, profiles, selectedWeek, weekEnd, overrides]);
 
   // Calculate totals including Pro Rata count
   const totals = useMemo(() => {

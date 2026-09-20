@@ -58,6 +58,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [closingHour, setClosingHour] = useState(18);
+  const [overridePercentage, setOverridePercentage] = useState<number | null>(null);
   const isFirstLoad = useRef(true);
   const contractId = contract?.id;
   const contractCreatedAt = contract?.created_at;
@@ -113,8 +114,8 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
         const mondayStr = weekBounds.monday.toISOString().split('T')[0];
         const sundayStr = weekBounds.sunday.toISOString().split('T')[0];
 
-        // Fetch daily revenue configs, upgrades, and closing hour setting in parallel
-        const [configsResult, upgradesResult, closingHourResult] = await Promise.all([
+        // Fetch daily revenue configs, upgrades, closing hour and per-partner override in parallel
+        const [configsResult, upgradesResult, closingHourResult, overrideResult] = await Promise.all([
           supabase
             .from('daily_revenue_config')
             .select('date, percentage, calculation_base')
@@ -129,7 +130,15 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
             .from('system_settings')
             .select('setting_value')
             .eq('setting_key', 'partner_daily_closing_time')
-            .single()
+            .single(),
+          contractUserId
+            ? supabase
+                .from('partner_revenue_overrides')
+                .select('weekly_percentage')
+                .eq('user_id', contractUserId)
+                .eq('is_active', true)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null } as any)
         ]);
 
         if (configsResult.error) throw configsResult.error;
@@ -147,6 +156,11 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
 
         setDailyConfigs(configsMap);
         setUpgrades(upgradesResult.data || []);
+        setOverridePercentage(
+          overrideResult?.data?.weekly_percentage != null
+            ? Number(overrideResult.data.weekly_percentage)
+            : null
+        );
         
         // Set closing hour from system settings (default to 18 if not found)
         if (closingHourResult.data?.setting_value) {
@@ -246,21 +260,25 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       
       let partnerShare = 0;
       let grossRevenue = 0;
-      const percentage = config?.percentage || 0;
-      const isManualConfig = !!config && percentage > 0;
+      // Per-partner weekly percentage override replaces the general daily config,
+      // spread evenly across the 7 days of the week.
+      const hasOverride = overridePercentage !== null && overridePercentage > 0;
+      const percentage = hasOverride ? overridePercentage / 7 : (config?.percentage || 0);
+      const isManualConfig = hasOverride || (!!config && percentage > 0);
+      const calculationBase = config?.calculation_base || 'aporte';
       
       // Calculate partner share based on configured percentage
       // Use historical values (aporte/cap at that date) for accurate calculation
-      if (contract && config && percentage > 0) {
+      if (contract && percentage > 0) {
         const valuesAtDate = getValuesAtDate(date);
-        const baseValue = config.calculation_base === 'weekly_cap' 
+        const baseValue = calculationBase === 'weekly_cap' 
           ? valuesAtDate.weeklyCap 
           : valuesAtDate.aporte;
         
         partnerShare = baseValue * (percentage / 100);
         
         // Apply weekly cap if base is aporte
-        if (config.calculation_base === 'aporte' && partnerShare > valuesAtDate.weeklyCap) {
+        if (calculationBase === 'aporte' && partnerShare > valuesAtDate.weeklyCap) {
           partnerShare = valuesAtDate.weeklyCap;
         }
         
@@ -301,7 +319,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
     }
     
     return result;
-  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate, closingHour]);
+  }, [weekBounds, dailyConfigs, contract, upgrades, contractStartDate, closingHour, overridePercentage]);
 
   // Calculate totals - only include days that are "closed" (past the closing hour)
   const totalPartnerShare = useMemo(() => {
