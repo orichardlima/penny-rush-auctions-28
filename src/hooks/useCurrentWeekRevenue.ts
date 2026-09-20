@@ -58,6 +58,7 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
   const [loading, setLoading] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [closingHour, setClosingHour] = useState(18);
+  const [overridePercentage, setOverridePercentage] = useState<number | null>(null);
   const isFirstLoad = useRef(true);
   const contractId = contract?.id;
   const contractCreatedAt = contract?.created_at;
