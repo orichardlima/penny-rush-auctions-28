@@ -11,6 +11,7 @@ import DailyRevenueBars from '@/components/Partner/DailyRevenueBars';
 import { Button } from '@/components/ui/button';
 import EmergencyWithdrawalDialog from '@/components/Admin/EmergencyWithdrawalDialog';
 import { PartnerEvidencePanel } from '@/components/Admin/PartnerEvidencePanel';
+import PartnerRevenueOverrideCard from '@/components/Admin/PartnerRevenueOverrideCard';
 
 interface PartnerDetailModalProps {
   contract: any;
