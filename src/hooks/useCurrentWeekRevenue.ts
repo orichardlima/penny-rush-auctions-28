@@ -260,21 +260,25 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
       
       let partnerShare = 0;
       let grossRevenue = 0;
-      const percentage = config?.percentage || 0;
-      const isManualConfig = !!config && percentage > 0;
+      // Per-partner weekly percentage override replaces the general daily config,
+      // spread evenly across the 7 days of the week.
+      const hasOverride = overridePercentage !== null && overridePercentage > 0;
+      const percentage = hasOverride ? overridePercentage / 7 : (config?.percentage || 0);
+      const isManualConfig = hasOverride || (!!config && percentage > 0);
+      const calculationBase = config?.calculation_base || 'aporte';
       
       // Calculate partner share based on configured percentage
       // Use historical values (aporte/cap at that date) for accurate calculation
-      if (contract && config && percentage > 0) {
+      if (contract && percentage > 0) {
         const valuesAtDate = getValuesAtDate(date);
-        const baseValue = config.calculation_base === 'weekly_cap' 
+        const baseValue = calculationBase === 'weekly_cap' 
           ? valuesAtDate.weeklyCap 
           : valuesAtDate.aporte;
         
         partnerShare = baseValue * (percentage / 100);
         
         // Apply weekly cap if base is aporte
-        if (config.calculation_base === 'aporte' && partnerShare > valuesAtDate.weeklyCap) {
+        if (calculationBase === 'aporte' && partnerShare > valuesAtDate.weeklyCap) {
           partnerShare = valuesAtDate.weeklyCap;
         }
         
