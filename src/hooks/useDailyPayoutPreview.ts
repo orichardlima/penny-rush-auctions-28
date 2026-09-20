@@ -420,12 +420,14 @@ export const useDailyPayoutPreview = (selectedWeek: string): DailyPayoutPreviewR
         eligibleFrom: eligibility.eligibleFrom ? formatLocalDate(eligibility.eligibleFrom) : null,
         eligibleDays: eligibility.eligibleDays,
         proRataApplied: eligibility.isProRata,
-        dailyBreakdown
+        dailyBreakdown,
+        hasOverride,
+        overridePercentage
       });
     }
 
     return previews.sort((a, b) => b.finalAmount - a.finalAmount);
-  }, [dailyConfigs, contracts, contractUpgrades, profiles, selectedWeek, weekEnd]);
+  }, [dailyConfigs, contracts, contractUpgrades, profiles, selectedWeek, weekEnd, overrides]);
 
   // Calculate totals including Pro Rata count
   const totals = useMemo(() => {
