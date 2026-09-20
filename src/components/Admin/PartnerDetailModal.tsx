@@ -340,6 +340,11 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
               </Card>
             )}
 
+            {/* Percentual semanal específico (exceção por parceiro) */}
+            {contract?.user_id && (
+              <PartnerRevenueOverrideCard userId={contract.user_id} />
+            )}
+
             {/* Tabs with history */}
             <Tabs defaultValue="payouts" className="w-full">
               <TabsList className="w-full flex flex-wrap h-auto gap-1">
