@@ -156,6 +156,11 @@ export const useCurrentWeekRevenue = (contract: PartnerContract | null): Current
 
         setDailyConfigs(configsMap);
         setUpgrades(upgradesResult.data || []);
+        setOverridePercentage(
+          overrideResult?.data?.weekly_percentage != null
+            ? Number(overrideResult.data.weekly_percentage)
+            : null
+        );
         
         // Set closing hour from system settings (default to 18 if not found)
         if (closingHourResult.data?.setting_value) {
