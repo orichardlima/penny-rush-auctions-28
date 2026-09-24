@@ -6522,20 +6522,15 @@ export type Database = {
             }
             Returns: string
           }
-      admin_settle_credit_debt:
-        | {
-            Args: { _debt_id: string; _notes?: string; _write_off?: boolean }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              _amount?: number
-              _debt_id: string
-              _notes?: string
-              _write_off?: boolean
-            }
-            Returns: boolean
-          }
+      admin_settle_credit_debt: {
+        Args: {
+          _amount?: number
+          _debt_id: string
+          _notes?: string
+          _write_off?: boolean
+        }
+        Returns: boolean
+      }
       admin_transfer_partner_sponsor: {
         Args: {
           p_cancel_pending_bonuses?: boolean
