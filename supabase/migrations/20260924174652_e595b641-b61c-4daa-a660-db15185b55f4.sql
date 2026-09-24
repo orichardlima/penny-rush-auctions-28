@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.admin_settle_credit_debt(uuid, boolean, text);
