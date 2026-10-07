@@ -7480,6 +7480,7 @@ export type Database = {
           total_revenue: number
         }[]
       }
+      get_site_maintenance_status: { Args: never; Returns: Json }
       get_user_affiliate_id: { Args: { _user_id: string }; Returns: string }
       get_user_analytics: {
         Args: { user_uuid: string }
