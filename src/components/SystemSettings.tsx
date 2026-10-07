@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard, Wallet } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard, Wallet, Wrench } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +58,11 @@ export const SystemSettings: React.FC = () => {
   const [bannerMobileCtaText, setBannerMobileCtaText] = useState<string>('Participar');
   const [bannerExpiresAt, setBannerExpiresAt] = useState<string>('');
   const [savingBanner, setSavingBanner] = useState(false);
+
+  // Maintenance Mode State
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState<boolean>(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState<string>('Estamos em manutenção para melhorar sua experiência. Voltamos em breve!');
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   // Contract Texts State
   const [contractBettorText, setContractBettorText] = useState<string>('');
@@ -140,6 +145,10 @@ export const SystemSettings: React.FC = () => {
         }
       }
       
+      // Maintenance Mode
+      setMaintenanceEnabled(getSettingValue('site_maintenance_enabled', false));
+      setMaintenanceMessage(getSettingValue('site_maintenance_message', 'Estamos em manutenção para melhorar sua experiência. Voltamos em breve!'));
+
       // Contract Texts
       setContractBettorText(getSettingValue('contract_bettor_text', ''));
       setContractPartnerText(getSettingValue('contract_partner_text', ''));
@@ -287,6 +296,31 @@ export const SystemSettings: React.FC = () => {
       setSavingBanner(false);
     }
   };
+
+  const handleSaveMaintenance = async () => {
+    setSavingMaintenance(true);
+    try {
+      await Promise.all([
+        updateSetting('site_maintenance_enabled', maintenanceEnabled.toString()),
+        updateSetting('site_maintenance_message', maintenanceMessage)
+      ]);
+      toast({
+        title: maintenanceEnabled ? "Modo de manutenção ATIVADO" : "Modo de manutenção desativado",
+        description: maintenanceEnabled
+          ? "Visitantes e usuários agora veem a tela de manutenção. Admins continuam com acesso normal."
+          : "O site voltou ao normal para todos.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações de manutenção.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingMaintenance(false);
+    }
+  };
+
 
   const handleSaveWithdrawalSettings = async () => {
     setSavingWithdrawal(true);
