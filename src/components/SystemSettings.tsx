@@ -843,6 +843,75 @@ export const SystemSettings: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Modo de Manutenção */}
+      <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wrench className="h-5 w-5 text-amber-500" />
+            <CardTitle className="text-amber-600">Modo de Manutenção</CardTitle>
+          </div>
+          <CardDescription>
+            Coloca o site em manutenção: todos os visitantes e usuários veem uma tela "Site em Manutenção".
+            Admins continuam com acesso normal e as automações (leilões, bots e repasses) seguem rodando.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="maintenance-enabled">Ativar modo de manutenção</Label>
+              <p className="text-sm text-muted-foreground">
+                A tela aparece para todo o site em até 1 minuto após ativar
+              </p>
+            </div>
+            <Switch
+              id="maintenance-enabled"
+              checked={maintenanceEnabled}
+              onCheckedChange={setMaintenanceEnabled}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="maintenance-message">Mensagem exibida na tela</Label>
+            <Textarea
+              id="maintenance-message"
+              value={maintenanceMessage}
+              onChange={(e) => setMaintenanceMessage(e.target.value)}
+              placeholder="Estamos em manutenção para melhorar sua experiência. Voltamos em breve!"
+              rows={3}
+              disabled={!maintenanceEnabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Aparece abaixo do título "Site em Manutenção"
+            </p>
+          </div>
+
+          {maintenanceEnabled && (
+            <>
+              <Separator />
+              <div className="p-3 border border-amber-500/20 rounded-lg bg-amber-500/5 text-sm">
+                <p className="font-medium text-amber-600 mb-1">👀 Pré-visualização:</p>
+                <p className="text-muted-foreground">
+                  O visitante verá: <strong className="text-foreground">Site em Manutenção</strong> — "{maintenanceMessage || '(mensagem vazia)'}"
+                </p>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={handleSaveMaintenance}
+              disabled={savingMaintenance || updating}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {savingMaintenance ? 'Salvando...' : 'Salvar Manutenção'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-yellow-500/5">
         <CardHeader>
           <div className="flex items-center gap-2">
