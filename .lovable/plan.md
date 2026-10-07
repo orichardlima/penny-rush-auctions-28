@@ -1,12 +1,39 @@
-# Investigação: R$ 2.400 "sumidos" da Gessica Teixeira Ramos
+# Modo de Manutenção controlado pelo Admin
 
-## O que os dados mostram
-- **Disponível hoje: R$ 1.690,84.** São R$ 1.690 de repasses e R$ 0,84 de Bônus de Rede.
-- **Repasses:** recebeu R$ 18.415 e sacou R$ 16.725. Todos os 8 saques pagos batem com esse total. O saldo de R$ 1.690 é a soma das semanas depois do último saque (31/08): 575 + 240 + 250 + 625.
-- **Bônus de Rede:** recebeu R$ 5.599,84. Em 04/08 foram tirados R$ 4.000 que estavam lançados em dobro, porque esse valor já tinha sido pago por dentro do contrato. Ela sacou R$ 1.599 em 31/08 e sobraram R$ 0,84.
-- **Central de Anúncios:** em 3 semanas ela recebeu só 40% (20/07, 07/09 e 14/09). Por isso deixou de receber R$ 1.110 no total.
+## O que será feito
 
-Não encontrei nenhum débito sem explicação e nenhum valor igual a R$ 2.400.
+Uma opção no painel do administrador para colocar todo o site em **modo de manutenção**: visitantes veem uma tela "Site em manutenção", enquanto o admin continua acessando normalmente. O estado e a mensagem ficam nas configurações do sistema (mesma tela onde já são configurados banner, promoções e saques).
 
-## Próximo passo
-Nenhuma alteração no sistema. Para confirmar de onde vem o número dela, preciso do print da tela em que ela viu os R$ 2.400. Com ele, comparo linha por linha e, se houver um erro real, trago a correção.
+## Como funciona
+
+- **Chave nova em `system_settings`:**
+  - `site_maintenance_enabled` (boolean, default `false`) — liga/desliga a manutenção.
+  - `site_maintenance_message` (texto) — mensagem exibida na tela, editável pelo admin. Default: "Estamos em manutenção para melhorar sua experiência. Voltamos em breve!"
+
+- **Acesso:**
+  - Usuários comuns e visitantes veem uma tela full-screen de manutenção em **qualquer rota** do site (com o logo da plataforma e a mensagem configurada).
+  - **Admins** (`is_admin_user`) continuam com acesso normal ao site inteiro, incluindo o painel ADM — o site funciona para eles como se nada tivesse mudado.
+  - Leilões, bots, crons e todas as automações do banco **continuam rodando** — a manutenção é apenas visual/renomeia o acesso, não desliga processos.
+
+- **Painel do admin:** novo card "Modo de Manutenção" na aba **Configurações** (`SystemSettings`), com switch de ligar/desligar e campo de texto para a mensagem. Já segue o padrão dos demais cards da tela.
+
+## Detalhes técnicos
+
+1. **Migration (Supabase):**
+   - Inserir as duas chaves em `system_settings`.
+   - Criar RPC `get_site_maintenance_status()` (SECURITY DEFINER) que retorna `{ enabled, message }` e conceder `EXECUTE` a `anon` e `authenticated`. Necessário porque `system_settings` só permite leitura a usuários autenticados — e a tela de manutenção deve aparecer para **visitantes sem login**.
+
+2. **Frontend:**
+   - Novo hook `useSiteMaintenance.ts` (react-query): chama a RPC com `refetchInterval` de ~60s, para a manutenção entrar em vigor em até 1 minuto em todo o site.
+   - Novo componente `SiteMaintenanceGate.tsx`: dentro do `AppContent`, se ativo e o usuário não for admin, renderiza a tela de manutenção no lugar das rotas (sem mexer nas rotas existentes).
+   - Verificação de admin reutiliza o RPC `is_admin_user` já existente.
+   - A tela de manutenção usa os tokens semânticos do tema (dark, como o restante do site).
+   - Título/descrição da página ajustados via Helmet quando em manutenção.
+
+## Escopo respeitado
+
+Nenhuma interface, fluxo ou regra existente é alterada — só é **adicionado** o modo de manutenção. Sem a flag ligada, o site fica exatamente como está hoje.
+
+## Observações / limitações
+
+- Como o site é um aplicativo cliente-side, o bloqueio é no nível da interface: quem já estiver com uma página aberta pode continuar vendo a última tela até recarregar (ou até 1 min). Se um dia precisar de bloqueio total (inclusive APIs), dá para evoluir para verificação nas Edge Functions — não incluído agora para manter o escopo simples.
