@@ -13,6 +13,7 @@ import { useRealTimeProtection } from "@/hooks/useRealTimeProtection";
 import { useProfileCompleteGuard } from "@/hooks/useProfileCompleteGuard";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import { SiteMaintenanceGate } from "@/components/SiteMaintenanceGate";
 import { logChunkError, markReloadAttempted, wasReloadRecent } from "@/utils/chunkErrorTelemetry";
 import Index from "./pages/Index";
 import { ContractReacceptGuard } from "@/components/ContractReacceptGuard";
@@ -185,6 +186,7 @@ const AppContent = () => {
   useProfileCompleteGuard();
   
   return (
+    <SiteMaintenanceGate>
     <ContractReacceptGuard>
     <Routes>
       <Route path="/" element={<Index />} />
@@ -223,6 +225,7 @@ const AppContent = () => {
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
     </ContractReacceptGuard>
+    </SiteMaintenanceGate>
   );
 };
 

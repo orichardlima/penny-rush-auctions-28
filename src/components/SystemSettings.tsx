@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard, Wallet } from "lucide-react";
+import { Gift, Settings, Save, Trash2, AlertTriangle, Sparkles, Clock, Calculator, Eye, Users, PartyPopper, Rocket, X, RefreshCw, FileText, CreditCard, Wallet, Wrench } from "lucide-react";
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +58,11 @@ export const SystemSettings: React.FC = () => {
   const [bannerMobileCtaText, setBannerMobileCtaText] = useState<string>('Participar');
   const [bannerExpiresAt, setBannerExpiresAt] = useState<string>('');
   const [savingBanner, setSavingBanner] = useState(false);
+
+  // Maintenance Mode State
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState<boolean>(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState<string>('Estamos em manutenção para melhorar sua experiência. Voltamos em breve!');
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   // Contract Texts State
   const [contractBettorText, setContractBettorText] = useState<string>('');
@@ -140,6 +145,10 @@ export const SystemSettings: React.FC = () => {
         }
       }
       
+      // Maintenance Mode
+      setMaintenanceEnabled(getSettingValue('site_maintenance_enabled', false));
+      setMaintenanceMessage(getSettingValue('site_maintenance_message', 'Estamos em manutenção para melhorar sua experiência. Voltamos em breve!'));
+
       // Contract Texts
       setContractBettorText(getSettingValue('contract_bettor_text', ''));
       setContractPartnerText(getSettingValue('contract_partner_text', ''));
@@ -287,6 +296,31 @@ export const SystemSettings: React.FC = () => {
       setSavingBanner(false);
     }
   };
+
+  const handleSaveMaintenance = async () => {
+    setSavingMaintenance(true);
+    try {
+      await Promise.all([
+        updateSetting('site_maintenance_enabled', maintenanceEnabled.toString()),
+        updateSetting('site_maintenance_message', maintenanceMessage)
+      ]);
+      toast({
+        title: maintenanceEnabled ? "Modo de manutenção ATIVADO" : "Modo de manutenção desativado",
+        description: maintenanceEnabled
+          ? "Visitantes e usuários agora veem a tela de manutenção. Admins continuam com acesso normal."
+          : "O site voltou ao normal para todos.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações de manutenção.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingMaintenance(false);
+    }
+  };
+
 
   const handleSaveWithdrawalSettings = async () => {
     setSavingWithdrawal(true);
@@ -804,6 +838,75 @@ export const SystemSettings: React.FC = () => {
             >
               <Save className="h-4 w-4" />
               {savingBanner ? 'Salvando...' : 'Salvar Banner'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modo de Manutenção */}
+      <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wrench className="h-5 w-5 text-amber-500" />
+            <CardTitle className="text-amber-600">Modo de Manutenção</CardTitle>
+          </div>
+          <CardDescription>
+            Coloca o site em manutenção: todos os visitantes e usuários veem uma tela "Site em Manutenção".
+            Admins continuam com acesso normal e as automações (leilões, bots e repasses) seguem rodando.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="maintenance-enabled">Ativar modo de manutenção</Label>
+              <p className="text-sm text-muted-foreground">
+                A tela aparece para todo o site em até 1 minuto após ativar
+              </p>
+            </div>
+            <Switch
+              id="maintenance-enabled"
+              checked={maintenanceEnabled}
+              onCheckedChange={setMaintenanceEnabled}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="maintenance-message">Mensagem exibida na tela</Label>
+            <Textarea
+              id="maintenance-message"
+              value={maintenanceMessage}
+              onChange={(e) => setMaintenanceMessage(e.target.value)}
+              placeholder="Estamos em manutenção para melhorar sua experiência. Voltamos em breve!"
+              rows={3}
+              disabled={!maintenanceEnabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              Aparece abaixo do título "Site em Manutenção"
+            </p>
+          </div>
+
+          {maintenanceEnabled && (
+            <>
+              <Separator />
+              <div className="p-3 border border-amber-500/20 rounded-lg bg-amber-500/5 text-sm">
+                <p className="font-medium text-amber-600 mb-1">👀 Pré-visualização:</p>
+                <p className="text-muted-foreground">
+                  O visitante verá: <strong className="text-foreground">Site em Manutenção</strong> — "{maintenanceMessage || '(mensagem vazia)'}"
+                </p>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={handleSaveMaintenance}
+              disabled={savingMaintenance || updating}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {savingMaintenance ? 'Salvando...' : 'Salvar Manutenção'}
             </Button>
           </div>
         </CardContent>
