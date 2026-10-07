@@ -225,6 +225,7 @@ const AppContent = () => {
       <Route path="*" element={<LazyRoute><NotFound /></LazyRoute>} />
     </Routes>
     </ContractReacceptGuard>
+    </SiteMaintenanceGate>
   );
 };
 
