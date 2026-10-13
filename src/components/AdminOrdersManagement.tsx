@@ -58,14 +58,18 @@ export const AdminOrdersManagement = () => {
 
       if (ordersError) throw ordersError;
 
-      // Then get profiles for the winners
-      const winnerIds = ordersData?.map(order => order.winner_id) || [];
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', winnerIds);
-
-      if (profilesError) throw profilesError;
+      // Then get profiles for the winners (em lotes, para não estourar o limite da URL)
+      const winnerIds = [...new Set((ordersData || []).map(order => order.winner_id).filter(Boolean))];
+      const profilesData: any[] = [];
+      const CHUNK = 100;
+      for (let i = 0; i < winnerIds.length; i += CHUNK) {
+        const { data: chunk, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', winnerIds.slice(i, i + CHUNK));
+        if (profilesError) throw profilesError;
+        if (chunk) profilesData.push(...chunk);
+      }
 
       // Combine the data
       const ordersWithUserInfo = ordersData?.map(order => {
