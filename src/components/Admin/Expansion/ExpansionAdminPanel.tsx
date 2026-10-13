@@ -55,6 +55,15 @@ export default function ExpansionAdminPanel() {
   const [search, setSearch] = useState('');
   const [periodFilter, setPeriodFilter] = useState<string>('');
 
+  // Aba inicial via URL (ex.: notificações ?tab=expansion&secao=automacao)
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const secao = new URLSearchParams(window.location.search).get('secao');
+    const aliases: Record<string, string> = { automacao: 'automation', historico: 'periods' };
+    const tab = secao ? (aliases[secao] || secao) : 'overview';
+    const valid = ['overview','periods','partners','teams','consolidated','automation','integrity','career_config','communication','consumptions','runs','adjustments','settings','audit'];
+    return valid.includes(tab) ? tab : 'overview';
+  });
+
   // settings form
   const [percent, setPercent] = useState('20');
   const [caps, setCaps] = useState<Record<string, string>>({});
@@ -180,7 +189,7 @@ export default function ExpansionAdminPanel() {
         </Button>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="h-auto flex flex-wrap gap-1 p-2">
           <TabsTrigger value="overview" className="shrink-0">Visão geral</TabsTrigger>
           <TabsTrigger value="periods" className="shrink-0">Períodos</TabsTrigger>
