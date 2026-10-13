@@ -64,6 +64,17 @@ const AdminDashboard = () => {
     fetchAdminData();
   }, []);
 
+  // Abertura direta por URL (ex.: notificações ?tab=expansion&secao=automacao)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawTab = params.get('tab');
+    if (!rawTab) return;
+    const aliases: Record<string, string> = { expansion: 'partners' };
+    const tab = aliases[rawTab] || rawTab;
+    const valid = ['auction-details','financial','orders','partners','affiliates','auctions','users','packages','templates','analytics','audit','settings','vault-config','purchases','my-history','bot-monitor','downloads'];
+    if (valid.includes(tab)) handleTabChange(tab);
+  }, [handleTabChange]);
+
   const fetchAdminData = async () => {
     setLoading(true);
     try {
