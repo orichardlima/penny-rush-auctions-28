@@ -516,7 +516,6 @@ const Auth = () => {
             <TabsContent value="signin">
               {!showForgotPassword ? (
                 <form onSubmit={handleSignIn} className="space-y-4">
-                  <GoogleButton />
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
@@ -616,7 +615,6 @@ const Auth = () => {
             
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-6">
-                <GoogleButton />
                 {/* Banner de Quem Indicou */}
                 {sponsorName && (
                   <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20">
