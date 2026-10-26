@@ -1,5 +1,15 @@
 # Ataque: contratos e saques falsos criados direto pela conta do usuário
 
+## Urgente – PIX reais no Banco Magen (25/10)
+- Saíram de verdade: R$ 1,00 para AMBEV S A às 16:44, e R$ 1,00 + R$ 3.067,00 para LEONARDO BROLESI às 16:55.
+- **Nenhum desses PIX existe no nosso sistema.** Não há saque com código de transação nos últimos 3 dias, nem registro no histórico do admin. Os saques "Pago" falsos do print não geraram PIX.
+- O padrão (R$ 1 de teste e depois o valor alto) indica que alguém usou **direto a credencial ou o acesso do Banco Magen**, sem passar pelo site. Os registros de chamadas do servidor desse horário não estão disponíveis, então isso não foi confirmado.
+- O que você deve fazer agora, fora do sistema:
+  1. Trocar a senha do painel Magen e **gerar novas chaves de API** (e do servidor intermediário/VPS), bloqueando o PIX de saída até terminar.
+  2. Pedir ao Magen a **devolução pelo MED** (Mecanismo Especial de Devolução) dos PIX para LEONARDO BROLESI, e solicitar o IP/origem dessas transações.
+  3. Atualizar os segredos novos no Supabase (só você pode fazer isso).
+- A conta atacante também tentou acessar a lista de usuários do sistema com permissão de administrador (recusado, erro 403), a partir do IP 104.28.197.251.
+
 ## O que foi encontrado
 - Os saques do print são da conta **pentest.xbot.1792890313@mailnull.com**, criada em 25/10 às 01:05. Ela tem um contrato **Legend R$ 9.999** que nunca foi pago.
 - Os saques já foram gravados como **"Pago"**, com data de pagamento inventada e sem nenhum admin responsável. Também não têm código de transação PIX. Ou seja, **nenhum PIX saiu pelo gateway**: o "Pago" é falso.
