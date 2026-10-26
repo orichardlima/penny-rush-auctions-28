@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public._is_privileged_writer() TO authenticated;
