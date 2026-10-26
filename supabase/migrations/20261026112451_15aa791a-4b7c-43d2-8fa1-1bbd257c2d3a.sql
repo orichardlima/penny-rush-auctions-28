@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.require_complete_profile() FROM authenticated;
