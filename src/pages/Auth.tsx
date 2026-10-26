@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { TurnstileWidget, TurnstileHandle, turnstileEnabled } from '@/components/TurnstileWidget';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -250,6 +251,7 @@ const Auth = () => {
 
     try {
       const { error } = await signIn(formData.email, formData.password, captchaToken);
+      captchaRef.current?.reset();
       
       if (error) {
         toast({
@@ -345,6 +347,7 @@ const Auth = () => {
 
 
       const { error } = await signUp(formData.email, formData.password, userData, captchaToken);
+      captchaRef.current?.reset();
 
       if (error) {
         if (error.message.includes('already registered')) {
@@ -419,6 +422,7 @@ const Auth = () => {
 
     try {
       const { error } = await resetPassword(resetEmail, captchaToken);
+      captchaRef.current?.reset();
       
       if (error) {
         toast({
