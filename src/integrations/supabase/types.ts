@@ -6445,6 +6445,7 @@ export type Database = {
         Returns: undefined
       }
       _is_privileged_writer: { Args: never; Returns: boolean }
+      _is_valid_cpf: { Args: { p: string }; Returns: boolean }
       _points_ensure_wallet: { Args: { p_user: string }; Returns: undefined }
       _profile_data_complete: {
         Args: { p: Database["public"]["Tables"]["profiles"]["Row"] }
