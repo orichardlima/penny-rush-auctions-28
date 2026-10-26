@@ -6444,6 +6444,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _is_privileged_writer: { Args: never; Returns: boolean }
       _points_ensure_wallet: { Args: { p_user: string }; Returns: undefined }
       _schedule_bot_only_finalization: {
         Args: { p_auction_id: string; p_reason: string; p_title: string }
