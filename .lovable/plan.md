@@ -1,71 +1,34 @@
-# Auditoria técnica — Central de Anúncios e proposta de Central de Divulgação Verificada
+# Ataque: contratos e saques falsos criados direto pela conta do usuário
 
-Etapa somente de análise. Nada foi alterado. Aprovar este plano autoriza apenas a Fase 0 (abaixo); fases financeiras exigem nova aprovação.
+## O que foi encontrado
+- Os saques do print são da conta **pentest.xbot.1792890313@mailnull.com**, criada em 25/10 às 01:05. Ela tem um contrato **Legend R$ 9.999** que nunca foi pago.
+- Os saques já foram gravados como **"Pago"**, com data de pagamento inventada e sem nenhum admin responsável. Também não têm código de transação PIX. Ou seja, **nenhum PIX saiu pelo gateway**: o "Pago" é falso.
+- Existem ainda **3 contas "diamond.test...@mailnull.com"** com contratos Diamond de R$ 25.000 falsos e saques **pendentes de R$ 5.000 cada**, todos para a mesma chave PIX **518.389.678-00**.
+- Vários contratos falsos já têm **repasse semanal** gerado, e alguns têm **bônus de indicação** para patrocinadores.
 
-## 1. Diagnóstico confirmado (sistema atual)
+## Como entraram
+O banco permite que qualquer usuário logado:
+1. crie um contrato próprio já como ATIVO, com qualquer plano e valor;
+2. altere o próprio contrato;
+3. grave um saque direto, escolhendo o status (inclusive "Pago") e o valor, sem passar pela verificação de saldo.
 
-- **Tabelas:** `ad_center_materials` (material do dia; hoje 1 ativo) e `ad_center_completions` (id, partner_contract_id, material_id, completion_date, social_network, confirmed_at). Única restrição: `UNIQUE (partner_contract_id, completion_date)`. Sem triggers.
-- **Confirmação:** o parceiro escolhe a rede e clica "Confirmar Divulgação"; o navegador grava direto na tabela (`useAdCenter.ts`), com a data calculada **pelo relógio do celular/computador**.
-- **Permissão de gravação (RLS):** qualquer parceiro com contrato ACTIVE pode inserir para o próprio contrato **com qualquer data**. Não há bloqueio no servidor contra data futura ou retroativa — só a tela impede. Duplicidade no mesmo dia é barrada pela restrição única.
-- **Indício confirmado:** 316 registros têm `completion_date` diferente da data real (Bahia) do `confirmed_at`, sinal de data vinda do aparelho (fuso/relógio) ou de gravação fora do dia.
-- **Semana:** segunda 00:00 a domingo 23:59; frontend usa hora local do aparelho; o fechamento usa as datas gravadas.
-- **100% / 40%:** Edge Function `partner-weekly-payouts` conta registros da semana: 7/7 = 100%, qualquer falta = 40% (constantes no código). Nenhum cron/trigger adicional interfere.
-- **Instagram x WhatsApp:** nenhuma diferença de regra; a rede é só um rótulo (whatsapp 913, instagram 888, facebook 33, tiktok 25, outro 11, system_grace 61 = abono de 21/10).
-- **Admin:** aba de acompanhamento semanal (`AdminWeeklyAdsTab`) e gerenciador de materiais. Não há trilha de evidência nem contestação.
+## Plano
 
-## 2. Central de Performance — o que existe
+### Fase 1 – Contenção imediata
+- **Não pague** nenhum saque da chave 518.389.678-00. Vou deixar todos os saques dessas contas como **Recusado – fraude**.
+- Suspender os contratos falsos e bloquear as contas envolvidas.
+- Tirar do usuário a permissão de criar ou alterar contrato e de gravar saque direto. Saque passa a ser feito só pelo caminho oficial (`partner_request_withdrawal`), que confere o saldo. Contrato passa a ser criado só pelo pagamento confirmado ou por ação do admin.
 
-- Rota `/r/:code` ativa, Edge Function `track-referral`, tabelas `tracking_events`, `attribution_events`, `referral_links` (94 links), `performance_settings` com pontuação e antifraude (dedupe 6h, teto de cliques, autoindicação bloqueada, fuso Bahia).
-- Funções: `attribute_conversion`, `handle_new_user_performance_attribution`, `reverse_performance_points`, `get_partner_performance_summary/history/dashboard`; webhooks de compra/plano chamam a atribuição.
-- **Estado real:** `performance_center_enabled = false`. Só 11 eventos de rastreio e 1 conversão, todos de 08/07/2026 (teste). Em produção, está praticamente parado.
-- **Integração entre as centrais:** apenas visual (`PartnerPerformanceSection` dentro da Central de Anúncios). Nenhum vínculo de dados com o repasse.
+### Fase 2 – Varredura e limpeza
+- Listar todos os contratos sem pagamento confirmado (sem intent pago, sem ativação por saldo ou crédito e sem ação do admin) e todos os saques "Pago" sem admin e sem transação.
+- Cancelar os repasses, bônus de indicação e pontos de rede gerados por esses contratos. Antes, mostro a lista para você aprovar, porque alguns contratos recentes com patrocinador podem ser verdadeiros.
+- Conferir as outras tabelas que o usuário consegue gravar sozinho (repasses, carteiras, saques de afiliado, cofre) e fechar as que tiverem a mesma falha.
 
-## 3. Limites reais das integrações
+### Fase 3 – Conferência
+- Testar com um usuário comum que criar contrato ou saque direto agora é recusado, e que o saque normal pelo painel continua funcionando.
+- Relatório final com valores, contas e o que foi revertido.
 
-| Estratégia | Comprova publicação? | Observação |
-|---|---|---|
-| Instagram Graph API (OAuth Meta) | Sim, para posts/Reels; Stories só por 24h | Só contas Profissionais (Criador/Empresa); exige app Meta revisado; contas pessoais ficam de fora |
-| Link público do post do Instagram | Parcial | Verificável manualmente; leitura automática instável |
-| WhatsApp Status / grupos | **Não** | Não existe API oficial para ler Status ou conversas de terceiros |
-| Link exclusivo `/r/{code}` por campanha/canal | Não (indica tráfego) | Prova que alguém clicou, não que houve postagem |
-| Print de tela | Indício | Falsificável; melhora com código do dia visível na arte, hash anti-reuso e revisão |
-
-## 4. Alternativas comparadas
-
-- **A. Print + código do dia na arte + link exclusivo + revisão por amostragem** — confiabilidade média/alta, complexidade baixa, custo zero. Recomendada como base.
-- **B. A + OAuth Instagram para contas profissionais** — alta para quem conectar, complexidade alta (revisão Meta), custo baixo em dinheiro, alto em prazo.
-- **C. Só rastreamento por cliques** — baixa como prova de postagem; boa como métrica comercial.
-
-## 5. Arquitetura recomendada (Central de Divulgação Verificada)
-
-- `promo_campaigns` (campanha diária, material oficial, código do dia, janela de validade Bahia).
-- `promo_submissions` (parceiro, campanha, canal, link do post, print, hash do arquivo, status: PENDENTE, AUTO_APROVADO, APROVADO, REJEITADO, CONTESTADO).
-- `promo_submission_reviews` e `promo_disputes` (trilha de auditoria e contestação).
-- Links `/r/{code}?c={campanha}&ch={canal}` reaproveitando `track-referral` e `tracking_events` (sem nova infraestrutura).
-- Envio via função no servidor (data = hora do servidor Bahia, idempotente por parceiro+dia), bloqueio de reuso de print por hash.
-- Admin: fila de revisão, amostragem, relatórios, motivos de rejeição; notificações ao parceiro.
-- Obrigação diária (submissões aprovadas) separada das métricas comerciais (performance).
-- Ligação com o repasse **só por flag desligada**, gravando no mesmo `ad_center_completions` quando aprovado, para não mexer no cálculo atual.
-
-## 6. Fases
-
-- **Fase 0 (segurança, sem impacto financeiro):** bloquear no servidor data futura/retroativa nas confirmações atuais (trigger que força a data Bahia do momento). Requer sua aprovação expressa por tocar a regra de gravação.
-- **Fase 1:** tabelas novas, envio de print/link + código do dia, fila admin. Modo relatório, sem afetar repasse.
-- **Fase 2:** links exclusivos por campanha/canal reaproveitando a Performance; religar `performance_tracking`.
-- **Fase 3:** Instagram OAuth opcional para contas profissionais.
-- **Fase 4:** ligar a verificação ao 100%/40% via flag, após período de teste e sua aprovação.
-
-## 7. Riscos
-
-- Mudar o critério sem aviso afeta repasses; manter flag desligada e período de transição.
-- Revisão manual exige equipe; usar autoaprovação com amostragem.
-- Armazenar prints aumenta uso de storage e exige bucket privado.
-- Nenhuma função de payout, carteira, saque, comissão ou Expansão será alterada sem nova aprovação.
-
-## 8. Decisões que preciso de você
-
-1. Aceita print + link como prova mínima, sabendo que WhatsApp Status não é verificável por API?
-2. Quem revisa (equipe admin, amostragem, ou só automático)?
-3. Prazo de contestação e efeito de rejeição (dia perdido ou reenvio)?
-4. Instagram OAuth vale o custo de revisão Meta agora ou fica para depois?
-5. Aprova a Fase 0 (trava de data no servidor) mesmo antes do resto?
+## Detalhes técnicos
+- Remover as políticas INSERT/UPDATE de usuário em `partner_contracts` e INSERT em `partner_withdrawals`. Criação via RPCs SECURITY DEFINER / edge functions (service_role).
+- Trigger em `partner_withdrawals` que impede status inicial diferente de PENDING/APPROVED fora do service_role.
+- Auditar as políticas de `partner_payouts`, `partner_referral_bonuses`, `partner_network_wallets`, `affiliate_withdrawals` e `fury_vault_withdrawals`.
