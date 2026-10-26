@@ -1,5 +1,5 @@
 // MagenPay PIX Out (envio de PIX) via VPS proxy
-const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || 'http://76.13.162.10:3333'
+const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || ''
 const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
 const VPS_AUTH_TOKEN = Deno.env.get('VPS_AUTH_TOKEN') || ''
 
