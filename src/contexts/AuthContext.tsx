@@ -54,13 +54,13 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error?: any }>;
-  signUp: (email: string, password: string, userData: SignUpData) => Promise<{ error?: any }>;
+  signIn: (email: string, password: string, captchaToken?: string | null) => Promise<{ error?: any }>;
+  signUp: (email: string, password: string, userData: SignUpData, captchaToken?: string | null) => Promise<{ error?: any }>;
   signInWithGoogle: () => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error?: any }>;
+  resetPassword: (email: string, captchaToken?: string | null) => Promise<{ error?: any }>;
   updatePassword: (newPassword: string) => Promise<{ error?: any }>;
 }
 
@@ -118,15 +118,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, captchaToken?: string | null) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
+      options: captchaToken ? { captchaToken } : undefined,
     });
     return { error };
   };
 
-  const signUp = async (email: string, password: string, userData: SignUpData) => {
+  const signUp = async (email: string, password: string, userData: SignUpData, captchaToken?: string | null) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -134,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       options: {
         emailRedirectTo: redirectUrl,
+        ...(captchaToken ? { captchaToken } : {}),
         data: {
           full_name: userData.full_name,
           cpf: userData.cpf,
