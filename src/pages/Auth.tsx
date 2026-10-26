@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { TurnstileWidget, TurnstileHandle, turnstileEnabled } from '@/components/TurnstileWidget';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -240,12 +241,17 @@ const Auth = () => {
     }
   };
 
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const captchaMissing = turnstileEnabled && !captchaToken;
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await signIn(formData.email, formData.password);
+      const { error } = await signIn(formData.email, formData.password, captchaToken);
+      captchaRef.current?.reset();
       
       if (error) {
         toast({
@@ -340,7 +346,8 @@ const Auth = () => {
       };
 
 
-      const { error } = await signUp(formData.email, formData.password, userData);
+      const { error } = await signUp(formData.email, formData.password, userData, captchaToken);
+      captchaRef.current?.reset();
 
       if (error) {
         if (error.message.includes('already registered')) {
@@ -414,7 +421,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await resetPassword(resetEmail);
+      const { error } = await resetPassword(resetEmail, captchaToken);
+      captchaRef.current?.reset();
       
       if (error) {
         toast({
@@ -560,7 +568,8 @@ const Auth = () => {
                     </div>
                   </div>
                   
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
+                  <Button type="submit" className="w-full" disabled={loading || captchaMissing}>
                     {loading ? 'Entrando...' : 'Entrar'}
                   </Button>
 
@@ -596,7 +605,8 @@ const Auth = () => {
                     </p>
                   </div>
                   
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
+                  <Button type="submit" className="w-full" disabled={loading || captchaMissing}>
                     {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
                   </Button>
 
@@ -992,7 +1002,8 @@ const Auth = () => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full" disabled={loading || isValidating.email || isValidating.cpf || validationState.email?.exists || validationState.cpf?.exists}>
+                <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
+                <Button type="submit" className="w-full" disabled={loading || captchaMissing || isValidating.email || isValidating.cpf || validationState.email?.exists || validationState.cpf?.exists}>
                   {loading ? "Cadastrando..." : "Cadastrar"}
                 </Button>
                 

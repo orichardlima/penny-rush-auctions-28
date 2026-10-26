@@ -1530,6 +1530,33 @@ export type Database = {
           },
         ]
       }
+      blocked_email_domains: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          domain: string
+          is_active: boolean
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          domain: string
+          is_active?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          domain?: string
+          is_active?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bonus_maintenance_runs: {
         Row: {
           created_at: string
@@ -6444,6 +6471,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _is_blocked_email: { Args: { p_email: string }; Returns: boolean }
       _is_privileged_writer: { Args: never; Returns: boolean }
       _is_valid_cpf: { Args: { p: string }; Returns: boolean }
       _points_ensure_wallet: { Args: { p_user: string }; Returns: undefined }
