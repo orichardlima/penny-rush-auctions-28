@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public._is_privileged_writer() FROM PUBLIC, anon, authenticated;
