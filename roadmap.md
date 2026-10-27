@@ -8,10 +8,11 @@
 - [ ] Correlacionar os PIX com registros do Magen — depende de informações técnicas do banco.
 
 # Correção definitiva da fraude de contratos
-- [ ] Bloquear pedidos de pagamento e contratos gravados direto por usuário comum
-- [ ] RPC segura para troca de chave PIX + auditoria
-- [ ] Registro central de confirmações de pagamento (anti-reuso)
-- [ ] Revisar credit_purchase_bids e require_complete_profile_generic
-- [ ] Webhooks só confirmam com verificação no provedor
-- [ ] Varredura histórica classificada (só relatório)
-- [ ] Testes com conta comum e relatório final
+- [x] Bloquear pedidos de pagamento e contratos gravados direto por usuário comum
+- [x] RPC segura para troca de chave PIX + auditoria
+- [x] Registro central de confirmações de pagamento (anti-reuso)
+- [x] Revisar credit_purchase_bids e require_complete_profile_generic
+- [x] Webhooks só confirmam com verificação no provedor
+- [x] Varredura histórica classificada (só relatório)
+- [x] Testes com conta comum e relatório final
+- [ ] Conciliar 50 contratos sem código do provedor com extratos — depende dos extratos
