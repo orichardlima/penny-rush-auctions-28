@@ -1,0 +1,2 @@
+- Payment confirmations must be authenticated (signed callback URL per charge) and registered in `payment_confirmations`; unauthenticated provider webhooks stay disabled. Why: forged webhooks could activate contracts.
+- Ordinary users never write `partner_contracts`/`partner_payment_intents` directly; use server functions or narrow SECURITY DEFINER RPCs. Why: direct writes enabled the 25/10 fraud.
