@@ -12,6 +12,13 @@ serve(async (req) => {
   }
 
   try {
+    // 🔐 Contenção 27/10/2026: esta confirmação não é autenticada pelo provedor.
+    // Desativada até existir verificação de assinatura. Nada é processado.
+    if (Deno.env.get('LEGACY_PAYMENT_WEBHOOKS_ENABLED') !== 'true') {
+      console.warn('🚫 ASAAS_WEBHOOK_DISABLED payload ignored')
+      return new Response(JSON.stringify({ error: 'disabled' }), { status: 410, headers: corsHeaders })
+    }
+
     console.log('=== ASAAS WEBHOOK START ===')
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
