@@ -147,8 +147,7 @@ export async function createVeopagWithdrawal(params: {
   description?: string
 }) {
   const token = await getVeopagToken()
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const webhookUrl = `${supabaseUrl}/functions/v1/veopag-webhook`
+  const webhookUrl = await signedWebhookUrl(params.external_id)
 
   console.log('💸 Creating VeoPag withdrawal:', params.external_id, 'amount:', params.amount)
 
