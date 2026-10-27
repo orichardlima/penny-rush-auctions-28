@@ -15,6 +15,12 @@ serve(async (req) => {
   }
 
   try {
+    // 🔐 Contenção 27/10/2026: confirmação via VPS não autenticada e sem vínculo
+    // garantido entre transação e pedido. Desativada (Magen revogado).
+    if (Deno.env.get('LEGACY_PAYMENT_WEBHOOKS_ENABLED') !== 'true') {
+      return new Response(JSON.stringify({ status: 'pending', disabled: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     const { txId, purchaseId, intentId, upgradeRef } = await req.json()
 
     if (!txId) {
