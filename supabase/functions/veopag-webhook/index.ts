@@ -93,10 +93,6 @@ serve(async (req) => {
     const tokenOk = cbRef === String(external_id) && await verifyVeopagCallbackToken(String(external_id), cbToken)
     if (!tokenOk) {
       console.warn('🚫 VEOPAG_CALLBACK_REJECTED', JSON.stringify({ external_id, transaction_id, status, hasToken: !!cbToken }))
-      await supabase.from('bot_webhook_logs').insert({
-        auction_id: null, status: 'rejected_unsigned_payment_callback',
-        response_body: JSON.stringify({ external_id, transaction_id, status, amount }).slice(0, 2000),
-      }).then(() => {}, () => {})
       return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders })
     }
 
