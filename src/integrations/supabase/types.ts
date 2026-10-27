@@ -3965,6 +3965,45 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_payment_details_audit: {
+        Row: {
+          contract_id: string
+          created_at: string
+          id: string
+          new_bank_details: Json | null
+          new_pix_key: string | null
+          new_pix_key_type: string | null
+          old_bank_details: Json | null
+          old_pix_key: string | null
+          old_pix_key_type: string | null
+          user_id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          id?: string
+          new_bank_details?: Json | null
+          new_pix_key?: string | null
+          new_pix_key_type?: string | null
+          old_bank_details?: Json | null
+          old_pix_key?: string | null
+          old_pix_key_type?: string | null
+          user_id: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          id?: string
+          new_bank_details?: Json | null
+          new_pix_key?: string | null
+          new_pix_key_type?: string | null
+          old_bank_details?: Json | null
+          old_pix_key?: string | null
+          old_pix_key_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       partner_payment_intents: {
         Row: {
           aporte_value: number
@@ -4558,6 +4597,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_confirmations: {
+        Row: {
+          amount: number | null
+          created_at: string
+          entity_type: string
+          external_reference: string
+          external_transaction_id: string
+          id: string
+          provider: string
+          raw_payload: Json | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          entity_type: string
+          external_reference: string
+          external_transaction_id: string
+          id?: string
+          provider: string
+          raw_payload?: Json | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          entity_type?: string
+          external_reference?: string
+          external_transaction_id?: string
+          id?: string
+          provider?: string
+          raw_payload?: Json | null
+        }
+        Relationships: []
       }
       payment_reversal_events: {
         Row: {
@@ -7668,6 +7740,15 @@ export type Database = {
         }[]
       }
       partner_send_network_exit_reminders: { Args: never; Returns: Json }
+      partner_update_payment_details: {
+        Args: {
+          p_bank_details: Json
+          p_contract_id: string
+          p_pix_key: string
+          p_pix_key_type: string
+        }
+        Returns: undefined
+      }
       place_bid: {
         Args: { p_auction_id: string; p_user_id: string }
         Returns: undefined

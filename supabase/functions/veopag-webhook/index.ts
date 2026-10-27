@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
+import { verifyVeopagCallbackToken } from '../_shared/veopag-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,6 +83,39 @@ serve(async (req) => {
     if (!isApproved && !isRejected) {
       console.log('ℹ️ Status not actionable:', status)
       return new Response('OK', { status: 200, headers: corsHeaders })
+    }
+
+    // 🔐 Autenticação do callback: o endereço enviado à VeoPag carrega uma
+    // assinatura do external_id. Sem ela (ou divergente), nada é processado.
+    const reqUrl = new URL(req.url)
+    const cbToken = reqUrl.searchParams.get('t')
+    const cbRef = reqUrl.searchParams.get('ref')
+    const tokenOk = cbRef === String(external_id) && await verifyVeopagCallbackToken(String(external_id), cbToken)
+    if (!tokenOk) {
+      console.warn('🚫 VEOPAG_CALLBACK_REJECTED', JSON.stringify({ external_id, transaction_id, status, hasToken: !!cbToken }))
+      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders })
+    }
+
+    // 🔁 Anti-reuso: cada transação do provedor confirma uma única referência.
+    if (isApproved) {
+      const txKey = String(transaction_id || external_id)
+      const { error: regErr } = await supabase.from('payment_confirmations').insert({
+        provider: 'veopag', external_transaction_id: txKey, external_reference: String(external_id),
+        entity_type: String(external_id).includes(':') ? String(external_id).split(':')[0] : 'uuid',
+        amount: typeof amount === 'number' ? amount : Number(amount) || null, raw_payload: body,
+      })
+      if (regErr) {
+        const { data: existing } = await supabase.from('payment_confirmations')
+          .select('external_transaction_id, external_reference')
+          .eq('provider', 'veopag')
+          .or(`external_transaction_id.eq.${txKey},external_reference.eq.${String(external_id)}`)
+        const sameOne = (existing || []).every((r: any) => r.external_transaction_id === txKey && r.external_reference === String(external_id))
+        if (!sameOne || !(existing || []).length) {
+          console.warn('🚫 VEOPAG_TX_REUSE_BLOCKED', JSON.stringify({ txKey, external_id, existing, regErr }))
+          return new Response(JSON.stringify({ error: 'transaction_reuse' }), { status: 409, headers: corsHeaders })
+        }
+        console.log('ℹ️ Repeated delivery of same confirmation, continuing idempotently')
+      }
     }
 
     // Route by external_id prefix

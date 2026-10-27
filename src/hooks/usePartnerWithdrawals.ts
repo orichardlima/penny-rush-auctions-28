@@ -232,20 +232,17 @@ export const usePartnerWithdrawals = (contractId?: string) => {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('partner_contracts')
-        .update({
-          pix_key: paymentDetails.pix_key,
-          pix_key_type: paymentDetails.pix_key_type,
-          bank_details: {
-            holder_name: paymentDetails.holder_name,
-            bank_name: paymentDetails.bank_name,
-            agency: paymentDetails.agency,
-            account: paymentDetails.account
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', contractId);
+      const { error } = await (supabase.rpc as any)('partner_update_payment_details', {
+        p_contract_id: contractId,
+        p_pix_key: paymentDetails.pix_key,
+        p_pix_key_type: paymentDetails.pix_key_type,
+        p_bank_details: {
+          holder_name: paymentDetails.holder_name,
+          bank_name: paymentDetails.bank_name,
+          agency: paymentDetails.agency,
+          account: paymentDetails.account
+        }
+      });
 
       if (error) throw error;
 
