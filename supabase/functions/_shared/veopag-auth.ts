@@ -43,6 +43,31 @@ export async function getVeopagToken(): Promise<string> {
   return cachedToken!
 }
 
+// Assinatura do callback: só o servidor conhece a chave, então só callbacks
+// gerados por nós (enviados à VeoPag) passam na verificação do webhook.
+export async function veopagCallbackToken(externalId: string): Promise<string> {
+  const keyMaterial = Deno.env.get('VEOPAG_CALLBACK_SECRET') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(keyMaterial),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('veopag-cb:' + externalId))
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+export async function verifyVeopagCallbackToken(externalId: string, token: string | null): Promise<boolean> {
+  if (!token || !externalId) return false
+  const expected = await veopagCallbackToken(externalId)
+  if (expected.length !== token.length) return false
+  let diff = 0
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ token.charCodeAt(i)
+  return diff === 0
+}
+
+async function signedWebhookUrl(externalId: string): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const t = await veopagCallbackToken(externalId)
+  return `${supabaseUrl}/functions/v1/veopag-webhook?t=${t}&ref=${encodeURIComponent(externalId)}`
+}
+
 export async function createVeopagDeposit(params: {
   amount: number
   external_id: string
@@ -50,8 +75,7 @@ export async function createVeopagDeposit(params: {
   payer: { name: string; email: string; document: string }
 }) {
   const token = await getVeopagToken()
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const webhookUrl = `${supabaseUrl}/functions/v1/veopag-webhook`
+  const webhookUrl = await signedWebhookUrl(params.external_id)
 
   console.log('💳 Creating VeoPag deposit:', params.external_id, 'amount:', params.amount)
 
