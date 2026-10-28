@@ -18,10 +18,11 @@
 - [ ] Conciliar 50 contratos sem código do provedor com extratos — depende dos extratos
 
 # Auditoria final de segurança (28/10) — somente leitura + testes revertidos
-- [ ] Cadastro: triggers, validações, testes de criação sem CPF/CPF duplicado
-- [ ] Contratos/ativação: políticas, triggers, testes de contrato ativo sem pagamento
-- [ ] Saldos/créditos: grants de funções privilegiadas, credit_purchase_bids
-- [ ] require_complete_profile_generic: confirmar correção SECURITY DEFINER
-- [ ] Permissões gerais: RLS, funções SECURITY DEFINER executáveis por usuário comum
-- [ ] Testes controlados como usuário comum (rollback) + fluxos legítimos
-- [ ] Relatório final com tabela classificada
+- [x] Cadastro: triggers, validações, testes de criação sem CPF/CPF duplicado
+- [x] Contratos/ativação: políticas, triggers, testes de contrato ativo sem pagamento
+- [x] Saldos/créditos: grants de funções privilegiadas, credit_purchase_bids
+- [x] require_complete_profile_generic: confirmar correção SECURITY DEFINER
+- [x] Permissões gerais: RLS, funções SECURITY DEFINER executáveis por usuário comum
+- [x] Testes controlados como usuário comum (rollback) + fluxos legítimos
+- [x] Relatório final com tabela classificada
+- [ ] AGUARDANDO AUTORIZAÇÃO: revogar EXECUTE de 19 funções sem trava (Seção 5 do relatório)
