@@ -45,9 +45,14 @@ serve(async (req) => {
     const statusUrl = `${VPS_BASE_URL}/pix/status/${txId}`
     console.log(`📡 GET ${statusUrl}`)
 
+    const vpsHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (MAGENPAY_VPS_TOKEN) {
+      vpsHeaders['Authorization'] = `Bearer ${MAGENPAY_VPS_TOKEN}`
+    }
+
     const vpsResponse = await fetch(statusUrl, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers: vpsHeaders
     })
 
     const vpsData = await vpsResponse.json()
