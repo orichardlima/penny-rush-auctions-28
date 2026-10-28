@@ -1,2 +1,4 @@
 - Payment confirmations must be authenticated (signed callback URL per charge) and registered in `payment_confirmations`; unauthenticated provider webhooks stay disabled. Why: forged webhooks could activate contracts.
 - Ordinary users never write `partner_contracts`/`partner_payment_intents` directly; use server functions or narrow SECURITY DEFINER RPCs. Why: direct writes enabled the 25/10 fraud.
+- Internal financial/points/bid helpers are service-only; public RPCs must validate auth.uid(), ownership and arguments, never a caller-supplied admin UUID. Why: indirect wrappers can reopen revoked helper privileges.
+- Functions created by migrations require explicit execution grants; SECURITY DEFINER guards must not authorize via current_user. Why: the owner identity bypassed incomplete-profile checks.
