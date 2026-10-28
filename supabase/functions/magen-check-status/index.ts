@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || ''
 const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
+const MAGENPAY_VPS_TOKEN = Deno.env.get('MAGENPAY_VPS_TOKEN') || Deno.env.get('VPS_AUTH_TOKEN') || ''
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,9 +45,14 @@ serve(async (req) => {
     const statusUrl = `${VPS_BASE_URL}/pix/status/${txId}`
     console.log(`📡 GET ${statusUrl}`)
 
+    const vpsHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (MAGENPAY_VPS_TOKEN) {
+      vpsHeaders['Authorization'] = `Bearer ${MAGENPAY_VPS_TOKEN}`
+    }
+
     const vpsResponse = await fetch(statusUrl, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers: vpsHeaders
     })
 
     const vpsData = await vpsResponse.json()
