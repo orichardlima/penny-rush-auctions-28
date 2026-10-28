@@ -16,3 +16,12 @@
 - [x] Varredura histórica classificada (só relatório)
 - [x] Testes com conta comum e relatório final
 - [ ] Conciliar 50 contratos sem código do provedor com extratos — depende dos extratos
+
+# Auditoria final de segurança (28/10) — somente leitura + testes revertidos
+- [ ] Cadastro: triggers, validações, testes de criação sem CPF/CPF duplicado
+- [ ] Contratos/ativação: políticas, triggers, testes de contrato ativo sem pagamento
+- [ ] Saldos/créditos: grants de funções privilegiadas, credit_purchase_bids
+- [ ] require_complete_profile_generic: confirmar correção SECURITY DEFINER
+- [ ] Permissões gerais: RLS, funções SECURITY DEFINER executáveis por usuário comum
+- [ ] Testes controlados como usuário comum (rollback) + fluxos legítimos
+- [ ] Relatório final com tabela classificada
