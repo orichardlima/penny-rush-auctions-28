@@ -35,6 +35,7 @@ BEGIN
     END IF;
     pass_count := pass_count+1;
   END LOOP;
+  IF pass_count<>22 THEN RAISE EXCEPTION 'FAIL expected 22 signatures got %',pass_count; END IF;
   RAISE NOTICE 'PASS internal ACLs and authenticated execution: % signatures',pass_count;
 
   -- A real owner-policy-authorized INSERT, not a direct trigger call.

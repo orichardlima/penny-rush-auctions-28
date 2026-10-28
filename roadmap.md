@@ -25,8 +25,12 @@
 - [x] Permissões gerais: RLS, funções SECURITY DEFINER executáveis por usuário comum
 - [x] Testes controlados como usuário comum (rollback) + fluxos legítimos
 - [x] Relatório final com tabela classificada
-- [ ] AUTORIZADO em 28/10: conferir dependências e conter as 19 funções dos itens 3.1–3.11
-- [ ] Auditar histórico de ciclos, pontos, lances, indicações, expansão, Cofre e afiliados sem reversões
-- [ ] Testar permissões e caminhos legítimos com rollback; provar trigger em operação autorizada pela RLS
-- [ ] Verificar confirmação de e-mail e Turnstile sem alterar acessos
-- [ ] Entregar relatório de contenção, dependências, testes, limites e reversão técnica
+- [x] AUTORIZADO em 28/10: conferir dependências e conter as 19 funções dos itens 3.1–3.11 (ampliado para 22 assinaturas)
+- [x] Auditar histórico disponível de ciclos, pontos, lances, expansão, Cofre e afiliados sem reversões; registrar limites da evidência
+- [x] Testar permissões, ajuste admin e resgate/cancelamento com rollback; provar trigger em INSERT autorizado pela RLS
+- [x] Verificar confirmação de e-mail e Turnstile sem alterar acessos: auto-confirmação ligada, Google desligado, widget desativado
+- [x] Entregar relatório de contenção, dependências, testes, limites e reversão técnica
+- [ ] Verificar jornadas autenticadas completas, compra PIX e automações semanais em ambiente seguro — depende de sessão de teste e ambiente isolado para integração financeira
+- [ ] Ativar confirmação de e-mail e Turnstile — depende de configuração administrativa e chaves Cloudflare, sem prejudicar clientes existentes
+- [ ] Revisar defaults do owner reservado supabase_admin — depende de caminho administrativo autorizado para configuração gerenciada
+- [ ] Completar auditoria histórica e conciliação de métricas — depende de logs históricos externos e extratos; diferenças não provam fraude
