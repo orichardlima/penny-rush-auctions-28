@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.fury_vault_on_bid(),public.fury_vault_on_bid(uuid,integer) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.fury_vault_on_bid(),public.fury_vault_on_bid(uuid,integer) TO service_role;
