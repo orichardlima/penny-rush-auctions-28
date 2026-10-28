@@ -25,4 +25,8 @@
 - [x] Permissões gerais: RLS, funções SECURITY DEFINER executáveis por usuário comum
 - [x] Testes controlados como usuário comum (rollback) + fluxos legítimos
 - [x] Relatório final com tabela classificada
-- [ ] AGUARDANDO AUTORIZAÇÃO: revogar EXECUTE de 19 funções sem trava (Seção 5 do relatório)
+- [ ] AUTORIZADO em 28/10: conferir dependências e conter as 19 funções dos itens 3.1–3.11
+- [ ] Auditar histórico de ciclos, pontos, lances, indicações, expansão, Cofre e afiliados sem reversões
+- [ ] Testar permissões e caminhos legítimos com rollback; provar trigger em operação autorizada pela RLS
+- [ ] Verificar confirmação de e-mail e Turnstile sem alterar acessos
+- [ ] Entregar relatório de contenção, dependências, testes, limites e reversão técnica
