@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || ''
 const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
+const MAGENPAY_VPS_TOKEN = Deno.env.get('MAGENPAY_VPS_TOKEN') || Deno.env.get('VPS_AUTH_TOKEN') || ''
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
