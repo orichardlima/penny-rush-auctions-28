@@ -1518,6 +1518,18 @@ const AdminPartnerManagement = () => {
                                       />
                                     </div>
                                   </div>
+                                  <div className="space-y-2">
+                                    <Label>Ordem de Exibição</Label>
+                                    <Input 
+                                      type="number"
+                                      min={0}
+                                      value={editingPlan.sort_order ?? 0}
+                                      onChange={(e) => setEditingPlan({...editingPlan, sort_order: parseInt(e.target.value) || 0})}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Define a sequência em que o plano aparece para o parceiro. Menor número aparece primeiro.
+                                    </p>
+                                  </div>
                                   <div className="flex items-center gap-2">
                                     <input 
                                       type="checkbox"
