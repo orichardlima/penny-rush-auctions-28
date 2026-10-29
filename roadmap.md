@@ -1,9 +1,11 @@
 # Investigação Magen
 
 # Correção MagenPay autorizada em 29/10
-- [ ] Corrigir confirmação dos quatro fluxos e referência de upgrade, sem alterar VeoPag.
-- [ ] Persistir vínculos PIX, validar titular/valor e garantir processamento atômico sem duplicidade.
-- [ ] Recuperar pagamentos com a tela fechada por fila limitada e testar proteções.
+- [x] Corrigir confirmação dos quatro fluxos e referência de upgrade, sem alterar VeoPag.
+- [x] Persistir vínculos PIX, validar titular/valor e garantir processamento atômico sem duplicidade.
+- [x] Recuperar novos pagamentos com a tela fechada por fila limitada; testes de validação e duplicidade passaram.
+- [ ] Validar pagamento real nos quatro fluxos e recuperação com a tela fechada — depende de sessão autenticada e pagamentos de teste autorizados; sem sessão disponível neste Supabase externo.
+- [ ] Recuperar cobranças anteriores sem vínculo PIX confiável — depende de conciliação com códigos e dados retornados pela VPS; não confirmar por suposição.
 
 - [x] Auditar rotas financeiras e controles de autorização sem chamadas bancárias.
 - [x] Conferir permissões e funções financeiras em produção por consultas somente de leitura.
