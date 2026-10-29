@@ -27,7 +27,7 @@ serve(async (req) => {
 
     // 🔐 Contratos/upgrades continuam desativados por esta rota (contenção 27/10).
     // Compras de lances: só confirma se o txId for o mesmo gravado no pedido na criação do PIX.
-    if ((!purchaseId && !intentId) || upgradeRef || (purchaseId && intentId)) {
+    if ([purchaseId, intentId, upgradeRef].filter(Boolean).length !== 1) {
       if (Deno.env.get('LEGACY_PAYMENT_WEBHOOKS_ENABLED') !== 'true') {
         return new Response(JSON.stringify({ status: 'pending', disabled: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
@@ -98,7 +98,7 @@ serve(async (req) => {
 
     // ===== ROUTE: Upgrade or Cotas Upgrade =====
     if (upgradeRef) {
-      return await processUpgradeRef(supabase, upgradeRef, txId)
+      return await processUpgradeRef(supabase, upgradeRef, txId, vpsData.dados)
     }
 
     // ===== ROUTE: Bid Purchase (existing logic) =====
@@ -230,12 +230,12 @@ async function processPartnerIntent(supabase: any, intentId: string, txId: strin
 }
 
 // ===== UPGRADE / COTAS UPGRADE =====
-async function processUpgradeRef(supabase: any, upgradeRef: string, txId: string) {
+async function processUpgradeRef(supabase: any, upgradeRef: string, txId: string, dados: any) {
   if (upgradeRef.startsWith('cotas-upgrade:')) {
-    return await processCotasUpgrade(supabase, upgradeRef, txId)
+    return await processCotasUpgrade(supabase, upgradeRef, txId, dados)
   }
   if (upgradeRef.startsWith('upgrade:')) {
-    return await processPlanUpgrade(supabase, upgradeRef, txId)
+    return await processPlanUpgrade(supabase, upgradeRef, txId, dados)
   }
 
   console.error('❌ Unknown upgradeRef format:', upgradeRef)
@@ -245,7 +245,7 @@ async function processUpgradeRef(supabase: any, upgradeRef: string, txId: string
   )
 }
 
-async function processCotasUpgrade(supabase: any, upgradeRef: string, txId: string) {
+async function processCotasUpgrade(supabase: any, upgradeRef: string, txId: string, dados: any) {
   const parts = upgradeRef.split(':')
   if (parts.length !== 3) {
     return new Response(
@@ -295,6 +295,11 @@ async function processCotasUpgrade(supabase: any, upgradeRef: string, txId: stri
 
   const cotasDiff = newCotas - contract.cotas
   const differencePaid = currentPlan.aporte_value * cotasDiff
+
+  {
+    const g = await guardUpgradePayment(supabase, contract, txId, dados, differencePaid, upgradeRef)
+    if (g) return g
+  }
   const newAporteValue = currentPlan.aporte_value * newCotas
   const newTotalCap = currentPlan.total_cap * newCotas
   const newWeeklyCap = currentPlan.weekly_cap * newCotas
@@ -335,7 +340,7 @@ async function processCotasUpgrade(supabase: any, upgradeRef: string, txId: stri
   )
 }
 
-async function processPlanUpgrade(supabase: any, upgradeRef: string, txId: string) {
+async function processPlanUpgrade(supabase: any, upgradeRef: string, txId: string, dados: any) {
   const parts = upgradeRef.split(':')
   if (parts.length !== 3) {
     return new Response(
@@ -383,6 +388,11 @@ async function processPlanUpgrade(supabase: any, upgradeRef: string, txId: strin
   }
 
   const differencePaid = newPlan.aporte_value - contract.aporte_value
+
+  {
+    const g = await guardUpgradePayment(supabase, contract, txId, dados, differencePaid, upgradeRef)
+    if (g) return g
+  }
 
   await supabase.from('partner_upgrades').insert({
     partner_contract_id: contract.id,
@@ -576,4 +586,26 @@ async function processBidPurchase(supabase: any, purchaseId: string, txId: strin
     JSON.stringify({ status: 'paid', processed: true }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
+}
+// 🔐 Upgrades: o PIX precisa ser do valor da diferença, pago pelo CPF do dono do contrato, e usado uma única vez.
+async function guardUpgradePayment(supabase: any, contract: any, txId: string, dados: any, expected: number, ref: string) {
+  const json = (b: unknown, status: number) => new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  const paid = Number(dados?.paymentDetails?.amountPaid ?? dados?.amount ?? 0)
+  if (!(expected > 0) || Math.abs(paid - expected) > 0.01) {
+    console.error('❌ Upgrade amount mismatch')
+    return json({ status: 'paid', error: 'Amount mismatch' }, 400)
+  }
+  const { data: prof } = await supabase.from('profiles').select('cpf').eq('user_id', contract.user_id).maybeSingle()
+  const cpf = String(prof?.cpf ?? '').replace(/\D/g, '')
+  const payer = String(dados?.payerTaxId ?? '').replace(/\D/g, '')
+  if (!cpf || cpf !== payer) {
+    console.error('❌ Upgrade payer does not match contract owner')
+    return json({ status: 'paid', error: 'Payer mismatch' }, 400)
+  }
+  const { error } = await supabase.from('payment_confirmations').insert({
+    provider: 'magenpay', external_transaction_id: txId, external_reference: ref,
+    entity_type: 'partner_upgrade', amount: paid,
+  })
+  if (error) return json({ status: 'paid', error: 'Payment already used' }, 409)
+  return null
 }
