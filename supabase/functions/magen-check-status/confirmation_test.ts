@@ -1,0 +1,10 @@
+import { assertEquals, assertThrows } from 'https://deno.land/std@0.168.0/testing/asserts.ts';
+import { validateMagenPaid } from '../_shared/magen-confirm.ts';
+const charge = {tx_id:'transaction12345',amount:15,payer_cpf:'52998224725'};
+const paid = {sucesso:true,dados:{txId:'transaction12345',status:'paid',amount:15,payerTaxId:'52998224725'}};
+Deno.test('MagenPay paid R$15 matches the persisted PIX',()=>assertEquals(validateMagenPaid(charge,paid).status,'paid'));
+Deno.test('MagenPay rejects another PIX code',()=>assertThrows(()=>validateMagenPaid(charge,{...paid,dados:{...paid.dados,txId:'another12345'}})));
+Deno.test('MagenPay rejects different paid amount',()=>assertThrows(()=>validateMagenPaid(charge,{...paid,dados:{...paid.dados,amount:14.99}})));
+Deno.test('MagenPay rejects different payer CPF',()=>assertThrows(()=>validateMagenPaid(charge,{...paid,dados:{...paid.dados,payerTaxId:'11144477735'}})));
+Deno.test('MagenPay pending cannot credit',()=>assertEquals(validateMagenPaid(charge,{dados:{status:'pending'}}),{status:'pending'}));
+Deno.test('MagenPay paid without identity fails closed',()=>assertThrows(()=>validateMagenPaid(charge,{dados:{status:'paid'}})));
