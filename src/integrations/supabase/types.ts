@@ -3152,6 +3152,66 @@ export type Database = {
           },
         ]
       }
+      magenpay_charges: {
+        Row: {
+          amount: number
+          attempts: number
+          created_at: string
+          external_reference: string
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          next_retry_at: string
+          payer_cpf: string
+          pix_copy_paste: string
+          processed_at: string | null
+          retry_until: string
+          snapshot: Json
+          status: string
+          tx_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          attempts?: number
+          created_at?: string
+          external_reference: string
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          next_retry_at?: string
+          payer_cpf: string
+          pix_copy_paste: string
+          processed_at?: string | null
+          retry_until?: string
+          snapshot: Json
+          status?: string
+          tx_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          attempts?: number
+          created_at?: string
+          external_reference?: string
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          next_retry_at?: string
+          payer_cpf?: string
+          pix_copy_paste?: string
+          processed_at?: string | null
+          retry_until?: string
+          snapshot?: Json
+          status?: string
+          tx_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -7658,6 +7718,44 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: string
+      }
+      magenpay_apply_paid: {
+        Args: {
+          p_amount: number
+          p_charge_id: string
+          p_confirmed_at?: string
+          p_cpf: string
+          p_tx_id: string
+        }
+        Returns: Json
+      }
+      magenpay_claim_pending: {
+        Args: never
+        Returns: {
+          amount: number
+          attempts: number
+          created_at: string
+          external_reference: string
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          next_retry_at: string
+          payer_cpf: string
+          pix_copy_paste: string
+          processed_at: string | null
+          retry_until: string
+          snapshot: Json
+          status: string
+          tx_id: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "magenpay_charges"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       notify_bid_expirations: {
         Args: never
