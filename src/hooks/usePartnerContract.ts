@@ -22,6 +22,9 @@ export interface PartnerPlan {
 export interface PartnerPaymentData {
   intentId: string;
   paymentId: string;
+  gateway?: string;
+  chargeId?: string;
+  externalReference?: string;
   qrCode?: string;
   qrCodeBase64?: string;
   pixCopyPaste?: string;
@@ -33,6 +36,9 @@ export interface PartnerPaymentData {
 
 export interface PartnerUpgradePaymentData {
   paymentId: string;
+  gateway?: string;
+  chargeId?: string;
+  externalReference?: string;
   qrCode?: string;
   qrCodeBase64?: string;
   pixCopyPaste?: string;
@@ -337,6 +343,7 @@ export const usePartnerContract = () => {
       const paymentData: PartnerPaymentData = {
         intentId: data.intentId,
         paymentId: data.paymentId,
+        gateway: data.gateway, chargeId: data.chargeId, externalReference: data.externalReference,
         qrCode: data.qrCode,
         qrCodeBase64: data.qrCodeBase64,
         pixCopyPaste: data.pixCopyPaste,
@@ -442,11 +449,13 @@ export const usePartnerContract = () => {
 
       console.log('[usePartnerContract] Pagamento PIX de upgrade gerado com sucesso:', {
         paymentId: data.paymentId,
+        gateway: data.gateway, chargeId: data.chargeId, externalReference: data.externalReference,
         differenceToPay: data.differenceToPay
       });
 
       const paymentData: PartnerUpgradePaymentData = {
         paymentId: data.paymentId,
+        gateway: data.gateway, chargeId: data.chargeId, externalReference: data.externalReference,
         qrCode: data.qrCode,
         qrCodeBase64: data.qrCodeBase64,
         pixCopyPaste: data.pixCopyPaste,
@@ -516,6 +525,7 @@ export const usePartnerContract = () => {
 
       const paymentData: PartnerUpgradePaymentData = {
         paymentId: data.paymentId,
+        gateway: data.gateway, chargeId: data.chargeId, externalReference: data.externalReference,
         qrCode: data.qrCode,
         qrCodeBase64: data.qrCodeBase64,
         pixCopyPaste: data.pixCopyPaste,

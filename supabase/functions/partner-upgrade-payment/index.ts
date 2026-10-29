@@ -69,9 +69,9 @@ serve(async (req) => {
     }
 
     if (upgradeCotas) {
-      return await processCotasUpgrade(supabase, contract, upgradeCotas, userEmail, userName, userCpf)
+      return await processCotasUpgrade(supabase, contract, upgradeCotas, userEmail, userName, userCpf, req.headers.get('Authorization') || undefined)
     } else if (newPlanId) {
-      return await processPlanUpgrade(supabase, contract, newPlanId, userEmail, userName, userCpf)
+      return await processPlanUpgrade(supabase, contract, newPlanId, userEmail, userName, userCpf, req.headers.get('Authorization') || undefined)
     } else {
       return new Response(
         JSON.stringify({ error: 'Informe newPlanId ou upgradeCotas' }),
@@ -82,13 +82,13 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Function error:', error)
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor', details: error.message }),
+      JSON.stringify({ error: 'Erro interno do servidor', details: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
 
-async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: number, userEmail: string, userName: string, userCpf: string) {
+async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: number, userEmail: string, userName: string, userCpf: string, authorization?: string) {
   console.log('📦 Processing COTAS upgrade:', contract.cotas, '→', upgradeCotas)
 
   const { data: currentPlan, error: planError } = await supabase
@@ -128,6 +128,7 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
     externalId: externalReference,
     description: `Upgrade de Cotas: ${contract.plan_name} ${contract.cotas} → ${upgradeCotas} cotas`,
     payerName: userName || 'Usuario',
+    authorization,
     payerDocument: userCpf
   })
 
@@ -137,6 +138,7 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
 
   const response = {
     paymentId: depositResult.transactionId,
+      ...(depositResult.gateway === 'magenpay' ? { gateway: 'magenpay', chargeId: depositResult.chargeId, externalReference: depositResult.externalReference } : {}),
     qrCodeBase64: depositResult.qrCodeBase64,
     pixCopyPaste: depositResult.pixCopyPaste,
     status: depositResult.status,
@@ -159,7 +161,7 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
   )
 }
 
-async function processPlanUpgrade(supabase: any, contract: any, newPlanId: string, userEmail: string, userName: string, userCpf: string) {
+async function processPlanUpgrade(supabase: any, contract: any, newPlanId: string, userEmail: string, userName: string, userCpf: string, authorization?: string) {
   const { data: newPlan, error: planError } = await supabase
     .from('partner_plans')
     .select('*')
@@ -189,11 +191,13 @@ async function processPlanUpgrade(supabase: any, contract: any, newPlanId: strin
     externalId: externalReference,
     description: `Upgrade de Parceria: ${contract.plan_name} → ${newPlan.display_name}`,
     payerName: userName || 'Usuario',
+    authorization,
     payerDocument: userCpf
   })
 
   const response = {
     paymentId: depositResult.transactionId,
+      ...(depositResult.gateway === 'magenpay' ? { gateway: 'magenpay', chargeId: depositResult.chargeId, externalReference: depositResult.externalReference } : {}),
     qrCodeBase64: depositResult.qrCodeBase64,
     pixCopyPaste: depositResult.pixCopyPaste,
     status: depositResult.status,

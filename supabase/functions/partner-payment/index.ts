@@ -198,7 +198,8 @@ serve(async (req) => {
         description: `Parceria ${planData.display_name}${cotas > 1 ? ` (${cotas} cotas)` : ''} - Aporte`,
         payerName: userName || 'Usuario',
         payerEmail: userEmail,
-        payerDocument: userCpf
+        authorization: req.headers.get('Authorization') || undefined,
+      payerDocument: userCpf
       })
     } catch (err) {
       await supabase.from('partner_payment_intents').delete().eq('id', intentData.id)
@@ -214,6 +215,7 @@ serve(async (req) => {
     const response = {
       intentId: intentData.id,
       paymentId: depositResult.transactionId,
+      ...(depositResult.gateway === 'magenpay' ? { gateway: 'magenpay', chargeId: depositResult.chargeId, externalReference: depositResult.externalReference } : {}),
       qrCodeBase64: depositResult.qrCodeBase64,
       pixCopyPaste: depositResult.pixCopyPaste || null,
       status: depositResult.status,

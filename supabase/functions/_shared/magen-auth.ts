@@ -1,6 +1,6 @@
 const VPS_MAGEN_RAW = Deno.env.get('VPS_MAGEN_URL') || ''
 const VPS_BASE_URL = VPS_MAGEN_RAW.replace(/\/(pix|pagamento).*$/, '').replace(/\/$/, '')
-const VPS_AUTH_TOKEN = Deno.env.get('MAGENPAY_VPS_TOKEN') || Deno.env.get('VPS_AUTH_TOKEN') || ''
+const VPS_AUTH_TOKEN = Deno.env.get('MAGENPAY_VPS_TOKEN') || ''
 const MAGEN_KEY_ID = Deno.env.get('MAGEN_PUBLIC_KEY_ID') || 'e2aaacb3-6a62-4880-9433-2116cf467b2e'
 
 export async function createMagenDeposit(params: {
@@ -11,6 +11,7 @@ export async function createMagenDeposit(params: {
   payerTaxId: string
   keyId?: string
 }) {
+  if (!VPS_BASE_URL || !VPS_AUTH_TOKEN) throw new Error('Configuração MagenPay VPS ausente')
   const requestBody = {
     amount: params.amount,
     amountFormat: 'brl',
@@ -40,18 +41,17 @@ export async function createMagenDeposit(params: {
 
   if (!res.ok) {
     const errorData = await res.text()
-    console.error('❌ VPS MagenPay falhou:', res.status, errorData)
+    console.error('❌ VPS MagenPay falhou:', res.status)
     throw new Error(`Erro ao gerar pagamento PIX via MagenPay VPS: ${res.status}`)
   }
 
   const result = await res.json()
-  console.log('✅ VPS MagenPay retornou:', JSON.stringify(result))
 
   // Nova API retorna { sucesso, dados: { txId, pixCopiaECola, ... } }
   const dados = result.dados || result
 
   return {
-    transactionId: dados.txId || params.txId,
+    transactionId: dados.txId || '',
     status: dados.status || 'pending',
     pixCopyPaste: dados.pixCopiaECola || dados.pix_copy_and_paste || dados.pixCopyPaste || '',
     qrCodeBase64: dados.qr_code || dados.qrCodeBase64 || dados.qrcode || '',

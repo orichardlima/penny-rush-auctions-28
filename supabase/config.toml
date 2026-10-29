@@ -80,3 +80,7 @@ verify_jwt = false
 
 [functions.recalculate-weekly-scores]
 verify_jwt = false
+
+# Recovery uses an expiring single-use server ticket, not a browser JWT.
+[functions.magen-recover-payments]
+verify_jwt = false

@@ -1,5 +1,6 @@
 import { createVeopagDeposit } from './veopag-auth.ts'
 import { createMagenDeposit } from './magen-auth.ts'
+import { prepareMagenCharge, saveMagenCharge } from './magen-charge.ts'
 
 interface DepositParams {
   amount: number
@@ -8,6 +9,7 @@ interface DepositParams {
   payerName: string
   payerEmail?: string
   payerDocument: string
+  authorization?: string
 }
 
 interface DepositResult {
@@ -17,6 +19,9 @@ interface DepositResult {
   qrCodeBase64: string
   qrCodeUrl: string
   amount: number
+  gateway?: 'magenpay'
+  chargeId?: string
+  externalReference?: string
 }
 
 export async function createDeposit(
@@ -34,14 +39,20 @@ export async function createDeposit(
   console.log(`🏦 Payment gateway ativo: ${gateway}`)
 
   if (gateway === 'magenpay') {
+    const prepared = await prepareMagenCharge(supabase, params.externalId, params.amount, params.authorization)
+    if (prepared.existing) {
+      return {gateway:'magenpay',chargeId:prepared.existing.id,externalReference:params.externalId,transactionId:prepared.existing.tx_id,status:'pending',pixCopyPaste:prepared.existing.pix_copy_paste,qrCodeBase64:'',qrCodeUrl:'',amount:Number(prepared.existing.amount)}
+    }
     const result = await createMagenDeposit({
       amount: params.amount,
       txId: params.externalId,
       description: params.description,
-      payerName: params.payerName,
-      payerTaxId: params.payerDocument
+      payerName: prepared.payer_name,
+      payerTaxId: prepared.payer_cpf
     })
+    const chargeId = await saveMagenCharge(supabase, prepared, params.externalId, result)
     return {
+      gateway: 'magenpay', chargeId, externalReference: params.externalId,
       transactionId: result.transactionId,
       status: result.status,
       pixCopyPaste: result.pixCopyPaste,

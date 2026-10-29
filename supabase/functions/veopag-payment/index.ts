@@ -146,6 +146,7 @@ serve(async (req) => {
       description: `${packageData.name} - ${finalBidsCount} lances`,
       payerName: userName || 'Usuario',
       payerEmail: userEmail,
+      authorization: req.headers.get('Authorization') || undefined,
       payerDocument: userCpf
     })
 
@@ -162,6 +163,7 @@ serve(async (req) => {
     const response = {
       purchaseId: purchaseData.id,
       paymentId: depositResult.transactionId,
+      ...(depositResult.gateway === 'magenpay' ? { gateway: 'magenpay', chargeId: depositResult.chargeId, externalReference: depositResult.externalReference } : {}),
       qrCodeBase64: depositResult.qrCodeBase64,
       qrCodeUrl: depositResult.qrCodeUrl,
       pixCopyPaste: depositResult.pixCopyPaste || null,

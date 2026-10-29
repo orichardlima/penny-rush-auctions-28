@@ -73,6 +73,7 @@ serve(async (req) => {
       description: `Regularização Parceria ${contract.plan_name}`,
       payerName: userName || 'Usuario',
       payerEmail: userEmail || '',
+      authorization: req.headers.get('Authorization') || undefined,
       payerDocument: userCpf
     })
 
@@ -81,6 +82,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         paymentId: depositResult.transactionId,
+      ...(depositResult.gateway === 'magenpay' ? { gateway: 'magenpay', chargeId: depositResult.chargeId, externalReference: depositResult.externalReference } : {}),
         qrCodeBase64: depositResult.qrCodeBase64,
         pixCopyPaste: depositResult.pixCopyPaste || null,
         amount: contract.aporte_value,
@@ -92,7 +94,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Regularize payment error:', error)
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor', details: error.message }),
+      JSON.stringify({ error: 'Erro interno do servidor', details: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
