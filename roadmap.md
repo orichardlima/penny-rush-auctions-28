@@ -1,5 +1,10 @@
 # Investigação Magen
 
+# Correção MagenPay autorizada em 29/10
+- [ ] Corrigir confirmação dos quatro fluxos e referência de upgrade, sem alterar VeoPag.
+- [ ] Persistir vínculos PIX, validar titular/valor e garantir processamento atômico sem duplicidade.
+- [ ] Recuperar pagamentos com a tela fechada por fila limitada e testar proteções.
+
 - [x] Auditar rotas financeiras e controles de autorização sem chamadas bancárias.
 - [x] Conferir permissões e funções financeiras em produção por consultas somente de leitura.
 - [x] Distinguir evidências históricas, vulnerabilidades comprovadas e hipóteses.
