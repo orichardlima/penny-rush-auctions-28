@@ -13,6 +13,9 @@ interface PartnerPixPaymentModalProps {
   onClose: () => void;
   paymentData: {
     paymentId: string;
+    gateway?: string;
+    chargeId?: string;
+    externalReference?: string;
     qrCode?: string;
     qrCodeBase64?: string;
     pixCopyPaste?: string;
@@ -97,10 +100,10 @@ export const PartnerPixPaymentModal = ({
 
       try {
         // Call magen-check-status to actively check VPS and process payment
-        const checkBody: any = { txId: paymentData.paymentId };
+        const checkBody: any = { txId: paymentData.paymentId, chargeId: paymentData.chargeId };
         if (isUpgrade && contractId) {
           // Build upgradeRef based on context
-          checkBody.upgradeRef = `upgrade:${contractId}:unknown`;
+          checkBody.upgradeRef = paymentData.externalReference;
         } else if (intentId) {
           checkBody.intentId = intentId;
         }
@@ -110,22 +113,8 @@ export const PartnerPixPaymentModal = ({
           body: checkBody
         });
 
-        if (!checkError && checkResult?.status === 'paid') {
-          if (isUpgrade) {
-            // Verify upgrade actually happened
-            const { data } = await supabase
-              .from('partner_contracts')
-              .select('plan_name')
-              .eq('id', contractId)
-              .single();
-            if (data && previousPlanName && data.plan_name !== previousPlanName) {
-              console.log('✅ Upgrade detected via magen-check-status');
-              handleApproved('Seu plano foi atualizado com sucesso.');
-            }
-          } else {
-            console.log('✅ Payment confirmed via magen-check-status');
-            handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
-          }
+        if (!checkError && checkResult?.status === 'paid' && (checkResult.processed || checkResult.already_processed)) {
+          handleApproved(isUpgrade ? 'Seu plano foi atualizado com sucesso.' : paymentData.externalReference?.startsWith('regularize:') ? 'Seu pagamento foi regularizado.' : 'Seu contrato de parceiro foi ativado com sucesso.');
         } else {
           // Fallback: also check DB directly for status changes from webhook
           if (intentId) {
@@ -161,7 +150,7 @@ export const PartnerPixPaymentModal = ({
       clearInterval(pollingInterval);
       clearTimeout(timeoutId);
     };
-  }, [open, intentId, contractId, paymentStatus, onSuccess, onClose, toast, isUpgrade, previousPlanName, planInfo.name]);
+  }, [open, intentId, contractId, paymentStatus, onSuccess, onClose, toast, isUpgrade, previousPlanName, planInfo.name, paymentData.paymentId, paymentData.chargeId, paymentData.externalReference]);
 
   const handleApproved = (message: string) => {
     setPaymentStatus('approved');
@@ -192,9 +181,9 @@ export const PartnerPixPaymentModal = ({
   const checkPaymentStatus = async () => {
     setChecking(true);
     try {
-      const checkBody: any = { txId: paymentData.paymentId };
+      const checkBody: any = { txId: paymentData.paymentId, chargeId: paymentData.chargeId };
       if (isUpgrade && contractId) {
-        checkBody.upgradeRef = `upgrade:${contractId}:unknown`;
+        checkBody.upgradeRef = paymentData.externalReference;
       } else if (intentId) {
         checkBody.intentId = intentId;
       }
@@ -204,21 +193,8 @@ export const PartnerPixPaymentModal = ({
         body: checkBody
       });
 
-      if (!checkError && checkResult?.status === 'paid') {
-        if (isUpgrade && contractId) {
-          const { data } = await supabase
-            .from('partner_contracts')
-            .select('plan_name')
-            .eq('id', contractId)
-            .single();
-          if (data && previousPlanName && data.plan_name !== previousPlanName) {
-            handleApproved('Seu plano foi atualizado com sucesso.');
-          } else {
-            handleApproved('Pagamento confirmado!');
-          }
-        } else {
-          handleApproved('Seu contrato de parceiro foi ativado com sucesso.');
-        }
+      if (!checkError && checkResult?.status === 'paid' && (checkResult.processed || checkResult.already_processed)) {
+        handleApproved(isUpgrade ? 'Seu plano foi atualizado com sucesso.' : paymentData.externalReference?.startsWith('regularize:') ? 'Seu pagamento foi regularizado.' : 'Seu contrato de parceiro foi ativado com sucesso.');
       } else {
         toast({ title: "Pagamento ainda pendente", description: "Aguarde a confirmação do seu banco.", variant: "default" });
       }

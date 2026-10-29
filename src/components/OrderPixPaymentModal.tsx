@@ -13,6 +13,8 @@ interface OrderPixPaymentModalProps {
   onClose: () => void;
   paymentData: {
     paymentId: string;
+    gateway?: string;
+    chargeId?: string;
     qrCode?: string;
     qrCodeBase64?: string;
     qrCodeUrl?: string;
@@ -68,6 +70,7 @@ export const OrderPixPaymentModal = ({
     const pollingInterval = setInterval(async () => {
       if (paymentStatus !== 'pending') { clearInterval(pollingInterval); return; }
       try {
+        if (paymentData.gateway === 'magenpay') await supabase.functions.invoke('magen-check-status', {body: {txId: paymentData.paymentId, chargeId: paymentData.chargeId}});
         const { data } = await supabase
           .from('orders')
           .select('status')
@@ -90,7 +93,7 @@ export const OrderPixPaymentModal = ({
       clearInterval(pollingInterval);
       clearTimeout(timeoutId);
     };
-  }, [open, orderId, paymentStatus, onSuccess, onClose, toast]);
+  }, [open, orderId, paymentStatus, onSuccess, onClose, toast, paymentData.paymentId, paymentData.chargeId, paymentData.gateway]);
 
   const copyToClipboard = () => {
     if (paymentData.pixCopyPaste) {
@@ -104,6 +107,7 @@ export const OrderPixPaymentModal = ({
   const checkPaymentStatus = async () => {
     setChecking(true);
     try {
+      if (paymentData.gateway === 'magenpay') await supabase.functions.invoke('magen-check-status', {body: {txId: paymentData.paymentId, chargeId: paymentData.chargeId}});
       const { data } = await supabase
         .from('orders')
         .select('status')

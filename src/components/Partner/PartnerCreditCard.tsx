@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,9 +25,21 @@ const PartnerCreditCard: React.FC = () => {
   const { creditLine, debts, openDebts, availableCredit, isBlocked, isExpired, totalOpen, hasCredit, loading, refetch } = usePartnerCredit();
 
   const [payingId, setPayingId] = useState<string | null>(null);
-  const [pixData, setPixData] = useState<{ qrCodeBase64?: string; pixCopyPaste?: string; amount: number } | null>(null);
+  const [pixData, setPixData] = useState<{ qrCodeBase64?: string; pixCopyPaste?: string; amount: number; paymentId?: string; chargeId?: string; gateway?: string } | null>(null);
   const [partialDebt, setPartialDebt] = useState<PartnerCreditDebt | null>(null);
   const [partialValue, setPartialValue] = useState('');
+
+  useEffect(() => {
+    if (!pixData || pixData.gateway !== 'magenpay' || !pixData.paymentId) return;
+    let active = true;
+    const timer = setInterval(async () => {
+      const {data, error} = await supabase.functions.invoke('magen-check-status', {body: {txId: pixData.paymentId, chargeId: pixData.chargeId}});
+      if (active && !error && data?.status === 'paid' && (data.processed || data.already_processed)) {
+        setPixData(null); refetch(); toast({title: 'Pagamento confirmado', description: 'Devolução registrada.'});
+      }
+    }, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [pixData, refetch, toast]);
 
   if (loading || !hasCredit || !creditLine) return null;
 
@@ -61,7 +73,7 @@ const PartnerCreditCard: React.FC = () => {
 
       setPartialDebt(null);
       setPartialValue('');
-      setPixData({ qrCodeBase64: data.qrCodeBase64, pixCopyPaste: data.pixCopyPaste, amount: data.amount });
+      setPixData({ paymentId: data.paymentId, chargeId: data.chargeId, gateway: data.gateway, qrCodeBase64: data.qrCodeBase64, pixCopyPaste: data.pixCopyPaste, amount: data.amount });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro ao gerar PIX', description: err.message });
     } finally {

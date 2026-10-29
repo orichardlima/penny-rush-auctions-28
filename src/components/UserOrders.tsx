@@ -113,6 +113,7 @@ export const UserOrders = () => {
       setSelectedOrder(order);
       setPixPaymentData({
         paymentId: data.paymentId,
+        gateway: data.gateway, chargeId: data.chargeId,
         qrCode: data.qrCode,
         qrCodeBase64: data.qrCodeBase64,
         pixCopyPaste: data.pixCopyPaste

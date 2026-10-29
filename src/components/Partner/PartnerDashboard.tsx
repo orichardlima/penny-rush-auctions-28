@@ -593,6 +593,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
             }}
             paymentData={{
               paymentId: paymentData.paymentId,
+            gateway: paymentData.gateway, chargeId: paymentData.chargeId, externalReference: paymentData.externalReference,
               qrCode: paymentData.qrCode,
               qrCodeBase64: paymentData.qrCodeBase64,
               pixCopyPaste: paymentData.pixCopyPaste
@@ -1337,6 +1338,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           }}
           paymentData={{
             paymentId: upgradePaymentData.paymentId,
+            gateway: upgradePaymentData.gateway, chargeId: upgradePaymentData.chargeId, externalReference: upgradePaymentData.externalReference,
             qrCode: upgradePaymentData.qrCode,
             qrCodeBase64: upgradePaymentData.qrCodeBase64,
             pixCopyPaste: upgradePaymentData.pixCopyPaste
@@ -1363,6 +1365,7 @@ const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ preselectedPlanId }
           }}
           paymentData={{
             paymentId: regularizationPaymentData.paymentId,
+            gateway: regularizationPaymentData.gateway, chargeId: regularizationPaymentData.chargeId, externalReference: regularizationPaymentData.externalReference,
             qrCodeBase64: regularizationPaymentData.qrCodeBase64,
             pixCopyPaste: regularizationPaymentData.pixCopyPaste
           }}
