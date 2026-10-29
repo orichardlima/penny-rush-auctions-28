@@ -219,17 +219,7 @@ async function processPartnerIntent(supabase: any, intentId: string, txId: strin
     .update({ payment_status: 'approved', payment_id: txId })
     .eq('id', intent.id)
 
-  // Credit bonus bids if applicable
-  if (intent.bonus_bids && intent.bonus_bids > 0) {
-    const { error: creditErr } = await supabase.rpc('credit_purchase_bids', {
-      p_user_id: intent.user_id,
-      p_amount: intent.bonus_bids,
-      p_purchase_id: null,
-    })
-    if (creditErr) console.error('❌ credit_purchase_bids (intent bonus) failed:', creditErr)
-    else console.log(`✅ Credited ${intent.bonus_bids} bonus bids (30d validity)`)
-
-  }
+  // Lances bônus são creditados pelo trigger trg_credit_bonus_bids_on_contract.
 
   console.log('✅ Partner contract activation completed via check-status')
 
