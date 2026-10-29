@@ -59,6 +59,7 @@ const Auth = () => {
 
   // Determinar tab padrão baseado no parâmetro da URL
   const defaultTab = searchParams.get('tab') === 'signup' ? 'signup' : 'signin';
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
 
   // Buscar nome do parceiro indicador quando tiver ref na URL
   useEffect(() => {
@@ -515,7 +516,7 @@ const Auth = () => {
           </p>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue={defaultTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Entrar</TabsTrigger>
               <TabsTrigger value="signup">Cadastrar</TabsTrigger>
@@ -1001,7 +1002,19 @@ const Auth = () => {
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                   </div>
                 </div>
-                
+                {searchParams.get('ref') && (validationState.email?.exists || validationState.cpf?.exists) && (
+                  <div className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm space-y-2">
+                    <p className="text-foreground">
+                      Você já tem conta na Show de Lances. Entre com seu login para ativar o plano
+                      {sponsorName ? <> na equipe de <strong>{sponsorName}</strong></> : ' pelo link de indicação'}.
+                      O código de indicação continua guardado.
+                    </p>
+                    <Button type="button" variant="outline" className="w-full" onClick={() => setActiveTab('signin')}>
+                      Entrar com minha conta
+                    </Button>
+                  </div>
+                )}
+
                 <TurnstileWidget ref={captchaRef} onToken={setCaptchaToken} />
                 <Button type="submit" className="w-full" disabled={loading || captchaMissing || isValidating.email || isValidating.cpf || validationState.email?.exists || validationState.cpf?.exists}>
                   {loading ? "Cadastrando..." : "Cadastrar"}
