@@ -3212,6 +3212,30 @@ export type Database = {
         }
         Relationships: []
       }
+      magenpay_recovery_tickets: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -7757,6 +7781,11 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      magenpay_consume_recovery_ticket: {
+        Args: { p_ticket: string }
+        Returns: boolean
+      }
+      magenpay_refresh_recovery: { Args: never; Returns: undefined }
       notify_bid_expirations: {
         Args: never
         Returns: {
