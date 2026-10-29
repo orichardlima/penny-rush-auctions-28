@@ -27,7 +27,7 @@ serve(async (req) => {
 
     // 🔐 Contratos/upgrades continuam desativados por esta rota (contenção 27/10).
     // Compras de lances: só confirma se o txId for o mesmo gravado no pedido na criação do PIX.
-    if (!purchaseId || intentId || upgradeRef) {
+    if ((!purchaseId && !intentId) || upgradeRef || (purchaseId && intentId)) {
       if (Deno.env.get('LEGACY_PAYMENT_WEBHOOKS_ENABLED') !== 'true') {
         return new Response(JSON.stringify({ status: 'pending', disabled: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
@@ -37,6 +37,14 @@ serve(async (req) => {
       const { data: bound } = await sb.from('bid_purchases').select('id').eq('id', purchaseId).eq('payment_id', txId).maybeSingle()
       if (!bound) {
         return new Response(JSON.stringify({ error: 'txId does not match purchase' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+    }
+    // Ativação de plano: só confirma se o txId for o mesmo gravado no intent na criação do PIX.
+    if (intentId) {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+      const { data: bound } = await sb.from('partner_payment_intents').select('id').eq('id', intentId).eq('payment_id', txId).maybeSingle()
+      if (!bound) {
+        return new Response(JSON.stringify({ error: 'txId does not match intent' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
     }
 
@@ -154,6 +162,22 @@ async function processPartnerIntent(supabase: any, intentId: string, txId: strin
     return new Response(
       JSON.stringify({ status: 'paid', already_processed: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Anti-reuso: um txId só pode confirmar um pedido
+  const { error: confErr } = await supabase.from('payment_confirmations').insert({
+    provider: 'magenpay',
+    external_transaction_id: txId,
+    external_reference: intent.id,
+    entity_type: 'partner_intent',
+    amount: intent.aporte_value,
+  })
+  if (confErr) {
+    console.error('❌ payment_confirmations insert failed (possible reuse):', confErr.code)
+    return new Response(
+      JSON.stringify({ status: 'paid', error: 'Payment already used' }),
+      { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 
