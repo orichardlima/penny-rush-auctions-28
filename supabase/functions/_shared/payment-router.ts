@@ -40,6 +40,9 @@ export async function createDeposit(
 
   if (gateway === 'magenpay') {
     const prepared = await prepareMagenCharge(supabase, params.externalId, params.amount, params.authorization)
+    if (prepared.existing) {
+      return {gateway:'magenpay',chargeId:prepared.existing.id,externalReference:params.externalId,transactionId:prepared.existing.tx_id,status:'pending',pixCopyPaste:prepared.existing.pix_copy_paste,qrCodeBase64:'',qrCodeUrl:'',amount:Number(prepared.existing.amount)}
+    }
     const result = await createMagenDeposit({
       amount: params.amount,
       txId: params.externalId,

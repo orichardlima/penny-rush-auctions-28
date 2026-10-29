@@ -53,14 +53,18 @@ export async function prepareMagenCharge(sb: any, reference: string, amount: num
     }
   }
   if (!(expected > 0) || !Number.isFinite(amount) || Math.round(expected*100) !== Math.round(amount*100)) throw new Error('Valor do PIX divergente');
-  return { user_id: userId, payer_cpf: cpf, payer_name: profile.full_name, snapshot };
+  const {data: existing, error: lookupError} = await sb.from('magenpay_charges').select('*').eq('user_id',userId).eq('external_reference',reference).in('status',['pending','review']).order('created_at',{ascending:false}).limit(1).maybeSingle();
+  if (lookupError) throw new Error('Não foi possível conferir cobranças anteriores');
+  if (existing && (existing.status !== 'pending' || Number(existing.amount) !== expected || JSON.stringify(existing.snapshot) !== JSON.stringify(snapshot))) {
+    // JSON object ordering is not a financial comparison; compare the source fields below instead.
+    if (existing.status !== 'pending' || Number(existing.amount) !== expected || Object.entries(snapshot).some(([k,v]) => String(existing.snapshot[k]) !== String(v))) throw new Error('Cobrança anterior precisa de conferência');
+  }
+  return { user_id: userId, payer_cpf: cpf, payer_name: profile.full_name, snapshot, existing };
 }
 
 export async function saveMagenCharge(sb: any, prepared: Awaited<ReturnType<typeof prepareMagenCharge>>, reference: string, result: {transactionId: string; pixCopyPaste: string; amount: number}) {
   if (!/^[A-Za-z0-9_-]{8,100}$/.test(result.transactionId) || !result.pixCopyPaste) throw new Error('Resposta PIX MagenPay inválida');
-  const { payer_name: _name, ...charge } = prepared;
-  const { data, error } = await sb.from('magenpay_charges').insert({ ...charge, tx_id: result.transactionId, external_reference: reference, amount: result.amount, pix_copy_paste: result.pixCopyPaste }).select('id').single();
-  if (error || !data) throw new Error('Não foi possível salvar o vínculo do PIX');
+  const { payer_name: _name, existing: _existing, ...charge } = prepared;
   // Bind the entity before making its charge recoverable.
   const type = prepared.snapshot.type;
   const table = type === 'bid_purchase' ? 'bid_purchases' : type === 'partner_intent' ? 'partner_payment_intents' : type === 'order' ? 'orders' : null;
@@ -68,5 +72,7 @@ export async function saveMagenCharge(sb: any, prepared: Awaited<ReturnType<type
     const { error: bindingError } = await sb.from(table).update({payment_id: result.transactionId}).eq('id', prepared.snapshot.entity_id);
     if (bindingError) throw new Error('Não foi possível vincular o PIX ao pedido');
   }
+  const { data, error } = await sb.from('magenpay_charges').insert({ ...charge, tx_id: result.transactionId, external_reference: reference, amount: result.amount, pix_copy_paste: result.pixCopyPaste }).select('id').single();
+  if (error || !data) throw new Error('Não foi possível salvar o vínculo do PIX');
   return data.id as string;
 }
