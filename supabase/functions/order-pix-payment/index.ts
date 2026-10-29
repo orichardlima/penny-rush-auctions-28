@@ -67,6 +67,7 @@ serve(async (req) => {
       description: `Pagamento do produto: ${order.product_name}`,
       payerName: userName || 'Usuario',
       payerEmail: userEmail,
+      authorization: req.headers.get('Authorization') || undefined,
       payerDocument: cpf
     })
 
@@ -79,6 +80,7 @@ serve(async (req) => {
     const response = {
       orderId: order.id,
       paymentId: depositResult.transactionId,
+      ...(depositResult.gateway === 'magenpay' ? { gateway: 'magenpay', chargeId: depositResult.chargeId, externalReference: depositResult.externalReference } : {}),
       qrCodeBase64: depositResult.qrCodeBase64,
       qrCodeUrl: depositResult.qrCodeUrl,
       pixCopyPaste: depositResult.pixCopyPaste,
