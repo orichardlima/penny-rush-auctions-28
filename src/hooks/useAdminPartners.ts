@@ -1755,7 +1755,7 @@ export const useAdminPartners = () => {
       }
 
       // Record upgrade in partner_upgrades
-      await supabase.from('partner_upgrades').insert({
+      const { data: upgradeRow } = await supabase.from('partner_upgrades').insert({
         partner_contract_id: contractId,
         previous_plan_name: oldPlanName,
         new_plan_name: newPlan.name,
@@ -1768,7 +1768,10 @@ export const useAdminPartners = () => {
         difference_paid: 0,
         total_received_at_upgrade: contract.total_received,
         notes: 'Upgrade administrativo (sem pagamento PIX)'
-      });
+      }).select('id').maybeSingle();
+      // Each upgrade gets its own bonus key so consecutive upgrades on the same
+      // contract are not swallowed by the unique (contract, level, event) constraint.
+      const upgradeSourceEvent = upgradeRow?.id ? `upgrade:${upgradeRow.id}` : `upgrade:${Date.now()}`;
 
       // Binary points propagation is handled automatically by the DB trigger
       // trg_upgrade_propagate_binary on partner_upgrades INSERT.
