@@ -164,6 +164,11 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
   const totalCredits = manualCredits.reduce((sum, c) => sum + Number(c.amount), 0);
   const paidWithdrawals = withdrawals.filter(w => String(w.status).toUpperCase() === 'PAID');
   const totalWithdrawals = paidWithdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
+  const totalWithdrawalFees = paidWithdrawals.reduce((sum, w) => sum + Number(w.fee_amount || 0), 0);
+  const totalWithdrawalNet = paidWithdrawals.reduce((sum, w) => {
+    const net = Number(w.net_amount);
+    return sum + (Number.isFinite(net) && net > 0 ? net : Number(w.amount) - Number(w.fee_amount || 0));
+  }, 0);
   const pendingWithdrawals = withdrawals.filter(w => ['PENDING', 'APPROVED'].includes(String(w.status).toUpperCase()));
   const totalPendingWithdrawals = pendingWithdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
 
