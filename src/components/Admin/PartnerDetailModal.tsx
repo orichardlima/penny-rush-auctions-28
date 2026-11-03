@@ -283,6 +283,9 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                 <CardContent className="px-3 pb-3">
                   <div className="text-lg font-bold text-red-600">{formatPrice(totalWithdrawals)}</div>
                   <p className="text-[10px] text-muted-foreground">{paidWithdrawals.length} pagos</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    taxas {formatPrice(totalWithdrawalFees)} · recebido {formatPrice(totalWithdrawalNet)}
+                  </p>
                   {pendingWithdrawals.length > 0 && (
                     <p className="text-[10px] text-muted-foreground">{pendingWithdrawals.length} pendentes · {formatPrice(totalPendingWithdrawals)}</p>
                   )}
