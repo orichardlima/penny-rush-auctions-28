@@ -6627,6 +6627,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _is_active_manager_affiliate: {
+        Args: { _affiliate_id: string }
+        Returns: boolean
+      }
       _is_blocked_email: { Args: { p_email: string }; Returns: boolean }
       _is_privileged_writer: { Args: never; Returns: boolean }
       _is_valid_cpf: { Args: { p: string }; Returns: boolean }
