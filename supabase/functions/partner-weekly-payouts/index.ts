@@ -150,6 +150,22 @@ Deno.serve(async (req) => {
 
     const weekStartStr = formatDate(weekStart)
     const weekEndStr = formatDate(weekEnd)
+
+    // Trava: nunca gerar repasse de uma semana que ainda não terminou
+    // (a partir de domingo 23h Bahia). Evita pagamentos antecipados que
+    // fazem a rotina de domingo pular o parceiro por idempotência.
+    const closeMoment = new Date(weekEnd)
+    closeMoment.setHours(23, 0, 0, 0)
+    if (brazilNow < closeMoment) {
+      console.log(`[partner-weekly-payouts] Semana ${weekStartStr}–${weekEndStr} ainda não terminou. Abortando.`)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: `A semana ${weekStartStr} a ${weekEndStr} ainda não terminou. O repasse só pode ser gerado a partir de domingo 23h.`
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
     
     console.log(`[partner-weekly-payouts] Período: ${weekStartStr} a ${weekEndStr}`)
 
