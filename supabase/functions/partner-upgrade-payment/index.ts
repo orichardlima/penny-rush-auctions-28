@@ -133,7 +133,7 @@ async function processCotasUpgrade(supabase: any, contract: any, upgradeCotas: n
   })
 
   const newAporteValue = currentPlan.aporte_value * upgradeCotas
-  const newTotalCap = currentPlan.total_cap * upgradeCotas
+  const newTotalCap = Number(contract.total_cap) + Number(currentPlan.total_cap) * cotasDiff
   const newWeeklyCap = currentPlan.weekly_cap * upgradeCotas
 
   const response = {

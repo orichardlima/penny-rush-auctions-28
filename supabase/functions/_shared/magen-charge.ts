@@ -29,7 +29,7 @@ export async function prepareMagenCharge(sb: any, reference: string, amount: num
       expected = newAporte - Number(c.aporte_value);
       snapshot = { type, entity_id: id, previous_plan_name: c.plan_name, previous_cotas: c.cotas, previous_aporte: c.aporte_value,
         new_plan_name: plan.name, new_cotas: cotas, new_aporte: newAporte, new_weekly_cap: Number(plan.weekly_cap)*cotas,
-        new_total_cap: Number(plan.total_cap)*cotas, new_bonus_bids: Number(plan.bonus_bids || 0)*cotas };
+        new_total_cap: type === 'cotas-upgrade' ? Number(c.total_cap) + Number(plan.total_cap)*(cotas - Number(c.cotas)) : Number(plan.total_cap)*cotas, new_bonus_bids: Number(plan.bonus_bids || 0)*cotas };
     }
   } else if (type === 'credit') {
     const { data: d } = await sb.from('partner_credit_debts').select('*').eq('id', id).eq('user_id', userId).single();
