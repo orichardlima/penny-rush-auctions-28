@@ -357,7 +357,8 @@ async function processCotasUpgradePayment(supabase: any, txId: string, transacti
   const cotasDiff = newCotas - contract.cotas
   const differencePaid = currentPlan.aporte_value * cotasDiff
   const newAporteValue = currentPlan.aporte_value * newCotas
-  const newTotalCap = currentPlan.total_cap * newCotas
+  // Preserva o teto já contratado; só as cotas novas usam o teto atual do plano
+    const newTotalCap = Number(contract.total_cap) + Number(currentPlan.total_cap) * cotasDiff
   const newWeeklyCap = currentPlan.weekly_cap * newCotas
   const newBonusBids = currentPlan.bonus_bids * newCotas
 
