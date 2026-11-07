@@ -4584,6 +4584,53 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_withdrawal_receipts: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          file_name: string
+          file_path: string
+          id: string
+          mime_type: string
+          size_bytes: number
+          uploaded_by: string
+          withdrawal_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          mime_type: string
+          size_bytes: number
+          uploaded_by?: string
+          withdrawal_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          uploaded_by?: string
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_withdrawal_receipts_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "partner_withdrawals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_withdrawals: {
         Row: {
           amount: number
