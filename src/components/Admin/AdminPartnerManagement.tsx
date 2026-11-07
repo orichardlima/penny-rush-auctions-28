@@ -1996,6 +1996,9 @@ const AdminPartnerManagement = () => {
                               Pago em {formatDate(withdrawal.paid_at)}
                             </span>
                           )}
+                          {(withdrawal.status === 'PAID' || withdrawal.status === 'APPROVED') && (
+                            <WithdrawalReceiptDialog withdrawalId={withdrawal.id} />
+                          )}
                           {withdrawal.status === 'REJECTED' && withdrawal.rejection_reason && (
                             <span className="text-xs text-red-600">
                               {withdrawal.rejection_reason}
