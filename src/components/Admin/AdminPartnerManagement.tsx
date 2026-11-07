@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { WithdrawalReceiptDialog } from "./WithdrawalReceiptDialog";
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1995,6 +1996,9 @@ const AdminPartnerManagement = () => {
                             <span className="text-xs text-green-600">
                               Pago em {formatDate(withdrawal.paid_at)}
                             </span>
+                          )}
+                          {(withdrawal.status === 'PAID' || withdrawal.status === 'APPROVED') && (
+                            <WithdrawalReceiptDialog withdrawalId={withdrawal.id} />
                           )}
                           {withdrawal.status === 'REJECTED' && withdrawal.rejection_reason && (
                             <span className="text-xs text-red-600">
