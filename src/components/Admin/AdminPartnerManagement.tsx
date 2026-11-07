@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { WithdrawalReceiptDialog } from "./WithdrawalReceiptDialog";
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
