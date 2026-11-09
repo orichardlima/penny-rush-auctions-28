@@ -357,6 +357,28 @@ export const AdminUserActions: React.FC<AdminUserActionsProps> = ({ user, onUser
           if (profileData?.referred_by_partner_code) {
             setAdminReferralCode(profileData.referred_by_partner_code);
             await validateSponsorCode(profileData.referred_by_partner_code);
+          } else {
+            // Fallback: indicação via link de afiliado → código de parceiro ativo do afiliado
+            const { data: refData } = await supabase
+              .from('affiliate_referrals')
+              .select('affiliate_id, affiliates!inner(user_id)')
+              .eq('referred_user_id', user.user_id)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .maybeSingle();
+            const affUserId = (refData as any)?.affiliates?.user_id;
+            if (affUserId && affUserId !== user.user_id) {
+              const { data: affContract } = await supabase
+                .from('partner_contracts')
+                .select('referral_code')
+                .eq('user_id', affUserId)
+                .eq('status', 'ACTIVE')
+                .maybeSingle();
+              if (affContract?.referral_code) {
+                setAdminReferralCode(affContract.referral_code);
+                await validateSponsorCode(affContract.referral_code);
+              }
+            }
           }
         }
       }
