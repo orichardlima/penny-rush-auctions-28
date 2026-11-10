@@ -2095,6 +2095,12 @@ const AdminPartnerManagement = () => {
                     Copiar Todos os Dados
                   </Button>
 
+                  {/* Comprovante */}
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <span className="text-sm text-muted-foreground">Comprovante do PIX (opcional)</span>
+                    <WithdrawalReceiptDialog withdrawalId={pixConfirmWithdrawal.id} />
+                  </div>
+
                   {/* Confirmar */}
                   <Button
                     className="w-full"
