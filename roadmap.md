@@ -1,3 +1,7 @@
+# Recuperação automática de PIX — 12/11
+- [ ] Recriar e validar o agendamento de recuperação MagenPay sem alterar as rotinas de leilões ou VeoPag.
+- [ ] Testar dupla confirmação de upgrade pago e comparar integralmente o contrato, histórico e créditos.
+
 # Investigação Magen
 
 # Correção MagenPay autorizada em 29/10
