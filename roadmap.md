@@ -1,6 +1,6 @@
 # Recuperação automática de PIX — 12/11
-- [ ] Recriar e validar o agendamento de recuperação MagenPay sem alterar as rotinas de leilões ou VeoPag.
-- [ ] Testar dupla confirmação de upgrade pago e comparar integralmente o contrato, histórico e créditos.
+- [ ] Validar uma execução automática da recuperação MagenPay — bloqueado pelos timeouts de inicialização: 85 tarefas/minuto para 32 slots; o usuário optou por não reorganizar as tarefas dos leilões. Agendamento isolado recriado com novas tentativas a cada minuto enquanto houver fila.
+- [x] Testar dupla confirmação de upgrade pago e comparar integralmente o contrato, histórico e créditos — `already_processed=true`, hash contratual inalterado, um upgrade e uma confirmação de R$ 1.500; 6 testes MagenPay aprovados.
 
 # Investigação Magen
 
