@@ -6834,24 +6834,45 @@ export type Database = {
         Args: { p_bid_id: string; p_rows: Json }
         Returns: undefined
       }
-      complete_oauth_profile: {
-        Args: {
-          p_affiliate_referral_code?: string
-          p_birth_date: string
-          p_cep: string
-          p_city: string
-          p_complement: string
-          p_cpf: string
-          p_full_name: string
-          p_neighborhood: string
-          p_number: string
-          p_partner_referral_code?: string
-          p_phone: string
-          p_state: string
-          p_street: string
-        }
-        Returns: Json
-      }
+      complete_oauth_profile:
+        | {
+            Args: {
+              p_affiliate_referral_code?: string
+              p_birth_date: string
+              p_cep: string
+              p_city: string
+              p_complement: string
+              p_cpf: string
+              p_full_name: string
+              p_neighborhood: string
+              p_number: string
+              p_partner_referral_code?: string
+              p_phone: string
+              p_state: string
+              p_street: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_affiliate_referral_code?: string
+              p_birth_date: string
+              p_cep: string
+              p_city: string
+              p_company_name?: string
+              p_complement: string
+              p_cpf: string
+              p_document_type?: string
+              p_full_name: string
+              p_neighborhood: string
+              p_number: string
+              p_partner_referral_code?: string
+              p_phone: string
+              p_state: string
+              p_street: string
+            }
+            Returns: Json
+          }
       consume_bid_lots: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined

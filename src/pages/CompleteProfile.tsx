@@ -12,9 +12,11 @@ import { FieldStatus } from '@/components/ui/field-status';
 import { supabase } from '@/integrations/supabase/client';
 import {
   validateCPF,
+  validateCNPJ,
   validatePhone,
   validateCEP,
   formatCPF,
+  formatCNPJ,
   formatPhone,
   formatCEP,
   fetchAddressByCEP,
@@ -28,7 +30,7 @@ import {
   clearReferralTracking,
 } from '@/hooks/useReferralTracking';
 import { SEOHead } from '@/components/SEOHead';
-import { UserCheck } from 'lucide-react';
+import { Building2, UserCheck } from 'lucide-react';
 
 const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
 const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -50,11 +52,13 @@ const CompleteProfile = () => {
   const [birthDay, setBirthDay] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
+  const [documentType, setDocumentType] = useState<'CPF' | 'CNPJ'>('CPF');
 
   const initialRef = searchParams.get('ref') || getPartnerReferralCode() || '';
 
   const [form, setForm] = useState({
     fullName: '',
+    companyName: '',
     cpf: '',
     phone: '',
     cep: '',
@@ -113,7 +117,7 @@ const CompleteProfile = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     let v = value;
-    if (name === 'cpf') v = formatCPF(value);
+    if (name === 'cpf') v = documentType === 'CNPJ' ? formatCNPJ(value) : formatCPF(value);
     if (name === 'phone') v = formatPhone(value);
     if (name === 'cep') v = formatCEP(value);
     if (name === 'partnerReferralCode') v = value.toUpperCase();
@@ -141,7 +145,9 @@ const CompleteProfile = () => {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.fullName.trim()) e.fullName = 'Nome obrigatório';
-    if (!validateCPF(form.cpf)) e.cpf = 'CPF inválido';
+    if (documentType === 'CNPJ' && !form.companyName.trim()) e.companyName = 'Razão social obrigatória';
+    if (documentType === 'CPF' && !validateCPF(form.cpf)) e.cpf = 'CPF inválido';
+    if (documentType === 'CNPJ' && !validateCNPJ(form.cpf)) e.cpf = 'CNPJ inválido';
     if (!validatePhone(form.phone)) e.phone = 'Telefone inválido';
     if (!birthDay || !birthMonth || !birthYear) e.birthDate = 'Data de nascimento obrigatória';
     if (!validateCEP(form.cep)) e.cep = 'CEP inválido';
@@ -150,7 +156,7 @@ const CompleteProfile = () => {
     if (!form.neighborhood.trim()) e.neighborhood = 'Bairro obrigatório';
     if (!form.city.trim()) e.city = 'Cidade obrigatória';
     if (!form.state.trim()) e.state = 'Estado obrigatório';
-    if (validationState.cpf?.exists) e.cpf = 'CPF já cadastrado';
+    if (validationState.cpf?.exists) e.cpf = `${documentType} já cadastrado`;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -166,6 +172,8 @@ const CompleteProfile = () => {
 
       const { data, error } = await supabase.rpc('complete_oauth_profile', {
         p_full_name: form.fullName.trim(),
+        p_company_name: documentType === 'CNPJ' ? form.companyName.trim() : null,
+        p_document_type: documentType,
         p_cpf: form.cpf,
         p_phone: form.phone,
         p_birth_date: birthDate,
@@ -185,9 +193,13 @@ const CompleteProfile = () => {
       if (!result?.success) {
         const msg =
           result?.error === 'cpf_already_used'
-            ? 'Este CPF já está cadastrado.'
+            ? `Este ${documentType} já está cadastrado.`
             : result?.error === 'cpf_invalid'
             ? 'CPF inválido.'
+            : result?.error === 'cnpj_invalid'
+            ? 'CNPJ inválido.'
+            : result?.error === 'company_name_required'
+            ? 'Informe a razão social.'
             : 'Não foi possível salvar. Tente novamente.';
         toast({ title: 'Erro', description: msg, variant: 'destructive' });
         return;
@@ -240,7 +252,47 @@ const CompleteProfile = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="fullName">Nome Completo *</Label>
+                <Label>Tipo de cadastro *</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['CPF', 'CNPJ'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setDocumentType(type);
+                        setForm((f) => ({ ...f, cpf: '' }));
+                        setErrors((e) => ({ ...e, cpf: '', companyName: '' }));
+                      }}
+                      className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                        documentType === type
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-muted-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      {type === 'CNPJ' && <Building2 className="h-4 w-4" />}
+                      {type === 'CPF' ? 'Pessoa Física (CPF)' : 'Pessoa Jurídica (CNPJ)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {documentType === 'CNPJ' && (
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Razão Social *</Label>
+                  <Input
+                    id="companyName"
+                    name="companyName"
+                    value={form.companyName}
+                    onChange={handleChange}
+                    required
+                    className={errors.companyName ? 'border-destructive' : ''}
+                  />
+                  {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="fullName">{documentType === 'CNPJ' ? 'Nome do responsável *' : 'Nome Completo *'}</Label>
                 <Input
                   id="fullName"
                   name="fullName"
@@ -254,27 +306,27 @@ const CompleteProfile = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cpf">CPF *</Label>
+                  <Label htmlFor="cpf">{documentType} *</Label>
                   <Input
                     id="cpf"
                     name="cpf"
                     value={form.cpf}
                     onChange={handleChange}
                     onBlur={() => validateCPFAvailability(form.cpf)}
-                    maxLength={14}
-                    placeholder="000.000.000-00"
+                    maxLength={documentType === 'CNPJ' ? 18 : 14}
+                    placeholder={documentType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
                     required
                     className={errors.cpf ? 'border-destructive' : ''}
                   />
                   {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
                   <FieldStatus
                     isValidating={isValidating.cpf}
-                    isValid={form.cpf.length > 0 ? validateCPF(form.cpf) : undefined}
+                    isValid={form.cpf.length > 0 ? (documentType === 'CNPJ' ? validateCNPJ(form.cpf) : validateCPF(form.cpf)) : undefined}
                     isAvailable={validationState.cpf?.available}
                     hasError={!!validationState.cpf?.error}
                     message={
                       validationState.cpf?.exists
-                        ? 'Este CPF já possui cadastro.'
+                        ? `Este ${documentType} já possui cadastro.`
                         : undefined
                     }
                   />
