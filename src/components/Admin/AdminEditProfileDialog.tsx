@@ -213,7 +213,7 @@ export const AdminEditProfileDialog: React.FC<Props> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="ep-cpf">CPF</Label>
-                <Input id="ep-cpf" value={form.cpf} maxLength={14}
+                <Input id="ep-cpf" value={form.cpf} maxLength={18}
                   onChange={e => setForm(p => ({ ...p, cpf: formatCPF(e.target.value) }))} />
               </div>
               <div>

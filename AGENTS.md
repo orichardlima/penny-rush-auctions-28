@@ -3,3 +3,4 @@
 - Internal financial/points/bid helpers are service-only; public RPCs must validate auth.uid(), ownership and arguments, never a caller-supplied admin UUID. Why: indirect wrappers can reopen revoked helper privileges.
 - Functions created by migrations require explicit execution grants; SECURITY DEFINER guards must not authorize via current_user. Why: the owner identity bypassed incomplete-profile checks.
 - MagenPay deposits use persisted charges with authenticated ownership and service-only atomic confirmation; recovery is wake-on-enqueue with bounded retries and stops after drain. Why: closed payment dialogs must not lose confirmations or allow transaction reuse; VeoPag remains isolated.
+- PJ accounts store the CNPJ digits in `profiles.cpf` with `document_type='CNPJ'` (+ `company_name`); validation lives in `enforce_complete_signup`. Why: reuses existing uniqueness and payment-document paths without touching provider flows.

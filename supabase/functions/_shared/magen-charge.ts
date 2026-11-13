@@ -9,7 +9,7 @@ export async function prepareMagenCharge(sb: any, reference: string, amount: num
   const userId = data.user.id;
   const { data: profile } = await sb.from('profiles').select('cpf, full_name, profile_complete, is_blocked').eq('user_id', userId).single();
   const cpf = String(profile?.cpf || '').replace(/\D/g, '');
-  if (!profile?.profile_complete || profile.is_blocked || cpf.length !== 11) throw new Error('Perfil incompleto ou bloqueado');
+  if (!profile?.profile_complete || profile.is_blocked || (cpf.length !== 11 && cpf.length !== 14)) throw new Error('Perfil incompleto ou bloqueado');
   const [type, id, target] = reference.split(':');
   let snapshot: Record<string, unknown>; let expected: number;
   if (['upgrade','cotas-upgrade','regularize'].includes(type)) {

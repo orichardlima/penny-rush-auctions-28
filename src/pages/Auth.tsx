@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldValidation } from '@/hooks/useFieldValidation';
 import { Eye, EyeOff, Mail, Lock, User, MapPin, UserCheck } from 'lucide-react';
-import { validateCPF, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
+import { validateCPF, validateCNPJ, formatCNPJ, validatePhone, validateCEP, formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 import { getReferralCode, clearReferralTracking, getOrCreateVisitorId, getStoredPerfRefCode } from '@/hooks/useReferralTracking';
 import { getPartnerReferralCode, clearPartnerReferralTracking } from '@/hooks/usePartnerReferralTracking';
 import { SEOHead } from '@/components/SEOHead';
@@ -31,6 +31,7 @@ const Auth = () => {
     password: '',
     fullName: '',
     cpf: '',
+    companyName: '',
     phone: '',
     birthDate: '',
     cep: '',
@@ -47,6 +48,8 @@ const Auth = () => {
   const [sponsorName, setSponsorName] = useState<string | null>(null);
   const [loadingSponsor, setLoadingSponsor] = useState(false);
   const [showBettorContract, setShowBettorContract] = useState(false);
+  const [docType, setDocType] = useState<'CPF' | 'CNPJ'>('CPF');
+  const isValidDoc = (v: string) => docType === 'CNPJ' ? validateCNPJ(v) : validateCPF(v);
   const [birthDay, setBirthDay] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
@@ -128,11 +131,11 @@ const Auth = () => {
       clearTimeout(debounceTimeout.current);
     }
     debounceTimeout.current = setTimeout(() => {
-      if (validateCPF(cpf)) {
+      if (isValidDoc(cpf)) {
         validateCPFAvailability(cpf);
       }
     }, 800);
-  }, [validateCPFAvailability]);
+  }, [validateCPFAvailability, docType]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -140,7 +143,7 @@ const Auth = () => {
     
     // Aplicar máscaras
     if (name === 'cpf') {
-      formattedValue = formatCPF(value);
+      formattedValue = docType === 'CNPJ' ? formatCNPJ(value) : formatCPF(value);
     } else if (name === 'phone') {
       formattedValue = formatPhone(value);
     } else if (name === 'cep') {
@@ -173,8 +176,9 @@ const Auth = () => {
     if (!formData.email) newErrors.email = "Email é obrigatório";
     if (!formData.password || formData.password.length < 6) newErrors.password = "Senha deve ter pelo menos 6 caracteres";
     if (!formData.fullName) newErrors.fullName = "Nome completo é obrigatório";
-    if (!formData.cpf) newErrors.cpf = "CPF é obrigatório";
-    else if (!validateCPF(formData.cpf)) newErrors.cpf = "CPF inválido";
+    if (!formData.cpf) newErrors.cpf = `${docType} é obrigatório`;
+    else if (!isValidDoc(formData.cpf)) newErrors.cpf = `${docType} inválido`;
+    if (docType === 'CNPJ' && formData.companyName.trim().length < 3) newErrors.companyName = "Razão social é obrigatória";
     if (!formData.phone) newErrors.phone = "Telefone é obrigatório";
     else if (!validatePhone(formData.phone)) newErrors.phone = "Telefone inválido";
     if (!formData.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória";
@@ -191,7 +195,7 @@ const Auth = () => {
       newErrors.email = "Este email já está cadastrado";
     }
     if (validationState.cpf?.exists) {
-      newErrors.cpf = "Este CPF já está cadastrado";
+      newErrors.cpf = `Este ${docType} já está cadastrado`;
     }
 
     // Bloquear submissão se ainda estiver validando
@@ -327,6 +331,8 @@ const Auth = () => {
       const userData = {
         full_name: formData.fullName,
         cpf: formData.cpf.replace(/\D/g, ''),
+        document_type: docType,
+        company_name: docType === 'CNPJ' ? formData.companyName.trim() : null,
         phone: formData.phone,
         birth_date: formData.birthDate,
         cep: formData.cep,
@@ -392,6 +398,7 @@ const Auth = () => {
           password: "",
           fullName: "",
           cpf: "",
+          companyName: "",
           phone: "",
           birthDate: "",
           cep: "",
@@ -676,35 +683,77 @@ const Auth = () => {
                     {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                   </div>
 
+                  <div className="space-y-2">
+                    <Label>Tipo de cadastro *</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(['CPF', 'CNPJ'] as const).map((t) => (
+                        <Button
+                          key={t}
+                          type="button"
+                          variant={docType === t ? 'default' : 'outline'}
+                          onClick={() => {
+                            setDocType(t);
+                            setFormData(prev => ({ ...prev, cpf: '', companyName: '' }));
+                            clearValidation('cpf');
+                            setErrors(prev => ({ ...prev, cpf: '', companyName: '' }));
+                          }}
+                        >
+                          {t === 'CPF' ? 'Pessoa Física (CPF)' : 'Pessoa Jurídica (CNPJ)'}
+                        </Button>
+                      ))}
+                    </div>
+                    {docType === 'CNPJ' && (
+                      <p className="text-xs text-muted-foreground">Cadastro com CNPJ é destinado a Parceiros de Expansão.</p>
+                    )}
+                  </div>
+
+                  {docType === 'CNPJ' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName">Razão Social *</Label>
+                      <Input
+                        id="companyName"
+                        name="companyName"
+                        type="text"
+                        placeholder="Nome da empresa"
+                        value={formData.companyName}
+                        onChange={handleInputChange}
+                        className={errors.companyName ? "border-destructive" : ""}
+                        maxLength={200}
+                        required
+                      />
+                      {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cpf">CPF *</Label>
+                      <Label htmlFor="cpf">{docType} *</Label>
                       <Input
                         id="cpf"
                         name="cpf"
                         type="text"
-                        placeholder="000.000.000-00"
+                        placeholder={docType === 'CNPJ' ? "00.000.000/0000-00" : "000.000.000-00"}
                         value={formData.cpf}
                         onChange={handleInputChange}
                         onBlur={() => debouncedCPFValidation(formData.cpf)}
                         className={errors.cpf ? "border-destructive" : ""}
-                        maxLength={14}
-                        aria-label="Digite seu CPF"
+                        maxLength={docType === 'CNPJ' ? 18 : 14}
+                        aria-label={`Digite seu ${docType}`}
                         required
                       />
                       {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
                       <FieldStatus
                         isValidating={isValidating.cpf}
-                        isValid={formData.cpf.length > 0 ? validateCPF(formData.cpf) : undefined}
+                        isValid={formData.cpf.length > 0 ? isValidDoc(formData.cpf) : undefined}
                         isAvailable={validationState.cpf?.available}
                         hasError={!!validationState.cpf?.error}
                         message={
                           validationState.cpf?.error 
                             ? validationState.cpf.error
                             : validationState.cpf?.exists 
-                            ? "Este CPF já possui cadastro. Use outro CPF ou faça login." 
+                            ? `Este ${docType} já possui cadastro. Use outro ${docType} ou faça login.` 
                             : validationState.cpf?.available 
-                            ? "CPF disponível para cadastro" 
+                            ? `${docType} disponível para cadastro` 
                             : undefined
                         }
                       />

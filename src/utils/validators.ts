@@ -115,3 +115,23 @@ export const fetchAddressByCEP = async (cep: string): Promise<{
     return null;
   }
 };
+export const validateCNPJ = (cnpj: string): boolean => {
+  const d = cnpj.replace(/\D/g, '');
+  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+  const calc = (len: number) => {
+    const w = len === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    const s = w.reduce((acc, wi, i) => acc + parseInt(d[i]) * wi, 0);
+    const r = s % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return calc(12) === parseInt(d[12]) && calc(13) === parseInt(d[13]);
+};
+
+export const formatCNPJ = (value: string): string => {
+  const v = value.replace(/\D/g, '').slice(0, 14);
+  return v
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+};

@@ -8,7 +8,7 @@ import { Loader2, Lock, ShieldAlert, KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatCPF, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
+import { formatCPF, formatCNPJ, formatPhone, formatCEP, fetchAddressByCEP } from '@/utils/validators';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 
 interface EditableFields {
@@ -63,7 +63,7 @@ export const UserProfileEditor: React.FC<Props> = ({
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, cpf, birth_date, email, phone, cep, street, number, complement, neighborhood, city, state')
+        .select('full_name, cpf, document_type, company_name, birth_date, email, phone, cep, street, number, complement, neighborhood, city, state')
         .eq('user_id', user!.id)
         .maybeSingle();
 
@@ -73,7 +73,9 @@ export const UserProfileEditor: React.FC<Props> = ({
         full_name: data?.full_name || '',
         cpf: data?.cpf || '',
         birth_date: data?.birth_date || '',
-      });
+        document_type: (data as any)?.document_type || 'CPF',
+        company_name: (data as any)?.company_name || '',
+      } as any);
       const editable: EditableFields = {
         phone: data?.phone || '',
         cep: data?.cep || '',
@@ -200,8 +202,9 @@ export const UserProfileEditor: React.FC<Props> = ({
             <Input value={readonly.full_name} disabled readOnly />
           </div>
           <div>
-            <Label>CPF</Label>
-            <Input value={readonly.cpf ? formatCPF(readonly.cpf) : ''} disabled readOnly />
+            <Label>{(readonly as any).document_type === 'CNPJ' ? 'CNPJ' : 'CPF'}</Label>
+            <Input value={readonly.cpf ? ((readonly as any).document_type === 'CNPJ' ? formatCNPJ(readonly.cpf) : formatCPF(readonly.cpf)) : ''} disabled readOnly />
+            {(readonly as any).company_name && <p className="text-xs text-muted-foreground">Razão social: {(readonly as any).company_name}</p>}
           </div>
           <div>
             <Label>Data de nascimento</Label>

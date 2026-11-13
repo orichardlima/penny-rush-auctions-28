@@ -8,7 +8,7 @@ export function validateMagenPaid(charge: {tx_id: string; amount: number; payer_
   const cpf = String(data?.payerTaxId ?? '').replace(/\D/g, '');
   if (tx !== charge.tx_id) throw new Error('Provider transaction mismatch');
   if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount*100) !== Math.round(Number(charge.amount)*100)) throw new Error('Provider amount mismatch');
-  if (cpf.length !== 11 || cpf !== charge.payer_cpf) throw new Error('Provider payer mismatch');
+  if ((cpf.length !== 11 && cpf.length !== 14) || cpf !== charge.payer_cpf) throw new Error('Provider payer mismatch');
   return { status: 'paid', amount, cpf };
 }
 

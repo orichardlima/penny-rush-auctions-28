@@ -5938,9 +5938,11 @@ export type Database = {
           blocked_by: string | null
           cep: string | null
           city: string | null
+          company_name: string | null
           complement: string | null
           cpf: string | null
           created_at: string
+          document_type: string
           email: string | null
           full_name: string | null
           id: string
@@ -5979,9 +5981,11 @@ export type Database = {
           blocked_by?: string | null
           cep?: string | null
           city?: string | null
+          company_name?: string | null
           complement?: string | null
           cpf?: string | null
           created_at?: string
+          document_type?: string
           email?: string | null
           full_name?: string | null
           id?: string
@@ -6020,9 +6024,11 @@ export type Database = {
           blocked_by?: string | null
           cep?: string | null
           city?: string | null
+          company_name?: string | null
           complement?: string | null
           cpf?: string | null
           created_at?: string
+          document_type?: string
           email?: string | null
           full_name?: string | null
           id?: string
@@ -6680,6 +6686,7 @@ export type Database = {
       }
       _is_blocked_email: { Args: { p_email: string }; Returns: boolean }
       _is_privileged_writer: { Args: never; Returns: boolean }
+      _is_valid_cnpj: { Args: { p: string }; Returns: boolean }
       _is_valid_cpf: { Args: { p: string }; Returns: boolean }
       _points_ensure_wallet: { Args: { p_user: string }; Returns: undefined }
       _profile_data_complete: {

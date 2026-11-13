@@ -80,7 +80,7 @@ export const useFieldValidation = () => {
 
   const validateCPF = useCallback((cpf: string) => {
     const cleanCPF = cpf.replace(/\D/g, '');
-    if (cleanCPF.length !== 11) return;
+    if (cleanCPF.length !== 11 && cleanCPF.length !== 14) return;
     checkAvailability(undefined, cpf);
   }, [checkAvailability]);
 
