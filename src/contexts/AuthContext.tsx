@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface SignUpData {
   full_name: string;
   cpf: string;
+  document_type?: 'CPF' | 'CNPJ';
+  company_name?: string | null;
   phone: string;
   birth_date: string;
   cep: string;
@@ -139,6 +141,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: {
           full_name: userData.full_name,
           cpf: userData.cpf,
+          document_type: userData.document_type || 'CPF',
+          company_name: userData.company_name || null,
           phone: userData.phone,
           birth_date: userData.birth_date,
           cep: userData.cep,
