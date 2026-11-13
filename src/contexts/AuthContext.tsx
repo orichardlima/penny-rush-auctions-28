@@ -8,7 +8,7 @@ interface SignUpData {
   document_type?: 'CPF' | 'CNPJ';
   company_name?: string | null;
   phone: string;
-  birth_date: string;
+  birth_date?: string | null;
   cep: string;
   street: string;
   number: string;

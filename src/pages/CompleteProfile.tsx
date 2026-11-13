@@ -144,12 +144,12 @@ const CompleteProfile = () => {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.fullName.trim()) e.fullName = 'Nome obrigatório';
+    if (documentType === 'CPF' && !form.fullName.trim()) e.fullName = 'Nome obrigatório';
     if (documentType === 'CNPJ' && !form.companyName.trim()) e.companyName = 'Razão social obrigatória';
     if (documentType === 'CPF' && !validateCPF(form.cpf)) e.cpf = 'CPF inválido';
     if (documentType === 'CNPJ' && !validateCNPJ(form.cpf)) e.cpf = 'CNPJ inválido';
     if (!validatePhone(form.phone)) e.phone = 'Telefone inválido';
-    if (!birthDay || !birthMonth || !birthYear) e.birthDate = 'Data de nascimento obrigatória';
+    if (documentType === 'CPF' && (!birthDay || !birthMonth || !birthYear)) e.birthDate = 'Data de nascimento obrigatória';
     if (!validateCEP(form.cep)) e.cep = 'CEP inválido';
     if (!form.street.trim()) e.street = 'Rua obrigatória';
     if (!form.number.trim()) e.number = 'Número obrigatório';
@@ -171,12 +171,12 @@ const CompleteProfile = () => {
       const affiliateRef = getReferralCode();
 
       const { data, error } = await supabase.rpc('complete_oauth_profile', {
-        p_full_name: form.fullName.trim(),
+        p_full_name: documentType === 'CNPJ' ? form.companyName.trim() : form.fullName.trim(),
         p_company_name: documentType === 'CNPJ' ? form.companyName.trim() : null,
         p_document_type: documentType,
         p_cpf: form.cpf,
         p_phone: form.phone,
-        p_birth_date: birthDate,
+        p_birth_date: documentType === 'CNPJ' ? null : birthDate,
         p_cep: form.cep,
         p_street: form.street,
         p_number: form.number,
@@ -291,18 +291,20 @@ const CompleteProfile = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="fullName">{documentType === 'CNPJ' ? 'Nome do responsável *' : 'Nome Completo *'}</Label>
-                <Input
-                  id="fullName"
-                  name="fullName"
-                  value={form.fullName}
-                  onChange={handleChange}
-                  required
-                  className={errors.fullName ? 'border-destructive' : ''}
-                />
-                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-              </div>
+              {documentType === 'CPF' && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nome Completo *</Label>
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    value={form.fullName}
+                    onChange={handleChange}
+                    required
+                    className={errors.fullName ? 'border-destructive' : ''}
+                  />
+                  {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -348,6 +350,7 @@ const CompleteProfile = () => {
                 </div>
               </div>
 
+              {documentType === 'CPF' && (
               <div className="space-y-2">
                 <Label>Data de Nascimento *</Label>
                 <div className="grid grid-cols-3 gap-2">
@@ -366,6 +369,7 @@ const CompleteProfile = () => {
                 </div>
                 {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate}</p>}
               </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2 md:col-span-1">

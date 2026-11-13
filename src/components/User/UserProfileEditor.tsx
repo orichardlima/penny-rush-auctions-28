@@ -186,34 +186,37 @@ export const UserProfileEditor: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
-      {/* Dados pessoais (somente leitura) */}
+      {/* Dados cadastrais (somente leitura) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5" /> Dados pessoais
+            <Lock className="h-5 w-5" /> {(readonly as any).document_type === 'CNPJ' ? 'Dados da empresa' : 'Dados pessoais'}
           </CardTitle>
           <CardDescription>
-            Esses dados não podem ser alterados por você. Para corrigir nome, CPF ou data de nascimento, fale com o suporte.
+            {(readonly as any).document_type === 'CNPJ'
+              ? 'Para corrigir a razão social ou o CNPJ, fale com o suporte.'
+              : 'Para corrigir nome, CPF ou data de nascimento, fale com o suporte.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <Label>Nome completo</Label>
+            <Label>{(readonly as any).document_type === 'CNPJ' ? 'Razão social' : 'Nome completo'}</Label>
             <Input value={readonly.full_name} disabled readOnly />
           </div>
           <div>
             <Label>{(readonly as any).document_type === 'CNPJ' ? 'CNPJ' : 'CPF'}</Label>
             <Input value={readonly.cpf ? ((readonly as any).document_type === 'CNPJ' ? formatCNPJ(readonly.cpf) : formatCPF(readonly.cpf)) : ''} disabled readOnly />
-            {(readonly as any).company_name && <p className="text-xs text-muted-foreground">Razão social: {(readonly as any).company_name}</p>}
           </div>
-          <div>
-            <Label>Data de nascimento</Label>
-            <Input
-              value={readonly.birth_date ? new Date(readonly.birth_date).toLocaleDateString('pt-BR') : ''}
-              disabled
-              readOnly
-            />
-          </div>
+          {(readonly as any).document_type !== 'CNPJ' && (
+            <div>
+              <Label>Data de nascimento</Label>
+              <Input
+                value={readonly.birth_date ? new Date(readonly.birth_date).toLocaleDateString('pt-BR') : ''}
+                disabled
+                readOnly
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

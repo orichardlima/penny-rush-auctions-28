@@ -175,13 +175,13 @@ const Auth = () => {
     // Validações básicas
     if (!formData.email) newErrors.email = "Email é obrigatório";
     if (!formData.password || formData.password.length < 6) newErrors.password = "Senha deve ter pelo menos 6 caracteres";
-    if (!formData.fullName) newErrors.fullName = "Nome completo é obrigatório";
+    if (docType === 'CPF' && !formData.fullName) newErrors.fullName = "Nome completo é obrigatório";
     if (!formData.cpf) newErrors.cpf = `${docType} é obrigatório`;
     else if (!isValidDoc(formData.cpf)) newErrors.cpf = `${docType} inválido`;
     if (docType === 'CNPJ' && formData.companyName.trim().length < 3) newErrors.companyName = "Razão social é obrigatória";
     if (!formData.phone) newErrors.phone = "Telefone é obrigatório";
     else if (!validatePhone(formData.phone)) newErrors.phone = "Telefone inválido";
-    if (!formData.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória";
+    if (docType === 'CPF' && !formData.birthDate) newErrors.birthDate = "Data de nascimento é obrigatória";
     if (!formData.cep) newErrors.cep = "CEP é obrigatório";
     else if (!validateCEP(formData.cep)) newErrors.cep = "CEP inválido";
     if (!formData.street) newErrors.street = "Logradouro é obrigatório";
@@ -329,12 +329,12 @@ const Auth = () => {
       }
       
       const userData = {
-        full_name: formData.fullName,
+        full_name: docType === 'CNPJ' ? formData.companyName.trim() : formData.fullName.trim(),
         cpf: formData.cpf.replace(/\D/g, ''),
         document_type: docType,
         company_name: docType === 'CNPJ' ? formData.companyName.trim() : null,
         phone: formData.phone,
-        birth_date: formData.birthDate,
+        birth_date: docType === 'CNPJ' ? null : formData.birthDate,
         cep: formData.cep,
         street: formData.street,
         number: formData.number,
@@ -367,7 +367,7 @@ const Auth = () => {
           toast({
             variant: "destructive",
             title: "Erro no cadastro",
-            description: "Este CPF já está cadastrado. Verifique os dados ou entre em contato conosco.",
+              description: `Este ${docType} já está cadastrado. Verifique os dados ou entre em contato conosco.`,
           });
         } else {
           toast({
@@ -660,28 +660,30 @@ const Auth = () => {
                   </div>
                 )}
 
-                {/* Dados Pessoais */}
+                {/* Dados cadastrais */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Dados Pessoais</h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Nome Completo *</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        type="text"
-                        placeholder="Seu nome completo"
-                        value={formData.fullName}
-                        onChange={handleInputChange}
-                        className={`pl-10 ${errors.fullName ? "border-destructive" : ""}`}
-                        aria-label="Digite seu nome completo"
-                        required
-                      />
+                  <h3 className="text-lg font-semibold">{docType === 'CNPJ' ? 'Dados da Empresa' : 'Dados Pessoais'}</h3>
+
+                  {docType === 'CPF' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Nome Completo *</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="fullName"
+                          name="fullName"
+                          type="text"
+                          placeholder="Seu nome completo"
+                          value={formData.fullName}
+                          onChange={handleInputChange}
+                          className={`pl-10 ${errors.fullName ? "border-destructive" : ""}`}
+                          aria-label="Digite seu nome completo"
+                          required
+                        />
+                      </div>
+                      {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                     </div>
-                    {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
-                  </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Tipo de cadastro *</Label>
@@ -777,6 +779,7 @@ const Auth = () => {
                     </div>
                   </div>
 
+                  {docType === 'CPF' && (
                   <div className="space-y-2">
                     <Label>Data de Nascimento *</Label>
                     <div className="grid grid-cols-3 gap-2">
@@ -854,6 +857,7 @@ const Auth = () => {
                     </div>
                     {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate}</p>}
                   </div>
+                  )}
                 </div>
 
                 <Separator />

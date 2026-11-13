@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Trophy, Clock, Target, TrendingUp, Calendar, User, Settings, UserCheck, Link2, Phone, MapPin, IdCard } from 'lucide-react';
-import { formatCPF, formatPhone } from '@/utils/validators';
+import { formatCNPJ, formatCPF, formatPhone } from '@/utils/validators';
 import { useUserAnalytics } from '@/hooks/useUserAnalytics';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminUserActions } from '@/components/AdminUserManagement';
@@ -47,7 +47,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('cpf, phone, cep, street, number, complement, neighborhood, city, state')
+        .select('cpf, document_type, phone, cep, street, number, complement, neighborhood, city, state')
         .eq('user_id', userId)
         .single();
       return data;
@@ -336,9 +336,11 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <IdCard className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">CPF:</span>
+                <span className="text-muted-foreground">{contactInfo.document_type === 'CNPJ' ? 'CNPJ:' : 'CPF:'}</span>
                 <span className="font-medium">
-                  {contactInfo.cpf ? formatCPF(contactInfo.cpf) : <span className="text-muted-foreground italic">Não informado</span>}
+                  {contactInfo.cpf
+                    ? (contactInfo.document_type === 'CNPJ' ? formatCNPJ(contactInfo.cpf) : formatCPF(contactInfo.cpf))
+                    : <span className="text-muted-foreground italic">Não informado</span>}
                 </span>
               </div>
               <div className="flex items-center gap-2">

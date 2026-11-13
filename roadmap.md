@@ -1,3 +1,7 @@
+# Cadastro CNPJ somente empresarial — 13/11
+- [x] Remover CPF, responsável e nascimento do fluxo PJ no cadastro inicial e na conclusão, mantendo PF inalterado.
+- [x] Ajustar validações server-side e testar CNPJ sem dados pessoais e CPF com dados obrigatórios, sem persistir testes.
+
 # Recuperação automática de PIX — 12/11
 - [ ] Validar uma execução automática da recuperação MagenPay — bloqueado pelos timeouts de inicialização: 85 tarefas/minuto para 32 slots; o usuário optou por não reorganizar as tarefas dos leilões. Agendamento isolado recriado com novas tentativas a cada minuto enquanto houver fila.
 - [x] Testar dupla confirmação de upgrade pago e comparar integralmente o contrato, histórico e créditos — `already_processed=true`, hash contratual inalterado, um upgrade e uma confirmação de R$ 1.500; 6 testes MagenPay aprovados.
