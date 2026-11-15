@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,12 +31,21 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user?.id) {
-      console.error('auth.getUser error', userErr);
-      return json(401, { error: 'Unauthorized' });
+    // Validate the JWT locally first (signing keys); Auth's /user endpoint can
+    // return 500 when the database is saturated. Fall back to getUser.
+    const token = authHeader.replace('Bearer ', '');
+    let adminUserId: string | undefined;
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (!claimsErr && claimsData?.claims?.sub) {
+      adminUserId = claimsData.claims.sub as string;
+    } else {
+      const { data: userRes, error: userErr } = await userClient.auth.getUser(token);
+      if (userErr || !userRes?.user?.id) {
+        console.error('auth validation error', claimsErr ?? userErr);
+        return json(401, { error: 'Sessão inválida. Saia e entre novamente.' });
+      }
+      adminUserId = userRes.user.id;
     }
-    const adminUserId = userRes.user.id;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
