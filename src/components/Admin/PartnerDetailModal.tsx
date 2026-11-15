@@ -49,14 +49,26 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
       const [payoutsRes, referralRes, binaryRes, creditsRes, withdrawalsRes] = await Promise.all([
         supabase.from('partner_payouts').select('*').eq('partner_contract_id', contract.id).order('created_at', { ascending: false }),
         supabase.from('partner_referral_bonuses').select('*').eq('referrer_contract_id', contract.id).order('created_at', { ascending: false }),
-        supabase.from('binary_bonuses').select('*').eq('partner_contract_id', contract.id).order('created_at', { ascending: false }),
+        (supabase as any).from('partner_network_wallet_transactions').select('*').eq('wallet_user_id', contract.user_id).eq('bonus_type', 'expansion_bonus').order('created_at', { ascending: false }),
         supabase.from('partner_manual_credits').select('*').eq('partner_contract_id', contract.id).order('created_at', { ascending: false }),
         supabase.from('partner_withdrawals').select('*').eq('partner_contract_id', contract.id).order('created_at', { ascending: false }),
       ]);
 
       setPayouts(payoutsRes.data || []);
       setReferralBonuses(referralRes.data || []);
-      setBinaryBonuses(binaryRes.data || []);
+      const teamTx: any[] = binaryRes.data || [];
+      const snapIds = teamTx.map(t => t.source_id).filter(Boolean);
+      let snapMap: Record<string, any> = {};
+      if (snapIds.length) {
+        const { data: snaps } = await (supabase as any).from('expansion_period_snapshots')
+          .select('id, period_start, period_end, payable_vqe_points, bonus_percent').in('id', snapIds);
+        (snaps || []).forEach((sn: any) => { snapMap[sn.id] = sn; });
+      }
+      setBinaryBonuses(teamTx.map(t => {
+        const sn = snapMap[t.source_id] || {};
+        return { ...t, period_start: sn.period_start, period_end: sn.period_end,
+          matched_points: sn.payable_vqe_points ?? '—', bonus_percentage: sn.bonus_percent ?? '—', bonus_value: t.amount };
+      }));
       setManualCredits(creditsRes.data || []);
       setWithdrawals(withdrawalsRes.data || []);
 
@@ -177,6 +189,7 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
       PAID: { className: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Pago' },
       PENDING: { className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20', label: 'Pendente' },
       AVAILABLE: { className: 'bg-blue-500/10 text-blue-600 border-blue-500/20', label: 'Disponível' },
+      COMPLETED: { className: 'bg-blue-500/10 text-blue-600 border-blue-500/20', label: 'Creditado' },
       CANCELLED: { className: 'bg-gray-500/10 text-gray-600 border-gray-500/20', label: 'Cancelado' },
       REJECTED: { className: 'bg-red-500/10 text-red-600 border-red-500/20', label: 'Rejeitado' },
       approved: { className: 'bg-green-500/10 text-green-600 border-green-500/20', label: 'Aprovado' },
@@ -447,7 +460,8 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs">Pontos Pareados</TableHead>
+                        <TableHead className="text-xs">Semana</TableHead>
+                        <TableHead className="text-xs">Volume Pago</TableHead>
                         <TableHead className="text-xs">%</TableHead>
                         <TableHead className="text-xs">Valor</TableHead>
                         <TableHead className="text-xs">Status</TableHead>
@@ -456,9 +470,10 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                     </TableHeader>
                     <TableBody>
                       {binaryBonuses.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground text-xs">Nenhum bônus de equipe</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground text-xs">Nenhum bônus de equipe</TableCell></TableRow>
                       ) : binaryBonuses.map(b => (
                         <TableRow key={b.id}>
+                          <TableCell className="text-xs">{b.period_start ? `${String(b.period_start).split('-').reverse().slice(0,2).join('/')} a ${String(b.period_end).split('-').reverse().slice(0,2).join('/')}` : '—'}</TableCell>
                           <TableCell className="text-xs">{b.matched_points}</TableCell>
                           <TableCell className="text-xs">{b.bonus_percentage}%</TableCell>
                           <TableCell className="text-xs font-medium">{formatPrice(b.bonus_value)}</TableCell>
