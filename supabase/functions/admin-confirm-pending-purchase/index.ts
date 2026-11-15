@@ -110,13 +110,24 @@ serve(async (req) => {
       }
     } else {
       // Fallback: create commission if affiliate referral exists
-      const { data: referral } = await supabase
-        .from('affiliate_referrals')
-        .select('affiliate_id')
-        .eq('referred_user_id', purchase.user_id)
-        .eq('converted', true)
+      // O gatilho trg_ensure_affiliate_commission já pode ter criado a comissão
+      // ao marcar a compra como concluída. Se já existir qualquer comissão para
+      // esta compra, não criar outra.
+      const { data: existingComm } = await supabase
+        .from('affiliate_commissions')
+        .select('id')
+        .eq('purchase_id', purchase.id)
         .limit(1)
-        .maybeSingle()
+
+      const { data: referral } = (existingComm && existingComm.length > 0
+        ? { data: null }
+        : await supabase
+            .from('affiliate_referrals')
+            .select('affiliate_id')
+            .eq('referred_user_id', purchase.user_id)
+            .eq('converted', true)
+            .limit(1)
+            .maybeSingle()) as { data: { affiliate_id: string } | null }
 
       if (referral) {
         const { data: affiliate } = await supabase

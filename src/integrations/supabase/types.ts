@@ -6909,6 +6909,10 @@ export type Database = {
       }
       current_server_time: { Args: never; Returns: string }
       decrement_auction_timers: { Args: never; Returns: undefined }
+      ensure_affiliate_commission_for_purchase: {
+        Args: { p_purchase_id: string }
+        Returns: Json
+      }
       ensure_partner_referral_bonuses: {
         Args: { p_contract_id: string }
         Returns: undefined
