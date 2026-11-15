@@ -2,6 +2,13 @@
 - [x] Remover CPF, responsável e nascimento do fluxo PJ no cadastro inicial e na conclusão, mantendo PF inalterado.
 - [x] Ajustar validações server-side e testar CNPJ sem dados pessoais e CPF com dados obrigatórios, sem persistir testes.
 
+# Auditoria técnica PIX Magen — 15/11 (somente leitura, sem correções sem autorização)
+- [x] Mapear fluxo PIX IN (VPS, Edge Functions, webhook, confirmação, liberação de benefícios).
+- [x] Levantar evidências das falhas: cron 188 com 451 falhas/24h ("job startup timeout", 107 jobs ativos), ativação de R$ 1.499 pendente 26 min, 6 cobranças não pagas de 14/11, 59 em review; zero completed sem benefício e zero reuso de tx.
+- [x] Avaliar recuperação automática e segurança financeira (autenticidade, valor/titular, anti-reuso, idempotência).
+- [x] Entregar relatório com arquitetura, falhas, hipóteses, proposta de correção, reconciliação e plano de testes (`/mnt/documents/Auditoria_PIX_Magen_2026-11-15.md` + diagrama).
+- [ ] Aguardar autorização para: agendador externo da recuperação, alerta de fila parada e conciliação das 59 cobranças em review com extratos.
+
 # Recuperação automática de PIX — 12/11
 - [ ] Validar uma execução automática da recuperação MagenPay — bloqueado pelos timeouts de inicialização: 85 tarefas/minuto para 32 slots; o usuário optou por não reorganizar as tarefas dos leilões. Agendamento isolado recriado com novas tentativas a cada minuto enquanto houver fila.
 - [x] Testar dupla confirmação de upgrade pago e comparar integralmente o contrato, histórico e créditos — `already_processed=true`, hash contratual inalterado, um upgrade e uma confirmação de R$ 1.500; 6 testes MagenPay aprovados.
