@@ -11,6 +11,7 @@ test.describe('Affiliate indicators without financial writes', () => {
     const result = calculateAffiliateMetrics(referrals, [commission], '30d', now);
     expect([result.buyers, result.signups, result.conversion, result.earned, result.averageCommission]).toEqual([1, 2, 50, 12, 12]);
     expect(result.clicks).toBe(0);
+    expect(result.historyUnmeasured).toBe(true);
   });
   test('Repurchases do not add another unique buyer', () => {
     expect(calculateAffiliateMetrics(referrals, [commission, { ...commission, commission_amount: 3 }], 'all', now).buyers).toBe(1);
@@ -31,4 +32,16 @@ test.describe('Affiliate indicators without financial writes', () => {
     expect(calculateAffiliateMetrics(referrals, [commission], '30d', now).growth).toBeNull();
     expect(JSON.stringify([referrals, commission])).toBe(before);
   });
+});
+test('Clicks survive signup, automation stays separate and period filters actual events', () => {
+  const clicks = [
+    { created_at: '2026-11-15T15:00:00Z', is_automated: false },
+    { created_at: '2026-11-15T16:00:00Z', is_automated: true },
+    { created_at: '2026-11-01T15:00:00Z', is_automated: false },
+  ];
+  const before = calculateAffiliateMetrics([], [], '7d', now, clicks, '2026-11-01T00:00:00Z');
+  const after = calculateAffiliateMetrics(referrals, [commission], '7d', now, clicks, '2026-11-01T00:00:00Z');
+  expect([before.clicks, after.clicks, after.automatedClicks, after.totalAccesses]).toEqual([1, 1, 1, 2]);
+  expect(after.historyUnmeasured).toBe(false);
+  expect(calculateAffiliateMetrics(referrals, [commission], '30d', now, clicks, '2026-11-01T00:00:00Z').historyUnmeasured).toBe(true);
 });

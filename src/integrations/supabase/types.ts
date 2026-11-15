@@ -173,6 +173,56 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_click_events: {
+        Row: {
+          access_id: string
+          affiliate_id: string
+          automation_reason: string | null
+          created_at: string
+          id: string
+          is_automated: boolean
+        }
+        Insert: {
+          access_id: string
+          affiliate_id: string
+          automation_reason?: string | null
+          created_at?: string
+          id?: string
+          is_automated?: boolean
+        }
+        Update: {
+          access_id?: string
+          affiliate_id?: string
+          automation_reason?: string | null
+          created_at?: string
+          id?: string
+          is_automated?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_click_events_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_click_tracking_config: {
+        Row: {
+          id: boolean
+          started_at: string
+        }
+        Insert: {
+          id?: boolean
+          started_at?: string
+        }
+        Update: {
+          id?: boolean
+          started_at?: string
+        }
+        Relationships: []
+      }
       affiliate_commissions: {
         Row: {
           affiliate_id: string
@@ -8114,6 +8164,15 @@ export type Database = {
       recalc_partner_contract_totals: {
         Args: { _contract_id: string }
         Returns: undefined
+      }
+      record_affiliate_click: {
+        Args: {
+          p_access_id: string
+          p_code: string
+          p_is_automated: boolean
+          p_reason?: string
+        }
+        Returns: boolean
       }
       redeem_approve: {
         Args: { p_admin: string; p_notes: string; p_redemption: string }

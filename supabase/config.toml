@@ -78,6 +78,9 @@ verify_jwt = false
 [functions.track-referral]
 verify_jwt = false
 
+[functions.track-affiliate-click]
+verify_jwt = false
+
 [functions.recalculate-weekly-scores]
 verify_jwt = false
 

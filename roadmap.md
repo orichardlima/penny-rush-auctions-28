@@ -1,3 +1,9 @@
+# Captura independente de cliques — 15/11
+- [x] Registrar entradas públicas em eventos independentes; repetir ID deduplica, recarregar gera novo acesso; automação classificada pelo serviço.
+- [x] Eventos separados das indicações e nunca consumidos pelo cadastro; painel sinaliza início da medição e histórico incompleto.
+- [x] 8 testes aprovados; captura pública real retorna 200, repetição persiste só uma vez, novo acesso persiste separado; testes de navegação até /auth, hash de comissões inalterado e saldo R$12. Acessos da auditoria classificados como automatizados.
+- [ ] Validar cadastro real seguido de leitura no painel autenticado — bloqueado pela ausência de sessão de teste no Supabase externo; nenhuma conta ou compra fictícia criada.
+
 # Indicadores do painel de afiliado — 15/11
 - [x] Substituir contadores acumulados por registros reais e compradores únicos; filtrar indicadores e gráfico por período. Saldos continuam atuais, sem filtro; históricos e saques mantêm seus próprios controles.
 - [x] Testar caso DNGG (R$12, 2 cadastros, 1 comprador, 50%) e preservar todos os registros financeiros: 5 testes aprovados, leitura final confirma R$12/R$12, 1 comprador, 2 cadastros e 0 cliques registrados; build OK.

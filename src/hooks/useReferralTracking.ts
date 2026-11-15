@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createAffiliateClickCapture } from '@/lib/affiliateClickCapture';
+
+const captureClick = createAffiliateClickCapture(async body => {
+  const { data, error } = await supabase.functions.invoke('track-affiliate-click', { body });
+  return !error && data?.recorded === true;
+});
 
 const REFERRAL_COOKIE_KEY = 'ref_code';
 const REFERRAL_STORAGE_KEY = 'affiliate_referral';
@@ -10,6 +16,16 @@ export const useReferralTracking = () => {
     // [FASE 1A] Captura passiva de UTMs + referrer para performance de parceiros.
     // Não afeta o fluxo de afiliados abaixo.
     try { capturePerfUtmsFromUrl(); } catch { /* noop */ }
+
+    // Capture access independently of cached attribution and without reading affiliates.
+    const accessCode = new URLSearchParams(window.location.search).get('ref');
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const capture = () => { if (accessCode) void captureClick(accessCode); };
+    if (accessCode) {
+      capture();
+      retryTimer = setTimeout(capture, 5000);
+      window.addEventListener('online', capture);
+    }
 
     const trackReferral = async () => {
       // Verificar se já existe referral salvo
@@ -31,34 +47,14 @@ export const useReferralTracking = () => {
         expiryDate.setDate(expiryDate.getDate() + COOKIE_EXPIRY_DAYS);
         document.cookie = `${REFERRAL_COOKIE_KEY}=${refCode}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`;
 
-        // Buscar ID do afiliado
-        const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('id')
-          .eq('affiliate_code', refCode)
-          .eq('status', 'active')
-          .single();
-
-        if (affiliate) {
-          // Registrar clique - o trigger increment_affiliate_clicks vai incrementar total_referrals automaticamente
-          try {
-            await supabase.from('affiliate_referrals').insert({
-              affiliate_id: affiliate.id,
-              click_source: window.location.href,
-              ip_address: null,
-              user_agent: navigator.userAgent
-              // referred_user_id = null indica que é um CLIQUE (não um cadastro ainda)
-            });
-            // O trigger on_affiliate_click incrementa total_referrals automaticamente
-            // Não precisamos fazer UPDATE aqui (que falharia por RLS de qualquer forma)
-          } catch (error) {
-            console.error('Error tracking click:', error);
-          }
-        }
       }
     };
 
     trackReferral();
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener('online', capture);
+    };
   }, []);
 };
 

@@ -1,10 +1,11 @@
 export type MetricsPeriod = '7d' | '30d' | '90d' | 'all';
 export interface MetricReferral { created_at: string; referred_user_id: string | null }
+export interface MetricClick { created_at: string; is_automated: boolean }
 export interface MetricCommission {
   created_at: string; approved_at: string | null; paid_at: string | null;
   referred_user_id: string; commission_amount: number; status: string;
 }
-export function calculateAffiliateMetrics(referrals: MetricReferral[], commissions: MetricCommission[], period: MetricsPeriod, now = new Date()) {
+export function calculateAffiliateMetrics(referrals: MetricReferral[], commissions: MetricCommission[], period: MetricsPeriod, now = new Date(), clicks: MetricClick[] = [], trackingStartedAt?: string) {
   const end = now.getTime();
   const days = period === 'all' ? null : Number(period.slice(0, -1));
   const start = days === null ? -Infinity : end - days * 86400000;
@@ -14,6 +15,7 @@ export function calculateAffiliateMetrics(referrals: MetricReferral[], commissio
     return time >= from && time < to;
   };
   const selected = referrals.filter(r => within(r.created_at));
+  const selectedClicks = clicks.filter(c => within(c.created_at));
   const earnedRows = commissions.filter(c => ['approved', 'paid'].includes(c.status));
   const earnedDate = (c: MetricCommission) => c.approved_at ?? c.created_at;
   const current = earnedRows.filter(c => within(earnedDate(c)));
@@ -28,7 +30,11 @@ export function calculateAffiliateMetrics(referrals: MetricReferral[], commissio
     daily.set(date, (daily.get(date) ?? 0) + Number(c.commission_amount));
   }
   return {
-    clicks: selected.filter(r => r.referred_user_id === null).length,
+    clicks: selectedClicks.filter(c => !c.is_automated).length,
+    automatedClicks: selectedClicks.filter(c => c.is_automated).length,
+    totalAccesses: selectedClicks.length,
+    historyUnmeasured: !trackingStartedAt || start < Date.parse(trackingStartedAt),
+    trackingStartedAt,
     signups, buyers, earned,
     allBuyers: new Set(earnedRows.map(c => c.referred_user_id)).size,
     conversion: signups > 0 ? buyers / signups * 100 : null,
