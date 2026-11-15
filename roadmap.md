@@ -1,3 +1,9 @@
+# Acesso como parceiro pelo administrador — 15/11
+- [x] Conferir destinos no Auth sem sessão: showdelances.com e testeleilao.site caem em localhost; domínio público Lovable é aceito.
+- [x] Corrigir apenas o retorno desse acesso para o domínio público aceito, mantendo autenticação e auditoria.
+- [x] Validar testes e endereço público: 2 testes aprovados; página pública abre em /auth sem sessão; função implantada.
+- [ ] Abrir painel real pelo acesso administrativo — depende de Richard gerar e usar um link novo; sessão autenticada indisponível neste Supabase externo.
+
 # Cadastro CNPJ somente empresarial — 13/11
 - [x] Remover CPF, responsável e nascimento do fluxo PJ no cadastro inicial e na conclusão, mantendo PF inalterado.
 - [x] Ajustar validações server-side e testar CNPJ sem dados pessoais e CPF com dados obrigatórios, sem persistir testes.

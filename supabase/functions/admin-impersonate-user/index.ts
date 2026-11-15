@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { getImpersonationRedirect } from './redirect.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,12 +134,9 @@ Deno.serve(async (req) => {
     }
 
     // login_as → gera magic link
-    // Preview/editor domains (lovableproject.com, id-preview) require Lovable login
-    // and show "Unauthorized" in incognito; send impersonation to the public site.
-    const rawOrigin = req.headers.get('origin') ?? '';
-    const isPreview = /lovableproject\.com|id-preview--|localhost/.test(rawOrigin);
-    const origin = !rawOrigin || isPreview ? 'https://showdelances.com' : rawOrigin;
-    const redirectTo = `${origin}/dashboard?impersonating=${logRow.id}`;
+    // Custom domains currently fall back to localhost in hosted Auth.
+    // Use the verified public destination for this flow only, regardless of Origin.
+    const redirectTo = getImpersonationRedirect(logRow.id);
 
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: 'magiclink',
