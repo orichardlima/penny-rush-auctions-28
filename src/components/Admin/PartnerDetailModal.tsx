@@ -171,6 +171,18 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
     dateString ? new Date(dateString).toLocaleDateString('pt-BR') : '-';
 
   const totalPayouts = payouts.reduce((sum, p) => sum + Number(p.amount), 0);
+  const payoutGroups = [
+    { key: 'partnership_weekly_repass', label: 'Repasses semanais' },
+    { key: 'referral', label: 'Bônus de indicação', match: (t: string) => t === 'direct_referral_bonus' || t === 'indirect_referral_bonus' },
+    { key: 'fast_start_bonus', label: 'Início Rápido' },
+    { key: 'expansion_bonus', label: 'Bônus de equipe' },
+  ].map(g => {
+    const items = payouts.filter(p => g.match ? g.match(p.payout_type || '') : (p.payout_type || 'partnership_weekly_repass') === g.key);
+    const byStatus: Record<string, number> = {};
+    items.forEach(p => { byStatus[p.status] = (byStatus[p.status] || 0) + Number(p.amount); });
+    return { ...g, count: items.length, total: items.reduce((s, p) => s + Number(p.amount), 0), byStatus };
+  }).filter(g => g.count > 0);
+  const payoutStatusLabel: Record<string, string> = { PAID: 'pago', PENDING: 'pendente', CANCELLED: 'cancelado' };
   const totalReferral = referralBonuses.reduce((sum, b) => sum + Number(b.bonus_value), 0);
   const totalBinary = binaryBonuses.reduce((sum, b) => sum + Number(b.bonus_value), 0);
   const totalCredits = manualCredits.reduce((sum, c) => sum + Number(c.amount), 0);
@@ -256,6 +268,21 @@ const PartnerDetailModal: React.FC<PartnerDetailModalProps> = ({ contract, open,
                 <CardContent className="px-3 pb-3">
                   <div className="text-lg font-bold text-green-600">{formatPrice(totalPayouts)}</div>
                   <p className="text-[10px] text-muted-foreground">{payouts.length} registros</p>
+                  {payoutGroups.length > 0 && (
+                    <div className="mt-2 space-y-1 border-t pt-2">
+                      {payoutGroups.map(g => (
+                        <div key={g.key} className="text-[10px]">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium">{g.label} ({g.count})</span>
+                            <span className="font-semibold">{formatPrice(g.total)}</span>
+                          </div>
+                          <div className="text-muted-foreground">
+                            {Object.entries(g.byStatus).map(([st, v]) => `${payoutStatusLabel[st] || st}: ${formatPrice(v)}`).join(' · ')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               <Card>
