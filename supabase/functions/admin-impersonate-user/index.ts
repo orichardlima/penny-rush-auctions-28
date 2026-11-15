@@ -124,7 +124,11 @@ Deno.serve(async (req) => {
     }
 
     // login_as → gera magic link
-    const origin = req.headers.get('origin') ?? '';
+    // Preview/editor domains (lovableproject.com, id-preview) require Lovable login
+    // and show "Unauthorized" in incognito; send impersonation to the public site.
+    const rawOrigin = req.headers.get('origin') ?? '';
+    const isPreview = /lovableproject\.com|id-preview--|localhost/.test(rawOrigin);
+    const origin = !rawOrigin || isPreview ? 'https://showdelances.com' : rawOrigin;
     const redirectTo = `${origin}/dashboard?impersonating=${logRow.id}`;
 
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
