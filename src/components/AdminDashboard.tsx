@@ -26,6 +26,7 @@ import { ProductTemplatesManager } from '@/components/Admin/ProductTemplatesMana
 import AdminPartnerManagement from '@/components/Admin/AdminPartnerManagement';
 import { FuryVaultConfigManager } from '@/components/Admin/FuryVaultConfigManager';
 import { Footer } from '@/components/Footer';
+import MagenQueueAlert from '@/components/Admin/MagenQueueAlert';
 
 import AuctionDetailsTab from './AdminDashboard/AuctionDetailsTab';
 import AuctionManagementTab from './AdminDashboard/AuctionManagementTab';
@@ -197,6 +198,7 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
+        <MagenQueueAlert />
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="flex w-full overflow-x-auto lg:grid lg:grid-cols-13 gap-1 pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">

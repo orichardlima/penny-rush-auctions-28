@@ -2,18 +2,33 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { confirmMagenCharge } from '../_shared/magen-confirm.ts'
 
+function safeEqual(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', {headers: corsHeaders});
   const url = Deno.env.get('SUPABASE_URL'); const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) return new Response('Configuration missing', {status:500,headers:corsHeaders});
   try {
-    const body = await req.json();
-    if (typeof body.ticket !== 'string' || !/^[0-9a-f-]{36}$/.test(body.ticket)) return new Response('Unauthorized',{status:401,headers:corsHeaders});
     const sb = createClient(url,key);
-    const {data: authorized,error: ticketError} = await sb.rpc('magenpay_consume_recovery_ticket',{p_ticket:body.ticket});
-    if (ticketError || authorized !== true) return new Response('Unauthorized',{status:401,headers:corsHeaders});
+    const cronSecret = Deno.env.get('MAGEN_RECOVERY_CRON_SECRET');
+    const provided = req.headers.get('x-cron-secret');
+    const external = Boolean(cronSecret && provided && safeEqual(provided, cronSecret));
+    if (!external) {
+      const body = await req.json().catch(() => ({}));
+      if (typeof body.ticket !== 'string' || !/^[0-9a-f-]{36}$/.test(body.ticket)) return new Response('Unauthorized',{status:401,headers:corsHeaders});
+      const {data: authorized,error: ticketError} = await sb.rpc('magenpay_consume_recovery_ticket',{p_ticket:body.ticket});
+      if (ticketError || authorized !== true) return new Response('Unauthorized',{status:401,headers:corsHeaders});
+    }
     const {data: charges,error} = await sb.rpc('magenpay_claim_pending');
     if (error) throw new Error('Queue unavailable');
+    if (external && (!charges || charges.length === 0)) {
+      return new Response(JSON.stringify({checked:0,completed:0}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
     let completed = 0;
     await Promise.all((charges || []).map(async (charge: any) => {
       try {

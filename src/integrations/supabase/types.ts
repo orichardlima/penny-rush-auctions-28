@@ -7868,6 +7868,7 @@ export type Database = {
         Args: { p_ticket: string }
         Returns: boolean
       }
+      magenpay_queue_health: { Args: never; Returns: Json }
       magenpay_refresh_recovery: { Args: never; Returns: undefined }
       notify_bid_expirations: {
         Args: never
