@@ -3,31 +3,34 @@ import { TrendingUp, Target, Clock, Wallet } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
 interface AdvancedMetricsProps {
-  totalConversions: number;
-  totalCommissionEarned: number;
+  totalConversions?: number;
+  totalCommissionEarned?: number;
   commissionBalance: number;
+  pending?: number;
+  growth?: number | null;
 }
 
 export function AdvancedMetrics({ 
   totalConversions, 
   totalCommissionEarned,
-  commissionBalance 
+  commissionBalance,
+  pending,
+  growth
 }: AdvancedMetricsProps) {
-  const averageTicket = totalConversions > 0 
-    ? totalCommissionEarned / totalConversions 
-    : 0;
+  const averageTicket = totalConversions === undefined || totalCommissionEarned === undefined
+    ? null : totalConversions > 0 ? totalCommissionEarned / totalConversions : 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+          <CardTitle className="text-sm font-medium">Comissão Média</CardTitle>
           <Target className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatPrice(averageTicket)}</div>
+          <div className="text-2xl font-bold">{averageTicket === null ? '—' : formatPrice(averageTicket)}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            Por conversão
+            Por comprador no período
           </p>
         </CardContent>
       </Card>
@@ -38,7 +41,7 @@ export function AdvancedMetrics({
           <TrendingUp className="h-4 w-4 text-green-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-600">+0%</div>
+          <div className="text-2xl font-bold text-green-600">{growth == null ? '—' : `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`}</div>
           <p className="text-xs text-muted-foreground mt-1">
             vs período anterior
           </p>
@@ -51,7 +54,7 @@ export function AdvancedMetrics({
           <Clock className="h-4 w-4 text-blue-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatPrice(0)}</div>
+          <div className="text-2xl font-bold">{pending === undefined ? '—' : formatPrice(pending)}</div>
           <p className="text-xs text-muted-foreground mt-1">
             Aguardando aprovação
           </p>

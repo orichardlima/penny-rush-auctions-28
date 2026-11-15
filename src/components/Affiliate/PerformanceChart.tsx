@@ -3,18 +3,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { TrendingUp } from 'lucide-react';
 
 interface PerformanceChartProps {
-  totalCommissionEarned: number;
+  data: { date: string; value: number }[];
 }
 
-export function PerformanceChart({ totalCommissionEarned }: PerformanceChartProps) {
-  // Dados simulados para o gráfico (em produção, viriam do backend)
-  const data = [
-    { date: '01/11', value: 0 },
-    { date: '05/11', value: 0 },
-    { date: '10/11', value: 0 },
-    { date: '15/11', value: 0 },
-    { date: '18/11', value: totalCommissionEarned },
-  ];
+export function PerformanceChart({ data }: PerformanceChartProps) {
 
   return (
     <Card>
@@ -33,6 +25,7 @@ export function PerformanceChart({ totalCommissionEarned }: PerformanceChartProp
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis 
               dataKey="date" 
+              tickFormatter={(date: string) => date.split('-').reverse().slice(0, 2).join('/')}
               className="text-xs"
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
             />

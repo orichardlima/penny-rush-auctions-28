@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatPrice } from '@/lib/utils';
 import { PeriodFilter, PeriodType } from '@/components/Affiliate/PeriodFilter';
+import { useAffiliateMetrics } from '@/hooks/useAffiliateMetrics';
 import { AdvancedMetrics } from '@/components/Affiliate/AdvancedMetrics';
 import { AffiliateLevels } from '@/components/Affiliate/AffiliateLevels';
 import { PerformanceChart } from '@/components/Affiliate/PerformanceChart';
@@ -71,6 +72,7 @@ export default function AffiliateDashboard() {
   const [cpaGoals, setCpaGoals] = useState<CPAGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('30d');
+  const { metrics, error: metricsError } = useAffiliateMetrics(affiliateData?.id, period);
   const [partnerFinancialStatus, setPartnerFinancialStatus] = useState<string>('paid');
   const isManager = affiliateData?.role === 'manager';
   const { influencers, stats: managerStats, loading: influencersLoading, linkInfluencerByCode, unlinkMyInfluencer } = useAffiliateManager(isManager ? affiliateData?.id ?? null : null);
@@ -230,9 +232,9 @@ export default function AffiliateDashboard() {
     );
   }
 
-  const conversionRate = affiliateData.total_referrals > 0 
-    ? ((affiliateData.total_conversions / affiliateData.total_referrals) * 100).toFixed(1)
-    : '0.0';
+  const conversionRate = metrics?.conversion == null ? '—' : metrics.conversion.toFixed(1);
+  const count = (value: number | undefined) => value === undefined ? '—' : value;
+  const money = (value: number | undefined) => value === undefined ? '—' : formatPrice(value);
 
   const affiliateLink = `${window.location.origin}/?ref=${affiliateData.affiliate_code}`;
 
@@ -312,6 +314,7 @@ export default function AffiliateDashboard() {
 
           {/* Tab: Visão Geral */}
           <TabsContent value="overview" className="space-y-6">
+            {metricsError && <p role="alert" className="text-destructive">Não foi possível carregar os indicadores.</p>}
             {/* CPA Goal Progress - Se for tipo CPA */}
             {affiliateData.commission_type === 'cpa' && (
               <CPAGoalProgress
@@ -399,9 +402,9 @@ export default function AffiliateDashboard() {
                   <TrendingUp className="h-5 w-5 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-green-600">{formatPrice(affiliateData.total_commission_earned)}</div>
+                  <div className="text-3xl font-bold text-green-600">{money(metrics?.earned)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Comissões totais
+                    Comissões no período
                   </p>
                 </CardContent>
               </Card>
@@ -412,7 +415,7 @@ export default function AffiliateDashboard() {
                   <Users className="h-5 w-5 text-purple-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-purple-600">{affiliateData.total_referrals}</div>
+                  <div className="text-3xl font-bold text-purple-600">{count(metrics?.clicks)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
                     No seu link
                   </p>
@@ -425,11 +428,9 @@ export default function AffiliateDashboard() {
                   <Users className="h-5 w-5 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">{affiliateData.total_signups}</div>
+                  <div className="text-3xl font-bold text-blue-600">{count(metrics?.signups)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {affiliateData.total_referrals > 0 
-                      ? `${((affiliateData.total_signups / affiliateData.total_referrals) * 100).toFixed(1)}% dos cliques`
-                      : '0% dos cliques'}
+                    {metrics && metrics.clicks > 0 ? `${(metrics.signups / metrics.clicks * 100).toFixed(1)}% dos cliques` : 'Sem cliques registrados no período'}
                   </p>
                 </CardContent>
               </Card>
@@ -440,7 +441,7 @@ export default function AffiliateDashboard() {
                   <CheckCircle className="h-5 w-5 text-emerald-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-emerald-600">{affiliateData.total_conversions}</div>
+                  <div className="text-3xl font-bold text-emerald-600">{count(metrics?.buyers)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {conversionRate}% taxa de conversão
                   </p>
@@ -450,15 +451,17 @@ export default function AffiliateDashboard() {
 
             {/* Métricas Avançadas */}
             <AdvancedMetrics 
-              totalConversions={affiliateData.total_conversions}
-              totalCommissionEarned={affiliateData.total_commission_earned}
+              totalConversions={metrics?.buyers}
+              totalCommissionEarned={metrics?.earned}
               commissionBalance={affiliateData.commission_balance}
+              pending={metrics?.pending}
+              growth={metrics?.growth}
             />
 
             {/* Sistema de Níveis - Apenas para afiliados com comissão percentual */}
             {affiliateData.commission_type === 'percentage' && (
               <AffiliateLevels 
-                totalConversions={affiliateData.total_conversions}
+                totalConversions={metrics?.allBuyers ?? 0}
                 currentCommissionRate={affiliateData.commission_rate}
               />
             )}
@@ -631,16 +634,16 @@ export default function AffiliateDashboard() {
           <TabsContent value="analytics" className="space-y-6">
             {/* Funil de Conversão */}
             <ConversionFunnel
-              clicks={affiliateData.total_referrals}
-              signups={affiliateData.total_signups}
-              buyers={affiliateData.total_conversions}
+              clicks={metrics?.clicks ?? 0}
+              signups={metrics?.signups ?? 0}
+              buyers={metrics?.buyers ?? 0}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <PerformanceChart totalCommissionEarned={affiliateData.total_commission_earned} />
+              <PerformanceChart data={metrics?.chart ?? []} />
               <ConversionPieChart 
-                totalReferrals={affiliateData.total_signups}
-                totalConversions={affiliateData.total_conversions}
+                totalReferrals={metrics?.signups ?? 0}
+                totalConversions={metrics?.buyers ?? 0}
               />
             </div>
 
@@ -661,15 +664,12 @@ export default function AffiliateDashboard() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <div className="text-sm text-muted-foreground mb-1">Comissão Média</div>
                     <div className="text-2xl font-bold">
-                      {formatPrice(affiliateData.total_conversions > 0 
-                        ? affiliateData.total_commission_earned / affiliateData.total_conversions 
-                        : 0
-                      )}
+                      {money(metrics?.averageCommission)}
                     </div>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50">
                     <div className="text-sm text-muted-foreground mb-1">Comissões Pagas</div>
-                    <div className="text-2xl font-bold">{formatPrice(affiliateData.total_commission_paid)}</div>
+                    <div className="text-2xl font-bold">{money(metrics?.paid)}</div>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50">
                     <div className="text-sm text-muted-foreground mb-1">Taxa de Comissão</div>
