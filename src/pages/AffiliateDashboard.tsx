@@ -411,13 +411,13 @@ export default function AffiliateDashboard() {
 
               <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Cliques no link</CardTitle>
+                  <CardTitle className="text-sm font-medium">Cliques</CardTitle>
                   <Users className="h-5 w-5 text-purple-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-purple-600">{count(metrics?.clicks)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Pessoas no período
+                    No seu link
                   </p>
                 </CardContent>
               </Card>
