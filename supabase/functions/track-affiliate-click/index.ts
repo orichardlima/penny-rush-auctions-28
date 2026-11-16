@@ -19,12 +19,14 @@ Deno.serve(async (req) => {
     const bucket = buckets.get(ip) ?? { count: 0, until: now + 60000 };
     bucket.count += 1;
     buckets.set(ip, bucket);
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const visitorId = typeof body.visitor_id === 'string' && uuidRe.test(body.visitor_id) ? body.visitor_id : null;
     const reason = classifyAutomation(req.headers.get('user-agent') ?? '', bucket.count);
     const url = Deno.env.get('SUPABASE_URL');
     const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!url || !key) return respond({ error: 'unavailable' }, 503);
     const client = createClient(url, key, { auth: { persistSession: false } });
-    const { data, error } = await client.rpc('record_affiliate_click', { p_code: body.code, p_access_id: body.access_id, p_is_automated: reason !== null, p_reason: reason });
+    const { data, error } = await client.rpc('record_affiliate_click_v2', { p_code: body.code, p_access_id: body.access_id, p_visitor_id: visitorId, p_is_automated: reason !== null, p_reason: reason });
     if (error) { console.error('affiliate click persistence failed', error.code); return respond({ error: 'retry' }, 503); }
     return respond({ recorded: data === true });
   } catch { return respond({ error: 'invalid' }, 400); }

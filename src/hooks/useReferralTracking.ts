@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { createAffiliateClickCapture } from '@/lib/affiliateClickCapture';
+import { createAffiliateClickCapture, getAffiliateVisitorId } from '@/lib/affiliateClickCapture';
 
 const captureClick = createAffiliateClickCapture(async body => {
   const { data, error } = await supabase.functions.invoke('track-affiliate-click', { body });
   return !error && data?.recorded === true;
-});
+}, undefined, getAffiliateVisitorId);
 
 const REFERRAL_COOKIE_KEY = 'ref_code';
 const REFERRAL_STORAGE_KEY = 'affiliate_referral';

@@ -16,5 +16,11 @@ test('Technical retries share access ID; separate documents count separate acces
 test('Automation is classified separately on the server', () => {
   expect(classifyAutomation('Mozilla Chrome', 1)).toBeNull();
   expect(classifyAutomation('HeadlessChrome', 1)).toBe('automated_user_agent');
-  expect(classifyAutomation('Mozilla Chrome', 61)).toBe('high_frequency');
+  expect(classifyAutomation('Mozilla Chrome', 301)).toBe('high_frequency');
+});
+test('In-app browsers count as people; explicit automation is flagged', () => {
+  expect(classifyAutomation('Mozilla/5.0 (Linux; Android 14) WhatsApp/2.24 Mobile', 1)).toBeNull();
+  expect(classifyAutomation('Mozilla/5.0 (iPhone) Instagram 300.0 FBAN/FBIOS', 1)).toBeNull();
+  expect(classifyAutomation('Mozilla/5.0 HeadlessChrome/120', 1)).toBe('automated_user_agent');
+  expect(classifyAutomation('Mozilla/5.0 Chrome/120', 301)).toBe('high_frequency');
 });

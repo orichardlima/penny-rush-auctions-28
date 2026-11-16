@@ -45,3 +45,14 @@ test('Clicks survive signup, automation stays separate and period filters actual
   expect(after.historyUnmeasured).toBe(false);
   expect(calculateAffiliateMetrics(referrals, [commission], '30d', now, clicks, '2026-11-01T00:00:00Z').historyUnmeasured).toBe(true);
 });
+test('10 distinct visitors, 5 signups, 3 buyers -> 10 | 5 | 3; repeats do not inflate', async () => {
+  const now = new Date('2026-11-16T12:00:00Z');
+  const at = '2026-11-16T10:00:00Z';
+  const clicks = Array.from({ length: 10 }, (_, i) => ({ created_at: at, is_automated: false, visitor_id: `v${i}` }));
+  clicks.push({ created_at: at, is_automated: false, visitor_id: 'v0' }, { created_at: at, is_automated: false, visitor_id: 'v0' });
+  clicks.push({ created_at: at, is_automated: true, visitor_id: 'bot' });
+  const referrals = Array.from({ length: 5 }, (_, i) => ({ created_at: at, referred_user_id: `u${i}` }));
+  const commissions = [0, 1, 2, 2, 2].map(i => ({ created_at: at, approved_at: at, paid_at: null, referred_user_id: `u${i}`, commission_amount: 0, status: 'approved' }));
+  const m = calculateAffiliateMetrics(referrals, commissions, '7d', now, clicks, '2026-11-01T00:00:00Z');
+  expect([m.clicks, m.signups, m.buyers]).toEqual([10, 5, 3]);
+});

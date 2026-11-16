@@ -1,6 +1,6 @@
 export type MetricsPeriod = '7d' | '30d' | '90d' | 'all';
 export interface MetricReferral { created_at: string; referred_user_id: string | null }
-export interface MetricClick { created_at: string; is_automated: boolean }
+export interface MetricClick { created_at: string; is_automated: boolean; visitor_id?: string | null }
 export interface MetricCommission {
   created_at: string; approved_at: string | null; paid_at: string | null;
   referred_user_id: string; commission_amount: number; status: string;
@@ -30,7 +30,8 @@ export function calculateAffiliateMetrics(referrals: MetricReferral[], commissio
     daily.set(date, (daily.get(date) ?? 0) + Number(c.commission_amount));
   }
   return {
-    clicks: selectedClicks.filter(c => !c.is_automated).length,
+    // Distinct people: one per visitor ID; legacy rows without ID count individually.
+    clicks: new Set(selectedClicks.filter(c => !c.is_automated).map((c, i) => c.visitor_id ?? `access-${i}`)).size,
     automatedClicks: selectedClicks.filter(c => c.is_automated).length,
     totalAccesses: selectedClicks.length,
     historyUnmeasured: !trackingStartedAt || start < Date.parse(trackingStartedAt),

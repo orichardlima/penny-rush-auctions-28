@@ -415,11 +415,10 @@ export default function AffiliateDashboard() {
                   <Users className="h-5 w-5 text-purple-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-purple-600">{metrics?.historyUnmeasured && metrics.totalAccesses === 0 ? '—' : count(metrics?.clicks)}</div>
+                  <div className="text-3xl font-bold text-purple-600">{count(metrics?.clicks)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {metrics ? `${metrics.automatedClicks} acessos com sinais de automação · ${metrics.totalAccesses} acessos medidos` : '—'}
+                    {metrics?.historyUnmeasured && metrics.trackingStartedAt ? `Pessoas que acessaram seu link · contagem desde ${new Date(metrics.trackingStartedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Bahia' })}` : 'Pessoas que acessaram seu link'}
                   </p>
-                  {metrics?.historyUnmeasured && <p className="text-xs text-muted-foreground mt-1">Histórico anterior não medido{metrics.trackingStartedAt ? ` · medição desde ${new Date(metrics.trackingStartedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Bahia' })}` : ''}</p>}
                 </CardContent>
               </Card>
 
@@ -431,7 +430,7 @@ export default function AffiliateDashboard() {
                 <CardContent>
                   <div className="text-3xl font-bold text-blue-600">{count(metrics?.signups)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {metrics?.historyUnmeasured ? 'Cadastros no período · histórico de cliques incompleto' : 'Cadastros no período'}
+                    Cadastros no período
                   </p>
                 </CardContent>
               </Card>

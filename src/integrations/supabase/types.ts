@@ -181,6 +181,7 @@ export type Database = {
           created_at: string
           id: string
           is_automated: boolean
+          visitor_id: string | null
         }
         Insert: {
           access_id: string
@@ -189,6 +190,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_automated?: boolean
+          visitor_id?: string | null
         }
         Update: {
           access_id?: string
@@ -197,6 +199,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_automated?: boolean
+          visitor_id?: string | null
         }
         Relationships: [
           {
@@ -8171,6 +8174,16 @@ export type Database = {
           p_code: string
           p_is_automated: boolean
           p_reason?: string
+        }
+        Returns: boolean
+      }
+      record_affiliate_click_v2: {
+        Args: {
+          p_access_id: string
+          p_code: string
+          p_is_automated: boolean
+          p_reason?: string
+          p_visitor_id: string
         }
         Returns: boolean
       }

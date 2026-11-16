@@ -5,9 +5,11 @@ import { calculateAffiliateMetrics, type MetricReferral, type MetricCommission, 
 export function useAffiliateMetrics(affiliateId: string | undefined, period: MetricsPeriod) {
   const [records, setRecords] = useState<{ referrals: MetricReferral[]; commissions: MetricCommission[]; clicks: MetricClick[]; startedAt?: string } | null>(null);
   const [error, setError] = useState(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick(n => n + 1), 60000); return () => clearInterval(t); }, []);
   useEffect(() => {
     let cancelled = false;
-    setRecords(null);
+    if (tick === 0) setRecords(null);
     setError(false);
     if (!affiliateId) return;
     async function load() {
@@ -18,7 +20,7 @@ export function useAffiliateMetrics(affiliateId: string | undefined, period: Met
       if (configError) throw configError;
       for (let offset = 0; ; offset += 1000) {
         const { data, error } = await supabase.from('affiliate_click_events')
-          .select('created_at,is_automated').eq('affiliate_id', affiliateId ?? '').order('id').range(offset, offset + 999);
+          .select('created_at,is_automated,visitor_id').eq('affiliate_id', affiliateId ?? '').order('id').range(offset, offset + 999);
         if (error) throw error;
         clicks.push(...(data ?? []));
         if (!data || data.length < 1000) break;
@@ -43,6 +45,6 @@ export function useAffiliateMetrics(affiliateId: string | undefined, period: Met
     }
     load().catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [affiliateId]);
+  }, [affiliateId, tick]);
   return { metrics: records ? calculateAffiliateMetrics(records.referrals, records.commissions, period, new Date(), records.clicks, records.startedAt) : null, error };
 }
