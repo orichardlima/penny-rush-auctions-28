@@ -419,6 +419,11 @@ export default function AffiliateDashboard() {
                   <p className="text-xs text-muted-foreground mt-1">
                     No seu link
                   </p>
+                  {metrics && metrics.inferredClicks > 0 && (
+                    <p className="text-[10px] text-muted-foreground/80 mt-1" title="Antes de 15/11/2026 o sistema não guardava cada acesso; cada cadastro vindo do seu link conta como 1 acesso.">
+                      Inclui acessos anteriores a 15/11 estimados pelos cadastros
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 

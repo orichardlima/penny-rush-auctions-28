@@ -12,6 +12,7 @@ import {
   getStoredPerfUtms,
   setStoredPerfRefCode,
   capturePerfUtmsFromUrl,
+  recordAffiliateAccess,
 } from '@/hooks/useReferralTracking';
 
 const DEFAULT_LANDING = 'https://showdelances.com/';
@@ -37,6 +38,10 @@ const ReferralRedirect = () => {
       // Persiste o ref_code para eventual conversão futura (cadastro).
       setStoredPerfRefCode(code);
       capturePerfUtmsFromUrl();
+
+      // Affiliate funnel: records only when the code belongs to an active affiliate
+      // (server decides); same visitor ID keeps it one person. Max 1.5s wait.
+      await Promise.race([recordAffiliateAccess(code), new Promise(r => setTimeout(r, 1500))]);
 
       const visitor_id = getOrCreateVisitorId();
       const utms = getStoredPerfUtms();

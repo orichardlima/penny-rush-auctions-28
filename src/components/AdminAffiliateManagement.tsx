@@ -903,6 +903,44 @@ export function AdminAffiliateManagement() {
         </TabsContent>
 
         <TabsContent value="audit" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Origem dos cliques por afiliado</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Medidos = acessos registrados (novos e antigos). Inferidos = cadastros vindos do link antes de 15/11/2026 sem acesso registrado (1 por pessoa). Inconclusivos = vínculos manuais ou sem origem comprovada (não contam como clique). Automáticos = robôs/ferramentas (não contam).
+              </p>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Afiliado</TableHead>
+                    <TableHead className="text-right">Medidos (novos)</TableHead>
+                    <TableHead className="text-right">Medidos (antigos)</TableHead>
+                    <TableHead className="text-right">Inferidos</TableHead>
+                    <TableHead className="text-right">Cliques</TableHead>
+                    <TableHead className="text-right">Inconclusivos</TableHead>
+                    <TableHead className="text-right">Automáticos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {affiliates.filter(a => a.click_breakdown && (a.click_breakdown.total_clicks > 0 || a.click_breakdown.inconclusive > 0 || a.click_breakdown.automated > 0))
+                    .sort((a, b) => (b.click_breakdown?.total_clicks ?? 0) - (a.click_breakdown?.total_clicks ?? 0))
+                    .map(a => (
+                      <TableRow key={a.id}>
+                        <TableCell>{a.affiliate_code}<span className="block text-xs text-muted-foreground">{a.profiles?.full_name}</span></TableCell>
+                        <TableCell className="text-right">{a.click_breakdown?.measured_new}</TableCell>
+                        <TableCell className="text-right">{a.click_breakdown?.measured_legacy}</TableCell>
+                        <TableCell className="text-right">{a.click_breakdown?.inferred}</TableCell>
+                        <TableCell className="text-right font-semibold">{a.click_breakdown?.total_clicks}</TableCell>
+                        <TableCell className="text-right">{a.click_breakdown?.inconclusive}</TableCell>
+                        <TableCell className="text-right">{a.click_breakdown?.automated}</TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
           <AdminAffiliateAuditLog />
         </TabsContent>
 

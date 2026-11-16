@@ -544,6 +544,38 @@ export type Database = {
           },
         ]
       }
+      affiliate_signup_visits: {
+        Row: {
+          affiliate_id: string
+          linked_at: string
+          referred_user_id: string
+          visit_at: string
+          visitor_id: string
+        }
+        Insert: {
+          affiliate_id: string
+          linked_at?: string
+          referred_user_id: string
+          visit_at: string
+          visitor_id: string
+        }
+        Update: {
+          affiliate_id?: string
+          linked_at?: string
+          referred_user_id?: string
+          visit_at?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_signup_visits_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_withdrawals: {
         Row: {
           affiliate_id: string
@@ -6843,6 +6875,18 @@ export type Database = {
         }
         Returns: Json
       }
+      affiliate_click_breakdown: {
+        Args: { p_affiliate_ids?: string[] }
+        Returns: {
+          affiliate_id: string
+          automated: number
+          inconclusive: number
+          inferred: number
+          measured_legacy: number
+          measured_new: number
+          total_clicks: number
+        }[]
+      }
       archive_old_finished_auctions: { Args: never; Returns: undefined }
       attribute_conversion: {
         Args: {
@@ -7858,6 +7902,10 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      link_affiliate_signup_visit: {
+        Args: { p_visitor_id: string }
+        Returns: boolean
+      }
       log_admin_action: {
         Args: {
           p_action_type: string

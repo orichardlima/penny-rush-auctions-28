@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { calculateAffiliateMetrics, clicksWithSignupFloor, type MetricCommission } from '../src/lib/affiliateMetrics';
+import { calculateAffiliateMetrics, classifyReferral, type MetricCommission } from '../src/lib/affiliateMetrics';
 const now = new Date('2026-11-15T23:41:00Z');
+const START = '2026-11-15T23:56:46Z';
 const referrals = [
-  { created_at: '2026-11-14T13:36:12Z', referred_user_id: 'paulo' },
-  { created_at: '2026-11-15T17:20:34Z', referred_user_id: 'nelson' },
+  { created_at: '2026-11-14T13:36:12Z', referred_user_id: 'paulo', click_source: 'direct_signup', user_agent: 'no_click_tracked' },
+  { created_at: '2026-11-15T17:20:34Z', referred_user_id: 'nelson', click_source: 'direct_signup', user_agent: 'no_click_tracked' },
 ];
 const commission: MetricCommission = { created_at: '2026-11-15T14:43:12Z', approved_at: '2026-11-15T14:43:12Z', paid_at: null, referred_user_id: 'paulo', commission_amount: 12, status: 'approved' };
 test.describe('Affiliate indicators without financial writes', () => {
-  test('DNGG has one buyer, two signups, at least two clicks, 50% conversion and R$12 earned', () => {
-    const result = calculateAffiliateMetrics(referrals, [commission], '30d', now);
-    expect([result.buyers, result.signups, result.conversion, result.earned, result.averageCommission]).toEqual([1, 2, 50, 12, 12]);
-    expect(result.clicks).toBe(2);
-    expect(result.historyUnmeasured).toBe(true);
+  test('DNGG shows 2 clicks (both historical inferred), 2 signups, 1 buyer and R$12', () => {
+    const result = calculateAffiliateMetrics(referrals, [commission], '30d', now, [], START);
+    expect([result.clicks, result.measuredClicks, result.inferredClicks, result.signups, result.buyers]).toEqual([2, 0, 2, 2, 1]);
+    expect([result.conversion, result.earned]).toEqual([50, 12]);
   });
   test('Repurchases do not add another unique buyer', () => {
     expect(calculateAffiliateMetrics(referrals, [commission, { ...commission, commission_amount: 3 }], 'all', now).buyers).toBe(1);
@@ -33,22 +33,32 @@ test.describe('Affiliate indicators without financial writes', () => {
     expect(JSON.stringify([referrals, commission])).toBe(before);
   });
 });
-test('Signups set the click minimum, automation stays separate and period filters actual events', () => {
+test('Automation stays separate and the period filters real events', () => {
   const clicks = [
-    { created_at: '2026-11-15T15:00:00Z', is_automated: false },
-    { created_at: '2026-11-15T16:00:00Z', is_automated: true },
-    { created_at: '2026-11-01T15:00:00Z', is_automated: false },
+    { created_at: '2026-11-15T15:00:00Z', is_automated: false, visitor_id: 'a' },
+    { created_at: '2026-11-15T16:00:00Z', is_automated: true, visitor_id: 'bot' },
+    { created_at: '2026-11-01T15:00:00Z', is_automated: false, visitor_id: 'b' },
   ];
-  const before = calculateAffiliateMetrics([], [], '7d', now, clicks, '2026-11-01T00:00:00Z');
-  const after = calculateAffiliateMetrics(referrals, [commission], '7d', now, clicks, '2026-11-01T00:00:00Z');
-  expect([before.clicks, after.clicks, after.automatedClicks, after.totalAccesses]).toEqual([1, 2, 1, 2]);
-  expect(after.historyUnmeasured).toBe(false);
-  expect(calculateAffiliateMetrics(referrals, [commission], '30d', now, clicks, '2026-11-01T00:00:00Z').historyUnmeasured).toBe(true);
+  const m = calculateAffiliateMetrics([], [], '7d', now, clicks, START);
+  expect([m.clicks, m.automatedClicks, m.totalAccesses]).toEqual([1, 1, 2]);
 });
-test('All affiliate click displays keep the signup floor, even with stale admin counters', () => {
-  expect(clicksWithSignupFloor(3, 4)).toBe(4);
-  expect(clicksWithSignupFloor(10, 5)).toBe(10);
-  expect(clicksWithSignupFloor(0, 0)).toBe(0);
+test('New signups never become clicks automatically after the attribution window', () => {
+  const late = { created_at: '2026-12-20T10:00:00Z', referred_user_id: 'x', click_source: 'direct_signup', user_agent: 'no_click_tracked' };
+  const m = calculateAffiliateMetrics([late], [], '7d', new Date('2026-12-21T00:00:00Z'), [], START);
+  expect([m.clicks, m.signups, m.inconclusiveSignups]).toEqual([0, 1, 1]);
+});
+test('Signup linked to a measured visit is not counted twice', () => {
+  const at = '2026-11-16T10:00:00Z';
+  const r = { created_at: '2026-11-16T10:05:00Z', referred_user_id: 'u', click_source: 'direct_signup', user_agent: 'no_click_tracked' };
+  const m = calculateAffiliateMetrics([r], [], '7d', new Date('2026-11-17T00:00:00Z'), [{ created_at: at, is_automated: false, visitor_id: 'v' }], START, new Set(['u']));
+  expect([m.clicks, m.measuredClicks, m.inferredClicks]).toEqual([1, 1, 0]);
+});
+test('Legacy classification: real visit, inferred, manual and orphan rows', () => {
+  const none = new Set<string>();
+  expect(classifyReferral({ created_at: '2025-12-02T17:51:05Z', referred_user_id: null, click_source: 'https://showdelances.com/?ref=AFILIA0CB5', user_agent: 'Mozilla' }, START, none)).toBe('measured');
+  expect(classifyReferral({ created_at: '2026-03-01T00:00:00Z', referred_user_id: 'p', click_source: 'direct_signup', user_agent: 'no_click_tracked' }, START, none)).toBe('inferred');
+  expect(classifyReferral({ created_at: '2025-12-02T17:02:18Z', referred_user_id: 'p', click_source: 'manual_admin_link', user_agent: 'x' }, START, none)).toBe('inconclusive');
+  expect(classifyReferral({ created_at: '2026-01-14T21:10:45Z', referred_user_id: null, click_source: 'direct_signup', user_agent: 'no_click_tracked' }, START, none)).toBe('inconclusive');
 });
 test('10 distinct visitors, 5 signups, 3 buyers -> 10 | 5 | 3; repeats do not inflate', async () => {
   const now = new Date('2026-11-16T12:00:00Z');
@@ -58,6 +68,6 @@ test('10 distinct visitors, 5 signups, 3 buyers -> 10 | 5 | 3; repeats do not in
   clicks.push({ created_at: at, is_automated: true, visitor_id: 'bot' });
   const referrals = Array.from({ length: 5 }, (_, i) => ({ created_at: at, referred_user_id: `u${i}` }));
   const commissions = [0, 1, 2, 2, 2].map(i => ({ created_at: at, approved_at: at, paid_at: null, referred_user_id: `u${i}`, commission_amount: 0, status: 'approved' }));
-  const m = calculateAffiliateMetrics(referrals, commissions, '7d', now, clicks, '2026-11-01T00:00:00Z');
+  const m = calculateAffiliateMetrics(referrals.map(r => ({ ...r, click_source: 'direct_signup', user_agent: 'no_click_tracked' })), commissions, '7d', now, clicks, '2026-11-01T00:00:00Z', new Set(referrals.map(r => r.referred_user_id)));
   expect([m.clicks, m.signups, m.buyers]).toEqual([10, 5, 3]);
 });

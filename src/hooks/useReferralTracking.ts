@@ -7,6 +7,9 @@ const captureClick = createAffiliateClickCapture(async body => {
   return !error && data?.recorded === true;
 }, undefined, getAffiliateVisitorId);
 
+// Used by /r/:code so short links feed the affiliate funnel once per visitor.
+export const recordAffiliateAccess = (code: string) => captureClick(code);
+
 const REFERRAL_COOKIE_KEY = 'ref_code';
 const REFERRAL_STORAGE_KEY = 'affiliate_referral';
 const COOKIE_EXPIRY_DAYS = 30;
@@ -51,7 +54,21 @@ export const useReferralTracking = () => {
     };
 
     trackReferral();
+    // Link this signed-in user's signup to the measured link visit (if any),
+    // so the same person is never counted as both measured and inferred.
+    const linkSignup = (userId?: string) => {
+      if (!userId) return;
+      const flag = `aff_signup_linked_${userId}`;
+      const today = new Date().toISOString().slice(0, 10);
+      try { const v = localStorage.getItem(flag); if (v === '1' || v === today) return; localStorage.setItem(flag, today); } catch { return; }
+      const visitor = getAffiliateVisitorId();
+      if (!visitor) return;
+      void (supabase.rpc as any)('link_affiliate_signup_visit', { p_visitor_id: visitor })
+        .then(({ data }: { data: boolean | null }) => { if (data) localStorage.setItem(flag, '1'); });
+    };
+    const { data: authSub } = supabase.auth.onAuthStateChange((_e, session) => linkSignup(session?.user?.id));
     return () => {
+      authSub.subscription.unsubscribe();
       if (retryTimer) clearTimeout(retryTimer);
       window.removeEventListener('online', capture);
     };

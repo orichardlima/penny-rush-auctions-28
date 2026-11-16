@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { clicksWithSignupFloor } from '@/lib/affiliateMetrics';
 
 interface Affiliate {
   id: string;
@@ -13,6 +12,7 @@ interface Affiliate {
   cpa_value_per_conversion: number;
   cpa_conversions_target: number;
   total_referrals: number;
+  click_breakdown?: { measured_new: number; measured_legacy: number; inferred: number; inconclusive: number; automated: number; total_clicks: number } | null;
   total_signups: number;
   total_conversions: number;
   commission_balance: number;
@@ -88,6 +88,8 @@ export const useAdminAffiliates = () => {
       // Buscar profiles separadamente
       if (data && data.length > 0) {
         const userIds = data.map(a => a.user_id);
+        const { data: breakdown } = await (supabase.rpc as any)('affiliate_click_breakdown', { p_affiliate_ids: null });
+        const byId = new Map<string, any>((breakdown ?? []).map((b: any) => [b.affiliate_id, b]));
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('user_id, full_name, email')
@@ -96,8 +98,9 @@ export const useAdminAffiliates = () => {
         // Mapear profiles para affiliates
         const affiliatesWithProfiles = data.map(affiliate => ({
           ...affiliate,
-          // Cached counters can drift; never display fewer clicks than signups.
-          total_referrals: clicksWithSignupFloor(Number(affiliate.total_referrals ?? 0), Number(affiliate.total_signups ?? 0)),
+          // Clicks = measured visits + historical inferred visits (never the old counter).
+          total_referrals: Number(byId.get(affiliate.id)?.total_clicks ?? 0),
+          click_breakdown: byId.get(affiliate.id) ?? null,
           profiles: profilesData?.find(p => p.user_id === affiliate.user_id),
         }));
         
