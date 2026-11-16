@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { calculateAffiliateMetrics, type MetricCommission } from '../src/lib/affiliateMetrics';
+import { calculateAffiliateMetrics, clicksWithSignupFloor, type MetricCommission } from '../src/lib/affiliateMetrics';
 const now = new Date('2026-11-15T23:41:00Z');
 const referrals = [
   { created_at: '2026-11-14T13:36:12Z', referred_user_id: 'paulo' },
@@ -44,6 +44,11 @@ test('Signups set the click minimum, automation stays separate and period filter
   expect([before.clicks, after.clicks, after.automatedClicks, after.totalAccesses]).toEqual([1, 2, 1, 2]);
   expect(after.historyUnmeasured).toBe(false);
   expect(calculateAffiliateMetrics(referrals, [commission], '30d', now, clicks, '2026-11-01T00:00:00Z').historyUnmeasured).toBe(true);
+});
+test('All affiliate click displays keep the signup floor, even with stale admin counters', () => {
+  expect(clicksWithSignupFloor(3, 4)).toBe(4);
+  expect(clicksWithSignupFloor(10, 5)).toBe(10);
+  expect(clicksWithSignupFloor(0, 0)).toBe(0);
 });
 test('10 distinct visitors, 5 signups, 3 buyers -> 10 | 5 | 3; repeats do not inflate', async () => {
   const now = new Date('2026-11-16T12:00:00Z');

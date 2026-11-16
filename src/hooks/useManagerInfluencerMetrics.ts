@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { clicksWithSignupFloor } from '@/lib/affiliateMetrics';
 
 export interface InfluencerMetric {
   link_id: string;
@@ -58,7 +59,7 @@ export const useManagerInfluencerMetrics = (managerAffiliateId: string | null) =
 
       const list: InfluencerMetric[] = (data || []).map((d: any) => ({
         ...d,
-        total_clicks: Number(d.total_clicks || 0),
+        total_clicks: clicksWithSignupFloor(Number(d.total_clicks || 0), Number(d.total_signups || 0)),
         total_signups: Number(d.total_signups || 0),
         unique_buyers: Number(d.unique_buyers || 0),
         conversion_rate: Number(d.conversion_rate || 0),

@@ -642,7 +642,7 @@ export default function AffiliateDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PerformanceChart data={metrics?.chart ?? []} />
               <ConversionPieChart 
-                totalReferrals={metrics?.signups ?? 0}
+                totalReferrals={metrics?.clicks ?? 0}
                 totalConversions={metrics?.buyers ?? 0}
               />
             </div>

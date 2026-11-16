@@ -5,6 +5,9 @@ export interface MetricCommission {
   created_at: string; approved_at: string | null; paid_at: string | null;
   referred_user_id: string; commission_amount: number; status: string;
 }
+export function clicksWithSignupFloor(measuredClicks: number, signups: number) {
+  return Math.max(measuredClicks, signups);
+}
 export function calculateAffiliateMetrics(referrals: MetricReferral[], commissions: MetricCommission[], period: MetricsPeriod, now = new Date(), clicks: MetricClick[] = [], trackingStartedAt?: string) {
   const end = now.getTime();
   const days = period === 'all' ? null : Number(period.slice(0, -1));
@@ -33,7 +36,7 @@ export function calculateAffiliateMetrics(referrals: MetricReferral[], commissio
   // This repairs the indicator without fabricating historical click events.
   const measuredClicks = new Set(selectedClicks.filter(c => !c.is_automated).map((c, i) => c.visitor_id ?? `access-${i}`)).size;
   return {
-    clicks: Math.max(measuredClicks, signups),
+    clicks: clicksWithSignupFloor(measuredClicks, signups),
     automatedClicks: selectedClicks.filter(c => c.is_automated).length,
     totalAccesses: selectedClicks.length,
     historyUnmeasured: !trackingStartedAt || start < Date.parse(trackingStartedAt),

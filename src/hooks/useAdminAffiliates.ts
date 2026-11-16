@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { clicksWithSignupFloor } from '@/lib/affiliateMetrics';
 
 interface Affiliate {
   id: string;
@@ -12,6 +13,7 @@ interface Affiliate {
   cpa_value_per_conversion: number;
   cpa_conversions_target: number;
   total_referrals: number;
+  total_signups: number;
   total_conversions: number;
   commission_balance: number;
   total_commission_earned: number;
@@ -94,6 +96,8 @@ export const useAdminAffiliates = () => {
         // Mapear profiles para affiliates
         const affiliatesWithProfiles = data.map(affiliate => ({
           ...affiliate,
+          // Cached counters can drift; never display fewer clicks than signups.
+          total_referrals: clicksWithSignupFloor(Number(affiliate.total_referrals ?? 0), Number(affiliate.total_signups ?? 0)),
           profiles: profilesData?.find(p => p.user_id === affiliate.user_id),
         }));
         
