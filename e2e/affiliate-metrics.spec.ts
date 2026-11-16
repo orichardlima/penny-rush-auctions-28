@@ -7,10 +7,10 @@ const referrals = [
 ];
 const commission: MetricCommission = { created_at: '2026-11-15T14:43:12Z', approved_at: '2026-11-15T14:43:12Z', paid_at: null, referred_user_id: 'paulo', commission_amount: 12, status: 'approved' };
 test.describe('Affiliate indicators without financial writes', () => {
-  test('DNGG has one buyer, two signups, 50% conversion and R$12 earned', () => {
+  test('DNGG has one buyer, two signups, at least two clicks, 50% conversion and R$12 earned', () => {
     const result = calculateAffiliateMetrics(referrals, [commission], '30d', now);
     expect([result.buyers, result.signups, result.conversion, result.earned, result.averageCommission]).toEqual([1, 2, 50, 12, 12]);
-    expect(result.clicks).toBe(0);
+    expect(result.clicks).toBe(2);
     expect(result.historyUnmeasured).toBe(true);
   });
   test('Repurchases do not add another unique buyer', () => {
@@ -33,7 +33,7 @@ test.describe('Affiliate indicators without financial writes', () => {
     expect(JSON.stringify([referrals, commission])).toBe(before);
   });
 });
-test('Clicks survive signup, automation stays separate and period filters actual events', () => {
+test('Signups set the click minimum, automation stays separate and period filters actual events', () => {
   const clicks = [
     { created_at: '2026-11-15T15:00:00Z', is_automated: false },
     { created_at: '2026-11-15T16:00:00Z', is_automated: true },
@@ -41,7 +41,7 @@ test('Clicks survive signup, automation stays separate and period filters actual
   ];
   const before = calculateAffiliateMetrics([], [], '7d', now, clicks, '2026-11-01T00:00:00Z');
   const after = calculateAffiliateMetrics(referrals, [commission], '7d', now, clicks, '2026-11-01T00:00:00Z');
-  expect([before.clicks, after.clicks, after.automatedClicks, after.totalAccesses]).toEqual([1, 1, 1, 2]);
+  expect([before.clicks, after.clicks, after.automatedClicks, after.totalAccesses]).toEqual([1, 2, 1, 2]);
   expect(after.historyUnmeasured).toBe(false);
   expect(calculateAffiliateMetrics(referrals, [commission], '30d', now, clicks, '2026-11-01T00:00:00Z').historyUnmeasured).toBe(true);
 });

@@ -29,9 +29,11 @@ export function calculateAffiliateMetrics(referrals: MetricReferral[], commissio
     const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(earnedDate(c)));
     daily.set(date, (daily.get(date) ?? 0) + Number(c.commission_amount));
   }
+  // Distinct measured people, with each signup proving at least one link access.
+  // This repairs the indicator without fabricating historical click events.
+  const measuredClicks = new Set(selectedClicks.filter(c => !c.is_automated).map((c, i) => c.visitor_id ?? `access-${i}`)).size;
   return {
-    // Distinct people: one per visitor ID; legacy rows without ID count individually.
-    clicks: new Set(selectedClicks.filter(c => !c.is_automated).map((c, i) => c.visitor_id ?? `access-${i}`)).size,
+    clicks: Math.max(measuredClicks, signups),
     automatedClicks: selectedClicks.filter(c => c.is_automated).length,
     totalAccesses: selectedClicks.length,
     historyUnmeasured: !trackingStartedAt || start < Date.parse(trackingStartedAt),

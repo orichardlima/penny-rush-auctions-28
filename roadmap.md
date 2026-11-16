@@ -8,6 +8,7 @@
 - [x] Substituir contadores acumulados por registros reais e compradores únicos; filtrar indicadores e gráfico por período. Saldos continuam atuais, sem filtro; históricos e saques mantêm seus próprios controles.
 - [x] Testar caso DNGG (R$12, 2 cadastros, 1 comprador, 50%) e preservar todos os registros financeiros: 5 testes aprovados, leitura final confirma R$12/R$12, 1 comprador, 2 cadastros e 0 cliques registrados; build OK.
 - [x] Card de Cliques com os textos originais do print do Richard: título "Cliques" e linha "No seu link"; a data de início da contagem continua nos cálculos e no painel administrativo.
+- [x] Cliques nunca abaixo dos cadastros do período: cada cadastro comprova pelo menos um acesso, sem criar eventos retroativos nem alterar finanças; caso DNGG validado com 2 cliques e 7 testes aprovados.
 - [ ] Validar painel autenticado — depende de sessão disponível no Supabase externo.
 
 # Acesso como parceiro pelo administrador — 15/11
