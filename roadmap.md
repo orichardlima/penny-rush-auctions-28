@@ -7,6 +7,7 @@
 # Indicadores do painel de afiliado — 15/11
 - [x] Substituir contadores acumulados por registros reais e compradores únicos; filtrar indicadores e gráfico por período. Saldos continuam atuais, sem filtro; históricos e saques mantêm seus próprios controles.
 - [x] Testar caso DNGG (R$12, 2 cadastros, 1 comprador, 50%) e preservar todos os registros financeiros: 5 testes aprovados, leitura final confirma R$12/R$12, 1 comprador, 2 cadastros e 0 cliques registrados; build OK.
+- [x] Card de Cliques simplificado para "Cliques no link" sem a frase da data na tela do afiliado; a data de início da contagem continua nos cálculos e no painel administrativo.
 - [ ] Validar painel autenticado — depende de sessão disponível no Supabase externo.
 
 # Acesso como parceiro pelo administrador — 15/11

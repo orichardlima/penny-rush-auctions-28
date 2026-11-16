@@ -411,13 +411,13 @@ export default function AffiliateDashboard() {
 
               <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-lg transition-all">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Cliques</CardTitle>
+                  <CardTitle className="text-sm font-medium">Cliques no link</CardTitle>
                   <Users className="h-5 w-5 text-purple-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-purple-600">{count(metrics?.clicks)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {metrics?.historyUnmeasured && metrics.trackingStartedAt ? `Pessoas que acessaram seu link · contagem desde ${new Date(metrics.trackingStartedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Bahia' })}` : 'Pessoas que acessaram seu link'}
+                    Pessoas no período
                   </p>
                 </CardContent>
               </Card>
