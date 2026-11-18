@@ -225,6 +225,10 @@ const PartnerWithdrawalSection: React.FC<PartnerWithdrawalSectionProps> = ({ con
           <strong>O que são Saques?</strong> Após seus repasses serem creditados pelo admin, 
           o valor fica disponível aqui para você transferir para sua conta PIX. 
           Saques aprovados são processados em até 48h úteis.
+          <br />
+          <strong>Titularidade:</strong> solicite saques apenas para conta ou chave PIX em seu nome.
+          Pessoa física recebe só em conta de pessoa física (mesmo CPF); empresa, só em conta de empresa
+          (mesmo CNPJ). O banco não aprova contas de terceiros.
         </AlertDescription>
       </Alert>
 
