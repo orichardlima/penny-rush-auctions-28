@@ -104,7 +104,18 @@ const TermosDeUso = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-4">8. Suspensão e Cancelamento</h2>
+              <h2 className="text-xl font-semibold mb-4">8. Saques e Titularidade Bancária</h2>
+              <ul className="list-disc list-inside text-muted-foreground space-y-2">
+                <li>Todos os saques (repasses, comissões e bonificações) devem ser feitos obrigatoriamente para conta bancária ou chave PIX de mesma titularidade do titular do cadastro.</li>
+                <li>O banco e a plataforma não autorizam nem aprovam pagamentos para contas de terceiros.</li>
+                <li>Pessoa Física (CPF): saques somente para conta/PIX da mesma pessoa física, com o mesmo CPF do cadastro.</li>
+                <li>Pessoa Jurídica (CNPJ): saques somente para conta/PIX da mesma empresa, com o mesmo CNPJ do cadastro, não sendo permitida conta de pessoa física ou de terceiros.</li>
+                <li>Saques com divergência de titularidade ou de tipo de documento (Pessoa Física x Pessoa Jurídica) não serão processados pelo banco e serão recusados pela administração.</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-4">9. Suspensão e Cancelamento</h2>
               <p className="text-muted-foreground leading-relaxed">
                 Reservamo-nos o direito de suspender ou cancelar contas que violem estes termos, 
                 sem aviso prévio e sem direito a reembolso de lances não utilizados.
@@ -112,7 +123,7 @@ const TermosDeUso = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-4">9. Limitação de Responsabilidade</h2>
+              <h2 className="text-xl font-semibold mb-4">10. Limitação de Responsabilidade</h2>
               <p className="text-muted-foreground leading-relaxed">
                 O Show de Lances não se responsabiliza por interrupções no serviço causadas por 
                 fatores fora de nosso controle, incluindo problemas de conexão do usuário, 
@@ -121,7 +132,7 @@ const TermosDeUso = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-4">10. Alterações nos Termos</h2>
+              <h2 className="text-xl font-semibold mb-4">11. Alterações nos Termos</h2>
               <p className="text-muted-foreground leading-relaxed">
                 Podemos atualizar estes termos periodicamente. Alterações significativas serão 
                 comunicadas por e-mail ou através de aviso na plataforma. O uso continuado após 
@@ -130,7 +141,7 @@ const TermosDeUso = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-4">11. Contato</h2>
+              <h2 className="text-xl font-semibold mb-4">12. Contato</h2>
               <p className="text-muted-foreground leading-relaxed">
                 Para dúvidas sobre estes termos, entre em contato através da nossa{" "}
                 <Link to="/contato" className="text-primary hover:underline">página de contato</Link>.
@@ -138,7 +149,7 @@ const TermosDeUso = () => {
             </section>
 
             <p className="text-sm text-muted-foreground mt-8">
-              Última atualização: Janeiro de 2026
+              Última atualização: Novembro de 2026
             </p>
           </div>
         </div>
