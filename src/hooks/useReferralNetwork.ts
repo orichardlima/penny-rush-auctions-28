@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { countByLevel, isActiveReferralBonus, isReferralNetworkEvent } from '@/lib/referralCounts';
+import { countByLevel, countUniqueReferralNodes, isActiveReferralBonus, isReferralNetworkEvent } from '@/lib/referralCounts';
 
 export interface ReferralNode {
   id: string;
@@ -183,47 +183,29 @@ export const useReferralNetwork = () => {
           };
         };
 
-        // Create all nodes
-        const nodesMap = new Map<string, ReferralNode>();
-        networkBonuses.forEach(bonus => {
-          nodesMap.set(bonus.referred_contract_id, createNode(bonus));
-        });
-
-        // Build hierarchy - for each level 2 node, find its L1 parent
-        // A level 2 bonus means the referred person was referred by one of our L1 referrals
+        // Cada bônus normal tem seu próprio cartão; ativação e upgrade não compartilham mais o mesmo nó.
         const rootNodes: ReferralNode[] = [];
 
         level1Bonuses.forEach(bonus => {
-          const node = nodesMap.get(bonus.referred_contract_id);
-          if (node) {
-            // Find level 2 children - these are people referred by this L1 person
-            const l1UserContract = bonus.referred_contract_id;
-            const l1UserId = bonus.referred_user_id;
-            
-            level2Bonuses.forEach(l2Bonus => {
-              // Check if the L2 person was referred by the L1 user
-              const l2ReferredBy = contractReferredByMap.get(l2Bonus.referred_contract_id);
-              if (l2ReferredBy === l1UserId) {
-                const l2Node = nodesMap.get(l2Bonus.referred_contract_id);
-                if (l2Node) {
-                  const l2UserId = l2Bonus.referred_user_id;
-                  
-                  // Find level 3 children for this L2 node
-                  level3Bonuses.forEach(l3Bonus => {
-                    const l3ReferredBy = contractReferredByMap.get(l3Bonus.referred_contract_id);
-                    if (l3ReferredBy === l2UserId) {
-                      const l3Node = nodesMap.get(l3Bonus.referred_contract_id);
-                      if (l3Node) {
-                        l2Node.children.push(l3Node);
-                      }
-                    }
-                  });
-                  node.children.push(l2Node);
+          const node = createNode(bonus);
+          const l1UserId = bonus.referred_user_id;
+
+          level2Bonuses.forEach(l2Bonus => {
+            const l2ReferredBy = contractReferredByMap.get(l2Bonus.referred_contract_id);
+            if (l2ReferredBy === l1UserId) {
+              const l2Node = createNode(l2Bonus);
+              const l2UserId = l2Bonus.referred_user_id;
+
+              level3Bonuses.forEach(l3Bonus => {
+                const l3ReferredBy = contractReferredByMap.get(l3Bonus.referred_contract_id);
+                if (l3ReferredBy === l2UserId) {
+                  l2Node.children.push(createNode(l3Bonus));
                 }
-              }
-            });
-            rootNodes.push(node);
-          }
+              });
+              node.children.push(l2Node);
+            }
+          });
+          rootNodes.push(node);
         });
 
         return rootNodes;
@@ -294,14 +276,8 @@ export const useReferralNetwork = () => {
     return filterTree(networkTree, searchQuery, statusFilter, levelFilter);
   }, [networkTree, searchQuery, statusFilter, levelFilter, filterTree]);
 
-  // Count filtered nodes
-  const countNodes = useCallback((nodes: ReferralNode[]): number => {
-    return nodes.reduce((count, node) => {
-      return count + 1 + countNodes(node.children);
-    }, 0);
-  }, []);
-
-  const filteredCount = useMemo(() => countNodes(filteredTree), [filteredTree, countNodes]);
+  // O texto "indicações" conta pessoas únicas, não cartões de ativação/upgrade.
+  const filteredCount = useMemo(() => countUniqueReferralNodes(filteredTree), [filteredTree]);
 
   // Check if any filter is active
   const hasActiveFilters = searchQuery !== '' || statusFilter !== null || levelFilter !== null;

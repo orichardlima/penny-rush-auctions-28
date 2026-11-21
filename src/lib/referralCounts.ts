@@ -25,6 +25,27 @@ export const isReferralNetworkEvent = (b: CountableReferralBonus): boolean =>
 export const countUniqueReferrals = (bonuses: CountableReferralBonus[]): number =>
   new Set(bonuses.filter(isActiveReferralBonus).map(b => b.referred_user_id)).size;
 
+export interface NestedReferralNode {
+  userId: string;
+  bonusStatus?: string;
+  children: NestedReferralNode[];
+}
+
+/** Total de pessoas na árvore filtrada, mesmo quando há vários eventos da mesma pessoa. */
+export const countUniqueReferralNodes = (nodes: NestedReferralNode[]): number => {
+  const userIds = new Set<string>();
+  const visit = (items: NestedReferralNode[]) => {
+    items.forEach((node) => {
+      if ((node.bonusStatus || '').toUpperCase() !== 'CANCELLED') {
+        userIds.add(node.userId);
+      }
+      visit(node.children);
+    });
+  };
+  visit(nodes);
+  return userIds.size;
+};
+
 /** Pessoas únicas por nível (1, 2, 3) + total geral. */
 export const countByLevel = (bonuses: CountableReferralBonus[]) => {
   const active = bonuses.filter(isActiveReferralBonus);

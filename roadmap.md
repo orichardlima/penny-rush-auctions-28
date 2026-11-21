@@ -3,6 +3,7 @@
 - [x] Corrigir as metas para contar pessoas indicadas distintas; upgrade da mesma pessoa não conta como nova indicação.
 - [x] Impedir que adicionais de Início Rápido criem cartões repetidos na rede e validar com 2 testes aprovados.
 - [x] Confirmar que os 170 bônus creditados, seus valores e os saldos permaneceram intactos.
+- [x] Revisar todas as telas, fluxos, rotinas e funções que contam indicados ou montam a rede; corrigir cartões reutilizados entre eventos, contador filtrado e extrato antigo de compras, sem alterar registros liquidados; 13 testes aprovados.
 
 # Captura independente de cliques — 15/11
 - [x] Registrar entradas públicas em eventos independentes; repetir ID deduplica, recarregar gera novo acesso; automação classificada pelo serviço.

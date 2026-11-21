@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  countUniqueReferralNodes,
   countUniqueReferrals,
   isReferralNetworkEvent,
   type CountableReferralBonus,
@@ -29,4 +30,13 @@ test('Adicional de Início Rápido não cria outro cartão para o mesmo indicado
 
   expect([activation, upgrade, fastStart].filter(isReferralNetworkEvent)).toHaveLength(2);
   expect(isReferralNetworkEvent(fastStart)).toBe(false);
+});
+
+test('O contador com filtro conta uma pessoa mesmo com dois cartões de eventos', () => {
+  const oberdanActivation = { userId: 'oberdan', children: [] };
+  const oberdanUpgrade = { userId: 'oberdan', children: [] };
+  const rubemActivation = { userId: 'rubem', children: [] };
+
+  expect(countUniqueReferralNodes([oberdanActivation, oberdanUpgrade, rubemActivation])).toBe(2);
+  expect(countUniqueReferralNodes([{ ...oberdanActivation, bonusStatus: 'CANCELLED' }])).toBe(0);
 });

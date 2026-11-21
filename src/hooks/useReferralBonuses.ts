@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { countUniqueReferrals } from '@/lib/referralCounts';
 
 export interface ReferralBonus {
   id: string;
@@ -73,7 +74,7 @@ export const useReferralBonuses = () => {
   }, [profile?.user_id, fetchBonuses]);
 
   const stats = {
-    total: bonuses.length,
+    total: countUniqueReferrals(bonuses),
     pending: bonuses.filter(b => b.status === 'PENDING').length,
     available: bonuses.filter(b => b.status === 'AVAILABLE').length,
     used: bonuses.filter(b => b.status === 'USED').length,
