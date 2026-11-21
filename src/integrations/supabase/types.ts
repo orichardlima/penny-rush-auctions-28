@@ -4373,6 +4373,75 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_referral_bonus_override_audit: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_is_active: boolean | null
+          new_percentage: number | null
+          old_is_active: boolean | null
+          old_percentage: number | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_is_active?: boolean | null
+          new_percentage?: number | null
+          old_is_active?: boolean | null
+          old_percentage?: number | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_is_active?: boolean | null
+          new_percentage?: number | null
+          old_is_active?: boolean | null
+          old_percentage?: number | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      partner_referral_bonus_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          percentage: number
+          reason: string | null
+          set_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          percentage: number
+          reason?: string | null
+          set_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          percentage?: number
+          reason?: string | null
+          set_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       partner_referral_bonuses: {
         Row: {
           aporte_value: number
@@ -6861,6 +6930,15 @@ export type Database = {
             }
             Returns: string
           }
+      admin_set_referral_bonus_override: {
+        Args: {
+          p_is_active: boolean
+          p_percentage: number
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       admin_settle_credit_debt: {
         Args: {
           _amount?: number
