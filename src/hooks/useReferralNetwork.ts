@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { countByLevel, isActiveReferralBonus } from '@/lib/referralCounts';
+import { countByLevel, isActiveReferralBonus, isReferralNetworkEvent } from '@/lib/referralCounts';
 
 export interface ReferralNode {
   id: string;
@@ -75,9 +75,12 @@ export const useReferralNetwork = () => {
         return;
       }
 
+      // Início Rápido é um adicional do evento original, não um novo cartão na rede.
+      const networkBonuses = allBonuses.filter(isReferralNetworkEvent);
+
       // Get all referred user IDs and contract IDs
-      const referredUserIds = [...new Set(allBonuses.map(b => b.referred_user_id))];
-      const referredContractIds = [...new Set(allBonuses.map(b => b.referred_contract_id))];
+      const referredUserIds = [...new Set(networkBonuses.map(b => b.referred_user_id))];
+      const referredContractIds = [...new Set(networkBonuses.map(b => b.referred_contract_id))];
 
       // Fetch profiles and contracts via SECURITY DEFINER RPCs
       const [profilesResult, contractsResult] = await Promise.all([
@@ -95,9 +98,9 @@ export const useReferralNetwork = () => {
       );
 
       // Group bonuses by level
-      const level1Bonuses = allBonuses.filter(b => b.referral_level === 1);
-      const level2Bonuses = allBonuses.filter(b => b.referral_level === 2);
-      const level3Bonuses = allBonuses.filter(b => b.referral_level === 3);
+      const level1Bonuses = networkBonuses.filter(b => b.referral_level === 1);
+      const level2Bonuses = networkBonuses.filter(b => b.referral_level === 2);
+      const level3Bonuses = networkBonuses.filter(b => b.referral_level === 3);
 
       // For level 2 and 3, we need to find their parent in level 1 or 2
       // To do this, we need to find the referral chain
@@ -182,7 +185,7 @@ export const useReferralNetwork = () => {
 
         // Create all nodes
         const nodesMap = new Map<string, ReferralNode>();
-        allBonuses.forEach(bonus => {
+        networkBonuses.forEach(bonus => {
           nodesMap.set(bonus.referred_contract_id, createNode(bonus));
         });
 

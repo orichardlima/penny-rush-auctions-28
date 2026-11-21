@@ -4379,6 +4379,8 @@ export type Database = {
           available_at: string | null
           bonus_percentage: number
           bonus_value: number
+          cancellation_reason: string | null
+          cancelled_at: string | null
           created_at: string
           id: string
           is_fast_start_bonus: boolean
@@ -4399,6 +4401,8 @@ export type Database = {
           available_at?: string | null
           bonus_percentage?: number
           bonus_value: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
           id?: string
           is_fast_start_bonus?: boolean
@@ -4419,6 +4423,8 @@ export type Database = {
           available_at?: string | null
           bonus_percentage?: number
           bonus_value?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
           id?: string
           is_fast_start_bonus?: boolean

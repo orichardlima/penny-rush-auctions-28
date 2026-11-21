@@ -11,10 +11,15 @@ export interface CountableReferralBonus {
   referred_user_id: string;
   referral_level?: number | null;
   status?: string | null;
+  is_fast_start_bonus?: boolean | null;
 }
 
 export const isActiveReferralBonus = (b: CountableReferralBonus): boolean =>
   (b.status || '').toUpperCase() !== 'CANCELLED';
+
+/** O adicional de Início Rápido pertence a um evento já existente e não gera outro cartão na rede. */
+export const isReferralNetworkEvent = (b: CountableReferralBonus): boolean =>
+  b.is_fast_start_bonus !== true;
 
 /** Pessoas únicas em uma lista de bônus (já ignora CANCELLED). */
 export const countUniqueReferrals = (bonuses: CountableReferralBonus[]): number =>

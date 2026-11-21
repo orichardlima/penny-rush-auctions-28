@@ -1,3 +1,9 @@
+# Bônus de Início Rápido duplicados na rede — 21/11
+- [x] Cancelar somente os 6 adicionais pendentes (R$ 1.589,94), sem apagar registros e com auditoria da autorização do Richard.
+- [x] Corrigir as metas para contar pessoas indicadas distintas; upgrade da mesma pessoa não conta como nova indicação.
+- [x] Impedir que adicionais de Início Rápido criem cartões repetidos na rede e validar com 2 testes aprovados.
+- [x] Confirmar que os 170 bônus creditados, seus valores e os saldos permaneceram intactos.
+
 # Captura independente de cliques — 15/11
 - [x] Registrar entradas públicas em eventos independentes; repetir ID deduplica, recarregar gera novo acesso; automação classificada pelo serviço.
 - [x] Eventos separados das indicações e nunca consumidos pelo cadastro; painel sinaliza início da medição e histórico incompleto.
